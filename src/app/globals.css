@@ -1,0 +1,403 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   MONO design tokens
+   Private relationship journal · premium date planner · memory archive.
+   Warm near-monochrome neutrals + one signature clay accent + honey ratings.
+   Never hardcode raw hex/px in components — use the tokens below.
+   ========================================================================== */
+
+:root {
+  /* — surfaces & text (light) — */
+  --paper: #f5f1ea; /* app background */
+  --surface: #fdfbf7; /* cards, inputs */
+  --elevated: #ffffff; /* modals, sheets, popovers, sticky bars */
+  --ink: #211c17; /* primary text */
+  --muted: #766c60; /* secondary text */
+  --faint: #a89d8e; /* placeholder / tertiary */
+  --line: #e7dfd3; /* hairline borders */
+  --line-strong: #d6ccbb; /* stronger dividers, scrollbar */
+
+  /* — brand — */
+  --primary: #b45a41; /* clay: warmth without candy pink */
+  --primary-hover: #a04a33;
+  --primary-active: #8a3f2b;
+  --primary-fg: #fdfbf7;
+  --primary-tint: #f1e2db;
+
+  --accent: #6c4664; /* plum: milestones & emphasis */
+  --accent-hover: #5b3a54;
+  --accent-fg: #fdfbf7;
+  --accent-tint: #ece2ea;
+
+  /* — status — */
+  --success: #3f7a58;
+  --success-tint: #e1ede6;
+  --warning: #a9762c;
+  --warning-tint: #f4e8d4;
+  --error: #b03a37;
+  --error-tint: #f4dedd;
+
+  /* — ratings — */
+  --rating: #d29a37; /* honey gold, filled */
+  --rating-track: #e6dcc8; /* empty */
+
+  /* — focus — */
+  --ring: #b45a41;
+
+  /* — motion — */
+  --dur-1: 110ms;
+  --dur-2: 190ms;
+  --dur-3: 300ms;
+  --dur-4: 460ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  /* — layout — */
+  --topbar-h: 3.5rem;
+  --bottomnav-h: 4rem;
+  --sidebar-w: 15.5rem;
+  --content-max: 68rem;
+  --prose-max: 42rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #151210;
+    --surface: #1e1a16;
+    --elevated: #26211c;
+    --ink: #f1eae0;
+    --muted: #a89c8c;
+    --faint: #776d5f;
+    --line: #322b24;
+    --line-strong: #453b32;
+
+    --primary: #d1745a;
+    --primary-hover: #de8570;
+    --primary-active: #bd6349;
+    --primary-fg: #1a120d;
+    --primary-tint: #2d2019;
+
+    --accent: #b189a8;
+    --accent-hover: #c19eb9;
+    --accent-fg: #1a1016;
+    --accent-tint: #2a1f27;
+
+    --success: #71b98d;
+    --success-tint: #1c2a22;
+    --warning: #d7a659;
+    --warning-tint: #2b2316;
+    --error: #e17870;
+    --error-tint: #2e1c1a;
+
+    --rating: #e6b45b;
+    --rating-track: #392f22;
+
+    --ring: #d1745a;
+  }
+}
+
+/* Static tokens — real CSS vars + Tailwind utilities (rounded-*, ease-*, etc.) */
+@theme {
+  --font-sans:
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  --font-display:
+    var(--font-fraunces), ui-serif, Georgia, "Iowan Old Style", "Palatino Linotype",
+    "Times New Roman", serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  --radius-xs: 0.375rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+
+  --shadow-xs: 0 1px 2px 0 rgb(38 26 18 / 0.06);
+  --shadow-sm:
+    0 1px 3px 0 rgb(38 26 18 / 0.09), 0 1px 2px -1px rgb(38 26 18 / 0.06);
+  --shadow-md:
+    0 6px 18px -5px rgb(38 26 18 / 0.13), 0 2px 6px -2px rgb(38 26 18 / 0.07);
+  --shadow-lg:
+    0 18px 44px -14px rgb(38 26 18 / 0.2), 0 6px 14px -8px rgb(38 26 18 / 0.1);
+  --shadow-xl: 0 34px 68px -18px rgb(38 26 18 / 0.28);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  --transition-duration-fast: 110ms;
+  --transition-duration-base: 190ms;
+  --transition-duration-slow: 300ms;
+  --transition-duration-slower: 460ms;
+
+  --breakpoint-xs: 22.5rem;
+
+  --text-2xs: 0.6875rem;
+}
+
+/* Themed tokens — kept as var() so light/dark switch at runtime */
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-tint: var(--primary-tint);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-tint: var(--accent-tint);
+
+  --color-success: var(--success);
+  --color-success-tint: var(--success-tint);
+  --color-warning: var(--warning);
+  --color-warning-tint: var(--warning-tint);
+  --color-error: var(--error);
+  --color-error-tint: var(--error-tint);
+
+  --color-rating: var(--rating);
+  --color-rating-track: var(--rating-track);
+
+  --color-ring: var(--ring);
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-line);
+  }
+
+  /* Stop flex/grid children from forcing horizontal overflow. */
+  :where(section, article, header, footer, main, aside, nav, div, ul, ol, li, p, figure, table) {
+    min-width: 0;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  html,
+  body {
+    /* Nothing may create a horizontal scrollbar; `clip` keeps position: sticky working. */
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  body {
+    width: 100%;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-synthesis-weight: none;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: -0.012em;
+  }
+
+  ::selection {
+    background: var(--color-primary-tint);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* Safe areas (notches, home indicator, keyboard). */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pl-safe {
+    padding-left: env(safe-area-inset-left);
+  }
+  .pr-safe {
+    padding-right: env(safe-area-inset-right);
+  }
+  .inset-b-safe {
+    bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Minimum comfortable touch target. */
+  .tap {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
+  /* Natural, self-contained scrolling — never rely on the browser scrollbar to navigate. */
+  .scroll-area {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
+  }
+  .scroll-x {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  @media (pointer: fine) {
+    .scroll-area::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    .scroll-area::-webkit-scrollbar-thumb {
+      background: var(--color-line-strong);
+      border-radius: 9999px;
+      border: 3px solid transparent;
+      background-clip: padding-box;
+    }
+    .scroll-area::-webkit-scrollbar-thumb:hover {
+      background: var(--color-faint);
+      background-clip: padding-box;
+    }
+    .scroll-area::-webkit-scrollbar-track {
+      background: transparent;
+    }
+  }
+
+  /* Motion language — a small, shared vocabulary. */
+  @keyframes mono-fade {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes mono-rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+  @keyframes mono-scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+  @keyframes mono-sheet-in {
+    from {
+      transform: translateY(100%);
+    }
+  }
+  @keyframes mono-pop {
+    40% {
+      transform: scale(1.16);
+    }
+  }
+  @keyframes mono-shimmer {
+    to {
+      background-position: -200% 0;
+    }
+  }
+  @keyframes mono-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes mono-breathe {
+    0%,
+    100% {
+      transform: translateY(0) scale(1);
+      opacity: 0.92;
+    }
+    50% {
+      transform: translateY(-4px) scale(1.03);
+      opacity: 1;
+    }
+  }
+  @keyframes mono-drift {
+    0%,
+    100% {
+      transform: translate(0, 0);
+    }
+    50% {
+      transform: translate(2%, -3%);
+    }
+  }
+
+  .anim-breathe {
+    animation: mono-breathe 6s var(--ease-in-out) infinite;
+  }
+  .anim-drift {
+    animation: mono-drift 14s var(--ease-in-out) infinite;
+  }
+
+  .anim-fade {
+    animation: mono-fade var(--dur-2) var(--ease-out) both;
+  }
+  .anim-rise {
+    animation: mono-rise var(--dur-3) var(--ease-out) both;
+  }
+  .anim-scale-in {
+    animation: mono-scale-in var(--dur-2) var(--ease-out) both;
+  }
+  .anim-sheet-in {
+    animation: mono-sheet-in var(--dur-3) var(--ease-out) both;
+  }
+  .anim-pop {
+    animation: mono-pop 260ms var(--ease-spring) both;
+  }
+
+  .skeleton {
+    background: linear-gradient(
+      100deg,
+      var(--color-line) 20%,
+      color-mix(in oklab, var(--color-line) 55%, var(--color-surface)) 40%,
+      var(--color-line) 60%
+    );
+    background-size: 200% 100%;
+    animation: mono-shimmer 1.6s linear infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .skeleton {
+    animation: none !important;
+  }
+}

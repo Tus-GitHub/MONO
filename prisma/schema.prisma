@@ -1,0 +1,783 @@
+// MONO — Prisma schema
+// A private two-person relationship / date application.
+//
+// Conventions
+// -----------
+// * IDs are cuid strings.
+// * Money is stored as integer minor units (`*Cents`) plus an ISO-4217 `currency`.
+// * Every table has `createdAt` / `updatedAt`. Long-lived, user-authored records also carry
+//   a nullable `deletedAt` for soft deletion.
+// * Ownership always flows to a Couple. Authorization (see src/lib/authz) resolves the couple
+//   from the authenticated session and checks membership — it never trusts a client-supplied id.
+//
+// Deletion behavior
+// -----------------
+// * Couple deleted  -> all couple-scoped rows cascade (members, dates, places, review
+//   categories, memories, notifications). Expenses/memories tied to a deleted *date* keep the
+//   row and null the `dateId`.
+// * Date deleted     -> activities, photos, reviews, revisit decision cascade. Expenses and
+//   memories are retained with `dateId` set null.
+// * User: structural rows (accounts, reset tokens, memberships, notifications) cascade.
+//   Authored content (created dates/places/couples, uploaded photos, reviews, memories,
+//   expenses, revisit decisions) uses `Restrict` — a user with authored content cannot be
+//   hard-deleted; use `deletedAt`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // Optional: only needed when the app role cannot CREATE DATABASE for `prisma migrate dev`.
+  // shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum AuthProvider {
+  CREDENTIALS
+  GOOGLE
+}
+
+enum CoupleStatus {
+  PENDING // created; waiting for the partner to join
+  ACTIVE // two members connected
+  ARCHIVED // soft-retired
+}
+
+enum CoupleMemberRole {
+  OWNER // created the couple
+  PARTNER // joined via invite code
+}
+
+enum CoupleMemberStatus {
+  INVITED
+  ACTIVE
+  LEFT
+}
+
+enum DateStatus {
+  DRAFT
+  PLANNED
+  TODAY
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum DateActivityKind {
+  PLANNED // part of the plan
+  ACTUAL // what actually happened
+}
+
+enum RevisitChoice {
+  YES
+  NO
+  MAYBE
+}
+
+/**
+ * One person's independent "would you do this again?" call inside a blind review.
+ */
+enum ReviewRevisit {
+  DEFINITELY
+  MAYBE
+  PROBABLY_NOT
+  NEVER_AGAIN
+}
+
+enum PlaceCategory {
+  RESTAURANT
+  CAFE
+  BAR
+  PARK
+  CINEMA
+  MUSEUM
+  ACTIVITY
+  SHOPPING
+  TRAVEL
+  HOME
+  OTHER
+}
+
+enum ExpenseCategory {
+  FOOD
+  DRINKS
+  TRANSPORT // "Travel"
+  TICKETS
+  SHOPPING
+  ACCOMMODATION // "Stay"
+  GIFTS
+  ACTIVITY
+  OTHER
+}
+
+enum ExpensePayer {
+  SHARED // split evenly
+  OWNER
+  PARTNER
+  CUSTOM // an explicit split — see `Expense.ownerShareCents`
+}
+
+enum NotificationType {
+  DATE_REMINDER
+  DATE_PLANNED
+  DATE_STATUS_CHANGED
+  DATE_EDITED
+  REVIEW_ADDED
+  MEMORY_ADDED
+  EXPENSE_ADDED
+  PARTNER_JOINED
+  SYSTEM
+}
+
+/**
+ * A single change to a shared date plan, for collaboration attribution.
+ */
+enum DateEventKind {
+  CREATED
+  TITLE_CHANGED
+  TIME_CHANGED
+  PLACE_CHANGED
+  NOTES_CHANGED
+  BUDGET_CHANGED
+  ACTIVITY_ADDED
+  ACTIVITY_UPDATED
+  ACTIVITY_REMOVED
+  ACTIVITY_REORDERED
+  STATUS_CHANGED
+  // post-date pipeline
+  ACTUALS_RECORDED
+  PHOTO_ADDED
+  BEST_PHOTO_SET
+  REVIEW_WRITTEN
+  REVISIT_DECIDED
+  MEMORY_CREATED
+}
+
+enum ReminderKind {
+  UPCOMING // ahead of the date (e.g. the day before)
+  DATE_DAY // morning of the date
+  REVIEW // after completion, to write a review
+  UNFINISHED_PLAN // a draft left untouched
+}
+
+// ---------------------------------------------------------------------------
+// Identity & authentication
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique // stored lower-cased by the app layer
+  emailVerified DateTime?
+  passwordHash  String? // null for OAuth-only accounts
+  name          String
+  nickname      String? // what their partner calls them
+  pronouns      String?
+  birthday      DateTime?
+  avatarUrl     String? // resolved URL served to the client
+  avatarKey     String? // storage key — source of truth for the avatar object
+  tokenVersion  Int       @default(0) // bump to invalidate every existing session
+
+  // onboarding
+  profileCompletedAt DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  accounts            Account[]
+  passwordResetTokens PasswordResetToken[]
+  memberships         CoupleMember[]
+  notifications       Notification[]
+  sentInvitations     CoupleInvitation[]   @relation("InvitationCreatedBy")
+  acceptedInvitations CoupleInvitation[]   @relation("InvitationAcceptedBy")
+
+  createdCouples         Couple[]                @relation("CoupleCreatedBy")
+  createdDates           Date[]                  @relation("DateCreatedBy")
+  startedDates           Date[]                  @relation("DateStartedBy")
+  createdPlaces          Place[]                 @relation("PlaceCreatedBy")
+  uploadedPhotos         DatePhoto[]             @relation("DatePhotoUploadedBy")
+  authoredReviews        DateReview[]            @relation("DateReviewAuthor")
+  authoredMemories       Memory[]                @relation("MemoryAuthor")
+  revisitDecisions       RevisitDecision[]       @relation("RevisitDecisionBy")
+  recordedExpenses       Expense[]               @relation("ExpenseRecordedBy")
+  dateEvents             DateEvent[]             @relation("DateEventActor")
+  dateReminders          DateReminder[]
+  notificationPreference NotificationPreference?
+
+  @@index([deletedAt])
+  @@map("users")
+}
+
+/// OAuth / external identities. Present so Google sign-in can be added without a schema change.
+model Account {
+  id                String       @id @default(cuid())
+  userId            String
+  provider          AuthProvider
+  providerAccountId String
+  accessToken       String?
+  refreshToken      String?
+  idToken           String?
+  tokenType         String?
+  scope             String?
+  expiresAt         Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+/// Single-use password recovery tokens. Only the SHA-256 hash of the emailed token is stored.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Couple & membership
+// ---------------------------------------------------------------------------
+
+model Couple {
+  id                  String       @id @default(cuid())
+  name                String?
+  description         String?
+  photoUrl            String?
+  photoKey            String?
+  status              CoupleStatus @default(PENDING)
+  inviteCode          String       @unique // short human code — the simple join path
+  inviteCodeExpiresAt DateTime?
+  anniversaryAt       DateTime?
+  timezone            String       @default("UTC")
+  currency            String       @default("USD")
+  createdById         String
+
+  // onboarding
+  setupCompletedAt DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  createdBy        User               @relation("CoupleCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  members          CoupleMember[]
+  invitations      CoupleInvitation[]
+  dates            Date[]
+  places           Place[]
+  reviewCategories ReviewCategory[]
+  expenses         Expense[]
+  memories         Memory[]
+  notifications    Notification[]
+
+  @@index([createdById])
+  @@index([status])
+  @@map("couples")
+}
+
+/// A shareable, single-use, expiring link for the second person to join a couple.
+/// Only the SHA-256 hash of the token is stored — the raw token lives only in the share URL,
+/// never in the database, and it is not a database id.
+model CoupleInvitation {
+  id           String    @id @default(cuid())
+  coupleId     String
+  createdById  String
+  tokenHash    String    @unique
+  email        String? // optional intended recipient, lower-cased
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  acceptedById String?
+  revokedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  couple     Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdBy  User   @relation("InvitationCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  acceptedBy User?  @relation("InvitationAcceptedBy", fields: [acceptedById], references: [id], onDelete: SetNull)
+
+  @@index([coupleId])
+  @@index([expiresAt])
+  @@map("couple_invitations")
+}
+
+/// The "max two members" rule is enforced in the couple service, not by the database.
+model CoupleMember {
+  id       String             @id @default(cuid())
+  coupleId String
+  userId   String
+  role     CoupleMemberRole   @default(PARTNER)
+  status   CoupleMemberStatus @default(ACTIVE)
+  joinedAt DateTime?
+
+  /**
+   * Last time this member looked at the couple's date activity — for "unseen" indicators.
+   */
+  activitySeenAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([coupleId, userId])
+  @@index([userId])
+  @@map("couple_members")
+}
+
+// ---------------------------------------------------------------------------
+// Places
+// ---------------------------------------------------------------------------
+
+model Place {
+  id          String        @id @default(cuid())
+  coupleId    String
+  name        String
+  category    PlaceCategory @default(OTHER)
+  address     String?
+  city        String? // used for "cities explored"
+  latitude    Float?
+  longitude   Float?
+  mapUrl      String?
+  website     String?
+  phone       String?
+  notes       String?
+  description String?
+  imageUrl    String?
+  openingText String?
+
+  // save / favourite
+  isFavorite Boolean @default(false)
+
+  // external provider snapshot (cached at save time; provider stays swappable)
+  provider            String? // e.g. "google"
+  providerPlaceId     String?
+  externalRating      Float? // 0..5 public rating
+  externalRatingCount Int?
+  priceLevel          Int? // 0..4
+
+  createdById String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  couple    Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("PlaceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  plannedDates   Date[]         @relation("DatePlannedPlace")
+  actualDates    Date[]         @relation("DateActualPlace")
+  dateActivities DateActivity[]
+
+  @@unique([coupleId, provider, providerPlaceId])
+  @@index([coupleId])
+  @@index([coupleId, name])
+  @@index([coupleId, category])
+  @@map("places")
+}
+
+// ---------------------------------------------------------------------------
+// Date — the core entity. Supports the full lifecycle:
+// DRAFT -> PLANNED -> TODAY -> IN_PROGRESS -> COMPLETED (or CANCELLED).
+// Planning fields hold the intent; `actual*` fields hold what happened and may diverge.
+// ---------------------------------------------------------------------------
+
+model Date {
+  id          String     @id @default(cuid())
+  coupleId    String
+  createdById String
+  status      DateStatus @default(DRAFT)
+
+  // --- Planning ---
+  title                  String
+  notes                  String?
+  scheduledFor           DateTime? // the day the date is planned for (midnight)
+  plannedStartAt         DateTime?
+  plannedEndAt           DateTime?
+  plannedPlaceId         String?
+  expectedBudgetCents    Int? // the expected total
+  expectedBudgetMinCents Int? // optional range
+  expectedBudgetMaxCents Int?
+  budgetSplit            ExpensePayer @default(SHARED)
+  currency               String       @default("USD")
+
+  // --- Completion / actuals (may differ from the plan) ---
+  actualPlaceId      String?
+  actualLocationText String? // free text when there is no saved Place
+  actualStartAt      DateTime?
+  actualEndAt        DateTime?
+  actualSpendCents   Int?
+  actualNotes        String? // "how it actually went" — free text, distinct from the plan's notes
+  actualsRecordedAt  DateTime? // when the couple recorded what actually happened
+
+  // --- Media ---
+  bestPhotoId String? // the couple's one "most like us" photo for this date
+
+  // --- Lifecycle timestamps ---
+  plannedAt    DateTime? // entered PLANNED
+  startedAt    DateTime? // entered IN_PROGRESS
+  startedById  String? // who tapped "start the date"
+  completedAt  DateTime? // entered COMPLETED
+  cancelledAt  DateTime?
+  cancelReason String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  couple       Couple     @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdBy    User       @relation("DateCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  startedBy    User?      @relation("DateStartedBy", fields: [startedById], references: [id], onDelete: SetNull)
+  plannedPlace Place?     @relation("DatePlannedPlace", fields: [plannedPlaceId], references: [id], onDelete: SetNull)
+  actualPlace  Place?     @relation("DateActualPlace", fields: [actualPlaceId], references: [id], onDelete: SetNull)
+  bestPhoto    DatePhoto? @relation("DateBestPhoto", fields: [bestPhotoId], references: [id], onDelete: SetNull)
+
+  activities      DateActivity[]
+  photos          DatePhoto[]      @relation("DatePhotos")
+  reviews         DateReview[]
+  revisitDecision RevisitDecision?
+  memory          Memory?
+  expenses        Expense[]
+  events          DateEvent[]
+  reminders       DateReminder[]
+
+  @@index([coupleId, status])
+  @@index([coupleId, scheduledFor])
+  @@index([createdById])
+  @@index([deletedAt])
+  @@map("dates")
+}
+
+model DateActivity {
+  id              String           @id @default(cuid())
+  dateId          String
+  kind            DateActivityKind @default(PLANNED)
+  title           String
+  description     String?
+  placeId         String?
+  sortOrder       Int              @default(0)
+  startAt         DateTime?
+  endAt           DateTime?
+  durationMinutes Int? // planning estimate; the timeline derives clock times from this
+  costCents       Int?
+  completed       Boolean          @default(false)
+  unplanned       Boolean          @default(false) // ACTUAL activity that wasn't in the plan — a detour / extra stop
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  date  Date   @relation(fields: [dateId], references: [id], onDelete: Cascade)
+  place Place? @relation(fields: [placeId], references: [id], onDelete: SetNull)
+
+  @@index([dateId, kind])
+  @@index([placeId])
+  @@map("date_activities")
+}
+
+model DatePhoto {
+  id           String @id @default(cuid())
+  dateId       String
+  uploadedById String
+
+  // storage keys — the source of truth. Variants are generated at upload time; the app never
+  // serves the raw original when a smaller one will do. All keys share the couples/<id>/ prefix
+  // that the /media route authorizes against.
+  storageKey  String // the (re-encoded, EXIF-stripped) full image
+  displayKey  String? // ~1400px long edge — the gallery / lightbox default
+  thumbKey    String? // ~480px long edge — grids and cards
+  blurDataUrl String? // tiny inline data URI for the blur-up placeholder
+
+  url         String // convenience: app-relative /media URL for storageKey
+  width       Int?
+  height      Int?
+  sizeBytes   Int?
+  contentType String?
+  caption     String?
+  takenAt     DateTime?
+  sortOrder   Int       @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  date       Date @relation("DatePhotos", fields: [dateId], references: [id], onDelete: Cascade)
+  uploadedBy User @relation("DatePhotoUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  memoryCovers Memory[] @relation("MemoryCoverPhoto")
+  bestOfDates  Date[]   @relation("DateBestPhoto")
+
+  @@index([dateId])
+  @@index([uploadedById])
+  @@map("date_photos")
+}
+
+// ---------------------------------------------------------------------------
+// Reviews
+// ---------------------------------------------------------------------------
+
+/// Per-couple rating dimensions (e.g. "food", "ambiance", "company"). Seeded defaults have
+/// `isSystem = true`.
+model ReviewCategory {
+  id          String  @id @default(cuid())
+  coupleId    String
+  key         String // stable slug
+  label       String
+  description String?
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+  isSystem    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  couple  Couple             @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  ratings DateReviewRating[]
+
+  @@unique([coupleId, key])
+  @@index([coupleId])
+  @@map("review_categories")
+}
+
+/// One review per person per date. Each partner can record their own.
+/// One person's private, independent review of a date. It exists as a draft the moment they
+/// start; `submittedAt` is set when they lock their side in. Neither person sees the other's
+/// scores until *both* have submitted (the reveal) — enforced in the service/read layer.
+model DateReview {
+  id               String @id @default(cuid())
+  dateId           String
+  authorId         String
+  overallRating    Int? // 1..10 (validated in the app layer) — null while a draft; required to submit
+  suggestedOverall Int? // the category-average MONO suggested at submit time (never overrides)
+
+  // journal-style reflection prompts — all optional
+  lovedText      String?
+  betterText     String?
+  rememberText   String?
+  unexpectedText String?
+
+  // independent revisit decision
+  personalRevisit     ReviewRevisit?
+  personalRevisitNote String?
+
+  submittedAt DateTime? // null = private draft; set = "my side is locked in"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  date    Date               @relation(fields: [dateId], references: [id], onDelete: Cascade)
+  author  User               @relation("DateReviewAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  ratings DateReviewRating[]
+
+  @@unique([dateId, authorId])
+  @@index([authorId])
+  @@index([dateId, submittedAt])
+  @@map("date_reviews")
+}
+
+/// Join row: a review's score for one category.
+model DateReviewRating {
+  id         String  @id @default(cuid())
+  reviewId   String
+  categoryId String
+  score      Int // 1..10
+  note       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  review   DateReview     @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  category ReviewCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, categoryId])
+  @@index([categoryId])
+  @@map("date_review_ratings")
+}
+
+/// Whether the couple wants to do this date again. One shared decision per date.
+model RevisitDecision {
+  id              String        @id @default(cuid())
+  dateId          String        @unique
+  decidedById     String
+  choice          RevisitChoice
+  reason          String?
+  targetTimeframe String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  date      Date @relation(fields: [dateId], references: [id], onDelete: Cascade)
+  decidedBy User @relation("RevisitDecisionBy", fields: [decidedById], references: [id], onDelete: Restrict)
+
+  @@index([decidedById])
+  @@map("revisit_decisions")
+}
+
+// ---------------------------------------------------------------------------
+// Expenses & memories
+// ---------------------------------------------------------------------------
+
+model Expense {
+  id              String          @id @default(cuid())
+  coupleId        String
+  dateId          String?
+  recordedById    String
+  paidBy          ExpensePayer    @default(SHARED)
+  category        ExpenseCategory @default(OTHER)
+  description     String
+  amountCents     Int
+  currency        String          @default("USD")
+  spentAt         DateTime        @default(now())
+  note            String? // optional free-text detail
+  // The OWNER role's share of `amountCents`. Only meaningful when `paidBy = CUSTOM`; for the
+  // other modes each person's share is derived (OWNER=all, PARTNER=0, SHARED=half).
+  ownerShareCents Int?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  couple     Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  date       Date?  @relation(fields: [dateId], references: [id], onDelete: SetNull)
+  recordedBy User   @relation("ExpenseRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([coupleId, spentAt])
+  @@index([dateId])
+  @@index([recordedById])
+  @@map("expenses")
+}
+
+/// A kept moment. Usually tied to a date (at most one per date) but can also stand alone.
+model Memory {
+  id           String    @id @default(cuid())
+  coupleId     String
+  dateId       String?   @unique
+  authorId     String
+  title        String
+  body         String
+  occurredOn   DateTime?
+  isFavorite   Boolean   @default(false)
+  coverPhotoId String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  couple     Couple     @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  date       Date?      @relation(fields: [dateId], references: [id], onDelete: SetNull)
+  author     User       @relation("MemoryAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  coverPhoto DatePhoto? @relation("MemoryCoverPhoto", fields: [coverPhotoId], references: [id], onDelete: SetNull)
+
+  @@index([coupleId, occurredOn])
+  @@index([authorId])
+  @@map("memories")
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id         String           @id @default(cuid())
+  coupleId   String?
+  userId     String // recipient
+  type       NotificationType
+  title      String
+  body       String?
+  entityType String? // e.g. "Date", "Memory"
+  entityId   String?
+  data       Json?
+  readAt     DateTime?
+
+  createdAt DateTime @default(now())
+
+  couple Couple? @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([coupleId])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// ---------------------------------------------------------------------------
+// Collaboration & reminders
+// ---------------------------------------------------------------------------
+
+/// An append-only log of who changed what on a shared date plan.
+model DateEvent {
+  id      String        @id @default(cuid())
+  dateId  String
+  actorId String
+  kind    DateEventKind
+  summary String // "changed the start time to 7:00 PM"
+  meta    Json?
+
+  createdAt DateTime @default(now())
+
+  date  Date @relation(fields: [dateId], references: [id], onDelete: Cascade)
+  actor User @relation("DateEventActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([dateId, createdAt])
+  @@index([actorId])
+  @@map("date_events")
+}
+
+/// A scheduled reminder for one member about one date. Delivery is provider-agnostic:
+/// `getDueReminders` returns rows a worker / push endpoint / in-app poll then dispatches.
+model DateReminder {
+  id           String       @id @default(cuid())
+  dateId       String
+  userId       String // recipient
+  kind         ReminderKind
+  scheduledFor DateTime
+  sentAt       DateTime?
+  dismissedAt  DateTime?
+  channel      String       @default("inapp") // inapp | push | email
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  date Date @relation(fields: [dateId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([dateId, userId, kind])
+  @@index([userId, scheduledFor, sentAt])
+  @@map("date_reminders")
+}
+
+/// Per-user reminder / notification settings. `pushSubscription` stores a browser
+/// PushSubscription as opaque JSON so any push provider can consume it later.
+model NotificationPreference {
+  userId           String  @id
+  upcomingDate     Boolean @default(true)
+  dateDay          Boolean @default(true)
+  reviewReminder   Boolean @default(true)
+  unfinishedPlan   Boolean @default(true)
+  partnerEdits     Boolean @default(true)
+  pushEnabled      Boolean @default(false)
+  pushSubscription Json?
+
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
