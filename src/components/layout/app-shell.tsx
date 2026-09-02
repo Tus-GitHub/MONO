@@ -4,6 +4,7 @@ import type { Couple } from "@prisma/client";
 import { BottomNav } from "@/components/navigation/bottom-nav";
 import { Sidebar } from "@/components/navigation/sidebar";
 import { TopBar } from "@/components/navigation/top-bar";
+import { OfflineBanner } from "@/components/system/offline-banner";
 import type { SessionUser } from "@/lib/auth/current-user";
 
 export interface ShellPerson {
@@ -25,6 +26,7 @@ interface AppShellProps {
 export function AppShell({ couple, members, children }: AppShellProps) {
   return (
     <div className="min-h-dvh bg-paper">
+      <OfflineBanner />
       <Sidebar coupleName={couple?.name ?? null} members={members} />
 
       <div className="lg:pl-(--sidebar-w)">

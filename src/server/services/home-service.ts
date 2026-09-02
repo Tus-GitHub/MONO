@@ -3,13 +3,15 @@ import "server-only";
 import { DateStatus, PlaceCategory, RevisitChoice } from "@prisma/client";
 
 import type { CoverImage } from "@/lib/date/photo-view";
+import { dateCoupleScore, isRevealed } from "@/lib/date/review-reveal";
 import { averageScore } from "@/lib/review/scale";
 import { prisma } from "@/lib/db/prisma";
 import { promoteDueDates } from "@/server/services/calendar-service";
 import {
-  getUnseenPartnerEdit,
-  type PartnerEditView,
+  getPartnerActivity,
+  type PartnerActivity,
 } from "@/server/services/date-event-service";
+import { getNotificationPrefs } from "@/server/services/notification-preference-service";
 import { getUnreadNotificationCount } from "@/server/services/notification-service";
 import { PHOTO_SELECT, resolveDateCover } from "@/server/services/photo-service";
 import {
@@ -146,37 +148,41 @@ export interface LatestMemoryView {
 }
 
 async function getLatestMemory(coupleId: string): Promise<LatestMemoryView | null> {
-  const date = await prisma.date.findFirst({
-    where: { coupleId, deletedAt: null, status: DateStatus.COMPLETED },
-    orderBy: [
-      { completedAt: { sort: "desc", nulls: "last" } },
-      { scheduledFor: "desc" },
-      { updatedAt: "desc" },
-    ],
-    include: {
-      actualPlace: { select: { name: true, city: true } },
-      plannedPlace: { select: { name: true, city: true } },
-      reviews: { where: { submittedAt: { not: null } }, select: { overallRating: true } },
-      revisitDecision: { select: { choice: true } },
-      bestPhoto: { select: PHOTO_SELECT },
-      memory: {
-        select: { title: true, body: true, coverPhoto: { select: PHOTO_SELECT } },
+  const [memberCount, date] = await Promise.all([
+    prisma.coupleMember.count({ where: { coupleId, status: "ACTIVE" } }),
+    prisma.date.findFirst({
+      where: { coupleId, deletedAt: null, status: DateStatus.COMPLETED },
+      orderBy: [
+        { completedAt: { sort: "desc", nulls: "last" } },
+        { scheduledFor: "desc" },
+        { updatedAt: "desc" },
+      ],
+      include: {
+        actualPlace: { select: { name: true, city: true } },
+        plannedPlace: { select: { name: true, city: true } },
+        reviews: { where: { submittedAt: { not: null } }, select: { overallRating: true } },
+        revisitDecision: { select: { choice: true } },
+        bestPhoto: { select: PHOTO_SELECT },
+        memory: {
+          select: { title: true, body: true, coverPhoto: { select: PHOTO_SELECT } },
+        },
+        photos: {
+          where: { deletedAt: null },
+          orderBy: { sortOrder: "asc" },
+          take: 1,
+          select: PHOTO_SELECT,
+        },
       },
-      photos: {
-        where: { deletedAt: null },
-        orderBy: { sortOrder: "asc" },
-        take: 1,
-        select: PHOTO_SELECT,
-      },
-    },
-  });
+    }),
+  ]);
   if (!date) return null;
 
   const place = date.actualPlace ?? date.plannedPlace;
   const scores = date.reviews
     .map((review) => review.overallRating)
     .filter((n): n is number => n != null);
-  const combined = averageScore(scores);
+  // Only show a combined score once the date is revealed (both partners submitted).
+  const combined = dateCoupleScore(scores, isRevealed(date.reviews.length, memberCount >= 2));
   const caption = date.memory?.body?.trim() || date.memory?.title?.trim() || null;
 
   return {
@@ -239,18 +245,23 @@ async function getStatsHeroPhoto(coupleId: string): Promise<CoverImage | null> {
 }
 
 async function getStats(coupleId: string): Promise<CoupleStatsView> {
-  const [completed, memoriesKept, heroPhoto] = await Promise.all([
+  const [memberCount, completed, memoriesKept, heroPhoto] = await Promise.all([
+    prisma.coupleMember.count({ where: { coupleId, status: "ACTIVE" } }),
     prisma.date.findMany({
       where: { coupleId, deletedAt: null, status: DateStatus.COMPLETED },
       select: {
         actualPlace: { select: { id: true, category: true, city: true } },
         plannedPlace: { select: { id: true, category: true, city: true } },
-        reviews: { where: { submittedAt: { not: null } }, select: { overallRating: true } },
+        reviews: {
+          where: { submittedAt: { not: null } },
+          select: { overallRating: true },
+        },
       },
     }),
     prisma.memory.count({ where: { coupleId, deletedAt: null } }),
     getStatsHeroPhoto(coupleId),
   ]);
+  const hasPartner = memberCount >= 2;
 
   const placeIds = new Set<string>();
   const cities = new Set<string>();
@@ -264,12 +275,13 @@ async function getStats(coupleId: string): Promise<CoupleStatsView> {
       if (place.city) cities.add(place.city.trim().toLowerCase());
       categoryTally.set(place.category, (categoryTally.get(place.category) ?? 0) + 1);
     }
+    // Same reveal rule as the rest of the app: a date's score counts only once both partners
+    // have submitted (a solo couple counts on their own submit).
     const overalls = date.reviews
       .map((review) => review.overallRating)
       .filter((n): n is number => n != null);
-    if (overalls.length > 0) {
-      perDateScores.push(overalls.reduce((a, b) => a + b, 0) / overalls.length);
-    }
+    const score = dateCoupleScore(overalls, isRevealed(date.reviews.length, hasPartner));
+    if (score != null) perDateScores.push(score);
   }
 
   const favorite =
@@ -281,10 +293,7 @@ async function getStats(coupleId: string): Promise<CoupleStatsView> {
     datesTogether: completed.length,
     placesVisited: placeIds.size,
     citiesExplored: cities.size,
-    averageScore10:
-      perDateScores.length > 0
-        ? Math.round((perDateScores.reduce((a, b) => a + b, 0) / perDateScores.length) * 10) / 10
-        : null,
+    averageScore10: averageScore(perDateScores),
     favoriteCategory: favorite,
     memoriesKept,
     heroPhoto,
@@ -333,7 +342,7 @@ export interface HomeData {
   latestMemory: Section<LatestMemoryView | null>;
   stats: Section<CoupleStatsView>;
   recommendations: Section<DateRecommendation[]>;
-  partnerEdit: PartnerEditView | null;
+  partnerActivity: PartnerActivity | null;
 }
 
 /**
@@ -354,7 +363,7 @@ export async function getHomeData(coupleId: string, userId: string): Promise<Hom
     counts,
     unread,
     pending,
-    partnerEdit,
+    partnerActivity,
     upcoming,
     latestMemory,
     stats,
@@ -368,7 +377,13 @@ export async function getHomeData(coupleId: string, userId: string): Promise<Hom
     getCounts(coupleId),
     getUnreadNotificationCount(userId).catch(() => 0),
     getPendingReviewCount(coupleId, userId).catch(() => 0),
-    getUnseenPartnerEdit(coupleId, userId).catch(() => null),
+    getPartnerActivity(coupleId, userId)
+      .then(async (activity) => {
+        if (activity.items.length === 0) return null;
+        const prefs = await getNotificationPrefs(userId).catch(() => null);
+        return prefs && prefs.partnerEdits === false ? null : activity;
+      })
+      .catch(() => null),
     section(() => getUpcomingDate(coupleId)),
     section(() => getLatestMemory(coupleId)),
     section(() => getStats(coupleId)),
@@ -386,7 +401,7 @@ export async function getHomeData(coupleId: string, userId: string): Promise<Hom
     counts,
     unreadNotifications: unread,
     pendingReviewCount: pending,
-    partnerEdit,
+    partnerActivity,
     upcoming,
     latestMemory,
     stats,

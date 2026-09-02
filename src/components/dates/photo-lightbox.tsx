@@ -30,12 +30,14 @@ export function PhotoLightbox({
   photos,
   index,
   dateId,
+  readOnly = false,
   onIndex,
   onClose,
 }: {
   photos: PhotoView[];
   index: number;
   dateId: string;
+  readOnly?: boolean;
   onIndex: (next: number) => void;
   onClose: () => void;
 }) {
@@ -215,22 +217,28 @@ export function PhotoLightbox({
             {index + 1} / {count}
           </span>
           <div className="flex items-center gap-1">
-            <ChromeButton
-              label={photo.isBest ? "This is your best photo" : "Make this the best photo"}
-              active={photo.isBest}
-              onClick={setBest}
-            >
-              <Icon name="star" size={17} />
-            </ChromeButton>
-            <ChromeButton label="Edit caption" onClick={() => setEditing((v) => !v)}>
-              <Icon name="pencil" size={16} />
-            </ChromeButton>
+            {!readOnly ? (
+              <>
+                <ChromeButton
+                  label={photo.isBest ? "This is your best photo" : "Make this the best photo"}
+                  active={photo.isBest}
+                  onClick={setBest}
+                >
+                  <Icon name="star" size={17} />
+                </ChromeButton>
+                <ChromeButton label="Edit caption" onClick={() => setEditing((v) => !v)}>
+                  <Icon name="pencil" size={16} />
+                </ChromeButton>
+              </>
+            ) : null}
             <ChromeButton label={zoomed ? "Reset zoom" : "Zoom in"} onClick={toggleZoom}>
               <Icon name="search" size={16} />
             </ChromeButton>
-            <ChromeButton label="Delete photo" onClick={remove}>
-              <Icon name="trash" size={16} />
-            </ChromeButton>
+            {!readOnly ? (
+              <ChromeButton label="Delete photo" onClick={remove}>
+                <Icon name="trash" size={16} />
+              </ChromeButton>
+            ) : null}
             <ChromeButton label="Close" onClick={onClose}>
               <Icon name="x" size={18} />
             </ChromeButton>
@@ -294,7 +302,7 @@ export function PhotoLightbox({
             </form>
           ) : photo.caption ? (
             <p>{photo.caption}</p>
-          ) : (
+          ) : !readOnly ? (
             <button
               type="button"
               onClick={() => setEditing(true)}
@@ -302,7 +310,7 @@ export function PhotoLightbox({
             >
               Add a caption
             </button>
-          )}
+          ) : null}
         </div>
 
         {/* preload neighbours */}

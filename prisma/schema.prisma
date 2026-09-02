@@ -127,8 +127,11 @@ enum NotificationType {
   DATE_PLANNED
   DATE_STATUS_CHANGED
   DATE_EDITED
+  DATE_NEEDS_ACTION // a date is past its time and still not completed
   REVIEW_ADDED
+  REVIEW_REMINDER // your side of a completed date's review is missing
   MEMORY_ADDED
+  MEMORY_REMINDER // a completed date has no memory yet
   EXPENSE_ADDED
   PARTNER_JOINED
   SYSTEM
@@ -161,8 +164,21 @@ enum DateEventKind {
 enum ReminderKind {
   UPCOMING // ahead of the date (e.g. the day before)
   DATE_DAY // morning of the date
+  CUSTOM // a one-off reminder the user set for a specific date
   REVIEW // after completion, to write a review
+  MEMORY // after completion, to keep a memory
   UNFINISHED_PLAN // a draft left untouched
+}
+
+enum RecommendationTargetType {
+  PLACE // a saved Place (targetKey = place id)
+  IDEA // a non-place date idea (targetKey = idea key, e.g. "picnic")
+}
+
+enum RecommendationSignal {
+  INTERESTED // "we'd consider this"
+  NOT_FOR_US // stop recommending this
+  SAVED // keep it on a shortlist
 }
 
 // ---------------------------------------------------------------------------
@@ -182,6 +198,11 @@ model User {
   avatarKey     String? // storage key — source of truth for the avatar object
   tokenVersion  Int       @default(0) // bump to invalidate every existing session
 
+  // preferences (per person)
+  theme                    String  @default("system") // "system" | "light" | "dark"
+  hideMoneyInsights        Boolean @default(false) // privacy: blank out money figures in the couple profile
+  hidePartnerPreferenceGap Boolean @default(false) // privacy: hide per-person preference breakdown & gaps
+
   // onboarding
   profileCompletedAt DateTime?
 
@@ -196,18 +217,19 @@ model User {
   sentInvitations     CoupleInvitation[]   @relation("InvitationCreatedBy")
   acceptedInvitations CoupleInvitation[]   @relation("InvitationAcceptedBy")
 
-  createdCouples         Couple[]                @relation("CoupleCreatedBy")
-  createdDates           Date[]                  @relation("DateCreatedBy")
-  startedDates           Date[]                  @relation("DateStartedBy")
-  createdPlaces          Place[]                 @relation("PlaceCreatedBy")
-  uploadedPhotos         DatePhoto[]             @relation("DatePhotoUploadedBy")
-  authoredReviews        DateReview[]            @relation("DateReviewAuthor")
-  authoredMemories       Memory[]                @relation("MemoryAuthor")
-  revisitDecisions       RevisitDecision[]       @relation("RevisitDecisionBy")
-  recordedExpenses       Expense[]               @relation("ExpenseRecordedBy")
-  dateEvents             DateEvent[]             @relation("DateEventActor")
+  createdCouples         Couple[]                 @relation("CoupleCreatedBy")
+  createdDates           Date[]                   @relation("DateCreatedBy")
+  startedDates           Date[]                   @relation("DateStartedBy")
+  createdPlaces          Place[]                  @relation("PlaceCreatedBy")
+  uploadedPhotos         DatePhoto[]              @relation("DatePhotoUploadedBy")
+  authoredReviews        DateReview[]             @relation("DateReviewAuthor")
+  authoredMemories       Memory[]                 @relation("MemoryAuthor")
+  revisitDecisions       RevisitDecision[]        @relation("RevisitDecisionBy")
+  recordedExpenses       Expense[]                @relation("ExpenseRecordedBy")
+  dateEvents             DateEvent[]              @relation("DateEventActor")
   dateReminders          DateReminder[]
   notificationPreference NotificationPreference?
+  recommendationFeedback RecommendationFeedback[]
 
   @@index([deletedAt])
   @@map("users")
@@ -286,6 +308,8 @@ model Couple {
   expenses         Expense[]
   memories         Memory[]
   notifications    Notification[]
+
+  recommendationFeedback RecommendationFeedback[]
 
   @@index([createdById])
   @@index([status])
@@ -513,6 +537,7 @@ model DatePhoto {
   caption     String?
   takenAt     DateTime?
   sortOrder   Int       @default(0)
+  isFavorite  Boolean   @default(false) // hearted for the couple photo wall / Our Favorites
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -526,6 +551,7 @@ model DatePhoto {
 
   @@index([dateId])
   @@index([uploadedById])
+  @@index([isFavorite])
   @@map("date_photos")
 }
 
@@ -770,6 +796,7 @@ model NotificationPreference {
   upcomingDate     Boolean @default(true)
   dateDay          Boolean @default(true)
   reviewReminder   Boolean @default(true)
+  memoryReminder   Boolean @default(true)
   unfinishedPlan   Boolean @default(true)
   partnerEdits     Boolean @default(true)
   pushEnabled      Boolean @default(false)
@@ -780,4 +807,26 @@ model NotificationPreference {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_preferences")
+}
+
+/// Lightweight, couple-shared feedback on an Explore recommendation. One row per (couple,
+/// target); either partner can set it, last write wins. Feeds back into the deterministic
+/// ranking — it is NOT a machine-learning model.
+model RecommendationFeedback {
+  id         String                   @id @default(cuid())
+  coupleId   String
+  userId     String // who last set it (attribution only)
+  targetType RecommendationTargetType
+  targetKey  String // place id, or idea key
+  signal     RecommendationSignal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([coupleId, targetType, targetKey])
+  @@index([coupleId])
+  @@map("recommendation_feedback")
 }

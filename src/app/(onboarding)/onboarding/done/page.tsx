@@ -23,7 +23,7 @@ export default async function OnboardingDonePage() {
         ) : (
           <div className="absolute inset-0 bg-linear-to-br from-primary-tint/70 via-transparent to-accent-tint/60" />
         )}
-        <div className="relative z-10 flex -space-x-3">
+        <div className="anim-pop relative z-10 flex -space-x-3">
           {a ? <Avatar name={a.user.name} src={a.user.avatarUrl} size="xl" ring /> : null}
           {b ? <Avatar name={b.user.name} src={b.user.avatarUrl} size="xl" ring /> : null}
         </div>

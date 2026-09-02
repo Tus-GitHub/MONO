@@ -16,6 +16,21 @@ export const PLACE_CATEGORY_LABEL: Record<PlaceCategory, string> = {
   OTHER: "Somewhere",
 };
 
+/** Short phrase that reads inside a sentence — "your {x} dates". */
+export const PLACE_CATEGORY_SHORT: Record<PlaceCategory, string> = {
+  RESTAURANT: "dinner",
+  CAFE: "café",
+  BAR: "night-out",
+  PARK: "outdoor",
+  CINEMA: "cinema",
+  MUSEUM: "cultural",
+  ACTIVITY: "activity",
+  SHOPPING: "shopping",
+  TRAVEL: "getaway",
+  HOME: "at-home",
+  OTHER: "low-key",
+};
+
 /** A warm, relationship-flavoured phrase for "your kind of date". */
 export const PLACE_CATEGORY_VIBE: Record<PlaceCategory, string> = {
   RESTAURANT: "Dinner people",

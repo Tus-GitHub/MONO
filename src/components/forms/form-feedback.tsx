@@ -6,12 +6,16 @@ export function FormFeedback({ state }: { state: ActionState<unknown> }) {
   if (state.status === "idle") return null;
 
   if (state.status === "success") {
-    return state.message ? <Alert tone="success">{state.message}</Alert> : null;
+    return state.message ? (
+      <Alert tone="success" className="anim-scale-in">
+        {state.message}
+      </Alert>
+    ) : null;
   }
 
   const formErrors = state.fieldErrors?._form ?? [];
   return (
-    <Alert tone="error">
+    <Alert tone="error" className="anim-scale-in">
       <p>{state.message}</p>
       {formErrors.length ? (
         <ul className="mt-1 list-disc pl-4">

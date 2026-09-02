@@ -61,6 +61,13 @@ URL parameter, or hidden field.
 Protected: dates, activities, photos, reviews, revisit decisions, expenses, memories, places,
 review categories, couple settings.
 
+The full endpoint-by-endpoint authorization audit, input-validation inventory, auth review,
+media-access review, and privacy posture live in **`docs/security.md`**. Highlights: the
+`/media/[...key]` route rejects any non-canonical key (`..` segments, control chars) *before*
+it parses the ownership prefix; uploads are validated by sniffing the file's magic bytes, not
+its declared type; `src/lib/security/rate-limit.ts` throttles auth / invite / upload endpoints;
+`next.config.ts` sets CSP + `X-Frame-Options` + `nosniff` + `Permissions-Policy` globally.
+
 ## Data model (`prisma/schema.prisma`)
 
 15 models: `User`, `Account`, `PasswordResetToken`, `Couple`, `CoupleMember`, `Place`,
@@ -92,10 +99,13 @@ Each partner writes a `DateReview` independently. It exists as a private draft t
 start; `submittedAt` locks their side in. `reviewStage()` is the pure state machine —
 `none → draft → submitted → revealed` — and neither person sees the other's scores, category
 ratings or reflections until **both** have submitted (a one-member couple reveals on submit).
-Every read path enforces this: `getDateExperience.review` returns `partner: null` until the
-reveal, and aggregates (`place-history`, home stats, recommendations) only count
-`submittedAt != null` rows. Scores are 1–10; `suggestedOverall()` offers a category average the
-user is free to override — it is never applied silently.
+Every read path enforces this through two shared helpers so no service re-implements the rule:
+`isRevealed(submittedCount, hasPartner)` and `dateCoupleScore(overalls, revealed)` — used by
+`history-service`, `couple-insights-service`, `explore-service` and `home-service` alike, so a
+date's couple score is `null` everywhere until both partners have submitted. `getDateExperience.review`
+returns `partner: null` until the reveal. Rounding is single-sourced: `round1` / `mean` /
+`averageScore` live in `src/lib/review/scale.ts`. Scores are 1–10; `suggestedOverall()` offers a
+category average the user is free to override — never applied silently.
 
 Once revealed, `buildReviewComparison()` (`src/lib/review/comparison.ts`, pure) produces the
 combined model: per-category `{ you, partner, combined }`, the one **couple score**
@@ -117,6 +127,27 @@ place,city,activity,revisit,score,view`; the service turns them into an `AND` of
 (month-without-year and the score bucket are applied in memory), and `<HistoryControls>`
 debounces the search box and owns a bottom-sheet filter drawer with removable chips.
 
+## Memories (`/memories`, `src/server/services/memory-service.ts`)
+
+The editorial companion to the history views — "a private photo journal". It adds **no**
+business rules of its own: `history-service` exports `HISTORY_INCLUDE` + `mapDateRowToItem`
+(the single row→`DateHistoryItem` mapper), and every memory loader reuses them, so card shapes
+never diverge. `loadCompleted()` reads all completed dates once and runs
+`computeMilestones()` (`src/lib/date/milestones.ts`) — a pure function whose every output maps
+to a real fact (first date, Nth date, first date in a city, a place's 3rd+ visit, a calendar
+match with the couple's `anniversaryAt`, the top couple score once ≥3 dates are scored). It
+never manufactures a milestone. `getMemoryHome` / `getMemoryTimeline` / `getFavorites` compose
+that with `photo-service.getBestPhotoWall()` / `listFavoritePhotos()` (→ `WallPhoto`, a
+`PhotoView` plus date/place context); `getMemoryDetail` *reshapes* `getDateExperience` output
+into an editorial `MemoryDetail` (hero photo, ordinal, milestones, couple score + top combined
+categories, one-line spend and plan-divergence sentences) and deliberately drops every
+technical field. Favourites persist: `Memory.isFavorite` / `Place.isFavorite` /
+`DatePhoto.isFavorite`, toggled through `toggleMemoryFavoriteAction` /
+`togglePhotoFavoriteAction` (id-validated, couple-authorized, path-revalidating) behind the
+optimistic `<FavoriteHeart>`. Routes: `/memories` (journal home), `/memories/timeline`,
+`/memories/photos` (`<PhotoWall>`), `/memories/favorites`, `/memories/[id]`. `<PhotoGallery>`
+takes `readOnly` so the detail page's gallery has no edit chrome.
+
 ## Money per date (`src/lib/date/expense-*.ts`)
 
 `Expense` rows attach to a `Date`. `paidBy` (`SHARED` / `OWNER` / `PARTNER` / `CUSTOM`) is the
@@ -129,6 +160,114 @@ planned budget with the effective spend inside a 5% / $5 tolerance and stays gen
 nothing else about anyone's finances. `getDateExperience.spending` bundles the breakdown,
 delta and per-person contributions for `<DateSpending>`; `<ExpenseRow>` edits inline; every
 mutation is `authorizeExpense`-scoped.
+
+## Couple profile & private insights (`/couple`, `src/server/services/couple-insights-service.ts`)
+
+`getCoupleProfile(coupleId, viewerId)` is the single loader behind `/couple`. Every figure it
+returns is a plain count or average over the couple's own rows — nothing is predicted or
+personality-profiled — and the deterministic rule functions live in the pure
+`src/lib/couple/insights.ts` (`buildCategoryPreferences`, `findPreferenceGaps`,
+`buildCoupleInsights`). Two ideas keep the numbers honest: a **reveal gate** (a completed
+date's couple score and per-category scores only count once *both* partners have submitted —
+same rule as `reviewStage`), and **min-sample guards** (a shown per-category average needs ≥2
+distinct rated dates; a per-person "difference" needs ≥3 and a ≥1-point gap; each insight is
+emitted only when its data supports it). Statistics that would mislead are withheld, not faked:
+the average couple score always travels with its `scoredDateCount`, the lowest-rated date is
+omitted unless there are ≥2 scored dates that actually differ, and `totalSpendCents` is `null`
+(not `0`) when nothing has been recorded. Preference differences use only neutral phrasing and
+carry a "different tastes, not a problem" framing line. Two per-user privacy toggles
+(`User.hideMoneyInsights`, `User.hidePartnerPreferenceGap`) blank the money figures and the
+per-person breakdown for the viewer who set them.
+
+`/settings` is the hub: links to the couple/personal/notification editors, a preferences form
+(theme + privacy), a JSON **data export** (`GET /api/export` — members-only, couple resolved
+from the session, streamed as an attachment), sign-out, and a danger zone. "Disconnect
+partner" (`disconnectCouple`) archives the shared space and sets both memberships to `LEFT` —
+nothing is hard-deleted, so support can restore it; "Delete account" (`deleteAccount`) does the
+same to the couple, then soft-deletes the user and bumps `tokenVersion` to kill every session.
+Both are confirmed — `useConfirm` for disconnect, a typed-"DELETE" form for deletion.
+
+## Explore — discovery engine (`/explore`, `src/server/services/explore-service.ts`)
+
+`/explore` has two modes: with a `q`/`category`/`view`/`forDate` param it is the place search
+grid (`searchPlaces`, unchanged — this is the only place a ruled-out place resurfaces); with no
+param it is `getExploreHome(coupleId, viewerId)`, the discovery home.
+
+`getExploreHome` is one deterministic loader — no AI, no randomness, same history → same list.
+From the couple's completed dates it builds a **per-member × place-category rating map**
+(reveal-gated the same way as reviews: a date only counts once both partners have submitted),
+a per-place aggregate (score, visits, last revisit), a city tally, and the set of categories
+they've done. It then assembles up to eight sections — *Recommended for you*, *Because you
+loved X*, *Previously enjoyed*, *Nearby* (the couple's most-visited city, not GPS), *Try
+something different* (categories with zero history), *Date ideas*, *Hidden gems*, *Your saved
+places* — dropping empties and **reordering by history depth**: with ≥3 completed dates the
+personalised sections lead, otherwise ideas lead.
+
+**Couple Match %** (`src/lib/explore/compatibility.ts`, pure) scores one recommendation from
+both partners' historical ratings of that category: a weighted blend of how highly they rate it
+and how closely their two averages agree, clamped to 40–98, with a plain-language `reason`
+("Both of you rate activity dates highly."). When there isn't enough history the percent is
+`null` ("New territory"), never invented. A revisit-YES place is pinned to 94%.
+
+**Date ideas** (`src/lib/explore/date-ideas.ts`) is a fixed catalogue of ten non-place ideas
+(picnic, pottery, movie night…), each mapped to a `PlaceCategory` so it can be match-scored;
+"Plan this" hands the title to `/plan?idea=` which seeds a draft.
+
+**Visited handling** (`src/lib/explore/visited.ts`, pure `classifyVisited`) tags every place
+`new` / `visited` / `revisit` / `loved` / `avoid`. `avoid` = the couple's last revisit call was
+`NO` ("never again") **or** they left `NOT_FOR_US` feedback; those are filtered out of every
+recommendation section and only reappear in a deliberate search.
+
+**Feedback** (part 6) is `RecommendationFeedback` — one couple-shared row per (couple, target),
+`signal` ∈ `INTERESTED` / `NOT_FOR_US` / `SAVED`, set through `recommendationFeedbackAction` and
+the optimistic `<RecFeedback>` chips. It re-weights the deterministic ranking (suppress
+`NOT_FOR_US`, surface `SAVED` ideas in a "Saved for later" strip); it is explicitly **not** a
+learning model.
+
+## Theme (`src/lib/settings/theme.ts`)
+
+Three choices — `system` / `light` / `dark` — persisted on `User.theme`. `globals.css` defines
+the light palette on bare `:root`, the dark palette under both
+`@media (prefers-color-scheme: dark) { :root:not([data-theme]) }` (the `system` path) and
+`:root[data-theme="dark"]` (the pinned path); pinning `light` needs no rule. A tiny inline
+`THEME_BOOT_SCRIPT` in the root `<head>` applies the last choice from `localStorage` before
+first paint; `<ThemeApplier>` (mounted in `(app)/layout`) reconciles the server value onto
+`<html data-theme>` after hydration for a fresh device. The switcher in `<PreferencesForm>`
+previews live on change and persists on submit.
+
+## Notifications & reminders (`src/server/services/notification-service.ts`, `reminder-service.ts`)
+
+Two record types. A **`Notification`** is a delivered item in the in-app centre (`/notifications`).
+A **`DateReminder`** is a *scheduled* row — one member, one date, one `ReminderKind` — that a
+dispatcher later turns into a Notification (and a push).
+
+**Fan-out** (`notifyPartner` / `notifyCouple`) writes Notifications for the couple's other
+member(s) on pipeline events. It is guarded twice: `NOTIFICATION_CATEGORY_OF`
+(`src/lib/notifications/types.ts`) drops a type the recipient has turned off, and a recency
+check collapses an identical `(user, type, entity)` inside 10 minutes (60 for `DATE_EDITED`, so
+a flurry of plan edits is one message).
+
+**Scheduling** — `ensureRemindersForDate` (day-before + day-of, the latter at 09:00 in the
+couple's own timezone via `zonedTimeToUtc`), `ensureReviewReminders`, `ensureMemoryReminder`,
+`ensureUnfinishedPlanReminder`, and the user-set `setCustomReminder`. Each is idempotent and
+called from the mutation it depends on; `upsertReminder` only re-fires an already-sent reminder
+if its time actually moved. A cancelled / completed / deleted date has its schedule reminders
+cleared.
+
+**Dispatch** — `getDueReminders(userId)` returns rows that are due, not for a `CANCELLED` date,
+still in a sensible state for their kind, not >2 days stale (stale ones are retired), and
+allowed by `REMINDER_CATEGORY_OF`. `dispatchDueReminders` (called opportunistically from
+`getHomeData`; a cron would call it too) hands each to `deliverNotification`, which fans the
+payload across a **channel registry** (`src/lib/notifications/channels.ts`): `InAppChannel` is
+authoritative — `sentAt` is stamped only if it succeeds, so a transient failure retries — and
+`PushRelayChannel` is best-effort through the swappable `push.ts` provider. Add email by
+registering another `NotificationChannel`; no caller changes.
+
+**Preferences** are six per-user booleans (`src/lib/notifications/prefs.ts` is the single list;
+`NotificationPreference` the store). **Partner activity** on Home is `getPartnerActivity` — up
+to three lines of what the other person did since `activitySeenAt`, collapsing a run of one
+kind into a counted phrase ("added 3 photos"). It's gated by the `partnerEdits` pref and is
+deliberately not a feed.
 
 ## Storage (`src/lib/storage`)
 
@@ -154,11 +293,43 @@ passes the original through for every variant. Variant keys hang off one base ke
 every card/hero. The client renders through `<Photo>` (aspect-ratio box, blur-up, lazy,
 `srcSet`) — never `next/image`, since the sources are behind per-request auth.
 
+## Reliability, performance & resilience
+
+- **Loading**: every `(app)` segment has a `loading.tsx` skeleton, with `(app)/loading.tsx` as
+  the catch-all. Data is server-rendered per page; the only interactive client fetch is the
+  in-plan place picker. Images load progressively through `<Photo>` (blur-up + `loading=lazy` +
+  `srcSet`); long galleries add `.cv-auto` (`content-visibility`) so off-screen tiles skip
+  layout/paint.
+- **Errors**: `global-error.tsx` (root-layout failure, self-contained), `(app)/error.tsx`
+  (in-shell, offline-aware, surfaces the `digest`), plus segment boundaries where the failure
+  mode is specific (`explore/error.tsx`). Services throw typed `AppError`s; the action/route
+  boundary turns them into an `ActionState` or a status code — a failure never renders as
+  success.
+- **Offline** (`src/lib/hooks/use-online-status.ts`): `<OfflineBanner>` in the shell shows a
+  top strip while `navigator.onLine` is false and a brief "back online" on recovery;
+  `<OfflineNotice>` warns inside long forms. `use-local-draft.ts` mirrors a form field to
+  `localStorage` (wired into `<MemoryForm>`), and the plan flow server-autosaves each step, so
+  draft work survives a reload or a dropped connection. Uploads retry per-item.
+- **Pagination**: `getBestPhotoWallPage(cursor)` (cursor = last `completedAt`) feeds
+  `<PhotoWall>`'s IntersectionObserver infinite scroll with a "Load more" fallback; date
+  history is capped at 250 with an on-screen note. `getFavorites` counts visits in one pass
+  rather than one query per place.
+
+## Tests (`npm test` → Vitest)
+
+68 unit tests over the pure business-rule modules — `lib/review/scale` + `comparison`,
+`lib/date/review-reveal` + `lifecycle`, `lib/date/expense-split` + `expense-breakdown`,
+`lib/explore/compatibility`, `lib/utils/timezone` — plus `lib/authz/couple` (couple isolation,
+with `prisma` + the session mocked). Node environment, no DB, no DOM. `vitest.config.ts` maps
+the `@/*` alias and stubs the `server-only` / `client-only` build guards.
+
 ## Pending (foundation deliberately stops here)
 
-- Provision the database, then `npm run db:migrate -- --name init`.
-- Real Google OAuth credentials; real email transport (SMTP driver).
-- Feature pages: Memories (`/memories` is still a placeholder — the date history at
-  `/dates/history` covers much of it), Couple settings editing.
+- DB is live (Neon) and **in sync** — `prisma db push` applied every schema delta through the
+  final pass (26 tables).
+- Real Google OAuth credentials; real email transport (SMTP driver — `console` driver active).
+- Real object storage for production (`S3StorageDriver` is a stub; `local` works in dev).
+- Reminder dispatch is opportunistic (on Home load); a cron/worker calling
+  `getDueReminders` → `deliverNotification` is the next step.
+- CSP still allows `'unsafe-inline'` for script/style (nonce-based CSP is the hardening step).
 - Migrate `package.json` Prisma bits to `prisma.config.ts` (Prisma 7).
-- `deepmerge-ts` advisory via `prisma` CLI (dev-only) — clears on a Prisma release.

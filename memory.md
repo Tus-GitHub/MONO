@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-09-02 (Our Dates history)
+Last updated: 2026-09-02 (Final quality pass — published to origin/main)
 
 ## Project Overview
 
@@ -23,9 +23,320 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-_Nothing in progress._
+- _(nothing in progress)_
 
 ### Done
+
+- **Final implementation & quality pass (6-part prompt)** — completed 2026-09-02
+  - **Journey (1):** traced Register→Profile→Connect→Couple Setup→Home→Plan→Place→Activities→
+    Save→Date Day→Recap→Photos→Best Photo→Review→Combined Score→Revisit→Memory→Timeline→
+    Explore→Plan Next. Every transition verified (redirect targets + "next action" links); no
+    broken step.
+  - **Business logic (2):** consolidated the score maths. `round1` + `mean` single-sourced in
+    `lib/review/scale.ts` (`comparison.ts` / `couple/insights.ts` re-export for callers). New
+    `lib/date/review-reveal.ts` `isRevealed(submittedCount, hasPartner)` +
+    `dateCoupleScore(overalls, revealed)` now used by `history-service`,
+    `couple-insights-service`, `explore-service`, **and `home-service`** — which previously
+    showed a NON-reveal-gated "combined score" on Home (`getStats.averageScore10` +
+    `getLatestMemory.combinedScore10`); fixed to match the rest of the app (a score never shows
+    before both partners submit). Inline `Math.round(sum/len*10)/10` in `place-history` /
+    `place-service` / `recommendation-service` → `averageScore` / `mean`.
+  - **UI consistency (3):** shared primitives + design tokens confirmed — no rogue hex/px in
+    components; every screen uses `PageHeader` / `Card` / `Button` / `EmptyState` / `Skeleton` /
+    the `error.tsx` family. `/style` gallery renders every primitive overflow-clean at 390px.
+  - **Animation (4):** CSS-only, reduced-motion-safe, one-shot on mount: `anim-pop` on the
+    connected-couple avatars (`/onboarding/done`); `anim-scale-in` on the "It's a plan" alert +
+    every form success/error (`FormFeedback`) + milestone chips; `anim-rise` on `<DateResult>`
+    (date completed) and `<ReviewWaiting>` (review submitted). Reveal already staggered; rating
+    stars already `anim-pop`. No JS, no perf cost.
+  - **Testing (5):** added **vitest** (dev dep) + `test` / `test:watch` scripts +
+    `vitest.config.ts` (`@` alias; `server-only`/`client-only` stubbed via
+    `test/empty-module.ts`). **68 unit tests, 9 files, all green:** `scale`, `review-reveal`
+    (state machine + isRevealed + dateCoupleScore), `comparison` (couple score = (a+b)/2,
+    positive-only insights, revisit compat), `lifecycle` (every state transition + timestamps),
+    `expense-split` ($60 SHARED→30/30, $50 CUSTOM owner-$15→15/35, resolvePayer/payerFacing),
+    `expense-breakdown` (categoryBreakdown + budgetDelta tolerance), `compatibility` (coupleMatch
+    determinism / bands / 40–98 clamp / null-when-thin), `timezone` (zoned 09:00 across DST),
+    `authz/couple` (couple isolation — query scoped by session coupleId, NotFound for foreign,
+    AuthorizationError for mismatched id; prisma + session mocked). **`prisma db push` run
+    against Neon** — the live DB is now fully in sync with the schema (every prior-session delta
+    applied; no data loss). `tsc` / `eslint`(0) / `vitest`(68) / `next build`(55 routes) /
+    `prisma validate` + `generate` all green.
+  - **Product standard (6):** no fake buttons / dead nav (every `href` resolves; no `href="#"`,
+    no empty `onClick`, no TODO/placeholder markers in real code); `/style` is dev-only (404s in
+    prod); `s3.ts` / `smtp.ts` are documented driver stubs (`local` + `console` drivers work).
+    Real auth (bcrypt/JWT), real review maths (tested), real couple isolation (tested).
+    Screenshot check: **30/30 public views** (light/dark × phone/tablet/desktop) with no
+    horizontal overflow. No console errors in the dev log; `/api/health` → `database: "up"`.
+
+- **Reliability & performance pass (6-part prompt)** — completed 2026-09-02
+  - **Loading (1):** added route `loading.tsx` skeletons for `/explore`, `/dates/[id]`,
+    `/notifications`, `/dates`, `/plan`, `/places/[id]` (the `(app)/loading.tsx` catch-all still
+    backstops the rest). Progressive images, optimistic UI (`FavoriteHeart`, `RecFeedback`,
+    best-photo, reorder) and pending states already in place from prior sessions.
+  - **Errors (2):** new `(app)/error.tsx` (in-shell boundary, offline-aware copy, shows
+    `digest`), `src/app/global-error.tsx` (root-layout failures, self-contained html/body),
+    `(app)/explore/error.tsx` (place-provider-specific reassurance). `<PlacePickerSheet>` search
+    now handles non-OK responses + offline, with a "Try again" retry and a caught error on the
+    select action (no silent failure). Missing-record → `notFound()` already wired on
+    `/dates/[id]` + `/memories/[id]`.
+  - **Offline / weak network (3):** `lib/hooks/use-online-status.ts` (`navigator.onLine` +
+    events, SSR-safe), `<OfflineBanner>` in `AppShell` (top strip, `role=status`/`aria-live`,
+    "Back online" flash), `<OfflineNotice>` for forms, `lib/hooks/use-local-draft.ts`
+    (localStorage mirror, `restored` flag, `clear()` on save) wired into `<MemoryForm>` (title +
+    story survive a reload/crash/disconnect; "picked up where you left off" hint). The plan flow
+    already server-autosaves each step (draft date persistence). Uploads already retry
+    (`<PhotoUploader>` / `<ImageUpload>` per-item status + Retry). Nothing claims success on
+    failure — actions surface the real `ActionState` error.
+  - **Performance (4):** `getFavorites` N+1 (one `date.count` per favourite place) → single
+    pass over completed dates. `getBestPhotoWallPage(cursor, take=48)` cursor pagination
+    (ordered by `completedAt`) + `loadMoreBestPhotosAction` + `<PhotoWall>` infinite scroll
+    (IntersectionObserver + "Load more" fallback, cross-page de-dupe). `.cv-auto`
+    (`content-visibility`) utility on photo-wall + date-gallery tiles. Date history keeps its
+    250-row cap and now says so. Explore/history/notifications stay server-rendered — no
+    unnecessary client fetching (the place-picker fetch is the one interactive exception).
+  - **Accessibility (5):** audit found the base already strong — `ScoreScale` `role=slider` +
+    `aria-valuetext` + keyboard; `Modal`/`BottomSheet` focus-trap + `aria-modal` + escape +
+    focus restore; icon buttons labelled; status/rating chips pair colour with text+icon
+    (`ScorePill` shows the number, `RevisitTag`/`DateStatusBadge` carry a label + dot). New
+    offline UI is `aria-live`. Global reduced-motion block covers the new transitions.
+  - **Mobile (6):** `<StickyBar>` moved to `bottom-(--bottomnav-h)` (was `bottom-0`, overlapping
+    the fixed mobile nav) → `lg:bottom-0`. Overflow guards (`min-width:0`, `overflow-x:clip`),
+    safe-area utils, `.tap` 44px targets, swipe gallery, drag-dismiss sheets already in place.
+  - `tsc` / `eslint` (0) / `next build` green.
+
+- **Privacy & security implementation pass (6-part prompt)** — completed 2026-09-02
+  - Full written audit at `docs/security.md` (endpoint-by-endpoint authz table, validation
+    inventory, auth review, media review, destructive-flow table, privacy posture, residuals).
+  - **Fixes shipped:**
+    - **`/media/[...key]` path traversal** (broken access control) — a key with `..` segments
+      (`couples/<mine>/../users/<victim>/…`) passed the couple-prefix membership check then
+      resolved cross-boundary but still inside the storage root, so `resolveKey`'s
+      escape-only check didn't catch it. Now `isCanonicalKey()` rejects any non-canonical key
+      (`..`/`.`/empty segment, backslash, leading slash, control char) **before** prefix parsing,
+      and `local.ts` `resolveKey` independently refuses a `..` segment. Also dropped
+      `image/svg+xml` from the media MIME map and added `X-Content-Type-Options: nosniff`.
+    - **Upload file validation** — `readImageUpload` now sniffs the leading bytes and only
+      accepts a real JPEG/PNG/GIF/WebP/AVIF (the client `Content-Type` is discarded); size cap
+      re-checked from actual byte length; added a same-origin `Origin` check (CSRF
+      defence-in-depth for the plain route handlers) and an upload rate limit.
+    - **Rate limiting** — new `lib/security/rate-limit.ts` (best-effort in-process sliding
+      window keyed by client IP + tag). Applied to `login` 10/15m, `register` 5/15m,
+      `password-reset-request` 4/60m, `password-reset` 10/15m, `couple-join` + `invite-accept`
+      10/15m, `upload` 40/5m.
+    - **Security headers** — `next.config.ts` `headers()`: CSP (`default-src 'self'`, no external
+      script/style, `object-src 'none'`, `base-uri`/`form-action 'self'`, `frame-ancestors
+      'none'`; `'unsafe-inline'` still allowed for Next's inline bootstrap — noted as a
+      follow-up), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`,
+      `Permissions-Policy` (camera/geo self only), HSTS in prod.
+    - **Privacy UX** — new `/settings/privacy` page: "Your MONO space is private to the two of
+      you" + six points (private / minimal collection / no public profiles / reviews never
+      published / photos not on the open web / export & reversible exit). Linked from the
+      settings hub.
+  - **Verified good, no change:** every service authorizes via `authorize*` / `requireCoupleContext`
+    (couple isolation is airtight); bcrypt cost 12 + timing-safe verify + no user enumeration +
+    login re-hash; JWT session httpOnly/`Secure`(prod)/`SameSite=Lax` + `tokenVersion` global
+    revocation; reset tokens (32B, SHA-256 only, single-use, 30m, session-kill) and invite
+    tokens (24B, SHA-256 only, single-use, 72h/14d, revoke-on-reissue, txn); zod on every input
+    (`idSchema`, `nativeEnum`, capped text, bounded money, capped arrays); Prisma parameterised,
+    no `$queryRawUnsafe`/`eval`, only a static `dangerouslySetInnerHTML`; robots disallow-all +
+    `noindex` meta + media `noindex` headers + no public routes; every destructive flow already
+    re-authorizes + confirms (disconnect `useConfirm`, delete-account typed "DELETE", photo/
+    expense/memory/date deletes `useConfirm`); no `console.*` logs a password or raw token;
+    `AUTH_SECRET` validated at boot, server-only.
+  - `tsc` / `eslint` (0) / `next build` (54 routes incl. `/settings/privacy`) green; `next dev`
+    — headers emitted, `/media` traversal probes (`..%2F`, `%2e%2e`, literal `../../`) all 404,
+    no 500s / log errors.
+
+- **Notification & reminder system (6-part prompt)** — completed 2026-09-02. Hardening + gap-fill
+  on the existing `Notification` / `DateReminder` / `NotificationPreference` infra.
+  - Schema: `ReminderKind` +`CUSTOM`/+`MEMORY`; `NotificationType` +`DATE_NEEDS_ACTION`/
+    +`REVIEW_REMINDER`/+`MEMORY_REMINDER`; `NotificationPreference` +`memoryReminder`. `prisma
+    validate` OK; native `generate` EPERM-blocked by `next dev` (TS `.d.ts` current). Added to
+    the migration-blocked backlog.
+  - Pure libs: `lib/utils/timezone.ts` (`zonedTimeToUtc` / `todayYmdInTimeZone`, `Intl`-only —
+    the day-of reminder is now 09:00 in the couple's own tz), `lib/notifications/prefs.ts`
+    (`NOTIFICATION_CATEGORIES` + `CATEGORY_META` — one source of truth for the 6 toggles incl.
+    the new `memoryReminder`), `lib/notifications/types.ts` (`NOTIFICATION_ICON`,
+    `NOTIFICATION_CATEGORY_OF` / `REMINDER_CATEGORY_OF` pref-gate maps, `notificationHref` deep-
+    link resolver), `lib/notifications/channels.ts` (server — `NotificationChannel` registry:
+    `InAppChannel` authoritative + best-effort `PushRelayChannel`; `deliverNotification` fans a
+    payload across all channels, `ok` iff the in-app row wrote — the "no hardcoded provider"
+    seam).
+  - `notification-service.fanOut` now **preference-gates** each recipient (`NOTIFICATION_CATEGORY_OF`)
+    and **de-dupes** an identical `(user, type, entity)` within 10 min (60 min for `DATE_EDITED`,
+    collapsing an edit flurry into one notification).
+  - `reminder-service` rewrite: `upsertReminder` only re-fires a sent reminder if its time moved
+    >1h; `ensureRemindersForDate` uses `couple.timezone`; new `ensureMemoryReminder` (COMPLETED +
+    no memory → +1 day, self-clears), `setCustomReminder` / `clearCustomReminder` /
+    `getUserDateReminders`, `snoozeReminder` (+1 day, clears sent/dismissed). `getDueReminders`
+    excludes `CANCELLED` dates, retires reminders >2 days stale or whose date state no longer
+    fits (`stateAllows`), pref-gates by kind. `dispatchDueReminders` — per-reminder try/catch,
+    18h re-deliver guard, marks `sentAt` only when in-app delivery succeeded, routes through
+    `deliverNotification`. REVIEW copy is now exactly "Your date is waiting for its review."
+  - New notification triggers: `plan-service` edit fns call `notePlanEditToPartner`
+    (`DATE_EDITED`, skipped for DRAFT/CANCELLED, dedupe-collapsed); `calendar-service.promoteDueDates`
+    runs `nudgeStaleDates` (`DATE_NEEDS_ACTION` for a TODAY/IN_PROGRESS date >18h past its end,
+    one per date per 24h, never for cancelled/deleted); `date-service.transitionDate` now always
+    runs `ensureReviewReminders` + `ensureMemoryReminder` (so a reopen tidies up); `memory-service`
+    save/delete re-runs `ensureMemoryReminder`.
+  - Partner activity: `date-event-service.getPartnerActivity` — up to 3 grouped lines from
+    `DateEvent`s since `activitySeenAt`, collapsing a run of one kind into a counted friendly
+    summary ("added 3 photos" / "updated the plan" / "completed their review"); `<PartnerActivity>`
+    replaces `<PartnerActivityBanner>` on Home, gated by the `partnerEdits` pref in `home-service`.
+    Removed the now-dead `getUnseenPartnerEdit` / `PartnerEditView`.
+  - UI: `/notifications` rebuilt — `<NotificationsList>` (client) groups New / Earlier, every row
+    is a deep link that marks itself read on click (`markNotificationReadAction`), + a Settings
+    link. `<DateReminderControls>` on `/dates/[id]` for PLANNED/TODAY — explains the auto
+    reminders + set/clear one custom reminder (`datetime-local`). `notification-settings-form`
+    now renders from `NOTIFICATION_CATEGORIES` (auto-includes memory reminders) with a
+    "your settings only" note.
+  - `tsc` / `eslint` (0) / `next build` (53 routes) / `next dev` (`/notifications`,
+    `/settings/notifications`, `/dates/[id]` 307 unauth) green. Timezone math + dedupe windows +
+    expiry rules reviewed. Needs DB + login to exercise end-to-end. Reminder dispatch is still
+    opportunistic (fires on Home load) — the `getDueReminders` seam is where a cron/worker plugs in.
+
+- **Explore discovery engine (6-part prompt)** — completed 2026-09-02
+  - Schema: +`RecommendationFeedback` model (couple-shared, `@@unique([coupleId, targetType,
+    targetKey])`) + `RecommendationTargetType` (PLACE|IDEA) / `RecommendationSignal`
+    (INTERESTED|NOT_FOR_US|SAVED) enums; relations on `Couple` + `User` (Cascade). `prisma
+    validate` OK; native `generate` EPERM-blocked by `next dev` (TS `.d.ts` regenerated).
+  - Pure libs: `lib/explore/date-ideas.ts` (fixed 10-idea catalogue, each mapped to a
+    `PlaceCategory` + copy), `lib/explore/compatibility.ts` (`coupleMatch` — deterministic
+    weighted blend of both partners' historical category ratings + how closely they agree,
+    40–98 clamp, plain `reason`; `percent: null` = "New territory", never invented; revisit-YES
+    pinned to 94%), `lib/explore/visited.ts` (`classifyVisited` → new/visited/revisit/loved/
+    avoid; `avoid` = last revisit NO **or** NOT_FOR_US feedback). `PLACE_CATEGORY_SHORT` added
+    to `lib/date/place-category.ts`.
+  - `explore-service.getExploreHome(coupleId, viewerId)` — one deterministic loader (no AI).
+    Builds a per-member × place-category rating map (reveal-gated like reviews), per-place
+    aggregate, city tally, done-categories set. Assembles up to 8 sections (Recommended for you
+    / Because you loved X / Previously enjoyed / Nearby [most-visited city, not GPS] / Try
+    something different [0-history categories] / Date ideas / Hidden gems [score ≥7, not a
+    favourite] / Your saved places), drops empties, and **reorders by history depth** (≥3
+    completed dates → personalised sections lead, else ideas lead). `avoid` places filtered from
+    every recommendation section; only reappear in a deliberate search. Also exports
+    `getRecommendationFeedbackMap` + `setRecommendationFeedback` (couple-scoped, place-ownership
+    checked, idea-key checked; `signal: null` clears).
+  - `actions/explore.ts` `recommendationFeedbackAction` (zod-validated, `revalidatePath("/explore")`).
+    "Plan this" reuses existing `/plan?place=` / `/plan?idea=` → `startPlanAction`.
+  - `/explore` rewritten: no query → `<ExploreHome>` discovery view; any `q`/`category`/`view`/
+    `forDate` → existing `searchPlaces` grid (unchanged — the deliberate-search escape hatch),
+    now with `<VisitedBadge>` + `<RecFeedback>` on saved-place cards.
+  - Components (`components/explore/`): `explore-home`, `recommendation-card`, `idea-card`,
+    `match-badge` (`MatchBadge`/`MatchReason`), `visited-badge`, `rec-feedback` (client,
+    optimistic `useActionState` + render-phase reconcile). `place-card` gained `feedbackSignal`
+    prop + visited badge.
+  - `tsc` / `eslint` (0) / `next build` (53 routes) / `next dev` (`/explore` + all query modes
+    307 unauth) green. Match formula + section gating + avoid-filtering reviewed. Needs DB +
+    login to exercise.
+
+- **Couple Profile + private relationship insights (6-part prompt)** — completed 2026-09-02
+  - Schema: `User` +`theme String @default("system")` +`hideMoneyInsights` +`hidePartnerPreferenceGap`
+    (privacy toggles). Only change. `prisma validate` OK; native-engine `generate` EPERM-blocked by
+    the running `next dev` (TS `.d.ts` regenerated — `tsc`/`next build` see the fields). Added to the
+    migration-blocked backlog alongside `DatePhoto.isFavorite`.
+  - Pure `lib/couple/insights.ts` — `round1`, `buildCategoryPreferences` (per-category couple avg +
+    per-person avg, each gated by `CATEGORY_MIN_SAMPLE=2` distinct rated dates),
+    `findPreferenceGaps` (`GAP_MIN_SAMPLE=3`, `GAP_MIN_DELTA=1`; neutral phrasing only —
+    "You rate X a little higher" / "…tend to enjoy X dates more" / "…consistently rate X higher"),
+    `buildCoupleInsights` (top category by score, most-revisited type, best-value date =
+    score÷spend, most-common activity, favourite place, avg spend — each emitted only when its
+    guard passes). No prediction, no personality claims.
+  - Pure `lib/settings/theme.ts` — `THEMES`/`Theme`/`isTheme`, `THEME_STORAGE_KEY`,
+    `THEME_BOOT_SCRIPT` (tiny no-flash `<head>` script that reads localStorage).
+  - `couple-insights-service.getCoupleProfile(coupleId, viewerId)` — the one loader for `/couple`.
+    Reveal-gated: a completed date's couple score + category scores only count once **both**
+    partners have submitted (solo couple = on submit), same rule as `reviewStage`. Returns
+    profile + `DateStatistics` (total/completed/memories/places/cities, avg couple score **with**
+    `scoredDateCount`, highest-rated always, **lowest-rated only when ≥2 scored dates and they
+    differ**, favourite category, `totalSpendCents` = null vs real 0) + `CategoryPreference[]` +
+    `preferenceBreakdownVisible` (false when viewer hid it) + `preferenceGaps` + `CoupleInsight[]`.
+  - `user-settings-service` (`getUserSettings`/`updateUserSettings`/`setUserTheme`),
+    `account-service` (`exportCoupleData` → full nested JSON view; `deleteAccount` → archive
+    couple + soft-delete user + bump `tokenVersion`), `couple-service`
+    +`getCoupleProfileForEdit`/`updateCoupleProfile`/`disconnectCouple` (archive: members→LEFT,
+    couple→ARCHIVED, nothing hard-deleted).
+  - `actions/settings.ts` — `updateCoupleProfileAction`, `updateUserSettingsAction`,
+    `setThemeAction`, `disconnectPartnerAction` (→ redirect `/onboarding`),
+    `deleteAccountAction` (typed "DELETE" gate → `clearSessionCookie` → redirect `/login`).
+  - `validation/settings.ts` — `coupleProfileSchema`, `userSettingsSchema`, `themeSchema`,
+    `deleteAccountSchema` (`z.literal("DELETE")`).
+  - Routes: `/couple` rewritten as the profile + insights view (+ `loading`/`error`); new
+    `/settings` hub (profiles links · Preferences form · Data export · Session sign-out ·
+    Account danger zone) and `/settings/couple` (edit form); new `GET /api/export` (members-only,
+    couple from session, `Content-Disposition: attachment`, `no-store` + `noindex`). Kept
+    `/settings/profile` + `/settings/notifications`.
+  - Components (`components/couple/`): `couple-profile-header` (photo/name/both people/pronouns/
+    "together since"/3 figures), `date-statistics`, `category-preferences` (shared bars +
+    per-person dots + neutral "Where your tastes differ" + framing line), `couple-insights`.
+    (`components/settings/`): `preferences-form` (theme radio w/ live DOM preview + privacy
+    checkboxes), `couple-profile-form`, `data-export-card`, `danger-zone` (disconnect via
+    `useConfirm`; delete via revealed typed-confirm form), `theme-applier` (mounted in
+    `(app)/layout`, reconciles server theme → `<html data-theme>` + localStorage).
+  - Theme: `globals.css` now has `@media (prefers-color-scheme: dark) { :root:not([data-theme]) }`
+    + `:root[data-theme="dark"]` (duplicated var list); light needs no rule. Root layout injects
+    `THEME_BOOT_SCRIPT` in `<head>`. Resolves the old "manual theme toggle" backlog item.
+  - `tsc` / `eslint` (0) / `next build` (52 routes) green; `next dev` — `/couple` `/settings`
+    `/settings/couple` 307 unauth, `/api/export` 401. Insight guards + reveal gate + neutral
+    phrasing reviewed. Needs DB + login to exercise.
+
+- **Dedicated Memories experience (6-part prompt)** — completed 2026-09-02
+  - Schema: `DatePhoto` +`isFavorite Boolean @default(false)` + `@@index([isFavorite])` — the
+    only schema change. `prisma validate` OK; native-engine `generate` still `EPERM`-blocked by
+    the running `next dev` (TS client is current, so `tsc`/`next build` see the field).
+  - Reused, not duplicated: `history-service` now **exports** `HISTORY_INCLUDE` (one
+    `Prisma.DateInclude` with place-mini / bestPhoto / memory / photos-take-1 / revisit /
+    reviews / activities / expenses / `_count.photos`) + `mapDateRowToItem(row, ctx)` — the
+    single row→`DateHistoryItem` mapper. `getDateHistory` and every memory loader call it, so
+    all card shapes share one code path. `DateHistoryItem` gained
+    `placeId` / `placeIsFavorite` / `memoryId` / `memoryIsFavorite` / `memoryTitle`.
+  - Pure `lib/date/milestones.ts` — `computeMilestones(itemsNewestFirst, { anniversaryMMDD })`
+    → `{ byId, ordinals, citiesExplored }`. Every milestone maps to a real fact only:
+    `first-date`, `nth-date` ([5,10,25,50,75,100,150,200,250]), `first-city` (first date in a
+    city), `regulars` (3rd+ visit to one place), `anniversary` (MM-DD matches the couple's
+    `anniversaryAt`), `top-score` (highest couple score, only once ≥3 scored dates). Caps
+    2/date. `ordinalLabel(n)` → "10th". Never manufactures a milestone.
+  - `photo-service`: `PHOTO_SELECT`/`toPhotoView` +`isFavorite`; new `togglePhotoFavorite`
+    (authorizePhoto, flips), `getBestPhotoWall()` → `WallPhoto[]` (every completed date's
+    `bestPhoto` + date/place context), `listFavoritePhotos()` → `WallPhoto[]`
+    (`DatePhoto.isFavorite` within the couple). `WallPhoto` = `PhotoView` + `dateId`/`dateTitle`
+    /`dateYmd`/`placeLabel`.
+  - `memory-service` extended: `toggleMemoryFavorite`; private `loadCompleted()` (all completed
+    dates once → mapped items + milestones); `getMemoryHome()` → `MemoryHome`
+    (stats + favourite dates + recent memories + best-photo strip + milestone highlights);
+    `getMemoryTimeline()` → items (each +`ordinal`+`milestones`) + citiesExplored;
+    `getFavorites()` → favourite dates + favourite photos + favourite places (each with a real
+    `visitCount`); `getMemoryDetail(memoryId, userId)` → `MemoryDetail` — **reshapes**
+    `getDateExperience` output (hero photo, ordinal, milestones, couple score + top-3 combined
+    categories, revisit + compat line, one-line spend + plan-divergence sentences, full photo
+    list). Zero new business rules — all derived values come from existing services.
+  - Routes (all under `/memories`, `<MemoriesNav>` segmented control — Journal / Timeline /
+    Photos / Favourites — on each): `page.tsx` (Journal home — stats row, Moments list,
+    Recent memories feature + grid, Best-of-us wall, Favourite dates grid; photo-dominant);
+    `loading.tsx` + `error.tsx`; `timeline/page.tsx` (year-grouped spine of
+    `<MemoryTimelineItem>`, cities-explored stat); `photos/page.tsx` (`<PhotoWall favoritable>`);
+    `favorites/page.tsx` ("Our Favourites" — favourite dates / photos / places sections);
+    `[id]/page.tsx` (`<MemoryDetailView>`, `notFound()` on `isAppError`).
+  - Components (`src/components/memories/`): `memories-nav` (client segmented control),
+    `favorite-heart` (client — optimistic heart, `useActionState`, render-phase reconcile,
+    `plain`/`overlay` variants), `milestone-badge` (+`DateOrdinal` "Our 10th date" eyebrow),
+    `memory-timeline-item`, `photo-wall` (client — masonry `columns` grid + portal `WallViewer`
+    with keyboard/swipe nav, per-photo favourite heart, "Open date" link), `memory-detail-view`
+    (server — full-bleed hero + overlay, milestones, story, "How it landed" card, plan/spend
+    one-liners, read-only `<PhotoGallery>`, footer links). "Do not show unnecessary technical
+    metadata" — the detail page omits ids/keys/status/pipeline entirely.
+  - `<PhotoGallery>`/`<PhotoLightbox>` gained `readOnly` (threaded from `canManage`) so the
+    memory detail's gallery has no edit chrome. `<FavoriteHeart>` wired into the `/dates/[id]`
+    memory card (heart + "Open in Memories") and every managed `<PhotoGallery>` tile
+    (`overlay` heart, top-left, opposite the best-photo star).
+  - Actions: `server/actions/memories.ts` `toggleMemoryFavoriteAction` (revalidates
+    `/memories` + `/` layouts); `server/actions/photos.ts` +`togglePhotoFavoriteAction`
+    (revalidates `/dates/[id]` + `/memories`). Both `idSchema`-validated, couple-authorized.
+  - `tsc` / `eslint` (0) / `next build` (45 routes, incl. `/memories`, `/memories/[id]`,
+    `/memories/{timeline,photos,favorites}`) green; `next dev` — `/` 200, all five memory
+    routes 307 → `/login` unauthenticated. Milestone rules sanity-checked. Needs DB + login to
+    exercise end-to-end.
 
 - **Our Dates history experience (6-part prompt)** — completed 2026-09-02
   - No schema change. New route **`/dates/history`** (+ `loading.tsx` skeleton timeline +
@@ -446,21 +757,14 @@ _Nothing in progress._
 
 ### Backlog
 
-- **Provision PostgreSQL** (role `mono_app` + `mono_dev`/`mono_shadow`), put real
-  `DATABASE_URL` + a 32+ char `AUTH_SECRET` in `.env`, then
-  `npm run db:migrate -- --name init` (+ optional `npm run db:seed`). Blocks: running the
-  migration (schema also has the place-discovery, collaboration/calendar, date-day/plan→reality,
-  photo-system, **and** blind-review additions — `DatePhoto.displayKey`/`thumbKey`/`blurDataUrl`,
-  `Date.bestPhotoId`, `DateEventKind.BEST_PHOTO_SET`; `Date.startedById`/`actualNotes`/
-  `actualsRecordedAt`, `DateActivity.unplanned`; `DateReview` reshaped (drop headline/body/
-  wouldRepeat/mood; add `overallRating Int?` 1–10 / `suggestedOverall` / `personalRevisit` +
-  note / 4 reflection cols / `submittedAt`), new enum `ReviewRevisit`, `DateReviewRating.score`
-  1–10; **and** the money-tracking additions — `ExpenseCategory.SHOPPING`,
-  `ExpensePayer.CUSTOM`, `Expense.note` + `Expense.ownerShareCents`), any login, and therefore
-  visual QA of every authenticated screen (onboarding, `/invite/[token]`, home, calendar,
-  upcoming, notification settings, the nav shell, `/dates/[id]` day mode + recap + photo
-  gallery/lightbox/uploader + review form/waiting/reveal + spending/split/value-for-money).
-  `/api/health` reports `database: "down"` by design until then.
+- **~~Provision PostgreSQL~~ — DONE 2026-09-02.** Live DB is **Neon** (`neondb`, ap-southeast-1),
+  connected via pooled `DATABASE_URL` in `.env` and **`prisma db push`** (all 20 tables live,
+  no migration files). Full relational smoke test passed; `/api/health` → `database: "up"`.
+  Still open: (a) real `AUTH_SECRET` for prod (dev one is insecure), (b) visual QA of every
+  authenticated screen is now unblocked (onboarding, `/invite/[token]`, home, calendar, upcoming,
+  notification settings, nav shell, `/dates/[id]` day mode + recap + photo gallery/lightbox/
+  uploader + review form/waiting/reveal + spending/split/value-for-money), (c) if switching to
+  `prisma migrate`, add a `SHADOW_DATABASE_URL` (2nd Neon DB) and generate the initial migration.
 - **`sharp` is now an explicit `dependencies` entry** but was already resolved in
   `node_modules` (Next 16 declares `sharp ^0.35.4` optionally), so no `npm install` was run.
   If the lockfile is ever regenerated, confirm `sharp` still resolves for the runtime image
@@ -472,30 +776,179 @@ _Nothing in progress._
   if a DB already has the old set, deactivate/remove the stale `review_categories` rows.
   Review scores are now **1–10** (were 1–5) — any pre-existing `DateReview.overallRating` /
   `DateReviewRating.score` rows would need doubling.
-- **`prisma generate` fails with `EPERM … rename query_engine-windows.dll.node` while a
-  `next dev` server is running** (it holds the native engine open on Windows). The generated
-  **TypeScript** client still updates fine (so `tsc`/`next build` see new schema fields); only
-  the native engine binary is stale until you stop `next dev` and re-run `prisma generate`.
-  Moot until the DB is provisioned.
+- **~~Pending schema deltas not `db push`ed~~ — DONE 2026-09-02.** `prisma db push` run against
+  Neon with no dev server holding the engine lock; the live DB is fully in sync (all deltas
+  from the Memories / Couple-profile / Explore / Notification / Security passes applied — 26
+  tables, no data loss). `prisma generate` also re-run cleanly (no more Windows `EPERM`; that
+  only happens while `next dev` holds the native `.dll.node`).
 - **Reminder dispatch has no scheduler yet.** `dispatchDueReminders(userId)` is called
   opportunistically from `getHomeData`, so due reminders only fire when that user opens Home.
-  A real cron / queue worker calling `dispatchDueReminders` per user is still needed.
+  A real cron / queue worker calling `dispatchDueReminders` per user is still needed — the seam
+  is `reminder-service.getDueReminders(userId)`, which already returns pref-filtered,
+  expiry-checked rows for a worker/endpoint to hand to `deliverNotification`.
 - Wire a real push provider: implement `WebPushChannel` in `src/lib/notifications/push.ts`
-  (VAPID keys) and return it from `getPushChannel()`; the subscription plumbing
-  (`savePushSubscriptionAction` → `NotificationPreference.pushSubscription`) is already there.
+  (VAPID keys) and return it from `getPushChannel()`; `PushRelayChannel` in
+  `src/lib/notifications/channels.ts` already relays through it, and the subscription plumbing
+  (`savePushSubscriptionAction` → `NotificationPreference.pushSubscription`) is in place. Add an
+  email channel by dropping another `NotificationChannel` into `getNotificationChannels()`.
 - Wire real Google OAuth credentials (architecture done; returns 501 until then).
 - Wire real email transport — SMTP driver (`console` driver active now).
-- Build feature pages (nav destinations currently render tasteful placeholders/EmptyStates):
-  Plan a date flow, Our Dates lists, Memories gallery, Explore/Places, Couple settings editing,
-  Expenses, Reviews.
+- Build feature pages — all nav destinations are now real. (Done: Plan a date flow, Our Dates
+  history, Memories experience, Explore/Places, Expenses, Reviews, Couple profile + settings.)
 - Visual verification of authenticated screens (home/dates/couple/etc. + nav shell) is blocked
   on the database — no login is possible until `DATABASE_URL` is real.
 - Migrate `package.json` Prisma seed config to `prisma.config.ts` before Prisma 7.
 - Dev-only advisory: `deepmerge-ts` via `prisma` CLI — clears on a Prisma release.
-- Optional: manual light/dark theme toggle (tokens currently follow `prefers-color-scheme`;
-  add `:root[data-theme=…]` overrides to support it).
+- ~~Manual light/dark theme toggle~~ — DONE 2026-09-02. `User.theme` (`system`/`light`/`dark`),
+  `:root[data-theme=…]` blocks in `globals.css`, no-flash `<head>` boot script + `<ThemeApplier>`
+  in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-09-02
+
+- **`publish`** — updated `memory.md`, ran `npm run build` (green), committed the accumulated
+  work from every 2026-09-02 pass (Memories → Couple profile → Explore → Notifications →
+  Security → Reliability/perf → Final quality pass) and pushed to `origin/main`.
+- **Final implementation & quality pass (6-part prompt).** Journey: traced the full lifecycle
+  end to end — no broken transition. Business logic: single-sourced `round1`/`mean` in
+  `lib/review/scale`; new `isRevealed` / `dateCoupleScore` in `lib/date/review-reveal` used
+  across `history` / `couple-insights` / `explore` / `home` services (fixed Home showing a
+  non-reveal-gated combined score); inline score-averaging in `place-*` / `recommendation`
+  services → `averageScore`/`mean`. Animation: CSS-only one-shot polish on connect / plan-saved
+  / date-completed / review-submitted / form-success / milestones. Testing: added **vitest** +
+  `test` script + `vitest.config.ts`; **68 unit tests / 9 files** (scoring, reveal, lifecycle
+  transitions, expense split & breakdown, compatibility, timezone, couple isolation w/ mocked
+  prisma) — all green. **`prisma db push` synced the live Neon DB** with the schema (all
+  prior-session deltas; no data loss). Product-standard sweep: no fake buttons / dead nav /
+  placeholder pages; screenshot 30/30 (no horizontal overflow); dev log clean; `/api/health` up.
+  `tsc` / `eslint`(0) / `vitest`(68) / `next build`(55 routes) / `prisma validate` + `generate`
+  all green. **DONE**
+- **Reliability & performance pass (6-part prompt).** Loading: +6 route `loading.tsx`
+  skeletons. Errors: `global-error.tsx`, `(app)/error.tsx` (offline-aware), `explore/error.tsx`;
+  place-picker sheet gains non-OK/offline handling + retry + caught select failure. Offline:
+  `use-online-status` hook, `<OfflineBanner>` in shell, `<OfflineNotice>`, `use-local-draft`
+  (localStorage) wired into `<MemoryForm>`. Perf: `getFavorites` N+1 removed;
+  `getBestPhotoWallPage` cursor pagination + `<PhotoWall>` infinite scroll + `.cv-auto`
+  content-visibility on gallery tiles; history 250-cap notice. A11y/mobile: audited (base
+  already strong — slider role, focus traps, labelled icons, colour+text chips); `<StickyBar>`
+  now clears the fixed mobile nav (`bottom-(--bottomnav-h)` / `lg:bottom-0`). `docs/architecture.md`
+  +"Reliability, performance & resilience" section. `tsc`/`eslint`(0)/`next build`/`next dev` green. **DONE**
+- **Privacy & security implementation pass (6-part prompt).** Wrote `docs/security.md` (full
+  audit). Fixed: (A) `/media/[...key]` path traversal — non-canonical keys (`..` segments etc.)
+  now rejected before prefix auth + `..`-guard in `local.ts`; dropped SVG from media MIME +
+  `nosniff`. (B) `readImageUpload` sniffs magic bytes (client `Content-Type` discarded), size
+  re-check, same-origin check. (C) new `lib/security/rate-limit.ts` on
+  login/register/reset×2/join/accept/upload. (D) `next.config.ts` security headers (CSP,
+  X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy, prod HSTS). (E) new
+  `/settings/privacy` page. Verified-good with no change: couple isolation via `authorize*`
+  everywhere; bcrypt-12 + timing-safe + no enumeration; JWT httpOnly/Secure/Lax + tokenVersion;
+  hashed single-use expiring reset & invite tokens; zod on all input; Prisma parameterised;
+  robots disallow-all + noindex; destructive flows already confirmed. `tsc`/`eslint`(0)/
+  `next build`(54 routes)/`next dev` (headers + traversal 404s) green. **DONE**
+- **Notification & reminder system (6-part prompt).** Schema `ReminderKind` +CUSTOM/+MEMORY,
+  `NotificationType` +DATE_NEEDS_ACTION/+REVIEW_REMINDER/+MEMORY_REMINDER, `NotificationPreference`
+  +memoryReminder (only change; `db push` deferred — dev-server engine lock). New pure libs:
+  `lib/utils/timezone.ts` (`zonedTimeToUtc` — tz-correct day-of reminder), `lib/notifications/{prefs,types,channels}.ts`
+  (6-category source of truth, pref-gate maps + `notificationHref`, channel registry
+  `deliverNotification` = in-app authoritative + best-effort push → the "no hardcoded provider"
+  seam). Hardened `notification-service.fanOut` (per-recipient pref gate + 10/60-min dedupe) and
+  `reminder-service` (tz DATE_DAY, CUSTOM/MEMORY kinds, `snooze`, expired-retire, CANCELLED
+  never fires, per-reminder try/catch, 18h re-deliver guard, "Your date is waiting for its
+  review."). New triggers: `notePlanEditToPartner` in plan edits (DATE_EDITED), `nudgeStaleDates`
+  in `promoteDueDates` (DATE_NEEDS_ACTION), `ensureMemoryReminder`. `getPartnerActivity` (grouped
+  friendly lines) + `<PartnerActivity>` on Home (pref-gated); removed dead `getUnseenPartnerEdit`.
+  `/notifications` rebuilt (`<NotificationsList>` — New/Earlier groups, deep-link rows,
+  mark-read-on-click); `<DateReminderControls>` on `/dates/[id]`; settings form auto-includes the
+  memory toggle. `tsc`/`eslint`(0)/`next build`(53 routes)/`next dev` green. **DONE**
+- **Explore discovery engine (6-part prompt).** Schema +`RecommendationFeedback` model +
+  `RecommendationTargetType`/`RecommendationSignal` enums (only change; `db push` deferred —
+  dev-server engine lock). Pure `lib/explore/{date-ideas,compatibility,visited}.ts` — fixed
+  10-idea catalogue, deterministic Couple Match % (weighted blend of both partners' category
+  ratings + agreement; `null` when thin, never invented), `classifyVisited` (new/visited/
+  revisit/loved/avoid). `explore-service.getExploreHome` — one deterministic loader, per-member
+  ×category rating map (reveal-gated), 8 sections reordered by history depth, `avoid` filtered
+  from recs (search is the escape hatch). `+getRecommendationFeedbackMap`/`setRecommendationFeedback`.
+  `actions/explore.ts` `recommendationFeedbackAction`. `/explore` = discovery home (no query)
+  vs. existing `searchPlaces` grid (any query), latter now with visited badges + feedback chips.
+  Components `explore-home` / `recommendation-card` / `idea-card` / `match-badge` /
+  `visited-badge` / `rec-feedback` (optimistic). `tsc`/`eslint`(0)/`next build`(53 routes)/
+  `next dev` green. **DONE**
+- **Couple Profile + private relationship insights (6-part prompt).** Schema `User`
+  +`theme`/`hideMoneyInsights`/`hidePartnerPreferenceGap` (only change; `db push` deferred —
+  dev-server engine lock). Pure `lib/couple/insights.ts` (deterministic per-category couple &
+  per-person averages with min-sample guards, neutral-language preference gaps that are never
+  framed as problems, insight builders that only emit when data supports them) +
+  `lib/settings/theme.ts` (no-flash boot script). Services: `couple-insights-service`
+  (`getCoupleProfile` — one reveal-gated loader; avg score carries `scoredDateCount`,
+  lowest-rated hidden unless ≥2 differing scored dates, spend null≠0), `user-settings-service`,
+  `account-service` (`exportCoupleData` JSON, `deleteAccount` = archive couple + soft-delete
+  user + bump token version), `couple-service` +`getCoupleProfileForEdit`/`updateCoupleProfile`/
+  `disconnectCouple` (archive, nothing hard-deleted). `actions/settings.ts` (couple profile,
+  user settings, theme fast-path, disconnect→`/onboarding`, delete→typed "DELETE"→`/login`).
+  `/couple` rewritten (profile header + statistics + category preferences/differences +
+  insights + settings links, `loading`/`error`); new `/settings` hub + `/settings/couple` +
+  `GET /api/export` (members-only, session-scoped, attachment). Components under
+  `components/couple/**` + `components/settings/**` (incl. `theme-applier` in `(app)/layout`,
+  `preferences-form` with live theme preview, `danger-zone` with `useConfirm` + typed delete).
+  `globals.css` gains `:root[data-theme="dark"]` + scopes the media query to
+  `:root:not([data-theme])` — resolves the manual-theme-toggle backlog item. `tsc`/`eslint`(0)/
+  `next build` (52 routes)/`next dev` (307/401 unauth) green. **DONE**
+- **Dedicated Memories experience (6-part prompt).** Schema: `DatePhoto.isFavorite`
+  (+`@@index`) — only change; `db push` deferred (dev-server lock). Reuse-first:
+  `history-service` now exports `HISTORY_INCLUDE` + `mapDateRowToItem` (single row→
+  `DateHistoryItem` mapper) and `DateHistoryItem` gained place/memory favourite +
+  `memoryId`/`memoryTitle`; every memory loader and `getDateHistory` share it. New pure
+  `lib/date/milestones.ts` — `computeMilestones` (first/nth date, first-city, regulars,
+  anniversary MM-DD, top-score; real facts only, never manufactured). `photo-service`
+  +`isFavorite`, +`togglePhotoFavorite`, +`getBestPhotoWall`/`listFavoritePhotos`
+  (→ `WallPhoto`). `memory-service` +`toggleMemoryFavorite` / `loadCompleted` (private) /
+  `getMemoryHome` / `getMemoryTimeline` / `getFavorites` / `getMemoryDetail` (reshapes
+  `getDateExperience`, zero new rules). Routes `/memories` (Journal home — photo-dominant),
+  `+loading/+error`, `/memories/timeline` (year-grouped spine), `/memories/photos`
+  (`<PhotoWall favoritable>`), `/memories/favorites` ("Our Favourites" — dates/photos/places),
+  `/memories/[id]` (`<MemoryDetailView>` — editorial, no technical metadata). Components
+  `memories-nav` / `favorite-heart` (optimistic, `plain`+`overlay`) / `milestone-badge`
+  (+`DateOrdinal`) / `memory-timeline-item` / `photo-wall` (portal viewer, swipe/keys) /
+  `memory-detail-view`. `<PhotoGallery>`/`<PhotoLightbox>` gained `readOnly`;
+  `<FavoriteHeart>` wired into `/dates/[id]` memory card + managed gallery tiles. Actions
+  `memories.ts` (`toggleMemoryFavoriteAction`) + `photos.ts` (`togglePhotoFavoriteAction`),
+  both id-validated + couple-authorized + path-revalidating. `tsc` / `eslint` (0) /
+  `next build` (45 routes) / `next dev` (all five `/memories*` routes 307 unauth) green.
+  Needs DB + login to exercise. **DONE**
+- **GitHub + live database + Vercel prep.**
+  - Initialised the repo (`git init -b main`), added remote `origin`
+    `https://github.com/Tus-GitHub/MONO.git` (was empty), committed the whole project (305 files;
+    `.env` excluded by `.gitignore`) and pushed to `main`. **DONE**
+  - Connected **Neon Postgres** (`neondb`, ap-southeast-1): pooled `DATABASE_URL` in `.env`
+    (`+ connect_timeout=15` for Neon auto-suspend cold starts); `npx prisma db push` created all
+    20 tables (no migration files). `prisma generate` still hits the Windows `EPERM` engine-lock
+    while `next dev` runs, but the TS client already matches the schema. **DONE**
+  - Verified the DB end to end: a full relational smoke test (users→couples→members→places→
+    dates→activities→events→reminders→photos→reviews→ratings→revisit→expenses→memories→
+    notifications, deep reads, aggregate, `$transaction`, couple-cascade delete) — all passed,
+    DB left empty. **DONE**
+  - `npm run build` — green, 40 routes, no errors. **DONE**
+  - Documented the Vercel deploy: set `build` to `prisma generate && next build`; env vars
+    (Neon `DATABASE_URL`, new `AUTH_SECRET`, `APP_URL`, storage/email/image/place vars);
+    **image uploads will fail on Vercel** (local-disk `STORAGE_DRIVER`, `s3.ts` not implemented);
+    post-deploy check via `/api/health` + register/create-couple. **DONE**
+- **`publish` command + rules.** Added `CLAUDE.md` Rule 2 ("update `memory.md` after every
+  prompt") and Rule 3 (the `publish` workflow: update memory → `npm run build` → on success
+  `git add -A` + commit + push to `origin main`; on failure show errors, no commit). Added the
+  `/publish` slash command at `.claude/commands/publish.md`. **DONE**
+- **Test account(s) + connected couple seeded in Neon.** `admin@gmail.com` / `admin@123`
+  (name "Admin") and `admin1@gmail.com` / `admin@123` (name "Partner"), both bcrypt cost 12,
+  both `profileCompletedAt` set. Joined as couple **"Admin & Partner"**
+  (`id cmtj2vf850001k2041yhzpov8`, invite `B8A-W5KN`) — `status=ACTIVE`, `setupCompletedAt` set,
+  admin = OWNER / admin1 = PARTNER (both ACTIVE), 6 default review categories. So the onboarding
+  state machine (`onboarding-service.ts`) resolves to `ready` and login lands straight on
+  `/home` with the full app UI. MONO has **no admin role** — these are normal users; the
+  password is below the sign-up policy (≥10 chars + uppercase) so it can't be recreated via the
+  form, but `loginSchema` doesn't enforce complexity so it logs in fine. **DONE**
+- **Dev server** was already running on **http://localhost:3217** (PID 21004; Next 16 refuses a
+  2nd `next dev` for the same dir — it prints the existing port). `/login` 200,
+  `/home` 307→`/login` when logged out. **DONE**
 
 ### 2026-09-01
 

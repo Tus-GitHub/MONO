@@ -13,13 +13,27 @@ const MIME: Record<string, string> = {
   png: "image/png",
   webp: "image/webp",
   gif: "image/gif",
-  svg: "image/svg+xml",
   pdf: "application/pdf",
 };
 
 function contentTypeFor(key: string): string {
   const ext = key.split(".").pop()?.toLowerCase() ?? "";
   return MIME[ext] ?? "application/octet-stream";
+}
+
+/**
+ * A storage key must be a plain, forward-only path. Rejecting `..` / `.` / empty segments,
+ * backslashes, a leading slash and control characters here is essential: the ownership check
+ * below trusts the key's *prefix*, so a `..` that later cancels out
+ * (`couples/<mine>/../users/<victim>/…`) must never reach the storage layer.
+ */
+function isCanonicalKey(key: string): boolean {
+  if (!key || key.length > 1024) return false;
+  if (key.startsWith("/") || key.includes("\\")) return false;
+  for (let i = 0; i < key.length; i += 1) {
+    if (key.charCodeAt(i) < 0x20) return false; // ASCII control character
+  }
+  return key.split("/").every((s) => s.length > 0 && s !== "." && s !== "..");
 }
 
 /**
@@ -34,6 +48,8 @@ export async function GET(
 ) {
   const { key: segments } = await params;
   const key = segments.map((segment) => decodeURIComponent(segment)).join("/");
+
+  if (!isCanonicalKey(key)) return new NextResponse(null, { status: 404 });
 
   try {
     const userScope = userIdFromKey(key);
@@ -61,6 +77,8 @@ export async function GET(
         // Private media — never index, never follow.
         "x-robots-tag": "noindex, nofollow, noimageindex",
         "referrer-policy": "no-referrer",
+        // A stored object is only ever an image/PDF; stop the browser guessing anything else.
+        "x-content-type-options": "nosniff",
       },
     });
   } catch (error) {

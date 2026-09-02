@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { PhotoLightbox } from "@/components/dates/photo-lightbox";
 import { PhotoUploader } from "@/components/dates/photo-uploader";
+import { FavoriteHeart } from "@/components/memories/favorite-heart";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Photo } from "@/components/ui/photo";
@@ -99,7 +100,7 @@ export function PhotoGallery({
               className={cn(
                 "group relative overflow-hidden rounded-xl border bg-surface",
                 photo.isBest ? "border-primary ring-1 ring-primary/40" : "border-line",
-                layout === "masonry" && "break-inside-avoid",
+                layout === "masonry" && "cv-auto break-inside-avoid",
               )}
             >
               <button
@@ -122,20 +123,36 @@ export function PhotoGallery({
               </button>
 
               {canManage ? (
-                <button
-                  type="button"
-                  onClick={() => setBest(photo)}
-                  aria-label={photo.isBest ? "Best couple photo — tap to unset" : "Set as best couple photo"}
-                  aria-pressed={photo.isBest}
-                  className={cn(
-                    "absolute right-2 top-2 grid size-8 place-items-center rounded-full backdrop-blur-sm transition-colors",
-                    photo.isBest
-                      ? "bg-primary text-primary-fg"
-                      : "bg-ink/45 text-white/85 opacity-0 hover:bg-ink/60 hover:text-white group-hover:opacity-100 focus-visible:opacity-100",
-                  )}
-                >
-                  <Icon name="star" size={15} />
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setBest(photo)}
+                    aria-label={photo.isBest ? "Best couple photo — tap to unset" : "Set as best couple photo"}
+                    aria-pressed={photo.isBest}
+                    className={cn(
+                      "absolute right-2 top-2 grid size-8 place-items-center rounded-full backdrop-blur-sm transition-colors",
+                      photo.isBest
+                        ? "bg-primary text-primary-fg"
+                        : "bg-ink/45 text-white/85 opacity-0 hover:bg-ink/60 hover:text-white group-hover:opacity-100 focus-visible:opacity-100",
+                    )}
+                  >
+                    <Icon name="star" size={15} />
+                  </button>
+                  <FavoriteHeart
+                    kind="photo"
+                    id={photo.id}
+                    dateId={dateId}
+                    isFavorite={photo.isFavorite}
+                    variant="overlay"
+                    size={15}
+                    className={cn(
+                      "absolute left-2 top-2 size-8",
+                      photo.isFavorite
+                        ? ""
+                        : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+                    )}
+                  />
+                </>
               ) : null}
 
               {photo.isBest ? (
@@ -153,6 +170,7 @@ export function PhotoGallery({
           photos={photos}
           index={Math.min(open, photos.length - 1)}
           dateId={dateId}
+          readOnly={!canManage}
           onIndex={setOpen}
           onClose={() => setOpen(null)}
         />

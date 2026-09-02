@@ -2,8 +2,8 @@ import "server-only";
 
 import { DateStatus, Prisma } from "@prisma/client";
 
-import { authorizeDate, authorizePhoto } from "@/lib/authz";
-import type { CoverImage, PhotoView } from "@/lib/date/photo-view";
+import { authorizeDate, authorizePhoto, requireCoupleContext } from "@/lib/authz";
+import type { CoverImage, PhotoView, WallPhoto } from "@/lib/date/photo-view";
 import { prisma } from "@/lib/db/prisma";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import type { ProcessedImage } from "@/lib/images";
@@ -32,6 +32,7 @@ export const PHOTO_SELECT = {
   height: true,
   caption: true,
   sortOrder: true,
+  isFavorite: true,
 } satisfies Prisma.DatePhotoSelect;
 
 type PhotoRow = Prisma.DatePhotoGetPayload<{ select: typeof PHOTO_SELECT }>;
@@ -51,6 +52,7 @@ export function toPhotoView(row: PhotoRow, bestPhotoId: string | null): PhotoVie
     height: row.height,
     caption: row.caption,
     isBest: row.id === bestPhotoId,
+    isFavorite: row.isFavorite,
   };
 }
 
@@ -267,4 +269,124 @@ export async function setBestCouplePhoto(dateId: string, photoId: string | null)
     "BEST_PHOTO_SET",
     photoId ? "picked the photo that feels most like you" : "cleared the best photo",
   );
+}
+
+/** Heart / un-heart a photo for the couple photo wall. Returns the new state. */
+export async function togglePhotoFavorite(photoId: string): Promise<boolean> {
+  const { resource } = await authorizePhoto(photoId);
+  const next = !resource.isFavorite;
+  await prisma.datePhoto.update({ where: { id: resource.id }, data: { isFavorite: next } });
+  return next;
+}
+
+// --- Cross-date collections (the Memories photo wall + Our Favorites) ------
+
+const WALL_DATE_SELECT = {
+  id: true,
+  title: true,
+  scheduledFor: true,
+  actualStartAt: true,
+  bestPhotoId: true,
+  actualPlace: { select: { name: true, city: true } },
+  plannedPlace: { select: { name: true, city: true } },
+} satisfies Prisma.DateSelect;
+
+type WallDateRow = Prisma.DateGetPayload<{ select: typeof WALL_DATE_SELECT }>;
+
+function wallDateContext(date: WallDateRow) {
+  const place = date.actualPlace ?? date.plannedPlace;
+  return {
+    dateId: date.id,
+    dateTitle: date.title || "Untitled date",
+    dateYmd: (date.actualStartAt ?? date.scheduledFor)?.toISOString().slice(0, 10) ?? null,
+    placeLabel: place ? `${place.name}${place.city ? `, ${place.city}` : ""}` : null,
+  };
+}
+
+/** Every date's chosen "best couple photo", newest first. */
+export async function getBestPhotoWall(): Promise<WallPhoto[]> {
+  const { couple } = await requireCoupleContext();
+  const dates = await prisma.date.findMany({
+    where: {
+      coupleId: couple.id,
+      deletedAt: null,
+      status: DateStatus.COMPLETED,
+      bestPhotoId: { not: null },
+    },
+    orderBy: [{ scheduledFor: { sort: "desc", nulls: "last" } }, { completedAt: "desc" }],
+    select: { ...WALL_DATE_SELECT, bestPhoto: { select: PHOTO_SELECT } },
+  });
+
+  return dates.flatMap((date) =>
+    date.bestPhoto
+      ? [{ ...toPhotoView(date.bestPhoto, date.bestPhotoId), ...wallDateContext(date) }]
+      : [],
+  );
+}
+
+export const PHOTO_WALL_PAGE_SIZE = 48;
+
+export interface PhotoWallPage {
+  photos: WallPhoto[];
+  nextCursor: string | null;
+}
+
+/**
+ * Cursor-paginated best-photo wall for the dedicated page — ordered by `completedAt` (always
+ * set on a completed date) so the cursor is a single, stable field. The cursor is the last
+ * item's `completedAt` ISO string.
+ */
+export async function getBestPhotoWallPage(
+  cursor?: string,
+  take = PHOTO_WALL_PAGE_SIZE,
+): Promise<PhotoWallPage> {
+  const { couple } = await requireCoupleContext();
+  const before = cursor ? new Date(cursor) : null;
+
+  const rows = await prisma.date.findMany({
+    where: {
+      coupleId: couple.id,
+      deletedAt: null,
+      status: DateStatus.COMPLETED,
+      bestPhotoId: { not: null },
+      ...(before && !Number.isNaN(before.getTime())
+        ? { completedAt: { lt: before } }
+        : {}),
+    },
+    orderBy: { completedAt: "desc" },
+    take: take + 1,
+    select: { ...WALL_DATE_SELECT, completedAt: true, bestPhoto: { select: PHOTO_SELECT } },
+  });
+
+  const hasMore = rows.length > take;
+  const page = hasMore ? rows.slice(0, take) : rows;
+  const last = page[page.length - 1];
+
+  return {
+    photos: page.flatMap((date) =>
+      date.bestPhoto
+        ? [{ ...toPhotoView(date.bestPhoto, date.bestPhotoId), ...wallDateContext(date) }]
+        : [],
+    ),
+    nextCursor: hasMore && last?.completedAt ? last.completedAt.toISOString() : null,
+  };
+}
+
+/** All hearted photos across every date, newest date first. */
+export async function listFavoritePhotos(): Promise<WallPhoto[]> {
+  const { couple } = await requireCoupleContext();
+  const rows = await prisma.datePhoto.findMany({
+    where: {
+      deletedAt: null,
+      isFavorite: true,
+      date: { coupleId: couple.id, deletedAt: null },
+    },
+    orderBy: [{ date: { scheduledFor: "desc" } }, { sortOrder: "asc" }],
+    select: { ...PHOTO_SELECT, date: { select: WALL_DATE_SELECT } },
+  });
+
+  return rows.map((row) => ({
+    ...toPhotoView(row, row.date.bestPhotoId),
+    ...wallDateContext(row.date),
+  }));
 }

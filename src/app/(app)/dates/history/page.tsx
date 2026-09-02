@@ -141,6 +141,7 @@ function HistoryResults({
       <p className="pt-1 text-center text-xs text-faint">
         {items.length} {items.length === 1 ? "date" : "dates"}
         {narrowed ? " matched" : ""}
+        {items.length >= 250 ? " · showing the 250 most recent — narrow with filters" : ""}
       </p>
     </div>
   );

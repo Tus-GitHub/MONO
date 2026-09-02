@@ -15,8 +15,16 @@ function storageRoot(): string {
     : resolve(/* turbopackIgnore: true */ process.cwd(), configured);
 }
 
-/** Map a storage key to an on-disk path, rejecting absolute paths and `..` escapes. */
+/**
+ * Map a storage key to an on-disk path. Rejects absolute paths, `..` escapes that leave the
+ * root, and — critically — any `..` segment at all: a `..` that nets back inside the root
+ * (`couples/a/../users/b`) would still cross an ownership boundary the `/media` route already
+ * authorized against.
+ */
 function resolveKey(key: string): string {
+  if (/(^|[\\/])\.\.([\\/]|$)/.test(key)) {
+    throw new Error(`Refusing a storage key with a ".." segment: ${key}`);
+  }
   const root = storageRoot();
   const full = join(root, key);
   const rel = relative(root, full);

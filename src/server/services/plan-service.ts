@@ -1,6 +1,6 @@
 import "server-only";
 
-import { DateActivityKind, DateStatus, ExpensePayer } from "@prisma/client";
+import { DateActivityKind, DateStatus, ExpensePayer, NotificationType } from "@prisma/client";
 
 import { assertTransition } from "@/lib/date/lifecycle";
 import { authorizeDate, requireCoupleContext } from "@/lib/authz";
@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db/prisma";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { formatWallDate, formatWallTime } from "@/lib/utils/format";
 import { logDateEvent } from "@/server/services/date-event-service";
+import { notifyPartner } from "@/server/services/notification-service";
 import {
   ensureRemindersForDate,
   ensureUnfinishedPlanReminder,
@@ -24,6 +25,27 @@ const EDITABLE_STATUSES: DateStatus[] = [
   DateStatus.PLANNED,
   DateStatus.TODAY,
 ];
+
+/**
+ * Tell the other partner one date got changed. Best-effort; the notification layer collapses a
+ * flurry of edits into a single message and honours the recipient's "partner activity" pref.
+ * Skipped for a draft (nobody else is watching it) and for a cancelled date.
+ */
+async function notePlanEditToPartner(
+  context: { couple: { id: string }; user: { id: string } },
+  resource: { id: string; title: string; status: DateStatus },
+): Promise<void> {
+  if (resource.status === DateStatus.DRAFT || resource.status === DateStatus.CANCELLED) return;
+  await notifyPartner({
+    coupleId: context.couple.id,
+    actorId: context.user.id,
+    type: NotificationType.DATE_EDITED,
+    title: "Your partner updated a plan",
+    body: resource.title || "A shared date",
+    entityType: "Date",
+    entityId: resource.id,
+  });
+}
 
 /** Wall-clock times are stored as UTC-encoded so `YYYY-MM-DD` / `HH:MM` round-trip cleanly. */
 function combineWall(dateStr?: string, timeStr?: string): Date | null {
@@ -251,6 +273,7 @@ export async function updateBasics(dateId: string, input: DateBasicsInput) {
     await logDateEvent(resource.id, actorId, "TIME_CHANGED", summary);
     await ensureRemindersForDate(resource.id);
   }
+  await notePlanEditToPartner(context, resource);
 }
 
 export async function updateBudget(dateId: string, input: DateBudgetInput) {
@@ -283,6 +306,7 @@ export async function updateBudget(dateId: string, input: DateBudgetInput) {
     next.currency !== before.currency
   ) {
     await logDateEvent(resource.id, context.user.id, "BUDGET_CHANGED", "updated the budget");
+    await notePlanEditToPartner(context, resource);
   }
 }
 
@@ -322,6 +346,7 @@ export async function addActivity(dateId: string, input: PlannedActivityInput) {
     },
   });
   await logDateEvent(resource.id, context.user.id, "ACTIVITY_ADDED", `added “${input.title}”`);
+  await notePlanEditToPartner(context, resource);
 }
 
 export async function updateActivity(
@@ -352,6 +377,7 @@ export async function updateActivity(
       ? `renamed an activity to “${input.title}”`
       : `updated “${input.title}”`;
   await logDateEvent(resource.id, context.user.id, "ACTIVITY_UPDATED", summary);
+  await notePlanEditToPartner(context, resource);
 }
 
 export async function deleteActivity(dateId: string, activityId: string) {
@@ -370,6 +396,7 @@ export async function deleteActivity(dateId: string, activityId: string) {
       "ACTIVITY_REMOVED",
       `removed “${activity.title}”`,
     );
+    await notePlanEditToPartner(context, resource);
   }
 }
 
@@ -394,6 +421,7 @@ export async function reorderActivities(dateId: string, orderedIds: string[]) {
     "ACTIVITY_REORDERED",
     "reordered the activities",
   );
+  await notePlanEditToPartner(context, resource);
 }
 
 // --- lifecycle -----------------------------------------------------------

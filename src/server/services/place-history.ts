@@ -3,6 +3,7 @@ import "server-only";
 import { DateStatus, RevisitChoice } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
+import { averageScore } from "@/lib/review/scale";
 
 export interface PlaceHistoryEntry {
   /** submitted overall ratings, on the 1–10 scale */
@@ -46,6 +47,5 @@ export async function getPlaceHistoryMap(
 }
 
 export function score10(entry: PlaceHistoryEntry | null | undefined): number | null {
-  if (!entry || entry.scores.length === 0) return null;
-  return Math.round((entry.scores.reduce((a, b) => a + b, 0) / entry.scores.length) * 10) / 10;
+  return entry ? averageScore(entry.scores) : null;
 }

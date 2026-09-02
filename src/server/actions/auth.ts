@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { clearSessionCookie, writeSessionCookie } from "@/lib/auth/session-cookie";
+import { MINUTE, checkRateLimit } from "@/lib/security/rate-limit";
 import { errorState, successState, type ActionState } from "@/lib/utils/result";
 import {
   loginSchema,
@@ -34,6 +35,9 @@ export async function registerAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const limited = await checkRateLimit("register", 5, 15 * MINUTE);
+  if (limited) return errorState(limited);
+
   const parsed = registerSchema.safeParse(formValues(formData));
   if (!parsed.success) {
     return errorState("Check the highlighted fields.", toFieldErrors(parsed.error));
@@ -53,6 +57,9 @@ export async function loginAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const limited = await checkRateLimit("login", 10, 15 * MINUTE);
+  if (limited) return errorState(limited);
+
   const parsed = loginSchema.safeParse(formValues(formData));
   if (!parsed.success) {
     return errorState("Check the highlighted fields.", toFieldErrors(parsed.error));
@@ -79,6 +86,9 @@ export async function requestPasswordResetAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const limited = await checkRateLimit("password-reset-request", 4, 60 * MINUTE);
+  if (limited) return errorState(limited);
+
   const parsed = requestPasswordResetSchema.safeParse(formValues(formData));
   if (!parsed.success) {
     return errorState("Enter a valid email address.", toFieldErrors(parsed.error));
@@ -97,6 +107,9 @@ export async function resetPasswordAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const limited = await checkRateLimit("password-reset", 10, 15 * MINUTE);
+  if (limited) return errorState(limited);
+
   const parsed = resetPasswordSchema.safeParse(formValues(formData));
   if (!parsed.success) {
     return errorState("Check the highlighted fields.", toFieldErrors(parsed.error));

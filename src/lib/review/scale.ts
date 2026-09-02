@@ -49,8 +49,19 @@ export function suggestedOverall(scores: number[]): number | null {
   return Math.round(real.reduce((sum, s) => sum + s, 0) / real.length);
 }
 
+/** Round to one decimal place — the house rounding for every score shown. */
+export function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+/** Plain mean of a list, or `null` when empty. Not rounded. */
+export function mean(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
 /** Average of a set of overall scores, one decimal — used for the combined couple score. */
 export function averageScore(scores: number[]): number | null {
-  if (scores.length === 0) return null;
-  return Math.round((scores.reduce((sum, s) => sum + s, 0) / scores.length) * 10) / 10;
+  const m = mean(scores);
+  return m == null ? null : round1(m);
 }

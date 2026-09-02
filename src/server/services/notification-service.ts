@@ -1,18 +1,16 @@
 import "server-only";
 
-import type { NotificationType } from "@prisma/client";
+import { NotificationType, Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
+import { NOTIFICATION_CATEGORY_OF } from "@/lib/notifications/types";
+import type { NotificationCategory } from "@/lib/notifications/prefs";
 
 export async function getUnreadNotificationCount(userId: string): Promise<number> {
   return prisma.notification.count({ where: { userId, readAt: null } });
 }
 
-/**
- * Fan a notification out to the other member(s) of a couple — used across the post-date
- * pipeline (review written, memory kept, expense added). Best-effort; never fails a mutation.
- */
-export async function notifyPartner(params: {
+interface FanParams {
   coupleId: string;
   actorId: string;
   type: NotificationType;
@@ -20,35 +18,48 @@ export async function notifyPartner(params: {
   body?: string;
   entityType?: string;
   entityId?: string;
-}): Promise<void> {
+  data?: Prisma.InputJsonValue;
+}
+
+/**
+ * Fan a notification out to the other member(s) of a couple. Used across the post-date pipeline
+ * (review submitted, memory kept, expense added, plan edited). Best-effort — never fails a
+ * mutation. Respects each recipient's category preference and collapses duplicates.
+ */
+export async function notifyPartner(params: FanParams): Promise<void> {
   await fanOut(params, { includeActor: false });
 }
 
 /** Like `notifyPartner` but also notifies the actor — for shared moments (e.g. a review reveal). */
-export async function notifyCouple(params: {
-  coupleId: string;
-  actorId: string;
-  type: NotificationType;
-  title: string;
-  body?: string;
-  entityType?: string;
-  entityId?: string;
-}): Promise<void> {
+export async function notifyCouple(params: FanParams): Promise<void> {
   await fanOut(params, { includeActor: true });
 }
 
-async function fanOut(
-  params: {
-    coupleId: string;
-    actorId: string;
-    type: NotificationType;
-    title: string;
-    body?: string;
-    entityType?: string;
-    entityId?: string;
-  },
-  opts: { includeActor: boolean },
-): Promise<void> {
+/** How long the same (type, entity) notification is suppressed for one user. */
+function dedupeWindowMs(type: NotificationType): number {
+  if (type === NotificationType.DATE_EDITED) return 60 * 60_000; // collapse an edit flurry
+  return 10 * 60_000;
+}
+
+async function recipientsAllowing(
+  userIds: string[],
+  category: NotificationCategory | null,
+): Promise<Set<string>> {
+  if (!category || userIds.length === 0) return new Set(userIds);
+  const prefs = await prisma.notificationPreference.findMany({
+    where: { userId: { in: userIds } },
+    select: { userId: true, upcomingDate: true, dateDay: true, reviewReminder: true, memoryReminder: true, unfinishedPlan: true, partnerEdits: true },
+  });
+  const byUser = new Map(prefs.map((p) => [p.userId, p]));
+  return new Set(
+    userIds.filter((id) => {
+      const p = byUser.get(id);
+      return p ? p[category] !== false : true; // no row = defaults, all on
+    }),
+  );
+}
+
+async function fanOut(params: FanParams, opts: { includeActor: boolean }): Promise<void> {
   try {
     const members = await prisma.coupleMember.findMany({
       where: {
@@ -58,16 +69,38 @@ async function fanOut(
       },
       select: { userId: true },
     });
-    if (members.length === 0) return;
+    let targets = members.map((m) => m.userId);
+    if (targets.length === 0) return;
+
+    // 1) preference gate
+    targets = [...(await recipientsAllowing(targets, NOTIFICATION_CATEGORY_OF[params.type]))];
+    if (targets.length === 0) return;
+
+    // 2) de-duplicate against a recent identical notification
+    const since = new Date(Date.now() - dedupeWindowMs(params.type));
+    const recent = await prisma.notification.findMany({
+      where: {
+        userId: { in: targets },
+        type: params.type,
+        entityId: params.entityId ?? null,
+        createdAt: { gte: since },
+      },
+      select: { userId: true },
+    });
+    const seen = new Set(recent.map((r) => r.userId));
+    targets = targets.filter((id) => !seen.has(id));
+    if (targets.length === 0) return;
+
     await prisma.notification.createMany({
-      data: members.map((member) => ({
+      data: targets.map((userId) => ({
         coupleId: params.coupleId,
-        userId: member.userId,
+        userId,
         type: params.type,
         title: params.title,
         body: params.body ?? null,
         entityType: params.entityType ?? null,
         entityId: params.entityId ?? null,
+        data: params.data ?? Prisma.DbNull,
       })),
     });
   } catch (error) {
@@ -75,7 +108,7 @@ async function fanOut(
   }
 }
 
-export async function listNotifications(userId: string, take = 40) {
+export async function listNotifications(userId: string, take = 50) {
   return prisma.notification.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
@@ -87,6 +120,7 @@ export async function listNotifications(userId: string, take = 40) {
       body: true,
       entityType: true,
       entityId: true,
+      data: true,
       readAt: true,
       createdAt: true,
     },

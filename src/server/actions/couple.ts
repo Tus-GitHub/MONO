@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/current-user";
 import { requireCoupleContext } from "@/lib/authz";
+import { MINUTE, checkRateLimit } from "@/lib/security/rate-limit";
 import { errorState, successState, type ActionState } from "@/lib/utils/result";
 import { idSchema, toFieldErrors } from "@/lib/validation/common";
 import {
@@ -50,6 +51,9 @@ export async function joinCoupleAction(
   formData: FormData,
 ): Promise<ActionState> {
   const user = await requireUser();
+  const limited = await checkRateLimit("couple-join", 10, 15 * MINUTE);
+  if (limited) return errorState(limited);
+
   const parsed = joinCoupleSchema.safeParse(formValues(formData));
   if (!parsed.success) {
     return errorState("Enter the invite code your partner shared.", toFieldErrors(parsed.error));
@@ -128,6 +132,9 @@ export async function acceptInvitationAction(
   formData: FormData,
 ): Promise<ActionState> {
   const user = await requireUser();
+  const limited = await checkRateLimit("invite-accept", 10, 15 * MINUTE);
+  if (limited) return errorState(limited);
+
   const parsed = acceptInvitationSchema.safeParse(formValues(formData));
   if (!parsed.success) {
     return errorState("That invitation link is not valid.", toFieldErrors(parsed.error));

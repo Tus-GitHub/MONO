@@ -1,11 +1,14 @@
 import "server-only";
 
-import { DateStatus } from "@prisma/client";
+import { DateStatus, NotificationType } from "@prisma/client";
 
 import { requireCoupleContext } from "@/lib/authz";
 import type { CoverImage } from "@/lib/date/photo-view";
 import { prisma } from "@/lib/db/prisma";
+import { notifyCouple } from "@/server/services/notification-service";
 import { PHOTO_SELECT, resolveDateCover } from "@/server/services/photo-service";
+
+const HOUR = 3_600_000;
 
 export interface CalendarDate {
   id: string;
@@ -24,7 +27,7 @@ export interface CalendarDate {
  */
 export async function promoteDueDates(coupleId: string): Promise<void> {
   const startOfToday = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`);
-  const endOfToday = new Date(startOfToday.getTime() + 24 * 3_600_000);
+  const endOfToday = new Date(startOfToday.getTime() + 24 * HOUR);
   await prisma.date.updateMany({
     where: {
       coupleId,
@@ -34,6 +37,56 @@ export async function promoteDueDates(coupleId: string): Promise<void> {
     },
     data: { status: DateStatus.TODAY },
   });
+  await nudgeStaleDates(coupleId);
+}
+
+/**
+ * A date whose time has clearly passed but which is still TODAY / IN_PROGRESS needs a wrap-up.
+ * One "needs completion" notification per date per day — never for a cancelled or deleted date.
+ */
+async function nudgeStaleDates(coupleId: string): Promise<void> {
+  try {
+    const cutoff = new Date(Date.now() - 18 * HOUR);
+    const stale = await prisma.date.findMany({
+      where: {
+        coupleId,
+        deletedAt: null,
+        status: { in: [DateStatus.TODAY, DateStatus.IN_PROGRESS] },
+        OR: [
+          { plannedEndAt: { lt: cutoff } },
+          { AND: [{ plannedEndAt: null }, { scheduledFor: { lt: cutoff } }] },
+        ],
+      },
+      select: { id: true, title: true },
+      take: 10,
+    });
+    if (stale.length === 0) return;
+
+    const since = new Date(Date.now() - 24 * HOUR);
+    for (const date of stale) {
+      const recent = await prisma.notification.findFirst({
+        where: {
+          coupleId,
+          type: NotificationType.DATE_NEEDS_ACTION,
+          entityId: date.id,
+          createdAt: { gte: since },
+        },
+        select: { id: true },
+      });
+      if (recent) continue;
+      await notifyCouple({
+        coupleId,
+        actorId: "system",
+        type: NotificationType.DATE_NEEDS_ACTION,
+        title: "A date is waiting to be wrapped up",
+        body: `${date.title || "Your date"} still needs its outcome — record what happened or mark it done.`,
+        entityType: "Date",
+        entityId: date.id,
+      });
+    }
+  } catch (error) {
+    console.error("[calendar] stale-date nudge failed:", error);
+  }
 }
 
 function toCalendarDate(row: {

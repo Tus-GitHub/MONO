@@ -7,10 +7,43 @@ import { idSchema } from "@/lib/validation/common";
 import { photoCaptionSchema } from "@/lib/validation/date";
 import {
   deleteDatePhoto,
+  getBestPhotoWallPage,
   setBestCouplePhoto,
   setPhotoCaption,
+  togglePhotoFavorite,
+  type PhotoWallPage,
 } from "@/server/services/photo-service";
 import { formValues, toActionError } from "@/server/actions/_helpers";
+
+/** "Load more" for the photo wall — read-only, couple-scoped inside the service. */
+export async function loadMoreBestPhotosAction(cursor: string): Promise<PhotoWallPage> {
+  if (typeof cursor !== "string" || cursor.length > 40) {
+    return { photos: [], nextCursor: null };
+  }
+  try {
+    return await getBestPhotoWallPage(cursor);
+  } catch {
+    return { photos: [], nextCursor: null };
+  }
+}
+
+/** Heart / un-heart a photo for the couple photo wall. */
+export async function togglePhotoFavoriteAction(
+  _prev: ActionState<{ favorite: boolean }>,
+  formData: FormData,
+): Promise<ActionState<{ favorite: boolean }>> {
+  const photoId = idSchema.parse(formData.get("photoId"));
+  const dateId = formData.get("dateId");
+  let favorite: boolean;
+  try {
+    favorite = await togglePhotoFavorite(photoId);
+  } catch (error) {
+    return toActionError(error);
+  }
+  if (typeof dateId === "string" && dateId) revalidatePath(`/dates/${dateId}`);
+  revalidatePath("/memories", "layout");
+  return successState({ favorite }, favorite ? "Added to favourites." : "Removed.");
+}
 
 /** Part 4 — "Pick the photo that feels most like us." An empty photoId clears it. */
 export async function setBestCouplePhotoAction(

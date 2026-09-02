@@ -11,6 +11,7 @@ import {
 import { prisma } from "@/lib/db/prisma";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { getExternalPlaceProvider } from "@/lib/places";
+import { averageScore } from "@/lib/review/scale";
 import { storage } from "@/lib/storage";
 import { logDateEvent } from "@/server/services/date-event-service";
 import { getPlaceHistoryMap, score10 } from "@/server/services/place-history";
@@ -260,10 +261,7 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
   const allScores = datesHere.flatMap((date) =>
     date.reviews.map((r) => r.overallRating).filter((n): n is number => n != null),
   );
-  const coupleScore10 =
-    allScores.length > 0
-      ? Math.round((allScores.reduce((a, b) => a + b, 0) / allScores.length) * 10) / 10
-      : null;
+  const coupleScore10 = averageScore(allScores);
   const lastRevisitDate = datesHere.find((date) => date.revisitDecision);
 
   // favourite category = the couple's most-visited completed category
@@ -331,10 +329,7 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
           id: date.id,
           title: date.title,
           completedAt: date.completedAt?.toISOString() ?? null,
-          score10:
-            overalls.length > 0
-              ? Math.round((overalls.reduce((a, b) => a + b, 0) / overalls.length) * 10) / 10
-              : null,
+          score10: averageScore(overalls),
         };
       }),
     },

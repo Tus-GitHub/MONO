@@ -10,6 +10,7 @@ import type {
   CreateCoupleInput,
   JoinCoupleInput,
 } from "@/lib/validation/couple";
+import type { CoupleProfileInput } from "@/lib/validation/settings";
 import { ensureDefaultReviewCategories } from "@/server/services/review-category-service";
 
 const MAX_MEMBERS = 2;
@@ -126,6 +127,60 @@ export async function updateCoupleSetup(coupleId: string, input: CoupleSetupInpu
       description: input.description ?? null,
       anniversaryAt: input.anniversaryAt ?? null,
     },
+  });
+}
+
+/** The couple profile fields the edit form needs. */
+export async function getCoupleProfileForEdit(coupleId: string) {
+  return prisma.couple.findUniqueOrThrow({
+    where: { id: coupleId },
+    select: {
+      name: true,
+      description: true,
+      anniversaryAt: true,
+      currency: true,
+      photoUrl: true,
+    },
+  });
+}
+
+/** Settings: edit the couple's shared profile (photo is uploaded via its own route). */
+export async function updateCoupleProfile(coupleId: string, input: CoupleProfileInput) {
+  return prisma.couple.update({
+    where: { id: coupleId },
+    data: {
+      name: input.name ?? null,
+      description: input.description ?? null,
+      anniversaryAt: input.anniversaryAt ?? null,
+      currency: input.currency,
+    },
+    select: { id: true },
+  });
+}
+
+/**
+ * Archive the shared space and release both people. Nothing is hard-deleted — every date,
+ * memory and photo is kept (soft) so the couple could be restored by support. After this both
+ * users are free to start or join a new couple.
+ */
+export async function disconnectCouple(coupleId: string) {
+  return prisma.$transaction(async (tx) => {
+    const couple = await tx.couple.findFirst({
+      where: { id: coupleId, deletedAt: null },
+      select: { id: true, status: true },
+    });
+    if (!couple) throw new NotFoundError("That couple space no longer exists.");
+    if (couple.status === CoupleStatus.ARCHIVED) {
+      throw new ConflictError("This space is already archived.");
+    }
+    await tx.coupleMember.updateMany({
+      where: { coupleId, status: CoupleMemberStatus.ACTIVE },
+      data: { status: CoupleMemberStatus.LEFT },
+    });
+    await tx.couple.update({
+      where: { id: coupleId },
+      data: { status: CoupleStatus.ARCHIVED },
+    });
   });
 }
 

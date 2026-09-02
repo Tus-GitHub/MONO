@@ -3,46 +3,29 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
+import {
+  DEFAULT_CATEGORY_PREFS,
+  NOTIFICATION_CATEGORIES,
+  type NotificationCategory,
+} from "@/lib/notifications/prefs";
 
-export interface NotificationPrefs {
-  upcomingDate: boolean;
-  dateDay: boolean;
-  reviewReminder: boolean;
-  unfinishedPlan: boolean;
-  partnerEdits: boolean;
+export type NotificationPrefs = Record<NotificationCategory, boolean> & {
   pushEnabled: boolean;
-}
-
-const DEFAULTS: NotificationPrefs = {
-  upcomingDate: true,
-  dateDay: true,
-  reviewReminder: true,
-  unfinishedPlan: true,
-  partnerEdits: true,
-  pushEnabled: false,
 };
+
+const DEFAULTS: NotificationPrefs = { ...DEFAULT_CATEGORY_PREFS, pushEnabled: false };
+
+type PrefRow = Record<NotificationCategory, boolean> & { pushEnabled: boolean };
+
+function pick(row: PrefRow): NotificationPrefs {
+  const out = { pushEnabled: row.pushEnabled } as NotificationPrefs;
+  for (const key of NOTIFICATION_CATEGORIES) out[key] = row[key];
+  return out;
+}
 
 export async function getNotificationPrefs(userId: string): Promise<NotificationPrefs> {
   const row = await prisma.notificationPreference.findUnique({ where: { userId } });
-  return row ? { ...DEFAULTS, ...pick(row) } : DEFAULTS;
-}
-
-function pick(row: {
-  upcomingDate: boolean;
-  dateDay: boolean;
-  reviewReminder: boolean;
-  unfinishedPlan: boolean;
-  partnerEdits: boolean;
-  pushEnabled: boolean;
-}): NotificationPrefs {
-  return {
-    upcomingDate: row.upcomingDate,
-    dateDay: row.dateDay,
-    reviewReminder: row.reviewReminder,
-    unfinishedPlan: row.unfinishedPlan,
-    partnerEdits: row.partnerEdits,
-    pushEnabled: row.pushEnabled,
-  };
+  return row ? { ...DEFAULTS, ...pick(row as PrefRow) } : DEFAULTS;
 }
 
 export async function updateNotificationPrefs(
@@ -54,7 +37,7 @@ export async function updateNotificationPrefs(
     create: { userId, ...patch },
     update: patch,
   });
-  return pick(row);
+  return pick(row as PrefRow);
 }
 
 export async function setPushSubscription(

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { DateStatus } from "@prisma/client";
 
 import { DateDayMode } from "@/components/dates/date-day-mode";
+import { DateReminderControls } from "@/components/dates/date-reminder-controls";
 import { DateSpending } from "@/components/dates/date-spending";
 import { DateEventList } from "@/components/dates/date-event-list";
 import { PhotoGallery } from "@/components/dates/photo-gallery";
@@ -16,6 +17,7 @@ import { RevisitControl } from "@/components/dates/revisit-control";
 import { StatusControl } from "@/components/dates/status-control";
 import { Countdown } from "@/components/home/countdown";
 import { PageHeader } from "@/components/layout/page-header";
+import { FavoriteHeart } from "@/components/memories/favorite-heart";
 import { Alert } from "@/components/ui/alert";
 import { DateStatusBadge } from "@/components/ui/badge";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -32,6 +34,7 @@ import {
 } from "@/lib/utils/format";
 import { listDateEvents } from "@/server/services/date-event-service";
 import { getDateExperience, type DateExperience } from "@/server/services/date-service";
+import { getUserDateReminders } from "@/server/services/reminder-service";
 
 export const metadata: Metadata = { title: "Date" };
 
@@ -55,6 +58,10 @@ export default async function DateDetailPage({
   }
 
   const events = await listDateEvents(id).catch(() => []);
+  const myReminders = await getUserDateReminders(id, user.id).catch(() => []);
+  const customReminderIso =
+    myReminders.find((r) => r.kind === "CUSTOM" && !r.sent && !r.dismissed)?.scheduledForIso ??
+    null;
   const lastEdit = events[0];
   const { date, plan, actual, comparison, pipeline, photos, review, revisit, memory } = data;
 
@@ -84,7 +91,7 @@ export default async function DateDetailPage({
       />
 
       {planned === "1" ? (
-        <Alert tone="success" title="It's a plan.">
+        <Alert tone="success" title="It's a plan." className="anim-scale-in">
           Now make it a memory.
         </Alert>
       ) : null}
@@ -147,6 +154,14 @@ export default async function DateDetailPage({
           <StatusControl dateId={date.id} status={status} />
         </div>
       </div>
+
+      {status === DateStatus.PLANNED || status === DateStatus.TODAY ? (
+        <DateReminderControls
+          dateId={date.id}
+          customReminderIso={customReminderIso}
+          timeZone={date.timezone}
+        />
+      ) : null}
 
       {/* --- The plan ------------------------------------------------------- */}
       {isDone || isDayMode ? (
@@ -271,17 +286,38 @@ export default async function DateDetailPage({
             icon={<Icon name="images" size="sm" />}
             title={memory ? memory.title || "Your memory" : "Keep it as a memory"}
             action={
-              <LinkButton
-                href={`/dates/${date.id}/memory`}
-                variant="secondary"
-                size="sm"
-              >
-                {memory ? "Edit" : "Write it"}
-              </LinkButton>
+              <div className="flex items-center gap-1.5">
+                {memory ? (
+                  <FavoriteHeart
+                    kind="memory"
+                    id={memory.id}
+                    isFavorite={memory.isFavorite}
+                    className="size-8"
+                  />
+                ) : null}
+                <LinkButton
+                  href={`/dates/${date.id}/memory`}
+                  variant="secondary"
+                  size="sm"
+                >
+                  {memory ? "Edit" : "Write it"}
+                </LinkButton>
+              </div>
             }
           />
           {memory ? (
-            <p className="whitespace-pre-line text-sm leading-relaxed text-muted">{memory.body}</p>
+            <>
+              <p className="whitespace-pre-line text-sm leading-relaxed text-muted">{memory.body}</p>
+              <div className="mt-3">
+                <LinkButton
+                  href={`/memories/${memory.id}`}
+                  variant="ghost"
+                  size="sm"
+                >
+                  Open in Memories
+                </LinkButton>
+              </div>
+            </>
           ) : (
             <p className="text-sm text-muted">
               Turn this date into a short story you&apos;ll both want to reread.

@@ -62,8 +62,13 @@
   --prose-max: 42rem;
 }
 
+/* Dark palette. Applied two ways:
+   1. the OS is dark AND the user hasn't pinned a theme  → :root:not([data-theme])
+   2. the user pinned "dark" in settings                 → :root[data-theme="dark"]
+   Pinning "light" needs no rule — the base :root above is the light palette and the media
+   query below stops matching once [data-theme] is present. Keep the two var lists identical. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     --paper: #151210;
     --surface: #1e1a16;
     --elevated: #26211c;
@@ -96,6 +101,40 @@
 
     --ring: #d1745a;
   }
+}
+
+:root[data-theme="dark"] {
+  --paper: #151210;
+  --surface: #1e1a16;
+  --elevated: #26211c;
+  --ink: #f1eae0;
+  --muted: #a89c8c;
+  --faint: #776d5f;
+  --line: #322b24;
+  --line-strong: #453b32;
+
+  --primary: #d1745a;
+  --primary-hover: #de8570;
+  --primary-active: #bd6349;
+  --primary-fg: #1a120d;
+  --primary-tint: #2d2019;
+
+  --accent: #b189a8;
+  --accent-hover: #c19eb9;
+  --accent-fg: #1a1016;
+  --accent-tint: #2a1f27;
+
+  --success: #71b98d;
+  --success-tint: #1c2a22;
+  --warning: #d7a659;
+  --warning-tint: #2b2316;
+  --error: #e17870;
+  --error-tint: #2e1c1a;
+
+  --rating: #e6b45b;
+  --rating-track: #392f22;
+
+  --ring: #d1745a;
 }
 
 /* Static tokens — real CSS vars + Tailwind utilities (rounded-*, ease-*, etc.) */
@@ -251,6 +290,13 @@
   .tap {
     min-height: 2.75rem;
     min-width: 2.75rem;
+  }
+
+  /* Skip layout/paint for off-screen tiles in long galleries. `contain-intrinsic-size`
+     reserves space so the scrollbar stays honest. */
+  .cv-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 240px;
   }
 
   /* Natural, self-contained scrolling — never rely on the browser scrollbar to navigate. */

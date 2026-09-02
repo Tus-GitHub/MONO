@@ -6,12 +6,103 @@ import { requireCoupleContext } from "@/lib/authz";
 import type { HistoryQuery } from "@/lib/date/history-filters";
 import { memorySnippet, type DateHistoryItem } from "@/lib/date/history-item";
 import { PLACE_CATEGORY_LABEL } from "@/lib/date/place-category";
-import { reviewStage } from "@/lib/date/review-reveal";
-import { averageScore } from "@/lib/review/scale";
+import { dateCoupleScore, reviewStage } from "@/lib/date/review-reveal";
 import { prisma } from "@/lib/db/prisma";
 import { PHOTO_SELECT, resolveDateCover } from "@/server/services/photo-service";
 
 const HISTORY_TAKE = 250;
+
+const PLACE_MINI = {
+  select: { id: true, name: true, city: true, category: true, isFavorite: true },
+} as const;
+
+/** The one shape a completed date is loaded in for any history / memory list. */
+export const HISTORY_INCLUDE = {
+  plannedPlace: PLACE_MINI,
+  actualPlace: PLACE_MINI,
+  bestPhoto: { select: PHOTO_SELECT },
+  memory: {
+    select: {
+      id: true,
+      title: true,
+      body: true,
+      isFavorite: true,
+      coverPhoto: { select: PHOTO_SELECT },
+    },
+  },
+  photos: {
+    where: { deletedAt: null },
+    orderBy: { sortOrder: "asc" },
+    take: 1,
+    select: PHOTO_SELECT,
+  },
+  revisitDecision: { select: { choice: true } },
+  reviews: { select: { authorId: true, submittedAt: true, overallRating: true } },
+  activities: { orderBy: { sortOrder: "asc" }, select: { title: true, kind: true } },
+  expenses: { where: { deletedAt: null }, select: { amountCents: true } },
+  _count: { select: { photos: true } },
+} satisfies Prisma.DateInclude;
+
+export type HistoryRow = Prisma.DateGetPayload<{ include: typeof HISTORY_INCLUDE }>;
+
+/** Flatten one completed-date row to a `DateHistoryItem`. The single mapper — no duplication. */
+export function mapDateRowToItem(
+  date: HistoryRow,
+  ctx: { userId: string; hasPartner: boolean },
+): DateHistoryItem {
+  const place = date.actualPlace ?? date.plannedPlace;
+  const dateYmd = (date.actualStartAt ?? date.scheduledFor)?.toISOString().slice(0, 10) ?? null;
+
+  const mine = date.reviews.find((r) => r.authorId === ctx.userId) ?? null;
+  const revealed =
+    reviewStage({
+      mineExists: mine != null,
+      mineSubmitted: mine?.submittedAt != null,
+      partnerSubmitted: date.reviews.some(
+        (r) => r.authorId !== ctx.userId && r.submittedAt != null,
+      ),
+      hasPartner: ctx.hasPartner,
+    }) === "revealed";
+  const submittedOveralls = date.reviews
+    .filter((r) => r.submittedAt != null)
+    .map((r) => r.overallRating)
+    .filter((n): n is number => n != null);
+
+  const actualActs = date.activities.filter((a) => a.kind === "ACTUAL").map((a) => a.title);
+  const plannedActs = date.activities.filter((a) => a.kind === "PLANNED").map((a) => a.title);
+  const expenseSum = date.expenses.reduce((sum, e) => sum + e.amountCents, 0);
+
+  return {
+    id: date.id,
+    title: date.title || "Untitled date",
+    dateYmd,
+    completedAtIso: date.completedAt?.toISOString() ?? null,
+    year: dateYmd ? Number(dateYmd.slice(0, 4)) : null,
+    placeId: place?.id ?? null,
+    placeName: place?.name ?? date.actualLocationText ?? null,
+    placeCity: place?.city ?? null,
+    placeCategory: place?.category ?? null,
+    placeCategoryLabel: place ? PLACE_CATEGORY_LABEL[place.category] : null,
+    placeIsFavorite: place?.isFavorite ?? false,
+    cover: resolveDateCover({
+      bestPhoto: date.bestPhoto,
+      memoryCoverPhoto: date.memory?.coverPhoto ?? null,
+      firstPhoto: date.photos[0] ?? null,
+    }),
+    photoCount: date._count.photos,
+    coupleScore: dateCoupleScore(submittedOveralls, revealed),
+    reviewRevealed: revealed,
+    revisit: date.revisitDecision?.choice ?? null,
+    hasMemory: date.memory != null,
+    memoryId: date.memory?.id ?? null,
+    memoryIsFavorite: date.memory?.isFavorite ?? false,
+    memoryTitle: date.memory?.title ?? null,
+    memorySnippet: memorySnippet(date.memory?.body),
+    spendCents: date.actualSpendCents ?? (date.expenses.length > 0 ? expenseSum : null),
+    currency: date.currency,
+    activityTitles: (actualActs.length > 0 ? actualActs : plannedActs).slice(0, 5),
+  };
+}
 
 export interface DateHistoryResult {
   items: DateHistoryItem[];
@@ -93,77 +184,10 @@ export async function getDateHistory(query: HistoryQuery): Promise<DateHistoryRe
     where,
     orderBy: [{ scheduledFor: { sort: "desc", nulls: "last" } }, { completedAt: "desc" }],
     take: HISTORY_TAKE,
-    include: {
-      plannedPlace: { select: { id: true, name: true, city: true, category: true } },
-      actualPlace: { select: { id: true, name: true, city: true, category: true } },
-      bestPhoto: { select: PHOTO_SELECT },
-      memory: { select: { title: true, body: true, coverPhoto: { select: PHOTO_SELECT } } },
-      photos: {
-        where: { deletedAt: null },
-        orderBy: { sortOrder: "asc" },
-        take: 1,
-        select: PHOTO_SELECT,
-      },
-      revisitDecision: { select: { choice: true } },
-      reviews: { select: { authorId: true, submittedAt: true, overallRating: true } },
-      activities: { orderBy: { sortOrder: "asc" }, select: { title: true, kind: true } },
-      expenses: { where: { deletedAt: null }, select: { amountCents: true } },
-      _count: { select: { photos: true } },
-    },
+    include: HISTORY_INCLUDE,
   });
 
-  let items: DateHistoryItem[] = rows.map((date) => {
-    const place = date.actualPlace ?? date.plannedPlace;
-    const dateYmd = (date.actualStartAt ?? date.scheduledFor)?.toISOString().slice(0, 10) ?? null;
-
-    const mine = date.reviews.find((r) => r.authorId === user.id) ?? null;
-    const revealed =
-      reviewStage({
-        mineExists: mine != null,
-        mineSubmitted: mine?.submittedAt != null,
-        partnerSubmitted: date.reviews.some(
-          (r) => r.authorId !== user.id && r.submittedAt != null,
-        ),
-        hasPartner,
-      }) === "revealed";
-    const submittedOveralls = date.reviews
-      .filter((r) => r.submittedAt != null)
-      .map((r) => r.overallRating)
-      .filter((n): n is number => n != null);
-    const coupleScore = revealed ? averageScore(submittedOveralls) : null;
-
-    const actualActs = date.activities.filter((a) => a.kind === "ACTUAL").map((a) => a.title);
-    const plannedActs = date.activities.filter((a) => a.kind === "PLANNED").map((a) => a.title);
-
-    const expenseSum = date.expenses.reduce((sum, e) => sum + e.amountCents, 0);
-
-    return {
-      id: date.id,
-      title: date.title || "Untitled date",
-      dateYmd,
-      completedAtIso: date.completedAt?.toISOString() ?? null,
-      year: dateYmd ? Number(dateYmd.slice(0, 4)) : null,
-      placeName: place?.name ?? date.actualLocationText ?? null,
-      placeCity: place?.city ?? null,
-      placeCategory: place?.category ?? null,
-      placeCategoryLabel: place ? PLACE_CATEGORY_LABEL[place.category] : null,
-      cover: resolveDateCover({
-        bestPhoto: date.bestPhoto,
-        memoryCoverPhoto: date.memory?.coverPhoto ?? null,
-        firstPhoto: date.photos[0] ?? null,
-      }),
-      photoCount: date._count.photos,
-      coupleScore,
-      reviewRevealed: revealed,
-      revisit: date.revisitDecision?.choice ?? null,
-      hasMemory: date.memory != null,
-      memoryTitle: date.memory?.title ?? null,
-      memorySnippet: memorySnippet(date.memory?.body),
-      spendCents: date.actualSpendCents ?? (date.expenses.length > 0 ? expenseSum : null),
-      currency: date.currency,
-      activityTitles: (actualActs.length > 0 ? actualActs : plannedActs).slice(0, 5),
-    };
-  });
+  let items = rows.map((date) => mapDateRowToItem(date, { userId: user.id, hasPartner }));
 
   // Filters SQL can't express cleanly.
   if (query.month && !query.year) {

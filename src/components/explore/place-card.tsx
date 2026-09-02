@@ -1,22 +1,33 @@
 import Link from "next/link";
-import { PlaceCategory } from "@prisma/client";
+import { PlaceCategory, type RecommendationSignal } from "@prisma/client";
 
 import { FavoriteButton } from "@/components/explore/favorite-button";
 import { CoupleScore, PublicRating } from "@/components/explore/rating-badges";
+import { RecFeedback } from "@/components/explore/rec-feedback";
 import { SelectPlaceButton } from "@/components/explore/select-place-button";
+import { VisitedBadge } from "@/components/explore/visited-badge";
 import { Icon } from "@/components/ui/icon";
 import { PLACE_CATEGORY_ICON, PLACE_CATEGORY_LABEL } from "@/lib/date/place-category";
+import { classifyVisited } from "@/lib/explore/visited";
 import { formatDistanceKm, priceLevelLabel } from "@/lib/utils/geo";
 import type { PlaceSearchResult } from "@/server/services/place-search-service";
 
 export function PlaceCard({
   place,
   forDate,
+  feedbackSignal = null,
 }: {
   place: PlaceSearchResult;
   forDate?: string;
+  feedbackSignal?: RecommendationSignal | null;
 }) {
   const category = place.category ?? PlaceCategory.OTHER;
+  const visitedStatus = classifyVisited({
+    visitCount: place.visitCount,
+    coupleScore10: place.coupleScore10,
+    lastRevisit: place.lastRevisit,
+    notForUs: feedbackSignal === "NOT_FOR_US",
+  });
   const location = [place.city, place.address].filter(Boolean).join(" · ");
   const ref = {
     savedPlaceId: place.savedPlaceId,
@@ -43,9 +54,9 @@ export function PlaceCard({
           initialFavorite={place.isFavorite}
           className="absolute right-2 top-2"
         />
-        {place.visitCount > 0 ? (
-          <span className="absolute left-2 top-2 rounded-full bg-elevated/90 px-2 py-0.5 text-2xs font-medium text-muted backdrop-blur">
-            {place.visitCount === 1 ? "Been once" : `Been ${place.visitCount}×`}
+        {visitedStatus !== "new" ? (
+          <span className="absolute left-2 top-2">
+            <VisitedBadge status={visitedStatus} />
           </span>
         ) : null}
       </div>
@@ -70,6 +81,14 @@ export function PlaceCard({
         </div>
 
         {place.coupleScore10 != null ? <CoupleScore score10={place.coupleScore10} /> : null}
+
+        {place.savedPlaceId && !forDate ? (
+          <RecFeedback
+            targetType="PLACE"
+            targetKey={place.savedPlaceId}
+            initial={feedbackSignal}
+          />
+        ) : null}
 
         <div className="pt-1">
           {forDate ? (

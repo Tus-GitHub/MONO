@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { CategoryRail } from "@/components/explore/category-rail";
 import { CustomPlaceForm } from "@/components/explore/custom-place-form";
+import { ExploreHome } from "@/components/explore/explore-home";
 import { ExploreSearch } from "@/components/explore/explore-search";
 import { PlaceCard } from "@/components/explore/place-card";
 import { PageHeader } from "@/components/layout/page-header";
@@ -9,7 +10,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
 import { LinkButton } from "@/components/ui/link-button";
 import { exploreCategoryByKey } from "@/lib/date/explore-categories";
-import { requireOnboarded } from "@/lib/onboarding";
+import { requireCoupleOrOnboard } from "@/lib/authz";
+import {
+  getExploreHome,
+  getRecommendationFeedbackMap,
+} from "@/server/services/explore-service";
 import { searchPlaces } from "@/server/services/place-search-service";
 
 export const metadata: Metadata = { title: "Explore" };
@@ -19,7 +24,7 @@ export default async function ExplorePage({
 }: {
   searchParams: Promise<{ q?: string; category?: string; view?: string; forDate?: string }>;
 }) {
-  await requireOnboarded();
+  const { user, couple } = await requireCoupleOrOnboard();
   const { q, category, view, forDate } = await searchParams;
   const suffix = forDate ? `&forDate=${forDate}` : "";
 
@@ -36,12 +41,7 @@ export default async function ExplorePage({
     );
   }
 
-  const cat = exploreCategoryByKey(category);
-  const results = await searchPlaces({
-    text: q,
-    categories: cat?.kind === "category" ? cat.match : undefined,
-    curated: view === "hidden" || cat?.kind === "curated",
-  });
+  const isBrowse = Boolean(q || category || view || forDate);
 
   return (
     <div>
@@ -50,7 +50,7 @@ export default async function ExplorePage({
         description={
           forDate
             ? "Pick a place for your date — or add a custom one."
-            : "Ideas for your next date, and the places you've saved."
+            : "Date ideas tuned to the two of you, plus the places you've saved."
         }
       />
 
@@ -60,31 +60,77 @@ export default async function ExplorePage({
       </div>
 
       <div className="mt-6">
-        {results.length === 0 ? (
-          <EmptyState
-            icon={<Icon name="compass" size="md" />}
-            title={q || category ? "Nothing matched" : "No saved places yet"}
-            description={
-              q || category
-                ? "Try a different search, or add it as a custom place."
-                : "Places you save while planning show up here. You can also add one now."
-            }
-            action={
-              <LinkButton href={`/explore?view=custom${suffix}`}>Add a custom place</LinkButton>
-            }
+        {isBrowse ? (
+          <BrowseResults
+            coupleId={couple.id}
+            q={q}
+            category={category}
+            view={view}
+            forDate={forDate}
+            suffix={suffix}
           />
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {results.map((place) => (
-              <PlaceCard
-                key={place.savedPlaceId ?? place.external?.providerPlaceId ?? place.name}
-                place={place}
-                forDate={forDate}
-              />
-            ))}
-          </div>
+          <ExploreHome data={await getExploreHome(couple.id, user.id)} />
         )}
       </div>
+    </div>
+  );
+}
+
+async function BrowseResults({
+  coupleId,
+  q,
+  category,
+  view,
+  forDate,
+  suffix,
+}: {
+  coupleId: string;
+  q?: string;
+  category?: string;
+  view?: string;
+  forDate?: string;
+  suffix: string;
+}) {
+  const cat = exploreCategoryByKey(category);
+  const [results, feedbackMap] = await Promise.all([
+    searchPlaces({
+      text: q,
+      categories: cat?.kind === "category" ? cat.match : undefined,
+      curated: view === "hidden" || cat?.kind === "curated",
+    }),
+    getRecommendationFeedbackMap(coupleId),
+  ]);
+
+  if (results.length === 0) {
+    return (
+      <EmptyState
+        icon={<Icon name="compass" size="md" />}
+        title={q || category ? "Nothing matched" : "No saved places yet"}
+        description={
+          q || category
+            ? "Try a different search, or add it as a custom place."
+            : "Places you save while planning show up here. You can also add one now."
+        }
+        action={<LinkButton href={`/explore?view=custom${suffix}`}>Add a custom place</LinkButton>}
+      />
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {results.map((place) => (
+        <PlaceCard
+          key={place.savedPlaceId ?? place.external?.providerPlaceId ?? place.name}
+          place={place}
+          forDate={forDate}
+          feedbackSignal={
+            place.savedPlaceId
+              ? (feedbackMap.get(`PLACE:${place.savedPlaceId}`) ?? null)
+              : null
+          }
+        />
+      ))}
     </div>
   );
 }

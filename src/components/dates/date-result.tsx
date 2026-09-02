@@ -47,7 +47,7 @@ export function DateResult({ data }: { data: DateExperience }) {
   const score = comparison?.coupleScore ?? null;
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
+    <section className="anim-rise overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
       <div className="relative">
         {best ? (
           <Photo

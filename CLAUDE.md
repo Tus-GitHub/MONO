@@ -14,6 +14,22 @@ Rules set by the user for how work on this project is done. Follow them every se
    completed, move it to `### Done`, mark its Task Log entry **DONE**, and update the
    `Last updated:` date at the top.
 
+2. **Update `memory.md` after every prompt.** Before ending any turn, bring `memory.md` up to
+   date with whatever was done, decided, changed, or learned in that exchange — not only at
+   task start/finish.
+
+3. **The `publish` command.** When the user says **`publish`** (plain text) or runs the
+   `/publish` slash command, do exactly this, in order — do not skip or reorder:
+   1. Update `memory.md` (rules 1–2).
+   2. Run `npm run build`.
+   3. If the build **fails**: show the errors and stop. Do **not** `git add`, commit, or push.
+   4. If the build **succeeds**: `git add -A`, then `git commit` with a concise message
+      summarising the changes (keep the standard
+      `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>` trailer), then `git push` to
+      `origin main`.
+   5. Report the commit hash and whether the push succeeded.
+   Saying `publish` is the user's standing authorization to commit and push to `main`.
+
 _(More rules to be added as the user sets them.)_
 
 ## Architecture invariants (do not violate)

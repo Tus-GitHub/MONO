@@ -15,10 +15,12 @@ export interface DateHistoryItem {
   completedAtIso: string | null;
   year: number | null;
 
+  placeId: string | null;
   placeName: string | null;
   placeCity: string | null;
   placeCategory: PlaceCategory | null;
   placeCategoryLabel: string | null;
+  placeIsFavorite: boolean;
 
   cover: CoverImage | null;
   photoCount: number;
@@ -31,6 +33,8 @@ export interface DateHistoryItem {
   revisit: RevisitChoice | null;
 
   hasMemory: boolean;
+  memoryId: string | null;
+  memoryIsFavorite: boolean;
   memoryTitle: string | null;
   memorySnippet: string | null;
 

@@ -37,6 +37,7 @@ export function PlacePickerSheet({
   const [loading, setLoading] = useState(false);
   const [choosing, setChoosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     if (!open) return;
@@ -51,10 +52,17 @@ export function PlacePickerSheet({
         const response = await fetch(`/api/places/search?${params.toString()}`, {
           signal: controller.signal,
         });
+        if (!response.ok) throw new Error(String(response.status));
         const data = (await response.json()) as { results?: PlaceSearchResult[] };
         setResults(data.results ?? []);
       } catch (fetchError) {
-        if (!(fetchError instanceof DOMException)) setError("Couldn't load places.");
+        if (!(fetchError instanceof DOMException)) {
+          setError(
+            typeof navigator !== "undefined" && !navigator.onLine
+              ? "You're offline — reconnect to search."
+              : "Couldn't load places just now.",
+          );
+        }
       } finally {
         setLoading(false);
       }
@@ -63,7 +71,7 @@ export function PlacePickerSheet({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [open, q, categoryKey]);
+  }, [open, q, categoryKey, retry]);
 
   const choose = async (body: Record<string, string>) => {
     setChoosing(true);
@@ -79,6 +87,12 @@ export function PlacePickerSheet({
       }
       onClose();
       router.refresh();
+    } catch {
+      setError(
+        typeof navigator !== "undefined" && !navigator.onLine
+          ? "You're offline — this didn't save. Try again when you reconnect."
+          : "That didn't save. Please try again.",
+      );
     } finally {
       setChoosing(false);
     }
@@ -109,7 +123,18 @@ export function PlacePickerSheet({
             ))}
           </div>
 
-          {error ? <p className="text-sm text-error">{error}</p> : null}
+          {error ? (
+            <p className="flex flex-wrap items-center gap-x-2 text-sm text-error">
+              {error}
+              <button
+                type="button"
+                onClick={() => setRetry((n) => n + 1)}
+                className="font-medium underline underline-offset-2"
+              >
+                Try again
+              </button>
+            </p>
+          ) : null}
 
           {loading ? (
             <div className="flex justify-center py-6">

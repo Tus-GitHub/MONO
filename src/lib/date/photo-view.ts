@@ -16,6 +16,15 @@ export interface PhotoView {
   height: number | null;
   caption: string | null;
   isBest: boolean;
+  isFavorite: boolean;
+}
+
+/** A photo shown outside its date — the couple photo wall, Our Favorites. Carries date context. */
+export interface WallPhoto extends PhotoView {
+  dateId: string;
+  dateTitle: string;
+  dateYmd: string | null;
+  placeLabel: string | null;
 }
 
 /** The one image that represents a date across cards, memory, home, timeline and stats. */

@@ -22,6 +22,7 @@ import type {
 import { logDateEvent } from "@/server/services/date-event-service";
 import { PHOTO_SELECT, toPhotoView } from "@/server/services/photo-service";
 import {
+  ensureMemoryReminder,
   ensureRemindersForDate,
   ensureReviewReminders,
 } from "@/server/services/reminder-service";
@@ -155,7 +156,9 @@ export async function transitionDate(dateId: string, input: TransitionDateInput)
     { from: resource.status, to: input.to },
   );
   await ensureRemindersForDate(resource.id);
-  if (input.to === DateStatus.COMPLETED) await ensureReviewReminders(resource.id);
+  // Both of these clear themselves when the date isn't COMPLETED, so a reopen tidies up too.
+  await ensureReviewReminders(resource.id);
+  await ensureMemoryReminder(resource.id);
 
   return updated;
 }
@@ -234,6 +237,7 @@ export async function getDateExperience(dateId: string, userId: string) {
     name: true,
     city: true,
     category: true,
+    isFavorite: true,
     address: true,
     latitude: true,
     longitude: true,
@@ -243,6 +247,7 @@ export async function getDateExperience(dateId: string, userId: string) {
   const date = await prisma.date.findUniqueOrThrow({
     where: { id: resource.id },
     include: {
+      couple: { select: { timezone: true } },
       plannedPlace: { select: placeSelect },
       actualPlace: { select: placeSelect },
       startedBy: { select: { id: true, name: true, nickname: true, avatarUrl: true } },
@@ -492,6 +497,7 @@ export async function getDateExperience(dateId: string, userId: string) {
       status: date.status,
       notes: date.notes,
       currency: date.currency,
+      timezone: date.couple.timezone,
       scheduledForYmd: ymd(date.scheduledFor),
       startedAt: iso(date.startedAt),
       startedBy: date.startedBy

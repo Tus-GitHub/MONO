@@ -16,7 +16,8 @@ export function StickyBar({
   return (
     <div
       className={cn(
-        "sticky bottom-0 z-20 -mx-4 mt-6 border-t border-line bg-elevated/80 px-4 py-3 pb-safe backdrop-blur-md sm:-mx-6 sm:px-6",
+        // On mobile the fixed bottom nav owns the last `--bottomnav-h`; sit clear of it.
+        "sticky bottom-(--bottomnav-h) z-20 -mx-4 mt-6 border-t border-line bg-elevated/80 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6 lg:bottom-0",
         className,
       )}
     >

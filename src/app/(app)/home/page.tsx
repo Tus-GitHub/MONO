@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { CoupleStats } from "@/components/home/couple-stats";
 import { HomeHeader } from "@/components/home/home-header";
-import { PartnerActivityBanner } from "@/components/home/partner-activity-banner";
+import { PartnerActivity } from "@/components/home/partner-activity";
 import {
   NoUpcomingState,
   PendingReviewBanner,
@@ -51,7 +51,7 @@ export default async function HomePage() {
         subline={subline}
       />
 
-      {home.partnerEdit ? <PartnerActivityBanner edit={home.partnerEdit} /> : null}
+      {home.partnerActivity ? <PartnerActivity activity={home.partnerActivity} /> : null}
 
       {home.pendingReviewCount > 0 ? (
         <PendingReviewBanner count={home.pendingReviewCount} />

@@ -40,7 +40,7 @@ export function ReviewWaiting({ ctx }: { ctx: ReviewContext }) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-success/25 bg-success-tint/50 p-6 text-center">
+      <div className="anim-rise rounded-2xl border border-success/25 bg-success-tint/50 p-6 text-center">
         <span className="mx-auto grid size-12 place-items-center rounded-full bg-success text-primary-fg">
           <Icon name="check" size={22} />
         </span>

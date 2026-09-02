@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
+import { OfflineNotice } from "@/components/system/offline-notice";
 import { Button } from "@/components/ui/button";
 import { CheckboxField } from "@/components/ui/checkbox";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -11,6 +12,7 @@ import { Icon } from "@/components/ui/icon";
 import { Input, Textarea } from "@/components/ui/input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import type { PhotoView } from "@/lib/date/photo-view";
+import { useLocalDraft } from "@/lib/hooks/use-local-draft";
 import { idleState } from "@/lib/utils/result";
 import { cn } from "@/lib/utils/cn";
 import { deleteMemoryAction, saveMemoryAction } from "@/server/actions/post-date";
@@ -41,6 +43,19 @@ export function MemoryForm({
 
   const [cover, setCover] = useState<string>(memory?.coverPhotoId ?? "");
 
+  // Keep the two long text fields on the device so a crash / lost connection doesn't lose them.
+  const titleDraft = useLocalDraft(`mono:memory:${dateId}:title`, memory?.title ?? dateTitle);
+  const bodyDraft = useLocalDraft(`mono:memory:${dateId}:body`, memory?.body ?? "");
+
+  useEffect(() => {
+    if (state.status === "success") {
+      titleDraft.clear();
+      bodyDraft.clear();
+    }
+    // clear() is stable; only react to a save landing
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.status]);
+
   const removeMemory = async () => {
     const ok = await confirm({
       title: "Remove this memory?",
@@ -60,12 +75,21 @@ export function MemoryForm({
       <input type="hidden" name="coverPhotoId" value={cover} />
 
       <FormFeedback state={state} />
+      <OfflineNotice />
+
+      {(titleDraft.restored || bodyDraft.restored) && state.status !== "success" ? (
+        <p className="flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-xs text-muted">
+          <Icon name="refresh" size={13} className="shrink-0" />
+          Picked up where you left off — this is an unsaved local draft.
+        </p>
+      ) : null}
 
       <Field label="Title" htmlFor="memory-title" errors={fieldErrors?.title}>
         <Input
           id="memory-title"
           name="title"
-          defaultValue={memory?.title ?? dateTitle}
+          value={titleDraft.value}
+          onChange={(e) => titleDraft.setValue(e.target.value)}
           placeholder="Name this memory"
           maxLength={160}
           required
@@ -77,7 +101,8 @@ export function MemoryForm({
           id="memory-body"
           name="body"
           rows={6}
-          defaultValue={memory?.body ?? ""}
+          value={bodyDraft.value}
+          onChange={(e) => bodyDraft.setValue(e.target.value)}
           placeholder="Tell it like you'd tell a friend. What happened, what you felt, the bit you'll both bring up years from now."
           required
         />

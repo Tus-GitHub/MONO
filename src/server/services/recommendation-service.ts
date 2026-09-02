@@ -3,6 +3,7 @@ import "server-only";
 import { DateStatus, PlaceCategory, RevisitChoice } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
+import { mean } from "@/lib/review/scale";
 
 /**
  * Deterministic date recommendations — no AI, no randomness. Everything is derived from the
@@ -90,7 +91,7 @@ export async function getRecommendedDates(
     const scores = date.reviews
       .map((review) => review.overallRating)
       .filter((n): n is number => n != null);
-    const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
+    const avg = mean(scores);
     if (place && avg != null) {
       const list = scoresByCategory.get(place.category) ?? [];
       list.push(avg);
@@ -102,7 +103,7 @@ export async function getRecommendedDates(
     .map(([category, scores]) => ({
       category,
       count: scores.length,
-      avg10: scores.reduce((a, b) => a + b, 0) / scores.length,
+      avg10: mean(scores) ?? 0,
     }))
     .sort((a, b) => b.avg10 - a.avg10 || b.count - a.count || a.category.localeCompare(b.category));
 

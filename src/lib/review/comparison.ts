@@ -1,12 +1,15 @@
 import { ReviewRevisit } from "@prisma/client";
 
+import { round1 as sharedRound1 } from "@/lib/review/scale";
+
 /**
  * The combined-review model — pure and deterministic. Only ever built once *both* people have
  * submitted (see `lib/date/review-reveal`); it never sees a draft. The one couple score is a
  * plain mean of the two overalls, rounded to one decimal — no hidden weighting anywhere.
  */
 
-export const round1 = (n: number): number => Math.round(n * 10) / 10;
+/** Re-exported from the scale so `@/lib/review/comparison` importers keep working. */
+export const round1 = sharedRound1;
 
 export interface CategoryComparison {
   id: string;
