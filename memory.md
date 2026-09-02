@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-09-02 (Final quality pass — published to origin/main)
+Last updated: 2026-09-02 (Prompts 30 launch-readiness + 31 mobile-keyboard fix — published)
 
 ## Project Overview
 
@@ -23,9 +23,41 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- _(nothing in progress)_
+- **Prod/PWA conversion (prompt 21+)** — Phases 0–8 done; prompts 30 (launch-readiness) + 31
+  (mobile keyboard) done. **Next action: run `publish`.** Then real deploy per `DEPLOY.md`
+  (needs a host + prod Neon branch + S3 bucket + domain/HTTPS). Outstanding non-blockers in
+  `docs/pwa-conversion-checklist.md` (Lighthouse on the live origin, real-device passes, a
+  reminder cron, SMTP for password-reset email).
 
 ### Done
+
+- **Launch-readiness pass (prompt 30)** — completed 2026-09-02. See Task Log. Headline:
+  full user-journey E2E (2 real couples, real UI) and a cross-couple authorization/IDOR sweep
+  both **PASS, no broken flows, no data leak**; added 20 calculation/authz unit tests
+  (**98 green**). No app code changed for §1/§2 — they held as built.
+- **Mobile keyboard & viewport fix (prompt 31)** — completed 2026-09-02. See Task Log.
+  Root causes: (a) `viewport` meta had no `interactive-widget` so Android's layout viewport
+  didn't shrink for the keyboard; (b) the `fixed bottom-0` mobile bottom-nav floated on top of
+  the keyboard over the last form row / Continue-Save button; (c) centred `Modal` +
+  `max-h:100dvh` and `BottomSheet` `max-h:92dvh` anchored at `bottom:0` put their footer
+  actions behind the keyboard on iOS (where `dvh`/`fixed` don't react); (d) auth/onboarding
+  shells used `justify-center` in a `flex-1` column → a form taller than a shrunk viewport
+  couldn't scroll to its top. Fix = `interactive-widget=resizes-content` + a
+  `<ViewportManager>` that publishes `--kb`/`--vvh`/`[data-kb=open]` from `visualViewport`
+  (cross-browser, incl. iOS) + focus-into-view assist; consumers react via tokens (nav slides
+  away, modal top-aligns + caps to `--vvh`, sheet lifts by `--kb`, sticky bars clear the
+  keyboard, auth/setup shells use `m-auto`+`overflow-y-auto`). Puppeteer-verified. No design
+  or functionality change. `tsc`/`eslint`(0)/`vitest`(98)/`next build` green.
+
+- **Prod/PWA conversion — Phase 8 (final UI/UX polish, prompt 29)** — completed 2026-09-02.
+  No new deps, no rewrites. See the Task Log entry for detail. Headline: fixed a real mobile
+  bug where the 1–10 review score scales overflowed a phone viewport (`.tap` min-width × 10
+  cells = 476px) and clipped the 9/10 cells — scores 9 & 10 were untappable on any phone;
+  now `h-11 min-w-0 flex-1`. Also: date-picker shortcut chips wrap instead of clipping; warm
+  empty-state copy + actions on plan/memories/explore/notifications; pending/disabled/loading
+  on every server-action button (status-control, lifecycle-buttons, review-waiting,
+  photo-lightbox, expense-row, memory-form); `anim-pop` on favorite, `active:scale` press on
+  score cells; softened the one stiff `error.tsx` line. tsc/eslint(0)/vitest(78)/build green.
 
 - **Final implementation & quality pass (6-part prompt)** — completed 2026-09-02
   - **Journey (1):** traced Register→Profile→Connect→Couple Setup→Home→Plan→Place→Activities→
@@ -806,6 +838,356 @@ components. Business rules never live only in React components — they live in
 ## Task Log
 
 ### 2026-09-02
+
+- **Mobile keyboard & viewport overflow fix (prompt 31).** No new deps. No design/functionality
+  change. No rewrites.
+  - **Diagnosis (real conflicts, not guesses):**
+    1. `src/app/layout.tsx` `viewport` had **no `interactive-widget`** → Android Chrome keeps
+       the layout viewport (and `dvh` / `position:fixed` / sticky) unchanged when the keyboard
+       opens, so it just covers the bottom of the page.
+    2. `BottomNav` is `fixed inset-x-0 bottom-0` → iOS Safari lifts it to sit *on top of* the
+       keyboard, directly over the last form field / the Continue·Save·Submit button; Android
+       (once the layout viewport resizes) does the same.
+    3. `Modal` — `flex items-center` wrapper + panel `max-h-[calc(100dvh-2rem)]`. On iOS `dvh`
+       doesn't shrink for the keyboard, so a centred panel's lower half (footer actions) ends
+       up behind the keyboard.
+    4. `BottomSheet` — `items-end` + `max-h-[92dvh]` anchored to `bottom:0` → footer (Save /
+       Add) behind the keyboard; `92dvh` doesn't shrink on iOS.
+    5. `(auth)/layout.tsx` + `setup-shell.tsx` — `justify-center` / `items-center` on a
+       `flex-1` column: a form taller than a keyboard-shrunk viewport can't scroll to its top
+       (flex centring clips the overflow, no scroll origin).
+    6. `place-detail.tsx` sticky action bar sat at `bottom-0` → already *behind* the fixed
+       bottom nav on mobile (pre-existing), and behind the keyboard.
+  - **Fix — CSS-first, one small JS helper, no hardcoded keyboard height:**
+    - `viewport.interactiveWidget = "resizes-content"` (Chromium honours it; iOS ignores it and
+      is covered by the JS below).
+    - New **`src/components/system/viewport-manager.tsx`** (mounted once in `AppProviders`, so
+      it also covers login/register/onboarding). From `window.visualViewport` it publishes on
+      `<html>`, on a rAF: `--kb` (px the keyboard covers = `innerHeight - vv.height -
+      vv.offsetTop`), `--vvh` (true visible height px), and `data-kb="open"` past a 120px
+      threshold. Plus a `focusin` assist: 300 ms after a field focuses, if it's clipped by the
+      keyboard band it `scrollIntoView({ block: "nearest", behavior: "smooth" })`. No
+      `visualViewport` (old browsers / desktop) → total no-op, `dvh` fallbacks apply.
+    - `globals.css`: `:root { --kb: 0px }`; coarse-pointer `scroll-margin-top/bottom` on
+      inputs (clears the sticky header for the nearest-scroll); **unlayered** rules —
+      `.mono-bottom-nav` → `translateY(110%)` + `opacity:0` under `html[data-kb="open"]`
+      (keeps its transition); `html[data-kb="open"] .above-bottom-nav { bottom: calc(var(--kb)
+      + safe-inset) }` (nav is gone, only clear the keyboard); `html[data-kb="open"]
+      .mono-modal-wrap { align-items: flex-start }`.
+    - `Modal`: wrapper gets `mono-modal-wrap`; panel `max-h` → `calc(var(--vvh,100dvh)-2rem)`.
+    - `BottomSheet`: outer wrapper `inset-x-0 top-0` + inline `style={{ bottom: "var(--kb,0px)" }}`
+      + `transition-[bottom]`; panel `max-h` → `calc(var(--vvh,92dvh)-1rem)`.
+    - `bottom-nav.tsx`: added the `mono-bottom-nav` class.
+    - `photo-lightbox.tsx` (has a caption `<input>`): same `top-0` + `bottom: var(--kb)` treatment.
+    - `place-detail.tsx` sticky bar: `bottom-0` → `above-bottom-nav sticky z-20` (+ `sm:` resets)
+      — now clears the bottom nav *and* the keyboard.
+    - `(auth)/layout.tsx` + `setup-shell.tsx`: `justify-center`/`items-center` → `overflow-y-auto`
+      on the column + `m-auto` on the card (centres when it fits, scrolls both ends when short).
+  - **Verified (puppeteer @ 390×780, `--kb`/`data-kb` injected exactly as ViewportManager
+    would):** bottom nav in-view at rest → `translateY(110%)`/opacity 0 with keyboard open;
+    focused plan-basics `title` input sits inside the visible band; bottom sheet bottom edge
+    lifts to the keyboard line, top stays on-screen, `max-height` caps to `--vvh`; confirm
+    Modal switches to top-aligned, both actions visible, panel capped to `--vvh`. `tsc` /
+    `eslint` (0) / `vitest` (**98**) / `next build` all green. At rest (`--vvh`/`--kb` unset)
+    every `var(--vvh, …)` falls back to the old `dvh` value — zero change with no keyboard.
+- **Launch-readiness pass (prompt 30).** No app code changed for §1/§2 (they held as built);
+  +20 unit tests.
+  - **§1 Full user-journey E2E — PASS** (puppeteer, real UI drive, two real couples):
+    register A1/A2 → profile → connect (invite code) → couple setup → **both reach `/home`,
+    two members one space** · plan wizard (basics: title + calendar day → Save & continue →
+    `?step=review` → **Save the plan** creates the date) · **A2 independently sees the date A1
+    planned** · Start the date → Recap (record reality, spend) saved → **Add expense** via
+    sheet → **2 photos uploaded** (canvas PNG → `/api/uploads/date-photo`) → **best photo**
+    set → **Complete date** · **Review A1 submitted → Review A2 submitted → combined reveal
+    shows a couple score** · revisit decision · **memory saved** · memories / timeline /
+    photos / favorites / explore / couple profile / history / notifications **all render** ·
+    can start the next plan. **No broken flows found.**
+  - **§2 Authorization / IDOR — PASS.** Couple B (own ACTIVE couple) attacking couple A by id:
+    `GET /dates/<A>` `/recap` `/review` `/memory` → `notFound()` render, **no couple-A text in
+    the body**; `GET /media/<A photo key>` → **404, no bytes**; `POST /api/uploads/date-photo
+    ?dateId=<A>` → **404**; `GET /api/export` → 200 **own couple only**; `/settings/couple` →
+    **own space only**. (`notFound()` streams as HTTP 200 in this Next build but renders the
+    not-found UI — data is not exposed.) Extended `src/lib/authz/couple.test.ts` +2 tests:
+    `authorizePhoto`/`authorizeExpense`/`authorizeMemory`/`authorizeReview` all throw
+    `NotFoundError` for a foreign id and scope every query by the session couple id.
+  - **§3 Calculation tests — added 18** (`vitest` total **98**, 14 files):
+    `src/lib/couple/insights.test.ts` (11) — `round1` half-up; `buildCategoryPreferences`
+    couple-avg = equal-weighted mean, `CATEGORY_MIN_SAMPLE=2` gate, per-member gate on that
+    member's own distinct-date count, category order preserved; `findPreferenceGaps` —
+    `GAP_MIN_SAMPLE=3` + `GAP_MIN_DELTA=1` gates, "You" vs partner-name subject, no
+    problem/conflict language, skipped for a solo couple; `buildCoupleInsights` — emit only
+    when data present, hide every money insight when `moneyHidden`, revisit-count
+    pluralisation. `src/lib/date/value-for-money.test.ts` (3) — unknown until spend + revealed
+    value score both exist, 8+/6–7/<6 → great/fair/steep, no negative tone. `src/lib/explore/
+    visited.test.ts` (4) — `classifyVisited` avoid > loved, score thresholds, only "avoid"
+    suppressed. (Combined couple score / overall / rating deltas / revisit-compat / expense
+    split / budget delta / recommendation match already had tests.)
+  - **§4 device matrix** — the deep mobile-keyboard/viewport work is prompt 31 (above). Prior
+    coverage: Phase 8 390px authed audit (0 horizontal overflow on 20+ routes; fixed the
+    review-slider `.tap` clip and the date-picker chip clip). Real-engine Safari/Firefox and
+    real iOS/Android device passes remain in the checklist as non-blockers.
+  - **§5 production env** — Phase 7 already verified `next start` with real prod env end to end
+    (`/api/health` up, signup+bcrypt persistence, session survives reload, 10 authed pages
+    200/0-overflow, manifest valid, `/offline` reachable, SW registers; prod env guard fires on
+    a placeholder secret). No regression since. Real HTTPS origin + storage + email are
+    deployment-time (DEPLOY.md §7).
+  - **§6 final standard** — no major TS errors (`tsc` 0), no broken navigation (journey E2E),
+    no fake functionality / mock data in prod (Phase 0 confirmed; seed guarded), no
+    unauthorized data access (§2), no accidental public photos (`/media` 404 + `robots`
+    disallow-all + `noindex` headers), no major mobile layout problems (Phase 8 + prompt 31),
+    production build succeeds, PWA manifest/SW verified (Phase 2/7), **two users use one couple
+    space independently** (§1 E2E). Ready to `publish` and deploy.
+  - Note: `registerAction` is rate-limited 5/15m per IP and Neon's pooled endpoint has a low
+    connection cap — repeated full E2E runs from one machine hit both. Correct app behaviour;
+    run the E2E once against a freshly-started dev server (restart clears the in-process limiter).
+
+- **Prod/PWA conversion — Phase 8 (final UI/UX polish, prompt 29).** No new deps. No rewrites.
+  - **§1 Visual consistency:** swept accidental hover-bg one-offs to the codebase-standard
+    bracket token — `hover:bg-ink/3`|`/6` → `hover:bg-ink/[0.06]` / `hover:bg-paper/70`
+    (`month-calendar`, `day-detail-panel`, `plan/page`, `explore` inline `activity-row`-style
+    buttons) and added the missing `transition-colors` on them. Rest of the system already
+    uses `src/components/ui/**` primitives + tokens — no rogue hex/px found.
+  - **§2 Empty states:** warmer copy + a real action —
+    `plan` ("Nothing half-planned right now" / "Start above — every step saves as you go…"),
+    `memories` ("The best part comes after the date."),
+    `explore` ("Find somewhere worth remembering." + *Add a place*),
+    `notifications` ("You're all caught up." + *Choose what MONO tells you*).
+    history/upcoming/favorites/timeline empties reviewed — already fine.
+  - **§3 Microinteractions:** `favorite-heart` pops (`motion-safe:anim-pop`, 280ms) when it
+    becomes a favourite; `score-scale` cells get `motion-safe:active:scale-[0.97]` press
+    feedback. Partner-connect (invite copy = icon swap + toast + "Copied"), onboarding forms
+    (`SubmitButton pendingText`), reveal/`anim-rise` — already good, left as-is.
+  - **§4 Error & loading UX — "no button clickable while processing":** added
+    pending/`disabled`/`loading` to every server-action trigger that lacked it —
+    `status-control` (`isPending` + per-target `running`), `lifecycle-buttons`
+    (`useActionState` `isPending` → `loading` on Start/Complete, click guarded),
+    `review-waiting` (`reopening`/`discarding`/`busy`), `photo-lightbox` (`ChromeButton`
+    gained a `busy` prop → make-best star disables while pending), `expense-row` (Save →
+    `SubmitButton`, delete/edit `disabled={deleting}` + trash→clock icon), `memory-form`
+    (Remove-memory `loading`/`disabled`). `rec-feedback` / `partner-activity` /
+    `notifications-list` reviewed — fine (optimistic / navigate-away).
+  - **§5 Mobile-first re-audit (puppeteer @ 390px + measured, logged in as the admin couple):**
+    zero horizontal overflow across 20+ authed routes. **Two real clipping bugs found & fixed:**
+    1. **`ScoreScale` (the 1–10 review sliders) overflowed the viewport** — each cell carried
+       `.tap` (`min-width: 2.75rem`), so 10 cells + gaps = 476px inside a 390px screen, and an
+       ancestor clip hid cells **9 and 10** — those scores were unreachable on every phone.
+       Fixed: `tap h-9` → `h-11 min-w-0 flex-1` (keeps a 44px-tall touch target; width shares
+       the row). Re-measured: row 358px, all 10 cells visible, no clip.
+    2. **`date-picker` "When?" shortcut chips** (`scroll-x no-scrollbar`) clipped "Next weekend"
+       with no scroll affordance → `flex flex-wrap gap-2` (4 short chips wrap cleanly).
+    Bottom nav / sticky "Plan a date" / safe areas / recap form / long titles / calendar grid /
+    404 page all check out at 390.
+  - **§6 Emotional quality:** product voice is already warm & personal throughout ("you two",
+    "How was it, really?", "the bit you'll both bring up years from now"); `/dashboard` is
+    already just a redirect to `/home` (rename long done). Softened the one stiff line —
+    `error.tsx` "The error has been logged. You can try again." → "It's been noted on our end —
+    nothing you did. Give it another try."
+  - Verified: `tsc` clean · `eslint .` 0 · `vitest run` **78/78** · `next build` compiled
+    successfully (all routes, exit 0). Temp puppeteer scripts + seed dates removed. Checklist
+    `docs/pwa-conversion-checklist.md` §2 updated. **DONE**
+- **Prod/PWA conversion — Phase 7 (deployment prep).** One new dep: `@aws-sdk/client-s3`
+  (S3-compatible; justified).
+  - **Env / secrets:** `.env*` git-ignored, `git ls-files` shows nothing sensitive committed.
+    `env.ts` gained a `superRefine` `productionSafe` guard — a *running* prod server throws on a
+    placeholder `AUTH_SECRET` / localhost `DATABASE_URL` / non-https `APP_URL` / `s3` driver
+    without creds; soft-warns on `local` storage in prod; **skipped during `next build`** via
+    `process.env.NEXT_PHASE === "phase-production-build"`. `prisma/seed.ts` refuses
+    `NODE_ENV=production` unless `-- --force`.
+  - **Migrations:** created `prisma/migrations/20260902000000_init/migration.sql`
+    (`prisma migrate diff --from-empty --to-schema-datamodel`, 737 lines) + `migration_lock.toml`;
+    the dev Neon DB (built via `db push`) bootstrapped with `migrate resolve --applied` →
+    `prisma migrate status` = up to date. `package.json`: new `vercel-build` =
+    `prisma generate && prisma migrate deploy && next build` (Vercel auto-prefers it; local
+    `build` unchanged), `db:status` script.
+  - **Production storage:** `src/lib/storage/s3.ts` is now a real `S3StorageDriver` (put/get/
+    delete/exists, `NoSuchKey`→`NotFoundError`, private — no ACL, served only via the auth'd
+    `/media` route). Env `S3_BUCKET`/`S3_REGION`/`S3_ACCESS_KEY_ID`/`S3_SECRET_ACCESS_KEY`/
+    `S3_ENDPOINT`(blank=AWS)/`S3_FORCE_PATH_STYLE`. Added to `serverExternalPackages`.
+    **5 unit tests** (mocked `S3Client.send`). Also: corrupt-but-sniffed image → 400 (was in
+    Phase 5), `uploadErrorResponse` ZodError → 400.
+  - **HTTPS:** session cookie already `secure: isProduction` + `httpOnly` + `SameSite=Lax`;
+    `APP_URL` used for invite/reset/OAuth URLs; HSTS/CSP/frame headers prod-only in
+    `next.config.ts` (unchanged).
+  - **`DEPLOY.md`** — full provider-agnostic runbook (environments table, every env var,
+    Neon setup + migration procedure + rollback, private-bucket setup, Vercel deploy, domain +
+    HTTPS, and the §7 post-deploy verification checklist).
+  - **Verified (prod build, `next start` NODE_ENV=production, real secret + https APP_URL):**
+    `/api/health` up · signup → onboarding · new user persisted w/ bcrypt hash · session valid
+    + survives reload · login as connected couple → `/home` · 10 authed pages 200/no-error/
+    0-overflow · manifest valid · `/offline` reachable · SW registers+activates. Prod env guard
+    proven: placeholder `AUTH_SECRET` → request 500 with the reason.
+  - tsc/eslint/**vitest 78**/`next build` green. Checklist §10 updated. **DONE**
+- **Prod/PWA conversion — Phase 6 (notifications).** No new npm deps — web push hand-rolled on
+  `jose` (already present) + Node `crypto`.
+  - **Real Web Push:** `src/lib/notifications/web-push.ts` `WebPushChannel` — RFC 8291 key
+    derivation + RFC 8188 `aes128gcm` payload encryption + RFC 8292 VAPID (ES256 JWT via jose).
+    `getPushChannel()` returns it when `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` env set, else the
+    existing `NoopPushChannel`. `env.ts` gained `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` /
+    `VAPID_SUBJECT` / `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (all optional). `scripts/generate-vapid.mjs`
+    (`npm run vapid`) — a keypair is in `.env` (subject `mailto:notifications@mono.local`).
+    **`web-push.test.ts` (5 tests): compliant-client decrypt round-trip passes, VAPID JWT
+    verifies, 410 → `PushSubscriptionGoneError`** (→ `PushRelayChannel` auto-clears the sub via
+    `setPushSubscription(userId, null)`).
+  - **SW (`public/sw.js` → `mono-v2`):** `push` → `showNotification`; `notificationclick` →
+    focus a matching tab or open one.
+  - **Client:** `enable-browser-notifications.tsx` rewritten — benefit-first copy, **never
+    prompts on load**, `Notification.requestPermission()` → `pushManager.subscribe(...)` →
+    `savePushSubscriptionAction`; "Turn off" unsubscribes. State machine: `unsupported` /
+    `not-configured` (no VAPID) / `ios-needs-install` / `denied` / `off` / `on` — the first four
+    show a message and **no button** (no broken control).
+  - **Reminders app-wide:** new `<ReminderPoller>` in `app-shell` calls a new
+    `dispatchMyRemindersAction()` on mount / every 10 min visible / on focus (was Home-only via
+    `getHomeData`). Still no cron.
+  - **Verified (puppeteer + Prisma):** opt-in (no load prompt), graceful degradation (APIs
+    deleted → message, no button), poller delivers a due reminder once, second dispatch **no
+    duplicate**, **cancelled-date** reminder doesn't fire, **disabled category** suppresses its
+    reminder. The 6 events + pref gating + timezone + stale-retire were already wired in
+    `reminder-service` / `review-service` / `plan-service` / `notification-service` — reviewed,
+    not rebuilt.
+  - Also hardened in Phase 6: `uploadErrorResponse` maps `ZodError` → 400.
+  tsc/eslint/vitest(73)/`next build` green. Checklist §6 updated. **DONE**
+- **Prod/PWA conversion — Phase 5 (photo experience).** No new deps.
+  - **Upload:** `photo-uploader` rewritten around a `MAX_CONCURRENT = 3` imperative queue
+    (refs + `pumpRef`) so a 20-photo drop never stalls the tab; new `queued`/`preparing` states;
+    **cancel** now also pulls a still-queued item; **retry** re-queues the already-prepared
+    `File` (no re-select); an `online` listener auto-re-queues every `error` item; clearer
+    failure copy (413 → "too large", offline → "You're offline").
+  - **Image processing:** `client-resize.ts` — `createImageBitmap(file, {imageOrientation:
+    "from-image"})` bakes EXIF rotation into the pixels BEFORE the canvas strips EXIF (was the
+    default `"none"` → sideways portraits). Verified e2e: a 3000×2000 JPEG tagged orientation 6
+    stored upright 1707×2560. `sharp-processor` wraps its pipeline → a corrupt-but-sniffed image
+    now throws `ValidationError` (400) instead of 500.
+  - **Best photo:** `photo-gallery` shows a toast + disables the star while pending (`bestPending`,
+    prevents double-fire) on top of the existing ring + "Most like you" badge; bigger 36px hit
+    targets. `Date.bestPhotoId` → `resolveDateCover` stays the one cover source of truth;
+    `setBestCouplePhotoAction` `revalidatePath("/", "layout")` propagates to home/memories/
+    timeline/couple/stats. Verified: DB `bestPhotoId` set + `BEST_PHOTO_SET` event logged.
+  - **Privacy re-audit (puppeteer):** `/media` foreign-couple / foreign-user / `..` / dotdot /
+    bare key → all 404; upload to a foreign valid-cuid `dateId` → 404 **before** the sharp
+    pipeline (new `assertDatePhotoUploadable` / `assertPhotoReplaceable` pre-checks in the
+    route); malformed id → 400 (`ZodError` mapped in `uploadErrorResponse`); unauth `/media` →
+    404. Headers already `noindex, noimageindex` + `cache-control: private`.
+  - tsc/eslint/vitest(68)/`next build` green. Checklist §5/§11 updated. **DONE**
+- **Prod/PWA conversion — Phase 4 (Android + desktop cross-compat + breakpoints).** No new deps,
+  no per-browser forks.
+  - **Back button:** new `useBackButton(onClose, active)` in `_dialog-primitives` — History API
+    (push a throwaway entry on open, `popstate` → close, `history.back()` to pop it on any other
+    close; `onClose` via a ref synced in an effect to satisfy `react-hooks/refs`). Wired into
+    `<Modal>` (⇒ `useConfirm`), `<BottomSheet>`, `<PhotoLightbox>`, photo-wall `WallViewer`.
+    Android/desktop Back (and back-swipe) now closes the overlay instead of leaving the page.
+  - **Safari/Firefox CSS:** `-webkit-backdrop-filter` confirmed present in compiled CSS (Tailwind
+    v4 emits it) — no change needed. `.scroll-area` gains `scrollbar-width: thin` +
+    `scrollbar-color` for Firefox. `.skeleton` gains a flat `background: var(--color-line)`
+    fallback before the `color-mix(in oklab …)` line (Safari < 16.2). No `:has()` /
+    `text-wrap: balance` / container queries anywhere.
+  - **Verify (puppeteer vs `next start`):** width sweep **320/375/390/430/768/1024/1280/1440 ×
+    12 routes = 96 loads — 0 h-overflow, no errors, `<main>` present everywhere**; cross-UA
+    (Android Chrome / macOS Safari / Firefox / Edge UA strings) → identical layout, nav+bell,
+    0 overflow; **back-button test**: open the disconnect confirm dialog → browser Back → dialog
+    closes, still on `/settings`. tsc/eslint/vitest(68)/`next build` green. 320px `/home` is
+    dense (install banner wraps to 3 lines) but legible + no overflow — noted in checklist.
+  Checklist §1/§3 updated. **DONE**
+- **Prod/PWA conversion — Phase 3 (iPhone Safari + installed-PWA polish).** No new deps.
+  - **Safe areas:** new `.above-bottom-nav` (`calc(--bottomnav-h + env(safe-area-inset-bottom))`)
+    on `<StickyBar>` so a sticky Save row clears the nav AND the home indicator; new
+    `.dialog-inset` (`max(1rem, env(safe-area-inset-*))`) on `<Modal>`. Header `pt-safe`, bottom
+    nav `pb-safe`, bottom sheet `pb-safe` already there.
+  - **Viewport:** last raw `100vh` (`global-error.tsx`) → `100dvh`. `<Modal>` now
+    `max-h-[calc(100dvh-2rem)] flex-col overflow-hidden` with the body in a `scroll-area` —
+    usable in landscape / keyboard-up. `min-h-dvh` everywhere else already.
+  - **iOS focus-zoom:** UNLAYERED `@media (pointer: coarse){ input/select/textarea{font-size:16px} }`
+    in `globals.css` — unlayered so it outranks Tailwind's `@layer utilities` `sm:text-sm`,
+    fixing landscape phones too (the earlier `@media (max-width:639.98px)` attempt missed
+    landscape). Reverted the interim per-component `text-base sm:text-sm` churn.
+  - **Photo/camera:** new `src/lib/images/client-resize.ts` `downscaleImage` — `createImageBitmap`
+    → canvas → `toBlob("image/jpeg",0.82)` at ≤2560px, run BEFORE `validateImageUpload`. Fixes
+    the real bug where an iPhone camera capture (HEIC, not in `IMAGE_UPLOAD.accept`) was
+    rejected. Wired into `photo-uploader` (+ `"preparing"` status), `quick-photo-button`,
+    `image-upload`. Camera permission still only on explicit "Take a photo" (`<input capture>`,
+    no `getUserMedia`).
+  - **Gestures:** `EDGE_GUARD = 24px` in `photo-lightbox` + `photo-wall` — a swipe starting at
+    the screen edge is left to Safari's back/forward gesture; swipe stays optional (44px
+    prev/next buttons + arrow keys remain).
+  - **Verify:** tsc/eslint/vitest(68)/`next build` green. Puppeteer iPhone audit (UA + 390×844
+    & 844×390, `isMobile`+`hasTouch`, `next start`): **15 screens × portrait + landscape all
+    clean** — 0px h-overflow, every field ≥16px (incl. landscape), no console errors, no raw
+    100vh. `env()` safe-area is 0 in headless so notch rendering is code-reviewed, not shot.
+  Checklist §4/§5/§13 updated. **DONE**
+- **Prod/PWA conversion — Phase 2 (PWA infrastructure).** No new deps (hand-rolled SW; icons
+  via the existing `sharp`).
+  - **Manifest:** `src/app/manifest.ts` → `/manifest.webmanifest` — `start_url:/home`, `scope:/`,
+    `display:standalone`, `orientation:portrait`, `theme_color`/`background_color` `#f5f1ea`,
+    `id`, `categories`, 4 icons (192/512 `any` + 192/512 `maskable`).
+  - **Icons:** `scripts/generate-icons.mjs` (`npm run icons`) rasterises the ring+disc mark on
+    the ink ground → `public/icons/icon-{192,512}.png` (rounded), `icon-maskable-{192,512}.png`
+    (full-bleed, ~44% safe-zone), `src/app/apple-icon.png` 180 (square opaque). Committed.
+  - **Standalone:** `metadata.appleWebApp {capable, title:"MONO", statusBarStyle:"default"}`
+    (Next emits `mobile-web-app-capable`, apple title/status-bar meta, apple-touch link).
+    Safe-area + consistent nav already done in Phase 1.
+  - **Service worker:** `public/sw.js` — `VERSION="mono-v1"`; precache `/offline`+icons+manifest;
+    cache-first `/_next/static/**` + static img/font; network-first navigations → `/offline`;
+    `/api/**` & `/media/**` never intercepted; `activate` purges non-`VERSION` caches;
+    `SKIP_WAITING` message handler. `next.config.ts`: `/sw.js` `no-cache,no-store` +
+    `Service-Worker-Allowed:/`, CSP `worker-src`/`manifest-src 'self'`. `proxy.ts` matcher
+    excludes the PWA static files. `/offline` route = tiny inline-styled page + `<OfflineRetry>`.
+  - **Registration:** `<ServiceWorkerManager>` in root `layout.tsx` — **prod only** (dev
+    untouched), update-detected → "MONO just updated · Refresh" bar → `postMessage` →
+    `controllerchange` → one reload; `reg.update()` on tab refocus.
+  - **Install:** `<InstallPrompt>` — `variant="banner"` on Home (snooze 14d, ≤3 nudges),
+    `variant="card"` in Settings (always). `beforeinstallprompt` for Chromium; iOS Safari gets
+    "Share → Add to Home Screen" copy; hidden when standalone/installed; `appinstalled` sets a
+    permanent flag. Env read via `useSyncExternalStore` (no hydration mismatch).
+  - **Verify:** tsc/eslint/vitest(68)/`next build` green (37 static pages; new `/manifest.webmanifest`
+    `/apple-icon.png` `/offline`). Puppeteer vs `next start`: manifest valid + right content-type;
+    all 5 icons load at correct dims; SW registers+activates (scope `/`); online nav OK;
+    **server killed → nav falls back to `/offline`**, precached shell + cached fonts/CSS/JS still
+    serve, **`/api/health` does not** (privacy). CDP offline-mode doesn't reach SW fetch context —
+    killing the server is the valid test.
+  Checklist §1 + §11 CSP updated. **DONE**
+
+- **Prod/PWA conversion — Phase 1 (responsive UI transformation).** No rewrites; targeted on a
+  strong existing foundation.
+  - **Navigation:** new `src/components/navigation/app-header.tsx` — a persistent header on
+    every authed page. Mobile = compact bar (logo + Explore + notifications bell w/ unread badge
+    + account-menu popover). Desktop = slim right-aligned strip (bell + account menu:
+    Couple / Your profile / Settings / Sign out). Popover is a11y-complete (haspopup/expanded,
+    Escape→restore focus, outside-pointer close, close-on-nav via onClick not effect). Deleted
+    `navigation/top-bar.tsx`; `app-shell.tsx` uses `AppHeader`; `(app)/layout.tsx` now fetches
+    `getUnreadNotificationCount`. `home-header.tsx` lost its local bell/profile cluster (now
+    global). **Fixes the gap where notifications/profile were reachable only from `/home`.**
+  - **Desktop widths:** `--content-narrow` 44rem / `--content-max` 72rem (was 68) /
+    `--content-wide` 84rem tokens; new `src/components/layout/page-container.tsx`
+    `<PageContainer width>`. Shell `main` now only gutters + `--content-wide` bound; every
+    `(app)` page wrapped and given an intentional measure (settings/notifications → narrow;
+    photo wall + history grid → wide, with the reading/timeline views self-constraining to
+    `--content-max`; rest → default). Grid views go `lg:grid-cols-4` on wide pages.
+  - **Forms:** `<Input>` now sets `inputMode` + capitalize/correct hints per `type`
+    (email/url/tel/search/number). New `src/components/system/unsaved-guard.tsx` (`beforeunload`
+    while dirty) wired into recap / couple-profile / profile / custom-place / review forms.
+  - **Touch:** gallery tile actions get `pointer-coarse:opacity-100` (were hover/focus only).
+    Confirmed swipe is optional (lightbox/wall have 44px EdgeButtons + arrow keys).
+  - **Bug fix:** `enable-browser-notifications.tsx` hydration mismatch on `/settings/notifications`
+    (server "unsupported" vs client "default") — reworked to `useSyncExternalStore` + server
+    snapshot.
+  - **Verify:** tsc / eslint / vitest(68) / `next build`(48 routes) all green. Puppeteer
+    logged-in QA: 15 routes × {390px, 1440px} → **0px horizontal overflow everywhere**, nav +
+    bell present on all, no console/hydration errors. (Test couple has no completed dates, so
+    grid/timeline density not visually verified — noted in checklist.)
+  Checklist `docs/pwa-conversion-checklist.md` §2/§3/§4b/§12/§13/§14 updated. **DONE**
+- **Prod/PWA conversion — Phase 0 (audit & stabilize).** Full audit of the 20-prompt MONO
+  codebase. **Stabilization: all green, no build-blockers** — `tsc --noEmit` clean, `eslint .`
+  clean, `vitest` 68/68, `next build` OK (48 routes). Findings: codebase is production-quality
+  and fully wired (every action → real service → Prisma; 68 unit tests on pure rules; client/
+  server boundary clean — all `@/server/services` imports in client comps are `import type`;
+  all `localStorage`/`sessionStorage`/theme-boot in `try/catch`; `navigator.share`/`clipboard`/
+  `Notification` all feature-detected; no Capacitor/RN/Cordova; photo upload uses
+  `<input type=file capture>` not `getUserMedia`). **Biggest gap: zero PWA infra** — `public/`
+  is empty, no `manifest`, no icons (192/512/maskable/apple-touch), no service worker, no
+  offline shell, no install prompt. Known intentional stubs: S3 storage (`s3.ts` throws — breaks
+  photos on Vercel), SMTP email, web push (`NoopPushChannel`), Google OAuth (501), reminder
+  cron. Non-issues (do not touch): `/dashboard` redirect stub, dev-only `/style` route,
+  `next/image` only in dev style gallery, no client-state lib (RSC by design). Created
+  **`docs/pwa-conversion-checklist.md`** (12 sections, tracked done/remaining). **DONE**
 
 - **`publish`** — updated `memory.md`, ran `npm run build` (green), committed the accumulated
   work from every 2026-09-02 pass (Memories → Couple profile → Explore → Notifications →

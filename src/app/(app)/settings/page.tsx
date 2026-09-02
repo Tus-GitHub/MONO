@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { DangerZone } from "@/components/settings/danger-zone";
 import { DataExportCard } from "@/components/settings/data-export-card";
 import { PreferencesForm } from "@/components/settings/preferences-form";
+import { InstallPrompt } from "@/components/system/install-prompt";
 import { Icon } from "@/components/ui/icon";
 import { requireCoupleOrOnboard } from "@/lib/authz";
 import { getCoupleMembersLite } from "@/server/services/couple-service";
@@ -48,6 +49,9 @@ export default async function SettingsPage() {
         <h2 className="font-display text-lg font-medium text-ink">Data</h2>
         <DataExportCard />
       </section>
+
+      {/* Renders only when MONO is installable and not already installed. */}
+      <InstallPrompt variant="card" />
 
       <section className="space-y-3">
         <h2 className="font-display text-lg font-medium text-ink">Session</h2>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import {
   NotificationsList,
@@ -32,7 +33,7 @@ export default async function NotificationsPage() {
   }));
 
   return (
-    <div>
+    <PageContainer width="narrow">
       <PageHeader
         title="Notifications"
         description="Reminders and updates from your shared space."
@@ -54,13 +55,18 @@ export default async function NotificationsPage() {
 
       {items.length === 0 ? (
         <EmptyState
-          icon={<Icon name="info" size="md" />}
-          title="Nothing here yet"
-          description="When a date is coming up or your partner adds something, you'll see it here."
+          icon={<Icon name="bell" size="md" />}
+          title="You're all caught up."
+          description="A nudge before a date, a note when your partner adds something — it'll show up here."
+          action={
+            <LinkButton href="/settings/notifications" variant="secondary" size="sm">
+              Choose what MONO tells you
+            </LinkButton>
+          }
         />
       ) : (
         <NotificationsList items={items} />
       )}
-    </div>
+    </PageContainer>
   );
 }

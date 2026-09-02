@@ -15,11 +15,13 @@ import type { ReviewContext } from "@/server/services/review-service";
 
 export function ReviewWaiting({ ctx }: { ctx: ReviewContext }) {
   const confirm = useConfirm();
-  const [reopenState, reopenAction] = useActionState(reopenReviewAction, idleState);
-  const [deleteState, deleteAction] = useActionState(deleteReviewAction, idleState);
+  const [reopenState, reopenAction, reopening] = useActionState(reopenReviewAction, idleState);
+  const [deleteState, deleteAction, discarding] = useActionState(deleteReviewAction, idleState);
+  const busy = reopening || discarding;
   const my = ctx.myReview;
 
   const discard = async () => {
+    if (busy) return;
     const ok = await confirm({
       title: "Withdraw your review?",
       description: "Your submitted side is removed. You can write it again before the reveal.",
@@ -33,6 +35,7 @@ export function ReviewWaiting({ ctx }: { ctx: ReviewContext }) {
   };
 
   const reopen = () => {
+    if (busy) return;
     const fd = new FormData();
     fd.set("dateId", ctx.dateId);
     startTransition(() => reopenAction(fd));
@@ -91,10 +94,17 @@ export function ReviewWaiting({ ctx }: { ctx: ReviewContext }) {
 
       {ctx.editable ? (
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
-          <Button type="button" variant="ghost" size="sm" onClick={discard}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            loading={discarding}
+            disabled={busy}
+            onClick={discard}
+          >
             Withdraw
           </Button>
-          <Button type="button" variant="secondary" onClick={reopen}>
+          <Button type="button" variant="secondary" loading={reopening} disabled={busy} onClick={reopen}>
             Edit my side
           </Button>
         </div>

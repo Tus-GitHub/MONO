@@ -22,7 +22,7 @@ export default function GlobalError({
           Something went wrong
         </h1>
         <p className="mt-1 text-sm text-muted">
-          The error has been logged. You can try again.
+          It&apos;s been noted on our end — nothing you did. Give it another try.
         </p>
       </div>
       <Button variant="secondary" onClick={reset}>

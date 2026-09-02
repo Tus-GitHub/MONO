@@ -5,6 +5,7 @@ import { CustomPlaceForm } from "@/components/explore/custom-place-form";
 import { ExploreHome } from "@/components/explore/explore-home";
 import { ExploreSearch } from "@/components/explore/explore-search";
 import { PlaceCard } from "@/components/explore/place-card";
+import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
@@ -30,21 +31,21 @@ export default async function ExplorePage({
 
   if (view === "custom") {
     return (
-      <div className="mx-auto max-w-xl">
+      <PageContainer width="narrow">
         <PageHeader
           title="Add a custom place"
           description="For somewhere a search won't turn up."
           back={{ href: `/explore?${forDate ? `forDate=${forDate}` : ""}`, label: "Explore" }}
         />
         <CustomPlaceForm forDate={forDate} />
-      </div>
+      </PageContainer>
     );
   }
 
   const isBrowse = Boolean(q || category || view || forDate);
 
   return (
-    <div>
+    <PageContainer width="wide">
       <PageHeader
         title="Explore"
         description={
@@ -73,7 +74,7 @@ export default async function ExplorePage({
           <ExploreHome data={await getExploreHome(couple.id, user.id)} />
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 }
 
@@ -106,19 +107,19 @@ async function BrowseResults({
     return (
       <EmptyState
         icon={<Icon name="compass" size="md" />}
-        title={q || category ? "Nothing matched" : "No saved places yet"}
+        title={q || category ? "Nothing matched" : "Find somewhere worth remembering."}
         description={
           q || category
-            ? "Try a different search, or add it as a custom place."
-            : "Places you save while planning show up here. You can also add one now."
+            ? "Try a different search, or add the place yourself."
+            : "Save the spots you love as you plan — they gather here for next time. Or add one now."
         }
-        action={<LinkButton href={`/explore?view=custom${suffix}`}>Add a custom place</LinkButton>}
+        action={<LinkButton href={`/explore?view=custom${suffix}`}>Add a place</LinkButton>}
       />
     );
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       {results.map((place) => (
         <PlaceCard
           key={place.savedPlaceId ?? place.external?.providerPlaceId ?? place.name}

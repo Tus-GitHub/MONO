@@ -11,7 +11,7 @@ import {
 import Link from "next/link";
 
 import { FavoriteHeart } from "@/components/memories/favorite-heart";
-import { Portal, useEscapeKey, useScrollLock } from "@/components/ui/_dialog-primitives";
+import { Portal, useBackButton, useEscapeKey, useScrollLock } from "@/components/ui/_dialog-primitives";
 import { Icon } from "@/components/ui/icon";
 import { Photo } from "@/components/ui/photo";
 import type { WallPhoto } from "@/lib/date/photo-view";
@@ -166,6 +166,7 @@ function WallViewer({
   );
 
   useEscapeKey(onClose, true);
+  useBackButton(onClose, true);
   useScrollLock(true);
 
   useEffect(() => {
@@ -178,7 +179,9 @@ function WallViewer({
   }, [go]);
 
   const down = (event: PointerEvent) => {
-    startX.current = event.clientX;
+    // Ignore swipes that begin at the screen edge — those are the OS back/forward gesture.
+    const w = typeof window === "undefined" ? 0 : window.innerWidth;
+    startX.current = event.clientX > 24 && event.clientX < w - 24 ? event.clientX : null;
   };
   const move = (event: PointerEvent) => {
     if (startX.current != null) setDx(event.clientX - startX.current);

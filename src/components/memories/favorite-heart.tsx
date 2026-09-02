@@ -36,6 +36,7 @@ export function FavoriteHeart({
   const [state, dispatch] = useActionState<ActionState<Data>, FormData>(action, idleState);
   const [optimistic, setOptimistic] = useState(isFavorite);
   const [seen, setSeen] = useState<ActionState<Data>>(idleState);
+  const [pop, setPop] = useState(false);
 
   if (state !== seen) {
     setSeen(state);
@@ -48,7 +49,13 @@ export function FavoriteHeart({
   }
 
   const toggle = () => {
-    setOptimistic((value) => !value);
+    setOptimistic((value) => {
+      if (!value) {
+        setPop(true);
+        window.setTimeout(() => setPop(false), 280);
+      }
+      return !value;
+    });
     const fd = new FormData();
     fd.set(kind === "memory" ? "memoryId" : "photoId", id);
     if (dateId) fd.set("dateId", dateId);
@@ -85,6 +92,7 @@ export function FavoriteHeart({
         strokeWidth="1.7"
         strokeLinecap="round"
         strokeLinejoin="round"
+        className={cn("transition-transform duration-fast", pop && "motion-safe:anim-pop")}
       >
         <path d="M12 19.5S4 14.5 4 9.2A4.2 4.2 0 0 1 8.2 5c1.9 0 3.1 1 3.8 2.1C12.7 6 13.9 5 15.8 5A4.2 4.2 0 0 1 20 9.2c0 5.3-8 10.3-8 10.3Z" />
       </svg>

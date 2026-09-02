@@ -19,7 +19,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-elevated/85 pb-safe backdrop-blur-md lg:hidden"
+      className="mono-bottom-nav fixed inset-x-0 bottom-0 z-30 border-t border-line bg-elevated/85 pb-safe backdrop-blur-md lg:hidden"
     >
       <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-2">
         {tabA.map((item) => (

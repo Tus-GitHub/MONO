@@ -2,6 +2,7 @@ import "server-only";
 
 import sharp from "sharp";
 
+import { ValidationError } from "@/lib/errors";
 import type { ImageProcessor, ProcessedImage, RenderedImage } from "@/lib/images/types";
 
 /**
@@ -38,16 +39,23 @@ export class SharpImageProcessor implements ImageProcessor {
   readonly name = "sharp";
 
   async process(input: Buffer): Promise<ProcessedImage> {
-    const [original, display, thumb, blur] = await Promise.all([
-      encodeWebp(input, ORIGINAL_MAX, 82),
-      encodeWebp(input, DISPLAY_MAX, 78),
-      encodeWebp(input, THUMB_MAX, 68),
-      sharp(input, { failOn: "none" })
-        .rotate()
-        .resize({ width: BLUR_MAX, height: BLUR_MAX, fit: "inside" })
-        .webp({ quality: 40 })
-        .toBuffer(),
-    ]);
+    let original: RenderedImage, display: RenderedImage, thumb: RenderedImage, blur: Buffer;
+    try {
+      [original, display, thumb, blur] = await Promise.all([
+        encodeWebp(input, ORIGINAL_MAX, 82),
+        encodeWebp(input, DISPLAY_MAX, 78),
+        encodeWebp(input, THUMB_MAX, 68),
+        sharp(input, { failOn: "none" })
+          .rotate()
+          .resize({ width: BLUR_MAX, height: BLUR_MAX, fit: "inside" })
+          .webp({ quality: 40 })
+          .toBuffer(),
+      ]);
+    } catch {
+      // The bytes passed the magic-number sniff but aren't a decodable image (truncated,
+      // corrupt, an unsupported sub-format). That's a client problem, not a server fault.
+      throw new ValidationError("That image couldn't be read — try a different file.");
+    }
 
     return {
       width: original.width,

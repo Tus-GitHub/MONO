@@ -20,8 +20,10 @@ export function SetupShell({ children }: { children: ReactNode }) {
           </button>
         </form>
       </header>
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-4 py-10 sm:px-6">
-        {children}
+      {/* `m-auto` (not `justify-center`) centres the card when there's room but still lets it
+          scroll past both edges when the viewport is short — e.g. with the keyboard open. */}
+      <main className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto px-4 py-10 sm:px-6">
+        <div className="m-auto w-full max-w-xl">{children}</div>
       </main>
     </div>
   );

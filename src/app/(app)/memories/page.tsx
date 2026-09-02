@@ -7,6 +7,7 @@ import { MemoryDateCard } from "@/components/dates/cards/memory-date-card";
 import { MemoriesNav } from "@/components/memories/memories-nav";
 import { MilestoneBadge } from "@/components/memories/milestone-badge";
 import { PhotoWall } from "@/components/memories/photo-wall";
+import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { PlanDateButton } from "@/components/navigation/plan-date-button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -22,22 +23,22 @@ export default async function MemoriesPage() {
 
   if (home.totalCompleted === 0) {
     return (
-      <div className="space-y-6">
+      <PageContainer className="space-y-6">
         <PageHeader title="Memories" description="Your private photo journal." action={<MemoriesNav />} />
         <EmptyState
           icon={<Icon name="images" size="md" />}
-          title="Your journal starts with a date"
-          description="Finish a date, keep a memory, and it opens here — photos first, story attached."
+          title="The best part comes after the date."
+          description="Finish one, keep a few lines and a photo, and your journal opens here — photos first, story attached."
           action={<PlanDateButton />}
         />
-      </div>
+      </PageContainer>
     );
   }
 
   const [feature, ...restRecent] = home.recentMemories;
 
   return (
-    <div className="space-y-10">
+    <PageContainer className="space-y-10">
       <PageHeader title="Memories" description="Your private photo journal." action={<MemoriesNav />} />
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
@@ -112,7 +113,7 @@ export default async function MemoriesPage() {
           </div>
         </section>
       ) : null}
-    </div>
+    </PageContainer>
   );
 }
 

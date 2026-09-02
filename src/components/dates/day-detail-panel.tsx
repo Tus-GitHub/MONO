@@ -21,7 +21,7 @@ export function DayDetailPanel({ day, dates }: { day: string; dates: CalendarDat
             <li key={date.id}>
               <Link
                 href={`/dates/${date.id}`}
-                className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-ink/3"
+                className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-paper/70"
               >
                 {date.cover ? (
                   <Photo

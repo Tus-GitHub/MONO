@@ -1,6 +1,7 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
+import { ZodError } from "zod";
 
 import { AppError, ValidationError, isAppError } from "@/lib/errors";
 import { MINUTE, checkRateLimit } from "@/lib/security/rate-limit";
@@ -103,6 +104,10 @@ export function uploadErrorResponse(error: unknown): NextResponse {
       { error: error.message },
       { status: (error as AppError).httpStatus },
     );
+  }
+  // A malformed id / query param — a client mistake, not a server fault.
+  if (error instanceof ZodError) {
+    return NextResponse.json({ error: "That request was malformed." }, { status: 400 });
   }
   console.error("[upload] unhandled error:", error);
   return NextResponse.json({ error: "Upload failed. Try again." }, { status: 500 });

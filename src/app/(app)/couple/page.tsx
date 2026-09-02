@@ -7,6 +7,7 @@ import { CoupleInsights } from "@/components/couple/couple-insights";
 import { CoupleProfileHeader } from "@/components/couple/couple-profile-header";
 import { DateStatistics } from "@/components/couple/date-statistics";
 import { InviteCodeCard } from "@/components/couple/invite-code-card";
+import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Icon } from "@/components/ui/icon";
 import { LinkButton } from "@/components/ui/link-button";
@@ -20,7 +21,7 @@ export default async function CouplePage() {
   const profile = await getCoupleProfile(couple.id, user.id);
 
   return (
-    <div className="space-y-8">
+    <PageContainer className="space-y-8">
       <PageHeader
         title="Couple"
         description="Your shared space, and the story the two of you have built so far."
@@ -49,7 +50,7 @@ export default async function CouplePage() {
           <SettingsLink href="/settings/notifications" label="Reminders" hint="What MONO nudges you about" />
         </div>
       </section>
-    </div>
+    </PageContainer>
   );
 }
 

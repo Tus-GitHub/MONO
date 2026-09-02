@@ -71,7 +71,7 @@ export function DatePicker({
 
   return (
     <div className={cn("space-y-3", className)}>
-      <div className="scroll-x no-scrollbar -mx-1 flex gap-2 px-1">
+      <div className="flex flex-wrap gap-2">
         {shortcuts.map((shortcut) => (
           <Chip
             key={shortcut.label}

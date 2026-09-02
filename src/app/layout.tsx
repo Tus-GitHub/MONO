@@ -3,6 +3,7 @@ import { Fraunces, Inter } from "next/font/google";
 import type { ReactNode } from "react";
 
 import { AppProviders } from "@/components/providers";
+import { ServiceWorkerManager } from "@/components/system/service-worker-manager";
 import { THEME_BOOT_SCRIPT } from "@/lib/settings/theme";
 
 import "./globals.css";
@@ -29,6 +30,12 @@ export const metadata: Metadata = {
     "A private space for two — plan dates, capture what actually happened, and decide what to do again.",
   applicationName: "MONO",
   robots: { index: false, follow: false },
+  // Installed-PWA behaviour on iOS (Android reads the web app manifest instead).
+  appleWebApp: {
+    capable: true,
+    title: "MONO",
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {
@@ -40,6 +47,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // When the on-screen keyboard opens, shrink the layout viewport (not just the visual one) so
+  // `dvh`, `position: fixed` and sticky bars all react. Chromium honours this; iOS Safari
+  // ignores it and is handled by <ViewportManager> via `visualViewport` instead.
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -53,6 +64,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className="flex min-h-full flex-col">
         <AppProviders>{children}</AppProviders>
+        <ServiceWorkerManager />
       </body>
     </html>
   );

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { GridDateCard } from "@/components/dates/cards/grid-date-card";
 import { MemoriesNav } from "@/components/memories/memories-nav";
 import { PhotoWall } from "@/components/memories/photo-wall";
+import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
@@ -19,7 +20,7 @@ export default async function FavoritesPage() {
   const nothing = dates.length === 0 && photos.length === 0 && places.length === 0;
 
   return (
-    <div className="space-y-10">
+    <PageContainer className="space-y-10">
       <PageHeader
         title="Our Favourites"
         description="The dates, photos and places you keep coming back to."
@@ -86,6 +87,6 @@ export default async function FavoritesPage() {
           </ul>
         </section>
       ) : null}
-    </div>
+    </PageContainer>
   );
 }

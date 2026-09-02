@@ -39,8 +39,10 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
         </p>
       </aside>
 
-      <main className="flex w-full min-w-0 flex-col items-center justify-center px-4 py-12">
-        <div className="w-full max-w-sm">
+      {/* `m-auto` (not `items/justify-center`) keeps the form centred when it fits but lets it
+          scroll to both ends when the viewport is short — small phones, landscape, keyboard. */}
+      <main className="flex w-full min-w-0 flex-col overflow-y-auto px-4 py-12">
+        <div className="m-auto w-full max-w-sm">
           <div className="mb-8 flex justify-center lg:hidden">
             <Logo />
           </div>

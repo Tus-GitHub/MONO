@@ -126,7 +126,9 @@ export function ScoreScale({
               aria-pressed={value != null && n <= value}
               onClick={() => commit(n)}
               className={cn(
-                "tap h-9 flex-1 rounded-md border text-2xs font-medium transition-colors",
+                // 10 across must fit the narrowest phone — a fixed 44px min-width (`.tap`) overflows
+                // and clips 9/10. Keep a tall 44px touch target; let width shrink to share the row.
+                "h-11 min-w-0 flex-1 rounded-md border text-2xs font-medium transition-[color,background-color,border-color,transform] motion-safe:active:scale-[0.97]",
                 filled
                   ? cn(
                       "border-transparent text-white",

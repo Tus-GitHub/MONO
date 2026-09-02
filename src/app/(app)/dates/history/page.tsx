@@ -6,6 +6,7 @@ import { MemoryDateCard } from "@/components/dates/cards/memory-date-card";
 import { TimelineDateCard } from "@/components/dates/cards/timeline-date-card";
 import { DatesNav } from "@/components/dates/dates-nav";
 import { HistoryControls } from "@/components/dates/history-controls";
+import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { PlanDateButton } from "@/components/navigation/plan-date-button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -49,7 +50,7 @@ export default async function DatesHistoryPage({
   const narrowed = hasActiveFilters(query) || query.q.length > 0;
 
   return (
-    <div className="space-y-6">
+    <PageContainer width="wide" className="space-y-6">
       <PageHeader
         title="Our dates"
         description="Every date you've finished — the whole story of each one."
@@ -87,7 +88,7 @@ export default async function DatesHistoryPage({
           )}
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }
 
@@ -108,13 +109,13 @@ function HistoryResults({
       {feature ? <MemoryDateCard item={feature} eyebrow="Most recent" /> : null}
 
       {view === "grid" ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {rest.map((item) => (
             <GridDateCard key={item.id} item={item} />
           ))}
         </div>
       ) : view === "list" ? (
-        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
+        <ul className="mx-auto max-w-(--content-max) divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
           {rest.map((item) => (
             <li key={item.id}>
               <CompactDateCard item={item} />
@@ -122,7 +123,7 @@ function HistoryResults({
           ))}
         </ul>
       ) : (
-        <div className="space-y-8">
+        <div className="mx-auto max-w-(--content-max) space-y-8">
           {groupByYear(rest).map((group) => (
             <section key={group.year} className="space-y-4">
               <h2 className="font-display text-xs font-semibold uppercase tracking-wide text-muted">

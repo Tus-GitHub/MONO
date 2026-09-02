@@ -19,6 +19,9 @@ const csp = [
   "font-src 'self' data:",
   `connect-src 'self'${isDev ? " ws:" : ""}`,
   "media-src 'self' blob:",
+  // The service worker and the web app manifest are same-origin only.
+  "worker-src 'self'",
+  "manifest-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -48,9 +51,24 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   // Keep native/server-only packages out of the bundler; they run as-is on the server.
-  serverExternalPackages: ["@prisma/client", "bcryptjs", "sharp"],
+  serverExternalPackages: ["@prisma/client", "bcryptjs", "sharp", "@aws-sdk/client-s3"],
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      {
+        // The worker must never be served stale, or updates never reach installed clients.
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+      {
+        source: "/manifest.webmanifest",
+        headers: [{ key: "Cache-Control", value: "public, max-age=3600" }],
+      },
+    ];
   },
 };
 

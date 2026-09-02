@@ -5,6 +5,7 @@ import { useCallback, useRef, useState, type ChangeEvent, type DragEvent } from 
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Spinner } from "@/components/ui/spinner";
+import { downscaleImage } from "@/lib/images/client-resize";
 import { IMAGE_UPLOAD, validateImageUpload } from "@/lib/storage/image-rules";
 import { cn } from "@/lib/utils/cn";
 
@@ -47,7 +48,9 @@ export function ImageUpload({
   const hasImage = Boolean(value);
 
   const upload = useCallback(
-    (file: File) => {
+    async (input: File) => {
+      // Shrink / transcode on the client first (iPhone HEIC → JPEG, 12 MP → ~2560px).
+      const file = await downscaleImage(input);
       const check = validateImageUpload({ type: file.type, size: file.size });
       if (!check.ok) {
         setStatus("error");
@@ -112,14 +115,14 @@ export function ImageUpload({
   const onPick = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (file) upload(file);
+    if (file) void upload(file);
   };
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragging(false);
     const file = event.dataTransfer.files?.[0];
-    if (file) upload(file);
+    if (file) void upload(file);
   };
 
   const remove = async () => {
@@ -210,7 +213,7 @@ export function ImageUpload({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => lastFile.current && upload(lastFile.current)}
+                onClick={() => lastFile.current && void upload(lastFile.current)}
               >
                 Retry
               </Button>

@@ -8,6 +8,7 @@ import { FormFeedback } from "@/components/forms/form-feedback";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Icon } from "@/components/ui/icon";
+import { SubmitButton } from "@/components/ui/submit-button";
 import {
   EXPENSE_CATEGORY_COLOR,
   EXPENSE_CATEGORY_LABEL,
@@ -66,7 +67,7 @@ export function ExpenseRow({
 }) {
   const confirm = useConfirm();
   const [editState, editAction] = useActionState(updateDateExpenseAction, idleState);
-  const [, deleteAction] = useActionState(deleteDateExpenseAction, idleState);
+  const [, deleteAction, deleting] = useActionState(deleteDateExpenseAction, idleState);
   const [editing, setEditing] = useState(false);
   const [lastSeen, setLastSeen] = useState<ActionState>(idleState);
 
@@ -77,6 +78,7 @@ export function ExpenseRow({
   const fieldErrors = editState.status === "error" ? editState.fieldErrors : undefined;
 
   const remove = async () => {
+    if (deleting) return;
     const ok = await confirm({
       title: "Remove this expense?",
       description: `${expense.description} · ${formatMoney(expense.amountCents, expense.currency)}`,
@@ -108,9 +110,9 @@ export function ExpenseRow({
             <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
               Cancel
             </Button>
-            <Button type="submit" size="sm">
+            <SubmitButton size="sm" pendingText="Saving…">
               Save
-            </Button>
+            </SubmitButton>
           </div>
         </form>
       </li>
@@ -148,18 +150,20 @@ export function ExpenseRow({
       <button
         type="button"
         aria-label="Edit expense"
+        disabled={deleting}
         onClick={() => setEditing(true)}
-        className="grid size-8 shrink-0 place-items-center rounded-lg text-muted hover:bg-ink/[0.06] hover:text-ink"
+        className="grid size-8 shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-ink/[0.06] hover:text-ink disabled:opacity-40"
       >
         <Icon name="pencil" size="sm" />
       </button>
       <button
         type="button"
         aria-label="Remove expense"
+        disabled={deleting}
         onClick={remove}
-        className="grid size-8 shrink-0 place-items-center rounded-lg text-muted hover:bg-error-tint hover:text-error"
+        className="grid size-8 shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-error-tint hover:text-error disabled:opacity-40"
       >
-        <Icon name="trash" size="sm" />
+        <Icon name={deleting ? "clock" : "trash"} size="sm" />
       </button>
     </li>
   );

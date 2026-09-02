@@ -16,6 +16,7 @@ import { ReviewStatus } from "@/components/dates/review-status";
 import { RevisitControl } from "@/components/dates/revisit-control";
 import { StatusControl } from "@/components/dates/status-control";
 import { Countdown } from "@/components/home/countdown";
+import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { FavoriteHeart } from "@/components/memories/favorite-heart";
 import { Alert } from "@/components/ui/alert";
@@ -74,7 +75,7 @@ export default async function DateDetailPage({
   const showActualsArea = status === DateStatus.IN_PROGRESS || isDone;
 
   return (
-    <div className="space-y-6">
+    <PageContainer className="space-y-6">
       <PageHeader
         title={date.title || "Untitled date"}
         back={{ href: "/dates", label: "Our dates" }}
@@ -328,7 +329,7 @@ export default async function DateDetailPage({
       ) : null}
 
       <DateEventList events={events} currentUserId={user.id} />
-    </div>
+    </PageContainer>
   );
 }
 

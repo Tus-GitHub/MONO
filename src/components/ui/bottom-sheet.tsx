@@ -4,6 +4,7 @@ import { useCallback, useId, useRef, useState, type PointerEvent, type ReactNode
 
 import {
   Portal,
+  useBackButton,
   useEscapeKey,
   useFocusTrap,
   useMountTransition,
@@ -42,6 +43,7 @@ export function BottomSheet({
   useScrollLock(mounted);
   useFocusTrap(panelRef, visible);
   useEscapeKey(onClose, mounted);
+  useBackButton(onClose, open);
 
   const onPointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
     startY.current = event.clientY;
@@ -66,7 +68,12 @@ export function BottomSheet({
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-50 flex items-end justify-center">
+      {/* `bottom` follows the keyboard (`--kb`, set by <ViewportManager>) so the sheet — and
+          its footer actions — ride up above it instead of hiding behind it. */}
+      <div
+        className="fixed inset-x-0 top-0 z-50 flex items-end justify-center transition-[bottom] duration-base ease-out"
+        style={{ bottom: "var(--kb, 0px)" }}
+      >
         <div
           className={cn(
             "absolute inset-0 bg-ink/45 backdrop-blur-[2px] transition-opacity duration-fast",
@@ -81,7 +88,7 @@ export function BottomSheet({
           aria-labelledby={title ? titleId : undefined}
           style={{ transform: drag ? `translateY(${drag}px)` : undefined }}
           className={cn(
-            "relative z-10 flex max-h-[92dvh] w-full max-w-xl flex-col rounded-t-2xl border border-line bg-elevated pb-safe shadow-xl",
+            "relative z-10 flex max-h-[calc(var(--vvh,92dvh)-1rem)] w-full max-w-xl flex-col rounded-t-2xl border border-line bg-elevated pb-safe shadow-xl",
             "transition-transform duration-slow ease-out",
             !drag && (visible ? "translate-y-0" : "translate-y-full"),
             className,

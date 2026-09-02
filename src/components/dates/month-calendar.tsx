@@ -56,7 +56,7 @@ export function MonthCalendar({
         <Link
           href={`/dates?month=${shiftMonth(month, -1)}`}
           aria-label="Previous month"
-          className="tap grid place-items-center rounded-lg text-muted hover:bg-ink/6 hover:text-ink"
+          className="tap grid place-items-center rounded-lg text-muted hover:bg-ink/[0.06] hover:text-ink"
         >
           <Icon name="chevronLeft" size="sm" />
         </Link>
@@ -64,7 +64,7 @@ export function MonthCalendar({
         <Link
           href={`/dates?month=${shiftMonth(month, 1)}`}
           aria-label="Next month"
-          className="tap grid place-items-center rounded-lg text-muted hover:bg-ink/6 hover:text-ink"
+          className="tap grid place-items-center rounded-lg text-muted hover:bg-ink/[0.06] hover:text-ink"
         >
           <Icon name="chevronRight" size="sm" />
         </Link>

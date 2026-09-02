@@ -6,6 +6,8 @@ import type { NotificationType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getPushChannel } from "@/lib/notifications/push";
 import { notificationHref } from "@/lib/notifications/types";
+import { PushSubscriptionGoneError } from "@/lib/notifications/web-push";
+import { setPushSubscription } from "@/server/services/notification-preference-service";
 
 /**
  * Delivery is provider-agnostic. A `NotificationChannel` takes a resolved payload and gets it to
@@ -69,15 +71,24 @@ class PushRelayChannel implements NotificationChannel {
       if (!pref?.pushEnabled || !pref.pushSubscription) {
         return { channel: this.name, ok: true, skipped: true };
       }
-      await getPushChannel().send(pref.pushSubscription, {
-        title: payload.title,
-        body: payload.body ?? "",
-        url: notificationHref({
-          type: payload.type,
-          entityType: payload.entityType ?? null,
-          entityId: payload.entityId ?? null,
-        }),
-      });
+      try {
+        await getPushChannel().send(pref.pushSubscription, {
+          title: payload.title,
+          body: payload.body ?? "",
+          url: notificationHref({
+            type: payload.type,
+            entityType: payload.entityType ?? null,
+            entityId: payload.entityId ?? null,
+          }),
+        });
+      } catch (error) {
+        if (error instanceof PushSubscriptionGoneError) {
+          // The browser unsubscribed / the endpoint rotated — forget it so we stop trying.
+          await setPushSubscription(userId, null).catch(() => undefined);
+          return { channel: this.name, ok: true, skipped: true };
+        }
+        throw error;
+      }
       return { channel: this.name, ok: true };
     } catch (error) {
       return { channel: this.name, ok: false, error: String(error) };

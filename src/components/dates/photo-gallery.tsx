@@ -9,6 +9,7 @@ import { FavoriteHeart } from "@/components/memories/favorite-heart";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Photo } from "@/components/ui/photo";
+import { useToast } from "@/components/ui/toast";
 import type { PhotoView } from "@/lib/date/photo-view";
 import { idleState, type ActionState } from "@/lib/utils/result";
 import { cn } from "@/lib/utils/cn";
@@ -24,19 +25,29 @@ export function PhotoGallery({
   canManage?: boolean;
 }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [open, setOpen] = useState<number | null>(null);
   const [adding, setAdding] = useState(photos.length === 0 && canManage);
-  const [bestState, bestDispatch] = useActionState(setBestCouplePhotoAction, idleState);
+  const [bestState, bestDispatch, bestPending] = useActionState(
+    setBestCouplePhotoAction,
+    idleState,
+  );
   const [seen, setSeen] = useState<ActionState>(idleState);
 
   if (bestState !== seen) {
     setSeen(bestState);
-    if (bestState.status === "success") router.refresh();
+    if (bestState.status === "success") {
+      toast({ title: bestState.message ?? "Saved.", variant: "success" });
+      router.refresh();
+    } else if (bestState.status === "error") {
+      toast({ title: bestState.message ?? "Couldn't update the best photo.", variant: "error" });
+    }
   }
 
   const hasBest = photos.some((p) => p.isBest);
 
   const setBest = (photo: PhotoView) => {
+    if (bestPending) return;
     const fd = new FormData();
     fd.set("dateId", dateId);
     fd.set("photoId", photo.isBest ? "" : photo.id);
@@ -127,16 +138,17 @@ export function PhotoGallery({
                   <button
                     type="button"
                     onClick={() => setBest(photo)}
+                    disabled={bestPending}
                     aria-label={photo.isBest ? "Best couple photo — tap to unset" : "Set as best couple photo"}
                     aria-pressed={photo.isBest}
                     className={cn(
-                      "absolute right-2 top-2 grid size-8 place-items-center rounded-full backdrop-blur-sm transition-colors",
+                      "absolute right-1.5 top-1.5 grid size-9 place-items-center rounded-full backdrop-blur-sm transition-[background-color,opacity] disabled:opacity-60",
                       photo.isBest
                         ? "bg-primary text-primary-fg"
-                        : "bg-ink/45 text-white/85 opacity-0 hover:bg-ink/60 hover:text-white group-hover:opacity-100 focus-visible:opacity-100",
+                        : "bg-ink/45 text-white/85 opacity-0 hover:bg-ink/60 hover:text-white group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100",
                     )}
                   >
-                    <Icon name="star" size={15} />
+                    <Icon name="star" size={15} className={bestPending ? "animate-pulse" : undefined} />
                   </button>
                   <FavoriteHeart
                     kind="photo"
@@ -146,10 +158,10 @@ export function PhotoGallery({
                     variant="overlay"
                     size={15}
                     className={cn(
-                      "absolute left-2 top-2 size-8",
+                      "absolute left-1.5 top-1.5 size-9",
                       photo.isFavorite
                         ? ""
-                        : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+                        : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100",
                     )}
                   />
                 </>

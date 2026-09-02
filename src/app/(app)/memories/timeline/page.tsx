@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { MemoriesNav } from "@/components/memories/memories-nav";
 import { MemoryTimelineItem } from "@/components/memories/memory-timeline-item";
+import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { PlanDateButton } from "@/components/navigation/plan-date-button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -32,7 +33,7 @@ export default async function MemoryTimelinePage() {
   const { items, totalCompleted, citiesExplored } = await getMemoryTimeline();
 
   return (
-    <div className="space-y-6">
+    <PageContainer className="space-y-6">
       <PageHeader
         title="Timeline"
         description="Every kept memory in order — the whole story, newest first."
@@ -95,6 +96,6 @@ export default async function MemoryTimelinePage() {
           </div>
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }

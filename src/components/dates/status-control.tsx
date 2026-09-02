@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import { DateStatus } from "@prisma/client";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
@@ -44,13 +44,15 @@ export function StatusControl({
   status: DateStatus;
 }) {
   const confirm = useConfirm();
-  const [state, dispatch] = useActionState(transitionDateAction, idleState);
+  const [state, dispatch, isPending] = useActionState(transitionDateAction, idleState);
+  const [running, setRunning] = useState<DateStatus | null>(null);
 
   const allowed = new Set(DATE_STATUS_TRANSITIONS[status]);
   const moves = MOVES[status].filter((move) => allowed.has(move.to));
   if (moves.length === 0) return <FormFeedback state={state} />;
 
   const run = async (move: Move) => {
+    if (isPending) return;
     if (move.destructive) {
       const ok = await confirm({
         title: "Cancel this date?",
@@ -63,7 +65,8 @@ export function StatusControl({
     const fd = new FormData();
     fd.set("dateId", dateId);
     fd.set("to", move.to);
-    dispatch(fd);
+    setRunning(move.to);
+    startTransition(() => dispatch(fd));
   };
 
   return (
@@ -75,6 +78,8 @@ export function StatusControl({
             key={move.to}
             size="sm"
             variant={move.variant ?? "primary"}
+            disabled={isPending}
+            loading={isPending && running === move.to}
             onClick={() => run(move)}
           >
             {move.label}

@@ -39,6 +39,15 @@ function loadDotEnv(): void {
 
 loadDotEnv();
 
+// Guard: this backfill is only ever meant for dev / a fresh DB. Refuse production unless the
+// operator is explicit (`npm run db:seed -- --force`).
+if (process.env.NODE_ENV === "production" && !process.argv.includes("--force")) {
+  console.error(
+    "Refusing to seed in production. Re-run with `-- --force` if you really mean to.",
+  );
+  process.exit(1);
+}
+
 const prisma = new PrismaClient();
 
 async function main() {

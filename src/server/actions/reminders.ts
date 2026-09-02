@@ -16,6 +16,7 @@ import {
 import {
   clearCustomReminder,
   dismissReminder,
+  dispatchDueReminders,
   setCustomReminder,
   snoozeReminder,
 } from "@/server/services/reminder-service";
@@ -67,6 +68,22 @@ export async function savePushSubscriptionAction(
   }
   revalidatePath("/settings/notifications");
   return successState(undefined, parsed ? "Browser notifications on." : "Browser notifications off.");
+}
+
+/**
+ * Deliver any reminders that have come due for the signed-in user. Called on a gentle client
+ * timer so reminders aren't stuck until someone happens to open Home. Idempotent, cheap, and
+ * safe to call often — `dispatchDueReminders` de-dupes and only writes when something is due.
+ */
+export async function dispatchMyRemindersAction(): Promise<{ delivered: number }> {
+  try {
+    const user = await requireUser();
+    const delivered = await dispatchDueReminders(user.id);
+    if (delivered > 0) revalidatePath("/", "layout");
+    return { delivered };
+  } catch {
+    return { delivered: 0 };
+  }
 }
 
 export async function dismissReminderAction(

@@ -58,7 +58,16 @@
   --topbar-h: 3.5rem;
   --bottomnav-h: 4rem;
   --sidebar-w: 15.5rem;
-  --content-max: 68rem;
+  --appheader-h: 3.5rem;
+  /* px the on-screen keyboard covers at the bottom edge — set by <ViewportManager> from
+     `visualViewport`; 0 when there is no keyboard (or no `visualViewport`). Never hardcode a
+     keyboard height anywhere; read this token instead. */
+  --kb: 0px;
+  /* Content column widths. `content-max` is the everyday reading/planning column;
+     `content-wide` is for galleries and timelines; `content-narrow` for focused forms. */
+  --content-narrow: 44rem;
+  --content-max: 72rem;
+  --content-wide: 84rem;
   --prose-max: 42rem;
 }
 
@@ -268,6 +277,58 @@
   }
 }
 
+/* iOS Safari zooms the page in whenever a focused field's text is below 16px — in landscape
+   too, so this keys off the pointer type, not the viewport width. Left UNLAYERED on purpose:
+   an unlayered rule outranks Tailwind's `@layer utilities`, so it also beats `sm:text-sm` on
+   a wide (landscape) phone. Pointer-fine devices (desktop) keep the design's denser text. */
+@media (pointer: coarse) {
+  input:not([type="checkbox" i]):not([type="radio" i]):not([type="range" i]):not(
+      [type="color" i]
+    ):not([type="button" i]):not([type="submit" i]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* When `scrollIntoView({ block: "nearest" })` pulls a focused field into view, keep it clear
+     of the sticky app header at the top and leave a little breathing room at the bottom. */
+  :where(input, select, textarea, [contenteditable]) {
+    scroll-margin-top: calc(var(--appheader-h) + env(safe-area-inset-top) + 0.75rem);
+    scroll-margin-bottom: 0.75rem;
+  }
+}
+
+/* ── Keyboard-aware layout ─────────────────────────────────────────────────────
+   <ViewportManager> sets `--kb` (keyboard occlusion, px) and `data-kb="open"` on <html>.
+   These rules are UNLAYERED so they win over `@layer utilities`. Everything here degrades to
+   its normal state when `--kb` is 0 / the attribute is absent. Transitions are kept so the
+   existing motion still plays, just keyboard-safe. */
+
+/* The fixed mobile bottom nav would otherwise float on top of the keyboard, covering the last
+   form row / the Continue-Save-Submit button. Slide it away while the keyboard is open. */
+.mono-bottom-nav {
+  transition:
+    transform var(--dur-2) var(--ease-out),
+    opacity var(--dur-2) var(--ease-out);
+}
+html[data-kb="open"] .mono-bottom-nav {
+  transform: translateY(110%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* A sticky in-flow action row: normally clears the bottom nav + home indicator; with the
+   keyboard open the nav is gone, so it only needs to clear the keyboard itself. */
+html[data-kb="open"] .above-bottom-nav {
+  bottom: calc(var(--kb) + env(safe-area-inset-bottom));
+}
+
+/* Centred dialog: pin it to the top of the visible area when the keyboard is open so its
+   header stays put and its own scroll area (not the keyboard) owns the overflow. */
+html[data-kb="open"] .mono-modal-wrap {
+  align-items: flex-start;
+}
+
 @layer utilities {
   /* Safe areas (notches, home indicator, keyboard). */
   .pt-safe {
@@ -286,6 +347,18 @@
     bottom: env(safe-area-inset-bottom);
   }
 
+  /* Gutter for a centred dialog: at least 1rem, more where a notch / home indicator intrudes
+     (matters in iPhone landscape and for full-height sheets). */
+  .dialog-inset {
+    padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+      max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  }
+
+  /* Sits a sticky action row clear of BOTH the fixed bottom nav and the home indicator. */
+  .above-bottom-nav {
+    bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom));
+  }
+
   /* Minimum comfortable touch target. */
   .tap {
     min-height: 2.75rem;
@@ -299,12 +372,16 @@
     contain-intrinsic-size: auto 240px;
   }
 
-  /* Natural, self-contained scrolling — never rely on the browser scrollbar to navigate. */
+  /* Natural, self-contained scrolling — never rely on the browser scrollbar to navigate.
+     Firefox styles the scrollbar with the standard properties; WebKit/Blink use the
+     `::-webkit-scrollbar` rules below. */
   .scroll-area {
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
   }
   .scroll-x {
     overflow-x: auto;
@@ -421,6 +498,9 @@
   }
 
   .skeleton {
+    /* Flat fallback for engines without `color-mix()` (Safari < 16.2) — the gradient line
+       below simply replaces it where supported. */
+    background: var(--color-line);
     background: linear-gradient(
       100deg,
       var(--color-line) 20%,

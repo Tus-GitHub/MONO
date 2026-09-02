@@ -7,6 +7,9 @@ const prismaMock = vi.hoisted(() => ({
   date: { findFirst: vi.fn() },
   place: { findFirst: vi.fn() },
   memory: { findFirst: vi.fn() },
+  expense: { findFirst: vi.fn() },
+  datePhoto: { findFirst: vi.fn() },
+  dateReview: { findFirst: vi.fn() },
 }));
 vi.mock("@/lib/db/prisma", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/auth/current-user", () => ({
@@ -15,7 +18,11 @@ vi.mock("@/lib/auth/current-user", () => ({
 
 import {
   authorizeDate,
+  authorizeExpense,
+  authorizeMemory,
+  authorizePhoto,
   authorizePlace,
+  authorizeReview,
   requireCoupleContext,
   requireCoupleMembership,
 } from "@/lib/authz/couple";
@@ -71,5 +78,38 @@ describe("couple isolation", () => {
   it("a user with no active couple cannot get a context", async () => {
     prismaMock.coupleMember.findFirst.mockResolvedValue(null);
     await expect(requireCoupleContext()).rejects.toThrow();
+  });
+});
+
+describe("every couple-scoped resource authorizer refuses a foreign id as NotFound", () => {
+  it("photos, expenses, memories and reviews all 404 when the scoped query finds nothing", async () => {
+    prismaMock.datePhoto.findFirst.mockResolvedValue(null);
+    prismaMock.expense.findFirst.mockResolvedValue(null);
+    prismaMock.memory.findFirst.mockResolvedValue(null);
+    prismaMock.dateReview.findFirst.mockResolvedValue(null);
+
+    await expect(authorizePhoto("foreign-photo")).rejects.toBeInstanceOf(NotFoundError);
+    await expect(authorizeExpense("foreign-expense")).rejects.toBeInstanceOf(NotFoundError);
+    await expect(authorizeMemory("foreign-memory")).rejects.toBeInstanceOf(NotFoundError);
+    await expect(authorizeReview("foreign-review")).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("scopes each query by the session couple id, not by the client-supplied id alone", async () => {
+    prismaMock.expense.findFirst.mockResolvedValue({ id: "e1", coupleId: OWN_COUPLE });
+    await authorizeExpense("e1");
+    expect(prismaMock.expense.findFirst).toHaveBeenCalledWith({
+      where: { id: "e1", coupleId: OWN_COUPLE, deletedAt: null },
+    });
+
+    // photos + reviews reach the couple by walking the owning date
+    prismaMock.datePhoto.findFirst.mockResolvedValue({ id: "p1", date: { coupleId: OWN_COUPLE } });
+    await authorizePhoto("p1");
+    const photoWhere = prismaMock.datePhoto.findFirst.mock.calls[0][0].where;
+    expect(photoWhere.date.coupleId).toBe(OWN_COUPLE);
+
+    prismaMock.dateReview.findFirst.mockResolvedValue({ id: "r1", date: { coupleId: OWN_COUPLE } });
+    await authorizeReview("r1");
+    const reviewWhere = prismaMock.dateReview.findFirst.mock.calls[0][0].where;
+    expect(reviewWhere.date.coupleId).toBe(OWN_COUPLE);
   });
 });

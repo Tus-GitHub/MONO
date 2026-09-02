@@ -4,6 +4,7 @@ import { useId, useRef, type ReactNode } from "react";
 
 import {
   Portal,
+  useBackButton,
   useEscapeKey,
   useFocusTrap,
   useMountTransition,
@@ -52,12 +53,13 @@ export function Modal({
   useScrollLock(mounted);
   useFocusTrap(panelRef, visible);
   useEscapeKey(onClose, mounted);
+  useBackButton(onClose, open);
 
   if (!mounted) return null;
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="mono-modal-wrap dialog-inset fixed inset-0 z-50 flex items-center justify-center">
         <div
           className={cn(
             "absolute inset-0 bg-ink/45 backdrop-blur-[2px] transition-opacity duration-fast",
@@ -72,14 +74,17 @@ export function Modal({
           aria-labelledby={title ? titleId : undefined}
           aria-describedby={description ? descId : undefined}
           className={cn(
-            "relative z-10 w-full origin-center rounded-xl border border-line bg-elevated shadow-xl transition-[opacity,transform] duration-base ease-out",
+            // Never taller than the *visible* viewport minus the inset gutters — `--vvh` tracks
+            // the keyboard (set by <ViewportManager>); `100dvh` is the fallback. The body
+            // scrolls inside instead, so it stays usable in landscape and with the keyboard up.
+            "relative z-10 flex max-h-[calc(var(--vvh,100dvh)-2rem)] w-full origin-center flex-col overflow-hidden rounded-xl border border-line bg-elevated shadow-xl transition-[opacity,transform] duration-base ease-out",
             SIZE[size],
             visible ? "scale-100 opacity-100" : "scale-95 opacity-0",
             className,
           )}
         >
           {(title || !hideClose) && (
-            <div className="flex items-start justify-between gap-4 px-5 pt-5">
+            <div className="flex shrink-0 items-start justify-between gap-4 px-5 pt-5">
               <div className="min-w-0">
                 {title ? (
                   <h2 id={titleId} className="font-display text-lg font-medium text-ink">
@@ -105,10 +110,12 @@ export function Modal({
             </div>
           )}
 
-          {children ? <div className="px-5 py-4 text-sm text-ink">{children}</div> : null}
+          {children ? (
+            <div className="scroll-area min-h-0 flex-1 px-5 py-4 text-sm text-ink">{children}</div>
+          ) : null}
 
           {footer ? (
-            <div className="flex flex-col-reverse gap-2 border-t border-line px-5 py-4 sm:flex-row sm:justify-end">
+            <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-line px-5 py-4 sm:flex-row sm:justify-end">
               {footer}
             </div>
           ) : null}

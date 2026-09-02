@@ -10,7 +10,11 @@ export const focusRing =
 /** Disabled treatment. */
 export const disabledControl = "disabled:pointer-events-none disabled:opacity-55";
 
-/** Control heights — the design system's three sizes (36 / 44 / 52 px). */
+/**
+ * Control heights — the design system's three sizes (36 / 44 / 52 px). On touch devices
+ * `globals.css` floors field text at 16px (so iOS Safari never zooms in on focus); this keeps
+ * the denser size on desktop.
+ */
 export const controlSize = {
   sm: "h-9 text-sm",
   md: "h-11 text-sm",

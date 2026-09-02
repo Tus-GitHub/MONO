@@ -11,6 +11,7 @@ import { Field } from "@/components/ui/field";
 import { fieldBase, Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { UnsavedGuard } from "@/components/system/unsaved-guard";
 import { idleState } from "@/lib/utils/result";
 import { cn } from "@/lib/utils/cn";
 import { recordActualsAction } from "@/server/actions/date";
@@ -67,6 +68,7 @@ export function RecapForm({
 
   return (
     <form action={action} className="space-y-6" noValidate>
+      <UnsavedGuard />
       <input type="hidden" name="dateId" value={dateId} />
       <input type="hidden" name="actualStartTime" value={start} />
       <input type="hidden" name="actualEndTime" value={end} />

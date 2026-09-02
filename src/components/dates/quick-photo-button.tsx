@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { downscaleImage } from "@/lib/images/client-resize";
 import { IMAGE_UPLOAD, validateImageUpload } from "@/lib/storage/image-rules";
 import { cn } from "@/lib/utils/cn";
 
@@ -33,15 +34,18 @@ export function QuickPhotoButton({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const upload = (file: File) => {
-    const check = validateImageUpload({ type: file.type, size: file.size });
-    if (!check.ok) {
-      setError(check.message);
-      return;
-    }
+  const upload = async (input: File) => {
     setError(null);
     setBusy(true);
     setProgress(0);
+    // iPhone camera captures arrive as HEIC / 12 MP — transcode + shrink before the POST.
+    const file = await downscaleImage(input);
+    const check = validateImageUpload({ type: file.type, size: file.size });
+    if (!check.ok) {
+      setBusy(false);
+      setError(check.message);
+      return;
+    }
 
     const body = new FormData();
     body.append("file", file);
@@ -74,7 +78,7 @@ export function QuickPhotoButton({
   const onPick = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (file) upload(file);
+    if (file) void upload(file);
   };
 
   return (

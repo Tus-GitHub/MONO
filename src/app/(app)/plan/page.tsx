@@ -42,8 +42,8 @@ export default async function PlanPage({
         {drafts.length === 0 ? (
           <EmptyState
             icon={<Icon name="pencil" size="md" />}
-            title="No drafts"
-            description="Half-formed ideas you haven't finished live here."
+            title="Nothing half-planned right now"
+            description="Start above — every step saves as you go, so you can always come back to it."
           />
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
@@ -51,7 +51,7 @@ export default async function PlanPage({
               <li key={draft.id}>
                 <Link
                   href={planStepHref(draft.id, "basics")}
-                  className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-ink/3"
+                  className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-paper/70"
                 >
                   <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary-tint text-primary">
                     <Icon name="calendarPlus" size="sm" />

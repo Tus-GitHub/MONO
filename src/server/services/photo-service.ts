@@ -82,6 +82,23 @@ export function resolveDateCover(input: {
 
 // ---------------------------------------------------------------------------
 
+/**
+ * Cheap pre-check for the upload routes — is the caller a member of the couple that owns this
+ * date, and is the date at a stage where photos belong? Runs BEFORE the expensive image
+ * pipeline so a foreign / bogus id can't burn server CPU. `addDatePhoto` re-checks anyway.
+ */
+export async function assertDatePhotoUploadable(dateId: string): Promise<void> {
+  const { resource } = await authorizeDate(dateId);
+  if (!PHOTOGRAPHABLE_STATUSES.includes(resource.status)) {
+    throw new ValidationError("Photos can be added once the date is under way.");
+  }
+}
+
+/** Same idea for "replace this photo's image": authorize the photo before processing bytes. */
+export async function assertPhotoReplaceable(photoId: string): Promise<void> {
+  await authorizePhoto(photoId);
+}
+
 export async function listDatePhotos(dateId: string): Promise<PhotoView[]> {
   const { resource } = await authorizeDate(dateId);
   const [rows, date] = await Promise.all([

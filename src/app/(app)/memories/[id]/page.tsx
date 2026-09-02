@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { PageContainer } from "@/components/layout/page-container";
 import { MemoryDetailView } from "@/components/memories/memory-detail-view";
 import { Icon } from "@/components/ui/icon";
 import Link from "next/link";
@@ -27,7 +28,7 @@ export default async function MemoryDetailPage({
   }
 
   return (
-    <div className="space-y-5">
+    <PageContainer className="space-y-5">
       <Link
         href="/memories"
         className="inline-flex items-center gap-1 text-sm text-muted transition-colors hover:text-ink"
@@ -36,6 +37,6 @@ export default async function MemoryDetailPage({
         Memories
       </Link>
       <MemoryDetailView detail={detail} />
-    </div>
+    </PageContainer>
   );
 }

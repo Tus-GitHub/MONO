@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { downscaleImage } from "@/lib/images/client-resize";
 import { IMAGE_UPLOAD, validateImageUpload } from "@/lib/storage/image-rules";
 import { cn } from "@/lib/utils/cn";
 
-type ItemStatus = "uploading" | "done" | "error" | "canceled";
+type ItemStatus = "queued" | "preparing" | "uploading" | "done" | "error" | "canceled";
 
 interface UploadItem {
   id: string;
@@ -19,6 +20,10 @@ interface UploadItem {
   error?: string;
   xhr?: XMLHttpRequest;
 }
+
+/** At most this many photos resize + upload at once — the rest wait, so a 20-photo drop
+ *  never stalls the tab with parallel canvas work and connections. */
+const MAX_CONCURRENT = 3;
 
 let seq = 0;
 
@@ -36,6 +41,12 @@ export function PhotoUploader({
   const cameraRef = useRef<HTMLInputElement>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // --- imperative upload queue ---
+  const queueRef = useRef<{ id: string; file: File }[]>([]);
+  const activeRef = useRef(0);
+  const canceledRef = useRef<Set<string>>(new Set());
+  const pumpRef = useRef<() => void>(() => {});
+
   const patch = useCallback((id: string, next: Partial<UploadItem>) => {
     setItems((list) => list.map((it) => (it.id === id ? { ...it, ...next } : it)));
   }, []);
@@ -48,7 +59,7 @@ export function PhotoUploader({
   }, [onComplete, router]);
 
   const startUpload = useCallback(
-    (id: string, file: File) => {
+    (id: string, file: File, onSettled: () => void) => {
       const body = new FormData();
       body.append("file", file);
       const xhr = new XMLHttpRequest();
@@ -63,7 +74,7 @@ export function PhotoUploader({
           patch(id, { status: "done", progress: 100, xhr: undefined });
           scheduleRefresh();
         } else {
-          let message = "Upload failed.";
+          let message = xhr.status === 413 ? "That image is too large." : "Upload failed.";
           try {
             message = (JSON.parse(xhr.responseText) as { error?: string }).error ?? message;
           } catch {
@@ -71,13 +82,76 @@ export function PhotoUploader({
           }
           patch(id, { status: "error", error: message, xhr: undefined });
         }
+        onSettled();
       };
-      xhr.onerror = () => patch(id, { status: "error", error: "Network error.", xhr: undefined });
-      xhr.onabort = () => patch(id, { status: "canceled", xhr: undefined });
+      xhr.onerror = () => {
+        patch(id, {
+          status: "error",
+          error: navigator.onLine ? "Upload failed — check your connection." : "You're offline.",
+          xhr: undefined,
+        });
+        onSettled();
+      };
+      xhr.onabort = () => {
+        patch(id, { status: "canceled", xhr: undefined });
+        onSettled();
+      };
       patch(id, { status: "uploading", progress: 0, error: undefined, xhr });
       xhr.send(body);
     },
     [dateId, patch, scheduleRefresh],
+  );
+
+  const processOne = useCallback(
+    async (id: string, file: File) => {
+      const done = () => {
+        activeRef.current = Math.max(0, activeRef.current - 1);
+        pumpRef.current();
+      };
+      if (canceledRef.current.has(id)) {
+        canceledRef.current.delete(id);
+        done();
+        return;
+      }
+      patch(id, { status: "preparing" });
+      // Downscale first (iPhone HEIC → JPEG, 12 MP → ≤2560px, EXIF baked in), THEN validate —
+      // so a camera capture that arrives as HEIC isn't rejected out of hand.
+      const prepared = await downscaleImage(file).catch(() => file);
+      if (canceledRef.current.has(id)) {
+        canceledRef.current.delete(id);
+        done();
+        return;
+      }
+      const check = validateImageUpload({ type: prepared.type, size: prepared.size });
+      if (!check.ok) {
+        patch(id, { status: "error", error: check.message });
+        done();
+        return;
+      }
+      patch(id, { file: prepared });
+      startUpload(id, prepared, done);
+    },
+    [patch, startUpload],
+  );
+
+  const pump = useCallback(() => {
+    while (activeRef.current < MAX_CONCURRENT && queueRef.current.length > 0) {
+      const task = queueRef.current.shift()!;
+      activeRef.current += 1;
+      void processOne(task.id, task.file);
+    }
+  }, [processOne]);
+
+  useEffect(() => {
+    pumpRef.current = pump;
+  }, [pump]);
+
+  const enqueue = useCallback(
+    (id: string, file: File) => {
+      queueRef.current.push({ id, file });
+      pump();
+    },
+    [pump],
   );
 
   const addFiles = useCallback(
@@ -88,28 +162,44 @@ export function PhotoUploader({
       if (files.length === 0) return;
 
       const added = files.map((file) => {
-        const check = validateImageUpload({ type: file.type, size: file.size });
         const id = `u${++seq}`;
         return {
+          id,
+          file,
           item: {
             id,
             file,
             previewUrl: URL.createObjectURL(file),
-            status: (check.ok ? "uploading" : "error") as ItemStatus,
+            status: "queued" as ItemStatus,
             progress: 0,
-            error: check.ok ? undefined : check.message,
           } satisfies UploadItem,
-          valid: check.ok,
         };
       });
 
       setItems((list) => [...list, ...added.map((a) => a.item)]);
-      for (const { item, valid } of added) {
-        if (valid) startUpload(item.id, item.file);
-      }
+      for (const { id, file } of added) enqueue(id, file);
     },
-    [startUpload],
+    [enqueue],
   );
+
+  // Connection came back — re-queue anything that failed, without asking for the files again.
+  useEffect(() => {
+    const onOnline = () => {
+      let any = false;
+      setItems((list) =>
+        list.map((it) => {
+          if (it.status !== "error") return it;
+          any = true;
+          canceledRef.current.delete(it.id);
+          queueRef.current.push({ id: it.id, file: it.file });
+          return { ...it, status: "queued", error: undefined, progress: 0 };
+        }),
+      );
+      if (any) pump();
+    };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [pump]);
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -117,23 +207,40 @@ export function PhotoUploader({
     if (event.dataTransfer.files?.length) addFiles(event.dataTransfer.files);
   };
 
-  const cancel = (item: UploadItem) => item.xhr?.abort();
-  const retry = (item: UploadItem) => startUpload(item.id, item.file);
+  const cancel = (item: UploadItem) => {
+    if (item.xhr) {
+      item.xhr.abort();
+      return;
+    }
+    // Still queued or preparing — pull it before it starts.
+    canceledRef.current.add(item.id);
+    queueRef.current = queueRef.current.filter((t) => t.id !== item.id);
+    patch(item.id, { status: "canceled" });
+  };
+  const retry = (item: UploadItem) => {
+    canceledRef.current.delete(item.id);
+    patch(item.id, { status: "queued", error: undefined, progress: 0 });
+    enqueue(item.id, item.file);
+  };
   const remove = (item: UploadItem) => {
+    canceledRef.current.delete(item.id);
+    queueRef.current = queueRef.current.filter((t) => t.id !== item.id);
     URL.revokeObjectURL(item.previewUrl);
     setItems((list) => list.filter((it) => it.id !== item.id));
   };
+  const pending = (s: ItemStatus) =>
+    s === "queued" || s === "preparing" || s === "uploading";
   const clearFinished = () => {
     setItems((list) => {
       list.forEach((it) => {
-        if (it.status !== "uploading") URL.revokeObjectURL(it.previewUrl);
+        if (!pending(it.status)) URL.revokeObjectURL(it.previewUrl);
       });
-      return list.filter((it) => it.status === "uploading");
+      return list.filter((it) => pending(it.status));
     });
   };
 
-  const busy = items.some((it) => it.status === "uploading");
-  const finished = items.filter((it) => it.status !== "uploading").length;
+  const busy = items.some((it) => pending(it.status));
+  const finished = items.filter((it) => !pending(it.status)).length;
 
   return (
     <div className="space-y-3">
@@ -240,6 +347,10 @@ export function PhotoUploader({
                   <p className="text-xs text-muted">Canceled</p>
                 ) : item.status === "done" ? (
                   <p className="text-xs text-success">Added</p>
+                ) : item.status === "queued" ? (
+                  <p className="text-xs text-muted">Waiting…</p>
+                ) : item.status === "preparing" ? (
+                  <p className="text-xs text-muted">Preparing…</p>
                 ) : (
                   <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-line">
                     <div
@@ -250,7 +361,7 @@ export function PhotoUploader({
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-1">
-                {item.status === "uploading" ? (
+                {pending(item.status) ? (
                   <button
                     type="button"
                     onClick={() => cancel(item)}
@@ -268,7 +379,7 @@ export function PhotoUploader({
                     Retry
                   </button>
                 ) : null}
-                {item.status !== "uploading" ? (
+                {!pending(item.status) ? (
                   <button
                     type="button"
                     aria-label="Remove from list"

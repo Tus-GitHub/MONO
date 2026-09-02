@@ -176,7 +176,7 @@ export function PlaceDetail({ place, forDate }: { place: PlaceDetailView; forDat
         </Card>
       ) : null}
 
-      <div className="sticky bottom-0 -mx-4 border-t border-line bg-elevated/85 px-4 py-3 pb-safe backdrop-blur-md sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+      <div className="above-bottom-nav sticky z-20 -mx-4 border-t border-line bg-elevated/85 px-4 py-3 backdrop-blur-md sm:static sm:z-auto sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
         {forDate ? (
           <SelectPlaceButton
             dateId={forDate}

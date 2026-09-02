@@ -8,6 +8,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { UnsavedGuard } from "@/components/system/unsaved-guard";
 import { PLACE_CATEGORY_LABEL } from "@/lib/date/place-category";
 import { idleState } from "@/lib/utils/result";
 import { createCustomPlaceAction, selectPlaceForDateAction } from "@/server/actions/place";
@@ -20,6 +21,7 @@ export function CustomPlaceForm({ forDate }: { forDate?: string }) {
 
   return (
     <form action={dispatch} className="space-y-4" noValidate>
+      <UnsavedGuard />
       <FormFeedback state={state} />
       {forDate ? (
         <>

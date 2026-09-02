@@ -6,6 +6,7 @@ import { FormFeedback } from "@/components/forms/form-feedback";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { UnsavedGuard } from "@/components/system/unsaved-guard";
 import { ImageUpload } from "@/components/uploads/image-upload";
 import { idleState } from "@/lib/utils/result";
 import { saveProfileAction } from "@/server/actions/profile";
@@ -27,6 +28,7 @@ export function ProfileForm({ initial }: Props) {
 
   return (
     <form action={action} className="space-y-5" noValidate>
+      <UnsavedGuard />
       <FormFeedback state={state} />
 
       <ImageUpload

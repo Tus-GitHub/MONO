@@ -12,6 +12,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Photo } from "@/components/ui/photo";
 import { ScoreScale } from "@/components/ui/score-scale";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { UnsavedGuard } from "@/components/system/unsaved-guard";
 import { REFLECTION_PROMPTS } from "@/lib/review/reflection-prompts";
 import { REVIEW_REVISIT_META, REVIEW_REVISIT_ORDER } from "@/lib/review/revisit";
 import { scoreLabel, suggestedOverall } from "@/lib/review/scale";
@@ -71,6 +72,7 @@ export function ReviewForm({ ctx }: { ctx: ReviewContext }) {
 
   return (
     <form action={draftAction} className="space-y-7" noValidate>
+      <UnsavedGuard />
       <input type="hidden" name="dateId" value={ctx.dateId} />
       <input type="hidden" name="personalRevisitNote" value={revisitNote} />
 

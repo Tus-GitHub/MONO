@@ -16,10 +16,24 @@ export interface InputProps extends ComponentPropsWithRef<"input"> {
   invalid?: boolean;
 }
 
-export function Input({ className, uiSize = "md", invalid, ...props }: InputProps) {
+/**
+ * Sensible mobile-keyboard defaults per input type, so email / url / numeric fields bring up
+ * the right keyboard and don't auto-capitalise or auto-correct. Any explicit prop wins.
+ */
+const typeHints: Record<string, Partial<ComponentPropsWithRef<"input">>> = {
+  email: { inputMode: "email", autoCapitalize: "none", autoCorrect: "off", spellCheck: false },
+  url: { inputMode: "url", autoCapitalize: "none", autoCorrect: "off", spellCheck: false },
+  tel: { inputMode: "tel" },
+  search: { inputMode: "search" },
+  number: { inputMode: "decimal" },
+};
+
+export function Input({ className, uiSize = "md", invalid, type, ...props }: InputProps) {
   return (
     <input
+      type={type}
       aria-invalid={invalid || undefined}
+      {...(type ? typeHints[type] : undefined)}
       className={cn(
         fieldBase,
         controlSize[uiSize],
@@ -41,7 +55,12 @@ export function Textarea({ className, rows = 4, invalid, ...props }: TextareaPro
     <textarea
       rows={rows}
       aria-invalid={invalid || undefined}
-      className={cn(fieldBase, "resize-y px-3.5 py-2.5 text-sm", invalid && invalidRing, className)}
+      className={cn(
+        fieldBase,
+        "resize-y px-3.5 py-2.5 text-sm",
+        invalid && invalidRing,
+        className,
+      )}
       {...props}
     />
   );

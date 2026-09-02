@@ -134,6 +134,33 @@ export function useEscapeKey(onClose: () => void, active: boolean) {
   }, [handler, active]);
 }
 
+/**
+ * Makes the browser / Android system Back button (and the back-swipe gesture) close an open
+ * overlay instead of leaving the page. While `active`, a throwaway history entry is pushed;
+ * `popstate` closes the overlay; closing it any other way quietly pops that entry back off.
+ * Standard History API — degrades to "no-op" if it isn't there.
+ */
+export function useBackButton(onClose: () => void, active: boolean) {
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  useEffect(() => {
+    if (!active || typeof window === "undefined" || !window.history) return;
+
+    window.history.pushState({ ...window.history.state, monoOverlay: true }, "");
+    const onPop = () => onCloseRef.current();
+    window.addEventListener("popstate", onPop);
+
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      // Closed by button / Escape / backdrop rather than Back — remove our synthetic entry.
+      if (window.history.state?.monoOverlay) window.history.back();
+    };
+  }, [active]);
+}
+
 export function useBodyRef() {
   return useRef<HTMLDivElement>(null);
 }

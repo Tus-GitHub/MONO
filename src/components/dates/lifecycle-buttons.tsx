@@ -11,14 +11,15 @@ import { idleState } from "@/lib/utils/result";
 import { transitionDateAction } from "@/server/actions/date";
 
 function useTransition(dateId: string, to: DateStatus) {
-  const [state, dispatch] = useActionState(transitionDateAction, idleState);
+  const [state, dispatch, isPending] = useActionState(transitionDateAction, idleState);
   const run = () => {
+    if (isPending) return;
     const fd = new FormData();
     fd.set("dateId", dateId);
     fd.set("to", to);
     startTransition(() => dispatch(fd));
   };
-  return { state, run };
+  return { state, run, isPending };
 }
 
 /** The big "we're on the date now" action. */
@@ -29,12 +30,13 @@ export function StartDateButton({
   dateId: string;
   fullWidth?: boolean;
 }) {
-  const { state, run } = useTransition(dateId, DateStatus.IN_PROGRESS);
+  const { state, run, isPending } = useTransition(dateId, DateStatus.IN_PROGRESS);
   return (
     <div className="space-y-2">
       <Button
         size="lg"
         fullWidth={fullWidth}
+        loading={isPending}
         onClick={run}
         leadingIcon={<Icon name="sparkles" size="sm" />}
       >
@@ -56,9 +58,10 @@ export function CompleteDateButton({
   variant?: "primary" | "secondary";
 }) {
   const confirm = useConfirm();
-  const { state, run } = useTransition(dateId, DateStatus.COMPLETED);
+  const { state, run, isPending } = useTransition(dateId, DateStatus.COMPLETED);
 
   const onClick = async () => {
+    if (isPending) return;
     const ok = await confirm({
       title: "Mark this date completed?",
       description:
@@ -74,6 +77,7 @@ export function CompleteDateButton({
         size="lg"
         variant={variant}
         fullWidth={fullWidth}
+        loading={isPending}
         onClick={onClick}
         leadingIcon={<Icon name="checkCircle" size="sm" />}
       >

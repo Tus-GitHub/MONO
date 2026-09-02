@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { DatesNav } from "@/components/dates/dates-nav";
+import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { PlanDateButton } from "@/components/navigation/plan-date-button";
 import { UpcomingList, type UpcomingItem } from "@/components/dates/upcoming-list";
@@ -39,7 +40,7 @@ export default async function UpcomingDatesPage({
   }));
 
   return (
-    <div className="space-y-6">
+    <PageContainer className="space-y-6">
       <PageHeader
         title="Upcoming dates"
         description="Everything that's still ahead of you."
@@ -75,6 +76,6 @@ export default async function UpcomingDatesPage({
       ) : (
         <UpcomingList items={items} />
       )}
-    </div>
+    </PageContainer>
   );
 }

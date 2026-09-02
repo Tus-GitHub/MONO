@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { MemoriesNav } from "@/components/memories/memories-nav";
 import { PhotoWall } from "@/components/memories/photo-wall";
+import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
@@ -17,7 +18,7 @@ export default async function PhotoWallPage() {
   const first = await getBestPhotoWallPage();
 
   return (
-    <div className="space-y-6">
+    <PageContainer width="wide" className="space-y-6">
       <PageHeader
         title="Photo wall"
         description="One photo from every date — the one that felt most like you."
@@ -43,6 +44,6 @@ export default async function PhotoWallPage() {
           favoritable
         />
       )}
-    </div>
+    </PageContainer>
   );
 }

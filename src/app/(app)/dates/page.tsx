@@ -4,6 +4,7 @@ import { DatesNav } from "@/components/dates/dates-nav";
 import { DayDetailPanel } from "@/components/dates/day-detail-panel";
 import { MarkDatesSeen } from "@/components/dates/mark-seen";
 import { MonthCalendar } from "@/components/dates/month-calendar";
+import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { PlanDateButton } from "@/components/navigation/plan-date-button";
 import { requireOnboarded } from "@/lib/onboarding";
@@ -25,7 +26,7 @@ export default async function DatesPage({
   const [monthDates, dayDates] = await Promise.all([getMonthDates(month), getDayDates(day)]);
 
   return (
-    <div className="space-y-6">
+    <PageContainer className="space-y-6">
       <MarkDatesSeen />
       <PageHeader
         title="Our calendar"
@@ -40,6 +41,6 @@ export default async function DatesPage({
       <div className="flex justify-center">
         <PlanDateButton />
       </div>
-    </div>
+    </PageContainer>
   );
 }

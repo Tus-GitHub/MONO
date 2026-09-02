@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
@@ -13,12 +14,16 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
+    "db:status": "prisma migrate status",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "screenshot": "node scripts/screenshot.mjs",
+    "icons": "node scripts/generate-icons.mjs",
+    "vapid": "node scripts/generate-vapid.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1124.0",
     "@prisma/client": "^6.1.0",
     "bcryptjs": "^3.0.2",
     "jose": "^5.9.6",

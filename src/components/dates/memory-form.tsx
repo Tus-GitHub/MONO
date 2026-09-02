@@ -37,7 +37,7 @@ export function MemoryForm({
   memory: Memory | null;
 }) {
   const [state, action] = useActionState(saveMemoryAction, idleState);
-  const [, deleteAction] = useActionState(deleteMemoryAction, idleState);
+  const [, deleteAction, deleting] = useActionState(deleteMemoryAction, idleState);
   const confirm = useConfirm();
   const fieldErrors = state.status === "error" ? state.fieldErrors : undefined;
 
@@ -57,6 +57,7 @@ export function MemoryForm({
   }, [state.status]);
 
   const removeMemory = async () => {
+    if (deleting) return;
     const ok = await confirm({
       title: "Remove this memory?",
       description: "The date and its photos stay — just the written memory goes.",
@@ -158,7 +159,14 @@ export function MemoryForm({
 
       <div className="flex items-center justify-between gap-2 border-t border-line pt-5">
         {memory ? (
-          <Button type="button" variant="ghost" size="sm" onClick={removeMemory}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            loading={deleting}
+            disabled={deleting}
+            onClick={removeMemory}
+          >
             Remove memory
           </Button>
         ) : (

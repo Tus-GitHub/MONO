@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
-import { Portal, useEscapeKey, useScrollLock } from "@/components/ui/_dialog-primitives";
+import { Portal, useBackButton, useEscapeKey, useScrollLock } from "@/components/ui/_dialog-primitives";
 import { Icon } from "@/components/ui/icon";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import type { PhotoView } from "@/lib/date/photo-view";
@@ -24,6 +24,8 @@ import {
 } from "@/server/actions/photos";
 
 const SWIPE_THRESHOLD = 70;
+/** Don't start a photo swipe within this many px of the screen edge — that's the OS back gesture. */
+const EDGE_GUARD = 24;
 const MAX_SCALE = 4;
 
 export function PhotoLightbox({
@@ -44,7 +46,7 @@ export function PhotoLightbox({
   const router = useRouter();
   const confirm = useConfirm();
   const [, captionAction] = useActionState(setPhotoCaptionAction, idleState);
-  const [, bestAction] = useActionState(setBestCouplePhotoAction, idleState);
+  const [, bestAction, bestPending] = useActionState(setBestCouplePhotoAction, idleState);
 
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -82,6 +84,7 @@ export function PhotoLightbox({
   );
 
   useEscapeKey(onClose, true);
+  useBackButton(onClose, true);
   useScrollLock(true);
 
   useEffect(() => {
@@ -115,7 +118,8 @@ export function PhotoLightbox({
         startY: event.clientY,
         from: { ...pan },
       };
-    } else {
+    } else if (event.clientX > EDGE_GUARD && event.clientX < window.innerWidth - EDGE_GUARD) {
+      // Swipes that begin at the very edge belong to Safari's back/forward gesture — leave them.
       gesture.current = { kind: "swipe", startX: event.clientX };
     }
   };
@@ -174,6 +178,7 @@ export function PhotoLightbox({
   };
 
   const setBest = () => {
+    if (bestPending) return;
     const fd = new FormData();
     fd.set("dateId", dateId);
     fd.set("photoId", photo.isBest ? "" : photo.id);
@@ -209,7 +214,8 @@ export function PhotoLightbox({
         role="dialog"
         aria-modal="true"
         aria-label={`Photo ${index + 1} of ${count}`}
-        className="fixed inset-0 z-50 flex flex-col bg-ink/95 backdrop-blur-sm"
+        style={{ bottom: "var(--kb, 0px)" }}
+        className="fixed inset-x-0 top-0 z-50 flex flex-col bg-ink/95 backdrop-blur-sm transition-[bottom] duration-base ease-out"
       >
         {/* top chrome */}
         <div className="flex items-center justify-between gap-3 px-4 py-3 text-white/90">
@@ -222,6 +228,7 @@ export function PhotoLightbox({
                 <ChromeButton
                   label={photo.isBest ? "This is your best photo" : "Make this the best photo"}
                   active={photo.isBest}
+                  busy={bestPending}
                   onClick={setBest}
                 >
                   <Icon name="star" size={17} />
@@ -330,11 +337,13 @@ export function PhotoLightbox({
 function ChromeButton({
   label,
   active,
+  busy,
   onClick,
   children,
 }: {
   label: string;
   active?: boolean;
+  busy?: boolean;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -343,9 +352,11 @@ function ChromeButton({
       type="button"
       aria-label={label}
       title={label}
+      disabled={busy}
       onClick={onClick}
       className={cn(
-        "grid size-9 place-items-center rounded-lg transition-colors",
+        "grid size-9 place-items-center rounded-lg transition-[background-color,opacity]",
+        busy && "opacity-50",
         active ? "bg-white/20 text-rating" : "text-white/80 hover:bg-white/12 hover:text-white",
       )}
     >
