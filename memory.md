@@ -23,8 +23,6 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Publish (2026-11-05)** — user authorized committing and pushing current changes to
-  origin/main; running the required production build first.
 
 - **Production activation / real-device QA** — add keys separately when ready, deploy,
   verify actual SMTP/Google/Push/storage delivery, and complete device/browser QA.
@@ -40,6 +38,9 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and SMTP credentials).
 
 ### Done
+
+- **Publish (2026-11-05)** — production build passed; implementation commit `ad4ab82`
+  successfully pushed to origin/main (Tus-GitHub/MONO). Credentials stayed excluded.
 
 - **Functionality completion without UI changes (2026-11-05)** — SMTP, integration failure
   handling, protected Places photos, persistent plan/review drafts, concurrent join/reset
@@ -859,9 +860,10 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-05
 
-- **Publish — IN PROGRESS.** User explicitly requested publishing these changes to GitHub.
+- **Publish — DONE.** User explicitly requested publishing these changes to GitHub.
   Target: origin/main (Tus-GitHub/MONO). Includes implementation, tests, documentation,
   and existing storage/Places diagnostic scripts; credentials remain git-ignored.
+  Required production build passed. Commit `ad4ab82` pushed successfully to origin/main.
 
 - **Functionality completion — DONE (application implementation; keys/live QA deferred).**
   User requested completing functionality while leaving keys alone and preserving the UI.
