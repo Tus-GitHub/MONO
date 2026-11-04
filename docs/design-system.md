@@ -95,3 +95,10 @@ Page transitions: `(app)/template.tsx` re-mounts with `anim-rise`. **`prefers-re
 is respected globally** — a single media rule neutralises every animation and transition.
 Motion is applied to navigation, entrances, selection, overlays, and milestones only — not
 everything.
+
+## UI preservation rule (2026-11-05)
+
+The user designated the current UI as the reference for future development. Keep existing
+layouts, typography, colors, spacing, navigation, and component styling. Functional work
+must reuse the current primitives and feedback patterns. Do not redesign screens without
+an explicit request. Integration keys are configured separately from implementation work.

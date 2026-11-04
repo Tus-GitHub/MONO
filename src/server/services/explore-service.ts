@@ -1,5 +1,7 @@
 import "server-only";
 
+import { placeImageUrl } from "@/lib/places/image-url";
+
 import {
   DateStatus,
   PlaceCategory,
@@ -263,7 +265,7 @@ export async function getExploreHome(
       category: place.category,
       categoryLabel: PLACE_CATEGORY_LABEL[place.category],
       city: place.city,
-      imageUrl: place.imageUrl,
+      imageUrl: placeImageUrl(place),
       coupleScore10: cs,
       visitCount: agg?.visits ?? 0,
       status,

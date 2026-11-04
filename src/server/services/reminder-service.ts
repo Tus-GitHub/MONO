@@ -3,7 +3,7 @@ import "server-only";
 import { DateStatus, NotificationType, ReminderKind } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
-import { deliverNotification } from "@/lib/notifications/channels";
+import { getNotificationChannels } from "@/lib/notifications/channels";
 import {
   DEFAULT_CATEGORY_PREFS,
   type NotificationCategory,
@@ -324,7 +324,16 @@ export async function getDueReminders(userId: string, now: Date = new Date()) {
         sentAt: null,
         dismissedAt: null,
         scheduledFor: { lte: now },
-        date: { deletedAt: null, status: { not: DateStatus.CANCELLED } },
+        user: { deletedAt: null },
+        date: {
+          deletedAt: null,
+          status: { not: DateStatus.CANCELLED },
+          couple: {
+            deletedAt: null,
+            status: { in: ["PENDING", "ACTIVE"] },
+            members: { some: { userId, status: "ACTIVE" } },
+          },
+        },
       },
       orderBy: { scheduledFor: "asc" },
       take: 25,
@@ -348,7 +357,11 @@ export async function getDueReminders(userId: string, now: Date = new Date()) {
       expiredIds.push(row.id);
       return false;
     }
-    return categoryAllowed(row.kind, pref as PrefRow | null);
+    if (!categoryAllowed(row.kind, pref as PrefRow | null)) {
+      expiredIds.push(row.id);
+      return false;
+    }
+    return true;
   });
 
   if (expiredIds.length > 0) {
@@ -373,39 +386,47 @@ export async function dispatchDueReminders(userId: string): Promise<number> {
   for (const reminder of due) {
     try {
       const type = NOTIF_TYPE_OF[reminder.kind];
-      const recent = await prisma.notification.findFirst({
-        where: {
-          userId,
-          type,
-          entityId: reminder.date.id,
-          createdAt: { gte: new Date(Date.now() - REDELIVER_MS) },
-        },
-        select: { id: true },
-      });
-      if (recent) {
-        // already told them recently — retire this reminder quietly
-        await prisma.dateReminder.update({
-          where: { id: reminder.id },
-          data: { sentAt: new Date() },
-        });
-        continue;
-      }
-
       const message = messageFor(reminder.kind, reminder.date);
-      const result = await deliverNotification(userId, {
+      const payload = {
         type,
         title: message.title,
         body: message.body,
         entityType: "Date",
         entityId: reminder.date.id,
         data: { reminderKind: reminder.kind, reminderId: reminder.id },
+      };
+      // Claim and persist together. A competing tab/cron waits for the row lock, then
+      // sees sentAt set. A failed notification insert rolls back the claim for retry.
+      const written = await prisma.$transaction(async (tx) => {
+        const claim = await tx.dateReminder.updateMany({
+          where: {
+            id: reminder.id, sentAt: null, dismissedAt: null,
+            scheduledFor: reminder.scheduledFor,
+          },
+          data: { sentAt: new Date() },
+        });
+        if (claim.count === 0) return false;
+        const recent = await tx.notification.findFirst({
+          where: {
+            userId, type, entityId: reminder.date.id,
+            createdAt: { gte: new Date(Date.now() - REDELIVER_MS) },
+          },
+          select: { id: true },
+        });
+        if (recent) return false;
+        await tx.notification.create({ data: { userId, ...payload } });
+        return true;
       });
-      if (!result.ok) continue; // in-app write failed — leave for the next pass
-
-      await prisma.dateReminder.update({
-        where: { id: reminder.id },
-        data: { sentAt: new Date() },
-      });
+      if (!written) continue;
+      // External delivery stays outside the DB transaction and is best-effort.
+      for (const channel of getNotificationChannels().filter((c) => c.name !== "inapp")) {
+        try {
+          const result = await channel.deliver(userId, payload);
+          if (!result.ok) console.error(`[reminder] ${channel.name} delivery failed`);
+        } catch (error) {
+          console.error(`[reminder] ${channel.name} delivery failed:`, error);
+        }
+      }
       delivered += 1;
     } catch (error) {
       console.error("[reminder] dispatch failed:", error);

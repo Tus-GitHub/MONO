@@ -51,7 +51,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   // Keep native/server-only packages out of the bundler; they run as-is on the server.
-  serverExternalPackages: ["@prisma/client", "bcryptjs", "sharp", "@aws-sdk/client-s3"],
+  serverExternalPackages: ["@prisma/client", "bcryptjs", "sharp", "@aws-sdk/client-s3", "nodemailer"],
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

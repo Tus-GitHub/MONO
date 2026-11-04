@@ -4,6 +4,7 @@ import { AuthProvider } from "@prisma/client";
 
 import { env, googleOAuthConfigured } from "@/config/env";
 import { prisma } from "@/lib/db/prisma";
+import { AuthenticationError } from "@/lib/errors";
 
 /**
  * Google sign-in — architecture seam.
@@ -65,7 +66,10 @@ export async function upsertUserFromOAuthProfile(profile: OAuthProfile) {
       },
       include: { user: true },
     });
-    if (linked) return linked.user;
+    if (linked) {
+      if (linked.user.deletedAt) throw new AuthenticationError("This account is unavailable.");
+      return linked.user;
+    }
 
     const user =
       (await tx.user.findUnique({ where: { email } })) ??
@@ -78,6 +82,7 @@ export async function upsertUserFromOAuthProfile(profile: OAuthProfile) {
         },
       }));
 
+    if (user.deletedAt) throw new AuthenticationError("This account is unavailable.");
     await tx.account.create({
       data: {
         userId: user.id,

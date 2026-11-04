@@ -26,11 +26,11 @@ function GoogleG({ className }: { className?: string }) {
 }
 
 /** Renders only when Google OAuth credentials are configured. */
-export function GoogleButton({ label = "Continue with Google" }: { label?: string }) {
+export function GoogleButton({ label = "Continue with Google", invite }: { label?: string; invite?: string }) {
   if (!googleOAuthConfigured) return null;
   return (
     <a
-      href="/api/auth/google/start"
+      href={`/api/auth/google/start${invite ? `?invite=${encodeURIComponent(invite)}` : ""}`}
       className={cn(
         "inline-flex h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-line bg-surface text-sm font-medium text-ink transition-colors hover:border-line-strong hover:bg-elevated",
         focusRing,
@@ -54,11 +54,11 @@ export function AuthDivider() {
 }
 
 /** Google button + divider, or nothing when Google isn't configured. */
-export function GoogleAuthBlock({ label }: { label?: string }) {
+export function GoogleAuthBlock({ label, invite }: { label?: string; invite?: string }) {
   if (!googleOAuthConfigured) return null;
   return (
     <>
-      <GoogleButton label={label} />
+      <GoogleButton label={label} invite={invite} />
       <AuthDivider />
     </>
   );

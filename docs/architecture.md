@@ -70,7 +70,7 @@ its declared type; `src/lib/security/rate-limit.ts` throttles auth / invite / up
 
 ## Data model (`prisma/schema.prisma`)
 
-15 models: `User`, `Account`, `PasswordResetToken`, `Couple`, `CoupleMember`, `Place`,
+21 models: `User`, `Account`, `PasswordResetToken`, `Couple`, `CoupleMember`, `Place`,
 `Date`, `DateActivity`, `DatePhoto`, `ReviewCategory`, `DateReview`, `DateReviewRating`,
 `RevisitDecision`, `Expense`, `Memory`, `Notification`.
 
@@ -277,7 +277,7 @@ they are unguessable. The `/media/[...key]` route parses the couple id from the 
 `requireCoupleMembership` before streaming — the key layout **is** the isolation story — and
 returns 404 on any failure so existence never leaks. Responses carry `Cache-Control: private,
 immutable` (keys are never rewritten in place) and `X-Robots-Tag: noindex`. `S3StorageDriver`
-is a stub. Nothing is served from a public bucket URL; `src/app/robots.ts` disallows the
+implements private S3-compatible storage. Nothing is served from a public bucket URL; `src/app/robots.ts` disallows the
 whole app.
 
 ## Images (`src/lib/images`)
@@ -323,13 +323,26 @@ every card/hero. The client renders through `<Photo>` (aspect-ratio box, blur-up
 with `prisma` + the session mocked). Node environment, no DB, no DOM. `vitest.config.ts` maps
 the `@/*` alias and stubs the `server-only` / `client-only` build guards.
 
-## Pending (foundation deliberately stops here)
+## Deployment work remaining
 
-- DB is live (Neon) and **in sync** — `prisma db push` applied every schema delta through the
-  final pass (26 tables).
-- Real Google OAuth credentials; real email transport (SMTP driver — `console` driver active).
-- Real object storage for production (`S3StorageDriver` is a stub; `local` works in dev).
-- Reminder dispatch is opportunistic (on Home load); a cron/worker calling
-  `getDueReminders` → `deliverNotification` is the next step.
-- CSP still allows `'unsafe-inline'` for script/style (nonce-based CSP is the hardening step).
-- Migrate `package.json` Prisma bits to `prisma.config.ts` (Prisma 7).
+- Configure production database/storage, SMTP, optional Google OAuth/Places and VAPID keys.
+- Activate a scheduler against `/api/cron/reminders` or run `npm run reminders:worker`.
+- Verify provider delivery, HTTPS deployment, and real-device behavior.
+- Keep the existing UI as the design reference; functional additions reuse its components.
+
+## Functional completion (2026-11-05)
+
+- SMTP: Nodemailer with mandatory TLS, credentials validated when selected, bounded timeouts,
+  and recipient acceptance checks. Password-reset token claims are transactional/single-use.
+- OAuth: strict verified profile validation, bounded provider requests, graceful failure
+  feedback through the existing form component, and invitation continuation.
+- Places: key-free same-origin photo URLs; authenticated photo endpoint resolves fresh Google
+  image URIs. Legacy saved Google URLs are sanitized on read. Empty coordinates no longer
+  turn into an unintended location at 0,0.
+- Drafts: versioned, validated local recovery for plan basics/budget, reviews, and memory
+  text. Planning/review keys include the user ID. Drafts expire after seven days and are
+  ignored if the originating server value changed. No automatic offline mutation queue.
+- Couple creation/join and invitation acceptance use serializable transactions with bounded
+  conflict retries so simultaneous joins cannot exceed the two-person constraint.
+- Scheduled reminders: bearer-authenticated endpoint and optional standalone worker;
+  in-app notification and sent marker commit together, then push is best-effort.

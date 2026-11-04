@@ -14,11 +14,11 @@ keep memories. It is not a social network, marketplace, dating app, or review si
 | Database       | PostgreSQL + Prisma ORM                                      |
 | Auth           | Hand-rolled sessions — bcrypt hashing, signed JWT cookie (`jose`), Google-ready |
 | Validation     | Zod                                                          |
-| Storage        | Driver abstraction (local disk now, S3/R2 later)            |
-| Email          | Driver abstraction (console now, SMTP later)                |
+| Storage        | Local disk (dev) and private S3/R2 (production)            |
+| Email          | Console (dev) and authenticated TLS SMTP                |
 
 Dependencies are kept deliberately small: `@prisma/client`, `prisma`, `bcryptjs`, `jose`,
-`zod`, `tsx`, and `sharp` (server-side thumbnail + blur-placeholder generation for the private
+`zod`, `tsx`, `nodemailer`, and `sharp` (server-side thumbnail + blur-placeholder generation for the private
 photo pipeline — already pulled in transitively by Next, made explicit here). Photo processing
 is behind the `ImageProcessor` abstraction, so `sharp` can be swapped or disabled
 (`IMAGE_PROCESSOR=noop`).
@@ -55,7 +55,7 @@ src/
     env.ts                Zod-validated environment
   types/                  Shared types (Prisma enums re-exported)
 prisma/
-  schema.prisma           15 models + enums
+  schema.prisma           21 models + enums
   seed.ts                 Backfills default review categories
 ```
 
@@ -107,6 +107,16 @@ npm run build       # next build (also type-checks)
 
 ## Status
 
-The foundation is complete and verified (typecheck, lint, build, dev server all green).
-Detailed feature pages (Dates, Places, Memories, Expenses, Reviews) are intentionally not
-implemented yet — the architecture is in place for them to build on.
+Core date planning, calendar/history, expenses, photos, independent reviews, memories,
+couple insights, Explore, settings, export, notifications, and PWA support are implemented.
+SMTP delivery, authenticated scheduled reminders, Google sign-in and Places integrations,
+and device draft recovery are implemented with regression tests. Nodemailer handles the
+SMTP protocol/TLS and MIME formatting rather than adding a custom mail protocol implementation.
+
+Credentials are intentionally left for deployment: see `.env.example` and `DEPLOY.md`.
+Run `npm run check:email` to verify SMTP without sending mail, and configure either an HTTP
+scheduler or `npm run reminders:worker` for closed-app reminders. Real-provider delivery,
+production deployment, and real-device checks must still be verified after configuration.
+
+The existing UI is the reference for future work; preserve its layouts, styling and primitives
+unless the user explicitly requests a design change (see `CLAUDE.md`).

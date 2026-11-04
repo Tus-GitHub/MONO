@@ -23,6 +23,7 @@ const schema = z.object({
   SESSION_MAX_AGE_DAYS: z.coerce.number().int().positive().default(30),
 
   APP_URL: z.string().url().default("http://localhost:3000"),
+  CRON_SECRET: z.union([z.literal(""), z.string().min(32)]).default(""),
 
   STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
   STORAGE_LOCAL_ROOT: z.string().default("./.storage"),
@@ -44,6 +45,11 @@ const schema = z.object({
 
   EMAIL_DRIVER: z.enum(["console", "smtp"]).default("console"),
   EMAIL_FROM: z.string().default("MONO <no-reply@mono.local>"),
+  SMTP_HOST: z.string().default(""),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+  SMTP_SECURE: booleanish.default("false"),
+  SMTP_USER: z.string().default(""),
+  SMTP_PASSWORD: z.string().default(""),
 
   GOOGLE_CLIENT_ID: z.string().optional().default(""),
   GOOGLE_CLIENT_SECRET: z.string().optional().default(""),
@@ -73,6 +79,11 @@ const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
  * Dev/test — and the build — are left permissive.
  */
 const productionSafe = schema.superRefine((v, ctx) => {
+  if (!isBuildPhase && v.EMAIL_DRIVER === "smtp") {
+    for (const key of ["SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD"] as const) {
+      if (!v[key]) ctx.addIssue({ code: "custom", path: [key], message: "required when EMAIL_DRIVER=smtp" });
+    }
+  }
   if (v.NODE_ENV !== "production" || isBuildPhase) return;
 
   if (/dev-insecure|change-?me|example|test-secret/i.test(v.AUTH_SECRET)) {
@@ -119,7 +130,8 @@ export const isDevelopment = env.NODE_ENV === "development";
 export const isTest = env.NODE_ENV === "test";
 
 /** Whether Google sign-in has real credentials wired up. */
-export const googleOAuthConfigured = Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
+export const googleOAuthConfigured = env.GOOGLE_OAUTH_ENABLED !== false &&
+  Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
 
 /** Whether an external place provider is configured. */
 export const placeProviderConfigured =

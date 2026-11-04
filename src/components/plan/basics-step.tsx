@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
 import { DatePicker } from "@/components/plan/date-picker";
@@ -10,20 +10,26 @@ import { TimeField } from "@/components/plan/time-field";
 import { Field } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { useLocalDraft } from "@/lib/hooks/use-local-draft";
+import { UnsavedGuard } from "@/components/system/unsaved-guard";
 import { idleState } from "@/lib/utils/result";
 import { saveStepAction } from "@/server/actions/plan";
 import type { PlanDateDTO } from "@/server/services/plan-service";
 
-export function BasicsStep({ plan }: { plan: PlanDateDTO }) {
+export function BasicsStep({ plan, userId }: { plan: PlanDateDTO; userId: string }) {
   const [state, action] = useActionState(saveStepAction, idleState);
   const fieldErrors = state.status === "error" ? state.fieldErrors : undefined;
 
-  const [date, setDate] = useState<string | null>(plan.date);
-  const [startTime, setStartTime] = useState(plan.startTime ?? "");
-  const [endTime, setEndTime] = useState(plan.endTime ?? "");
+  const prefix = `mono:plan:${userId}:${plan.id}`;
+  const { value: date, setValue: setDate } = useLocalDraft(`${prefix}:date`, plan.date ?? "");
+  const { value: startTime, setValue: setStartTime } = useLocalDraft(`${prefix}:start`, plan.startTime ?? "");
+  const { value: endTime, setValue: setEndTime } = useLocalDraft(`${prefix}:end`, plan.endTime ?? "");
+  const title = useLocalDraft(`${prefix}:title`, plan.title);
+  const notes = useLocalDraft(`${prefix}:notes`, plan.notes ?? "");
 
   return (
     <form action={action} className="space-y-6" noValidate>
+      <UnsavedGuard />
       <input type="hidden" name="dateId" value={plan.id} />
       <input type="hidden" name="step" value="basics" />
       <input type="hidden" name="date" value={date ?? ""} />
@@ -45,7 +51,8 @@ export function BasicsStep({ plan }: { plan: PlanDateDTO }) {
         <Input
           id="title"
           name="title"
-          defaultValue={plan.title}
+          value={title.value}
+          onChange={(e) => title.setValue(e.target.value)}
           placeholder="Friday night out"
           maxLength={160}
         />
@@ -55,7 +62,7 @@ export function BasicsStep({ plan }: { plan: PlanDateDTO }) {
 
       <div>
         <p className="mb-2 text-sm font-medium text-ink">When?</p>
-        <DatePicker value={date} onChange={setDate} />
+        <DatePicker value={date} onChange={(value) => setDate(value ?? "")} />
         {fieldErrors?.date ? (
           <p className="mt-1.5 text-xs text-error">{fieldErrors.date.join(" ")}</p>
         ) : null}
@@ -85,7 +92,8 @@ export function BasicsStep({ plan }: { plan: PlanDateDTO }) {
         <Textarea
           id="notes"
           name="notes"
-          defaultValue={plan.notes ?? ""}
+          value={notes.value}
+          onChange={(e) => notes.setValue(e.target.value)}
           rows={3}
           placeholder="Anything to remember while planning."
         />

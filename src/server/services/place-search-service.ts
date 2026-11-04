@@ -1,5 +1,7 @@
 import "server-only";
 
+import { placeImageUrl } from "@/lib/places/image-url";
+
 import { PlaceCategory, RevisitChoice } from "@prisma/client";
 
 import { requireCoupleContext } from "@/lib/authz";
@@ -89,7 +91,7 @@ export async function searchPlaces(options: Options = {}): Promise<PlaceSearchRe
       city: place.city,
       latitude: place.latitude,
       longitude: place.longitude,
-      imageUrl: place.imageUrl,
+      imageUrl: placeImageUrl(place),
       externalRating: place.externalRating,
       externalRatingCount: place.externalRatingCount,
       priceLevel: place.priceLevel,
@@ -121,7 +123,7 @@ export async function searchPlaces(options: Options = {}): Promise<PlaceSearchRe
         city: place.city,
         latitude: place.latitude,
         longitude: place.longitude,
-        imageUrl: place.imageUrl,
+        imageUrl: placeImageUrl(place),
         externalRating: place.externalRating,
         externalRatingCount: place.externalRatingCount,
         priceLevel: place.priceLevel,

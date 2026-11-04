@@ -20,7 +20,12 @@
     "screenshot": "node scripts/screenshot.mjs",
     "icons": "node scripts/generate-icons.mjs",
     "vapid": "node scripts/generate-vapid.mjs",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "check:storage": "node scripts/check-storage.mjs",
+    "check:places": "node scripts/check-places.mjs",
+    "check:email": "node scripts/check-email.mjs",
+    "reminders:worker": "node scripts/reminder-worker.mjs",
+    "reminders:dispatch": "node scripts/reminder-worker.mjs --once"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1124.0",
@@ -28,6 +33,7 @@
     "bcryptjs": "^3.0.2",
     "jose": "^5.9.6",
     "next": "16.3.4",
+    "nodemailer": "^10.3.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "sharp": "^0.35.4",
@@ -36,6 +42,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

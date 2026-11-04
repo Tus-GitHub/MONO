@@ -52,9 +52,30 @@ in the local `.env` are for development only.
 | `SESSION_COOKIE_NAME` | `mono_session` |
 | `SESSION_MAX_AGE_DAYS` | `30` |
 | `IMAGE_PROCESSOR` | `sharp` |
-| `EMAIL_DRIVER` | `console` (password-reset links go to server logs) — set up SMTP later |
+| `EMAIL_DRIVER` | `smtp` for real delivery; `console` for development only |
 | `EMAIL_FROM` | `MONO <no-reply@your-domain>` |
 | `PLACE_PROVIDER` | `none` |
+
+### SMTP email (implemented; configure when ready)
+
+Set `EMAIL_DRIVER=smtp`, `EMAIL_FROM` to your verified sender, and `SMTP_HOST`, `SMTP_USER`,
+`SMTP_PASSWORD`. Use `SMTP_PORT=587` with `SMTP_SECURE=false` for mandatory STARTTLS, or
+`SMTP_PORT=465` with `SMTP_SECURE=true` for implicit TLS. Certificate verification stays enabled.
+Development can keep `EMAIL_DRIVER=console` with SMTP fields blank.
+
+`npm run check:email` verifies connection, TLS, and authentication without sending mail.
+Then test Forgot Password with your own account after deployment. Reset links expire after
+30 minutes, are single-use even with concurrent requests, and invalidate existing sessions.
+Mail failures keep the generic recovery response and log a generic configuration error.
+See [Nodemailer SMTP options](https://nodemailer.com/smtp).
+
+### Google integrations (implemented; optional)
+
+For sign-in, configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and the authorized callback
+`<APP_URL>/api/auth/google/callback`. `GOOGLE_OAUTH_ENABLED=false` explicitly disables it.
+For Places, set `PLACE_PROVIDER=google` and `GOOGLE_PLACES_API_KEY`; enable Places API (New).
+The key stays server-side, including photo resolution. Saved/custom place flows work without
+it. Do not put these secrets in client-prefixed environment variables.
 
 ### Optional — Web Push (browser/PWA reminders)
 
@@ -164,6 +185,44 @@ notifications, PWA install, and the service worker all require a secure context.
    correct absolute URLs.
 
 ---
+
+## Scheduled reminders
+
+`GET /api/cron/reminders` dispatches due reminders without an open browser tab.
+Set `CRON_SECRET` to a separate random secret of at least 32 characters in the host.
+The scheduler must send `Authorization: Bearer <CRON_SECRET>` over HTTPS. A missing
+configuration returns 503; an incorrect token returns 401. Never put the secret in the URL.
+
+Configure an HTTP scheduler to call this endpoint every five minutes. For a Vercel plan
+supporting that frequency, add this to `vercel.json`:
+
+```json
+{ "crons": [{ "path": "/api/cron/reminders", "schedule": "*/5 * * * *" }] }
+```
+
+Vercel automatically sends the configured `CRON_SECRET`. Its Hobby plan only supports
+daily cron jobs, which is insufficient for timed reminders; use an external scheduler
+with the same authorization header instead. See
+[cron authentication](https://vercel.com/docs/cron-jobs/manage-cron-jobs) and
+[plan limits](https://vercel.com/docs/cron-jobs/usage-and-pricing).
+No schedule is enabled by this repository alone; configure the chosen host/service.
+
+Alternatively run `npm run reminders:worker` as a separate always-on Node process with
+`APP_URL` and `CRON_SECRET`. It dispatches every five minutes, handles shutdown, and retries
+on the next interval after failures. `npm run reminders:dispatch` performs one pass for a
+system cron entry. Worker/diagnostic scripts require Node 20.12+ (Node 22 recommended).
+They never print the bearer secret.
+
+Responses contain aggregate `users`, `delivered`, and `failedUsers` counts, never user data.
+Each user processes at most 25 due reminders per pass; subsequent runs drain any backlog.
+In-app notification creation and the reminder claim commit atomically to prevent duplicate
+delivery of the same reminder by overlapping cron/tab requests. External push is best-effort
+after commit, requires VAPID configuration and browser permission, and is not retried after
+an in-app success. Monitor scheduler responses and server logs for delivery failures.
+Disabled-category reminders are retired when due rather than delivered later if re-enabled.
+
+Verify unauthorized requests fail, then test a due reminder on the deployed origin with
+all tabs closed. Repeating the request must not create another notification for that reminder.
 
 ## 7. Post-deploy verification
 

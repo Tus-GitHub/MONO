@@ -12,7 +12,9 @@ export async function GET(request: NextRequest) {
   const lat = Number(params.get("lat"));
   const lng = Number(params.get("lng"));
   const near =
-    Number.isFinite(lat) && Number.isFinite(lng) ? { latitude: lat, longitude: lng } : null;
+    params.has("lat") && params.has("lng") && params.get("lat") !== "" && params.get("lng") !== "" &&
+    Number.isFinite(lat) && Math.abs(lat) <= 90 && Number.isFinite(lng) && Math.abs(lng) <= 180
+      ? { latitude: lat, longitude: lng } : null;
 
   try {
     const results = await searchPlaces({

@@ -96,8 +96,9 @@ export async function requestPasswordResetAction(
 
   try {
     await beginPasswordReset(parsed.data.email);
-  } catch (error) {
-    return toActionError(error);
+  } catch {
+    // Keep the same response for unknown accounts and mail outages. Never log reset URLs.
+    console.error("[auth] Password reset delivery failed; check email configuration.");
   }
 
   return successState(undefined, GENERIC_RESET_MESSAGE);

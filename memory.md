@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-09-02 (Prompts 30 launch-readiness + 31 mobile-keyboard fix — published)
+Last updated: 2026-11-05 (publishing functionality completion)
 
 ## Project Overview
 
@@ -23,13 +23,33 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
+- **Publish (2026-11-05)** — user authorized committing and pushing current changes to
+  origin/main; running the required production build first.
+
+- **Production activation / real-device QA** — add keys separately when ready, deploy,
+  verify actual SMTP/Google/Push/storage delivery, and complete device/browser QA.
+
+- **Scheduled reminder activation** — endpoint implemented; production scheduler configuration
+  and a closed-app live test remain pending (see DEPLOY.md).
+
+
 - **Prod/PWA conversion (prompt 21+)** — Phases 0–8 done; prompts 30 (launch-readiness) + 31
   (mobile keyboard) done. **Next action: run `publish`.** Then real deploy per `DEPLOY.md`
   (needs a host + prod Neon branch + S3 bucket + domain/HTTPS). Outstanding non-blockers in
   `docs/pwa-conversion-checklist.md` (Lighthouse on the live origin, real-device passes, a
-  reminder cron, SMTP for password-reset email).
+  reminder worker activation and SMTP credentials).
 
 ### Done
+
+- **Functionality completion without UI changes (2026-11-05)** — SMTP, integration failure
+  handling, protected Places photos, persistent plan/review drafts, concurrent join/reset
+  protection, and runnable reminder worker implemented. See Task Log for verification.
+
+- **Scheduled reminder implementation (2026-11-05)** — protected cron endpoint, transactional
+  in-app delivery, membership eligibility, tests, and deployment instructions implemented.
+
+- **Codebase orientation (2026-11-04)** — mapped architecture and current features; verified
+  98 tests across 14 files and TypeScript check pass. No application code changed.
 
 - **Launch-readiness pass (prompt 30)** — completed 2026-09-02. See Task Log. Headline:
   full user-journey E2E (2 real couples, real UI) and a cross-couple authorization/IDOR sweep
@@ -836,6 +856,85 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-05
+
+- **Publish — IN PROGRESS.** User explicitly requested publishing these changes to GitHub.
+  Target: origin/main (Tus-GitHub/MONO). Includes implementation, tests, documentation,
+  and existing storage/Places diagnostic scripts; credentials remain git-ignored.
+
+- **Functionality completion — DONE (application implementation; keys/live QA deferred).**
+  User requested completing functionality while leaving keys alone and preserving the UI.
+  Recorded that standing preference in CLAUDE.md and docs/design-system.md.
+  Implemented Nodemailer SMTP (TLS, timeouts, accepted-recipient checks), typed SMTP config,
+  check:email (verify only; no sending), and single-use transactional password-reset claims.
+  Reset-delivery failures retain the generic response. OAuth now validates verified profiles,
+  handles outages/malformed responses, rejects deleted accounts, honors the disable flag,
+  preserves invite links, and uses existing form feedback for errors. Google Places photo
+  URLs no longer expose keys; authenticated server resolution handles expired photo refs.
+  Corrected missing location params being interpreted as 0,0 and added provider timeouts.
+  Plan basics/budget and private reviews have validated, versioned, user-scoped device drafts;
+  cleared fields survive reload, drafts expire after 7 days, and stale server versions win.
+  Couple create/join and invitation acceptance use serializable transactions with retries.
+  Added reminders:worker and reminders:dispatch for a configurable external Node worker.
+  Updated README, architecture, checklist, deployment instructions and env placeholders.
+  Verification: 138 tests / 24 files pass; lint and production build pass. Chrome draft
+  harness passed restore/empty/user-isolation/server-change/clear/re-edit checks; local
+  worker harness passed auth/counts/error-status/no-secret-log checks. Verified unchanged
+  className expressions in all 10 changed TSX files, with globals.css/tokens untouched.
+  No real emails/push sent, no credentials changed, no live DB migration, no deployment,
+  commit or GitHub push. Provider activation and real-device QA remain explicitly deferred.
+
+- **Scheduled reminder code — DONE; deployment pending.** Added `/api/cron/reminders`,
+  fail-closed bearer authentication via optional 32+ character `CRON_SECRET`, aggregate
+  dispatch results, and per-recipient failure isolation. In-app notification + sent marker
+  now commit atomically to prevent overlapping cron/tab duplicates; push follows commit
+  best-effort. Eligibility excludes deleted users and inactive/foreign couple membership;
+  due disabled-category reminders are retired. Added 12 tests: all 110 tests pass after
+  sandbox EPERM retry; TypeScript, lint, and production build pass. No new dependencies or schema
+  migration. DEPLOY.md documents five-minute scheduling and Vercel Hobby limitations.
+  Hosting activation/live verification, SMTP, and device QA remain. No push performed;
+  pre-existing edits preserved.
+
+### 2026-11-04
+
+- **Completion and GitHub status review — DONE.** Compared implemented features with
+  deployment docs and backlog. Core app and PWA are implemented; SMTP and scheduled reminder
+  dispatch remain unfinished, and production configuration/device QA need verification.
+  Older checklist stub entries for S3 and Web Push are stale. Git origin is
+  `https://github.com/Tus-GitHub/MONO.git`, current branch `main`. Push credentials were not
+  tested and no commit/push was performed; user asked whether pushing is possible.
+
+- **Project instructions — DONE.** User confirmed using the existing `CLAUDE.md` as the
+  project guide for subsequent work, including architecture invariants and memory updates.
+
+- **Codebase orientation — DONE.** Read project rules, route structure, schema,
+  auth/authz, actions/services, lifecycle/review rules, provider configuration, and PWA code.
+  README status/model counts lag the implementation (21 models). SMTP remains a placeholder;
+  reminders dispatch through an open-tab poller. Existing working-tree changes preserved.
+  Initial Vitest run blocked by sandbox EPERM while resolving dependencies; approved retry
+  passed all 98 tests across 14 files. TypeScript check passed. No build or browser E2E run.
+
+### 2026-09-03
+
+- **Production image storage provisioned (Cloudflare R2).** Private bucket **`mono-photos`**,
+  Account API token scoped to it (Object Read & Write). S3-compat endpoint
+  `https://fabe5fa12691c2884b6f98554320fdc6.r2.cloudflarestorage.com`, `S3_REGION=auto`,
+  path-style auto-on. Values live in local `.env` (git-ignored) with `STORAGE_DRIVER=local`
+  still selected for dev; **production sets `STORAGE_DRIVER=s3`** + the same six `S3_*` vars in
+  the host env. New tool **`scripts/check-storage.mjs`** / `npm run check:storage` — real
+  PUT→GET→HEAD→DELETE round-trip against the bucket; passed. Still to do for a live deploy:
+  real `AUTH_SECRET`, a host (Vercel) with all prod env vars, `APP_URL` = the https origin.
+  (`scripts/check-storage.mjs` + the `check:storage` package.json line are uncommitted — no
+  secrets in them.)
+- **External place provider — Google Places API (New) — chosen; key not yet provisioned.**
+  MONO calls `places.googleapis.com/v1/` (`places:searchText`, `places/{id}`, photo `/media`).
+  Enable **"Places API (New)"** (not legacy), key with **API restriction = Places API (New)**,
+  **Application restriction = None** (server calls from Vercel have rotating IPs; browser
+  fetches the photo URLs). Env: `PLACE_PROVIDER=google` + `GOOGLE_PLACES_API_KEY` (local `.env`
+  + host). New tool `scripts/check-places.mjs` / `npm run check:places` — direct `searchText`
+  call that surfaces Google's real error (the app provider swallows errors → falls back to
+  saved places, so a bad key is otherwise invisible). Also uncommitted, no secrets.
 
 ### 2026-09-02
 

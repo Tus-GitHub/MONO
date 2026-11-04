@@ -38,7 +38,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
         }
         back={{ href: `/dates/${id}`, label: ctx.dateTitle || "Back to the date" }}
       />
-      {waiting ? <ReviewWaiting ctx={ctx} /> : <ReviewForm ctx={ctx} />}
+      {waiting ? <ReviewWaiting ctx={ctx} /> : <ReviewForm ctx={ctx} userId={user.id} />}
     </div>
   );
 }

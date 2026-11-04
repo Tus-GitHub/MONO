@@ -8,6 +8,7 @@ import {
 } from "@prisma/client";
 
 import { env } from "@/config/env";
+import { serializable } from "@/lib/db/serializable";
 import { prisma } from "@/lib/db/prisma";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { randomToken, sha256 } from "@/lib/utils/crypto";
@@ -98,7 +99,7 @@ export async function getInvitationByToken(token: string) {
 }
 
 export async function acceptInvitation(token: string, userId: string) {
-  return prisma.$transaction(async (tx) => {
+  return serializable(async (tx) => {
     const invitation = await tx.coupleInvitation.findUnique({
       where: { tokenHash: sha256(token) },
       include: {
@@ -120,6 +121,7 @@ export async function acceptInvitation(token: string, userId: string) {
     if (invitation.createdById === userId) {
       throw new ConflictError("You can't accept your own invitation.");
     }
+    if (invitation.couple.status === CoupleStatus.ARCHIVED) throw new ConflictError("That space is no longer active.");
     if (invitation.couple.deletedAt) throw new NotFoundError("That space no longer exists.");
     if (invitation.couple.members.length >= MAX_MEMBERS) {
       throw new ConflictError("That space is already full.");

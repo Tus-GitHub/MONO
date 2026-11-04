@@ -3,6 +3,7 @@ import "server-only";
 import { CoupleMemberRole, CoupleMemberStatus, CoupleStatus, NotificationType, Prisma } from "@prisma/client";
 
 import { ConflictError, NotFoundError } from "@/lib/errors";
+import { serializable } from "@/lib/db/serializable";
 import { prisma } from "@/lib/db/prisma";
 import { generateInviteCode } from "@/lib/utils/crypto";
 import type {
@@ -42,7 +43,7 @@ async function generateUniqueInviteCode(tx: Prisma.TransactionClient): Promise<s
 }
 
 export async function createCoupleForUser(userId: string, input: CreateCoupleInput) {
-  return prisma.$transaction(async (tx) => {
+  return serializable(async (tx) => {
     await assertUserHasNoActiveCouple(tx, userId);
 
     const couple = await tx.couple.create({
@@ -71,7 +72,7 @@ export async function createCoupleForUser(userId: string, input: CreateCoupleInp
 }
 
 export async function joinCoupleByInviteCode(userId: string, input: JoinCoupleInput) {
-  return prisma.$transaction(async (tx) => {
+  return serializable(async (tx) => {
     await assertUserHasNoActiveCouple(tx, userId);
 
     const couple = await tx.couple.findFirst({

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 const STATE_COOKIE = "mono_oauth_state";
 
-export async function GET() {
+export async function GET(request: Request) {
   if (!googleProvider.configured) {
     return NextResponse.json(
       { error: "google_oauth_not_configured", hint: "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET." },
@@ -26,6 +26,14 @@ export async function GET() {
     path: "/",
     maxAge: 600,
   });
+  const invite = new URL(request.url).searchParams.get("invite");
+  if (invite && /^[A-Za-z0-9_-]{16,200}$/.test(invite)) {
+    store.set("mono_oauth_invite", invite, {
+      httpOnly: true, secure: isProduction, sameSite: "lax", path: "/", maxAge: 600,
+    });
+  } else {
+    store.delete("mono_oauth_invite");
+  }
 
   const authUrl = new URL(googleProvider.authorizationEndpoint);
   authUrl.searchParams.set("client_id", googleProvider.clientId);

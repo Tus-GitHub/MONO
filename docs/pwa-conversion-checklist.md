@@ -5,6 +5,12 @@ app and installable PWA. Status set by the Phase 0 audit (2026-09-02).
 
 Legend: `[x]` done · `[ ]` remaining · `[~]` partially done / needs verification
 
+**2026-11-05 update:** The authenticated `/api/cron/reminders` endpoint is implemented,
+including atomic in-app delivery for overlapping runs and active-membership checks.
+Host scheduler activation and a closed-app production test remain pending; see `DEPLOY.md`.
+Older entries below describing absent S3/Web Push implementations are historical: both
+drivers now exist. SMTP is now implemented; credentials and live delivery verification remain pending.
+
 ---
 
 ## 0. Stabilization (Phase 0 — gate before conversion work)
@@ -446,16 +452,20 @@ Legend: `[x]` done · `[ ]` remaining · `[~]` partially done / needs verificati
 
 ---
 
-## Known stubs (intentional — decide per launch scope)
+## Integration activation remaining (implementation complete)
 
-| Stub | File | Impact |
+| Integration | Implementation | Remaining activation |
 |---|---|---|
-| S3 storage driver | `src/lib/storage/s3.ts` | throws; **photos break on Vercel** with `local` |
-| SMTP email driver | `src/lib/email/smtp.ts` | throws; password-reset email only in console |
-| Web push channel | `src/lib/notifications/push.ts` | `NoopPushChannel`; no real push delivery |
-| Google OAuth | `src/lib/auth/oauth/**` | returns 501 until credentials configured |
-| External place provider | `src/lib/places/**` | `PLACE_PROVIDER=none` → own saved places only |
-| Reminder dispatch | `reminder-service` | no cron; fires only when a user opens Home |
+| Private S3/R2 storage | Real storage driver and tests | Production credentials and live upload check |
+| SMTP email | Nodemailer TLS transport and tests | Sender/credentials, check:email, real reset email |
+| Web Push | VAPID delivery and service worker | Keys, permission, installed-device check |
+| Google OAuth | Start/callback, validation, invite continuation | Credentials/callback configuration |
+| Google Places | Search/details and key-free photo resolution | API key and live provider checks |
+| Reminders | Protected endpoint and standalone worker | Host schedule/worker activation |
+
+The current UI remains the reference. Planning/review drafts now recover locally, and SMTP
+is no longer a stub. Older unchecked entries above remain historical unless verified here;
+real-device QA and production performance checks still require the deployed app.
 
 ## Non-issues confirmed by the audit (do not "fix")
 

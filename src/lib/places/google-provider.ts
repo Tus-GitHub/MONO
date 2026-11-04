@@ -53,7 +53,7 @@ const PRICE_LEVEL: Record<string, number> = {
   PRICE_LEVEL_VERY_EXPENSIVE: 4,
 };
 
-function mapPlace(place: GooglePlace, apiKey: string): ProviderPlace {
+function mapPlace(place: GooglePlace): ProviderPlace {
   const category =
     place.types?.map((type) => TYPE_TO_CATEGORY[type]).find(Boolean) ?? PlaceCategory.OTHER;
   const address = place.formattedAddress ?? null;
@@ -68,7 +68,7 @@ function mapPlace(place: GooglePlace, apiKey: string): ProviderPlace {
     latitude: place.location?.latitude ?? null,
     longitude: place.location?.longitude ?? null,
     imageUrl: photoName
-      ? `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=800&key=${apiKey}`
+      ? `/api/places/photo?placeId=${encodeURIComponent(place.id)}`
       : null,
     description: place.editorialSummary?.text ?? null,
     website: place.websiteUri ?? null,
@@ -111,10 +111,11 @@ export class GooglePlacesProvider implements PlaceProvider {
             : {}),
         }),
         cache: "no-store",
+        signal: AbortSignal.timeout(10_000),
       });
       if (!response.ok) return [];
       const data = (await response.json()) as { places?: GooglePlace[] };
-      return (data.places ?? []).map((place) => mapPlace(place, this.apiKey));
+      return (data.places ?? []).map((place) => mapPlace(place));
     } catch {
       return [];
     }
@@ -130,10 +131,11 @@ export class GooglePlacesProvider implements PlaceProvider {
             "X-Goog-FieldMask": DETAILS_FIELDS,
           },
           cache: "no-store",
+          signal: AbortSignal.timeout(10_000),
         },
       );
       if (!response.ok) return null;
-      return mapPlace((await response.json()) as GooglePlace, this.apiKey);
+      return mapPlace((await response.json()) as GooglePlace);
     } catch {
       return null;
     }

@@ -9,6 +9,8 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { useLocalDraft } from "@/lib/hooks/use-local-draft";
+import { UnsavedGuard } from "@/components/system/unsaved-guard";
 import { idleState } from "@/lib/utils/result";
 import { saveStepAction } from "@/server/actions/plan";
 import type { PlanDateDTO } from "@/server/services/plan-service";
@@ -28,12 +30,14 @@ function dollars(cents: number | null): string {
 
 function MoneyInput({
   name,
-  defaultValue,
+  value,
+  onChange,
   placeholder,
   id,
 }: {
   name: string;
-  defaultValue: string;
+  value: string;
+  onChange: (value: string) => void;
   placeholder?: string;
   id: string;
 }) {
@@ -49,7 +53,8 @@ function MoneyInput({
         inputMode="decimal"
         min="0"
         step="0.01"
-        defaultValue={defaultValue}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         className="pl-7"
       />
@@ -57,13 +62,20 @@ function MoneyInput({
   );
 }
 
-export function BudgetStep({ plan }: { plan: PlanDateDTO }) {
+export function BudgetStep({ plan, userId }: { plan: PlanDateDTO; userId: string }) {
   const [state, action] = useActionState(saveStepAction, idleState);
   const fieldErrors = state.status === "error" ? state.fieldErrors : undefined;
+  const prefix = `mono:plan:${userId}:${plan.id}:budget`;
+  const total = useLocalDraft(`${prefix}:total`, dollars(plan.expectedTotalCents));
+  const low = useLocalDraft(`${prefix}:low`, dollars(plan.budgetMinCents));
+  const high = useLocalDraft(`${prefix}:high`, dollars(plan.budgetMaxCents));
+  const currency = useLocalDraft(`${prefix}:currency`, plan.currency);
+  const split = useLocalDraft(`${prefix}:split`, plan.budgetSplit);
   const hasRange = plan.budgetMinCents != null || plan.budgetMaxCents != null;
 
   return (
     <form action={action} className="space-y-6" noValidate>
+      <UnsavedGuard />
       <input type="hidden" name="dateId" value={plan.id} />
       <input type="hidden" name="step" value="budget" />
 
@@ -86,12 +98,12 @@ export function BudgetStep({ plan }: { plan: PlanDateDTO }) {
             <MoneyInput
               id="expectedTotal"
               name="expectedTotal"
-              defaultValue={dollars(plan.expectedTotalCents)}
+              value={total.value} onChange={total.setValue}
               placeholder="0"
             />
           </Field>
           <Field label="Currency" htmlFor="currency">
-            <Select id="currency" name="currency" defaultValue={plan.currency}>
+            <Select id="currency" name="currency" value={currency.value} onChange={(e) => currency.setValue(e.target.value)}>
               {CURRENCIES.map((code) => (
                 <option key={code}>{code}</option>
               ))}
@@ -108,14 +120,14 @@ export function BudgetStep({ plan }: { plan: PlanDateDTO }) {
               <MoneyInput
                 id="budgetMin"
                 name="budgetMin"
-                defaultValue={dollars(plan.budgetMinCents)}
+                value={low.value} onChange={low.setValue}
               />
             </Field>
             <Field label="High end" htmlFor="budgetMax" optional errors={fieldErrors?.budgetMax}>
               <MoneyInput
                 id="budgetMax"
                 name="budgetMax"
-                defaultValue={dollars(plan.budgetMaxCents)}
+                value={high.value} onChange={high.setValue}
               />
             </Field>
           </div>
@@ -123,7 +135,7 @@ export function BudgetStep({ plan }: { plan: PlanDateDTO }) {
 
         <div className="mt-4">
           <Field label="Who's paying?" htmlFor="split" optional>
-            <Select id="split" name="split" defaultValue={plan.budgetSplit}>
+            <Select id="split" name="split" value={split.value} onChange={(e) => split.setValue(e.target.value)}>
               {(Object.keys(SPLIT_LABEL) as ExpensePayer[]).map((key) => (
                 <option key={key} value={key}>
                   {SPLIT_LABEL[key]}

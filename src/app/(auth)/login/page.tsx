@@ -10,9 +10,9 @@ export const metadata: Metadata = { title: "Sign in" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ reset?: string; invite?: string }>;
+  searchParams: Promise<{ reset?: string; invite?: string; error?: string }>;
 }) {
-  const { reset, invite } = await searchParams;
+  const { reset, invite, error } = await searchParams;
   const suffix = invite ? `?invite=${encodeURIComponent(invite)}` : "";
 
   return (
@@ -27,8 +27,8 @@ export default async function LoginPage({
       ) : null}
 
       <div className="mt-6 space-y-4">
-        <GoogleAuthBlock label="Sign in with Google" />
-        <LoginForm invite={invite} />
+        <GoogleAuthBlock label="Sign in with Google" invite={invite} />
+        <LoginForm invite={invite} oauthFailed={Boolean(error?.startsWith("oauth_"))} />
       </div>
 
       <p className="mt-6 text-center text-sm text-muted">

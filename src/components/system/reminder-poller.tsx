@@ -7,7 +7,7 @@ import { dispatchMyRemindersAction } from "@/server/actions/reminders";
 const EVERY_MS = 10 * 60_000;
 
 /**
- * MONO has no cron. This keeps due reminders flowing while any tab is open: dispatch on mount,
+ * Fallback alongside the optional scheduler: dispatch while a tab is open, on mount,
  * every ten minutes, and whenever the tab returns to the foreground. The action is idempotent
  * and no-ops when nothing is due, so calling it often is harmless.
  */

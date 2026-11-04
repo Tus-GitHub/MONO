@@ -34,6 +34,11 @@ _(More rules to be added as the user sets them.)_
 
 ## Architecture invariants (do not violate)
 
+- **Preserve the current UI (user instruction, 2026-11-05).** The existing screens,
+  layouts, styling, and shared components are the reference for future work. Complete
+  functionality without redesigning or changing the visible UI unless the user asks.
+  Leave integration keys/credentials for the user to configure separately.
+
 - **Layer separation.** UI, database, auth, business logic, validation, storage, utilities,
   types, and server actions/API each live in their own module. Business rules never live only
   inside React components — they live in `src/server/services/**` and `src/lib/**`.

@@ -24,7 +24,7 @@ export default async function RegisterPage({
       </p>
 
       <div className="mt-6 space-y-4">
-        <GoogleAuthBlock label="Sign up with Google" />
+        <GoogleAuthBlock label="Sign up with Google" invite={invite} />
         <RegisterForm invite={invite} />
       </div>
 

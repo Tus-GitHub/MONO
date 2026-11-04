@@ -19,7 +19,7 @@ export default async function PlanFlowPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ step?: string }>;
 }) {
-  await requireOnboarded();
+  const { user } = await requireOnboarded();
   const { id } = await params;
   const { step: rawStep } = await searchParams;
   const step = isPlanStep(rawStep) ? rawStep : "basics";
@@ -36,8 +36,8 @@ export default async function PlanFlowPage({
 
   return (
     <div className="mx-auto max-w-xl">
-      {step === "basics" ? <BasicsStep plan={plan} /> : null}
-      {step === "budget" ? <BudgetStep plan={plan} /> : null}
+      {step === "basics" ? <BasicsStep plan={plan} userId={user.id} /> : null}
+      {step === "budget" ? <BudgetStep plan={plan} userId={user.id} /> : null}
       {step === "activities" ? <ActivitiesStep plan={plan} savedPlaces={savedPlaces} /> : null}
       {step === "review" ? <ReviewStep plan={plan} /> : null}
     </div>

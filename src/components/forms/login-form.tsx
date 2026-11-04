@@ -9,11 +9,13 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { idleState } from "@/lib/utils/result";
+import { idleState, errorState } from "@/lib/utils/result";
 import { loginAction } from "@/server/actions/auth";
 
-export function LoginForm({ invite }: { invite?: string }) {
-  const [state, action] = useActionState(loginAction, idleState);
+export function LoginForm({ invite, oauthFailed }: { invite?: string; oauthFailed?: boolean }) {
+  const [state, action] = useActionState(loginAction, oauthFailed
+    ? errorState("Google sign-in couldn't finish. Please try again or sign in with your email.")
+    : idleState);
   const fieldErrors = state.status === "error" ? state.fieldErrors : undefined;
 
   return (

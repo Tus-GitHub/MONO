@@ -1,6 +1,9 @@
 "use client";
 
-import { startTransition, useActionState, useState } from "react";
+import { startTransition, useActionState, useEffect } from "react";
+import { z } from "zod";
+import { useDraftState } from "@/lib/hooks/use-draft-state";
+import { useLocalDraft } from "@/lib/hooks/use-local-draft";
 import { ReviewRevisit } from "@prisma/client";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
@@ -28,7 +31,13 @@ import type { ReviewContext } from "@/server/services/review-service";
 
 type Texts = Record<(typeof REFLECTION_PROMPTS)[number]["field"], string>;
 
-export function ReviewForm({ ctx }: { ctx: ReviewContext }) {
+const scoresSchema = z.record(z.number().int().min(1).max(10).nullable());
+const scoreSchema = z.number().int().min(1).max(10).nullable();
+const touchedSchema = z.boolean();
+const revisitSchema = z.nativeEnum(ReviewRevisit).nullable();
+const textsSchema = z.object({ lovedText: z.string(), betterText: z.string(), rememberText: z.string(), unexpectedText: z.string() });
+
+export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string }) {
   const confirm = useConfirm();
   const [draftState, draftAction] = useActionState(saveReviewDraftAction, idleState);
   const [submitState, submitAction] = useActionState(submitReviewAction, idleState);
@@ -38,19 +47,32 @@ export function ReviewForm({ ctx }: { ctx: ReviewContext }) {
   const fieldErrors = state.status === "error" ? state.fieldErrors : undefined;
 
   const my = ctx.myReview;
-  const [scores, setScores] = useState<Record<string, number | null>>(() =>
-    Object.fromEntries(ctx.categories.map((c) => [c.id, my?.scores[c.id] ?? null])),
-  );
-  const [overall, setOverall] = useState<number | null>(my?.overallRating ?? null);
-  const [overallTouched, setOverallTouched] = useState(my?.overallRating != null);
-  const [revisit, setRevisit] = useState<ReviewRevisit | null>(my?.personalRevisit ?? null);
-  const [revisitNote, setRevisitNote] = useState(my?.personalRevisitNote ?? "");
-  const [texts, setTexts] = useState<Texts>(() => ({
+  const prefix = `mono:review:${userId}:${ctx.dateId}`;
+  const scoresDraft = useDraftState(`${prefix}:scores`, Object.fromEntries(ctx.categories.map((c) => [c.id, my?.scores[c.id] ?? null])), scoresSchema);
+  const { value: scores, setValue: setScores } = scoresDraft;
+  const overallDraft = useDraftState(`${prefix}:overall`, my?.overallRating ?? null, scoreSchema);
+  const { value: overall, setValue: setOverall } = overallDraft;
+  const touchedDraft = useDraftState(`${prefix}:touched`, my?.overallRating != null, touchedSchema);
+  const { value: overallTouched, setValue: setOverallTouched } = touchedDraft;
+  const revisitDraft = useDraftState(`${prefix}:revisit`, my?.personalRevisit ?? null, revisitSchema);
+  const { value: revisit, setValue: setRevisit } = revisitDraft;
+  const noteDraft = useLocalDraft(`${prefix}:note`, my?.personalRevisitNote ?? "");
+  const { value: revisitNote, setValue: setRevisitNote } = noteDraft;
+  const textsDraft = useDraftState<Texts>(`${prefix}:texts`, {
     lovedText: my?.lovedText ?? "",
     betterText: my?.betterText ?? "",
     rememberText: my?.rememberText ?? "",
     unexpectedText: my?.unexpectedText ?? "",
-  }));
+  }, textsSchema);
+  const { value: texts, setValue: setTexts } = textsDraft;
+
+  useEffect(() => {
+    if (draftState.status === "success") {
+      [scoresDraft, overallDraft, touchedDraft, revisitDraft, noteDraft, textsDraft].forEach((draft) => draft.clear());
+    }
+    // A completed save is the event; subsequent edits must create a new draft.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftState]);
 
   const scoredValues = Object.values(scores).filter((n): n is number => n != null);
   const suggested = suggestedOverall(scoredValues);

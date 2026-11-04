@@ -1,5 +1,7 @@
 import "server-only";
 
+import { placeImageUrl } from "@/lib/places/image-url";
+
 import { DateStatus, PlaceCategory, RevisitChoice } from "@prisma/client";
 
 import {
@@ -302,7 +304,7 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
     city: resource.city,
     latitude: resource.latitude,
     longitude: resource.longitude,
-    imageUrl: resource.imageUrl,
+    imageUrl: placeImageUrl(resource),
     description: resource.description,
     website: resource.website,
     phone: resource.phone,
