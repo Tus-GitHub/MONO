@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-06 (remaining functionality and responsive verification in progress)
+Last updated: 2026-11-06 (timezone, keyboard and responsive fixes verified and published)
 
 ## Project Overview
 
@@ -23,11 +23,6 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Remaining functionality and responsive checks (2026-11-05)** — user requested continuing
-  the remaining work. Review unchecked release items against verified evidence; address expense
-  time handling and broaden browser layout/keyboard coverage. Preserve the UI, defer keys,
-  keep Vercel on and publish completed fixes under the existing authorization.
-
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification remain. Shared rate limiting, OAuth-token encryption at rest and operator recovery /
   permanent-erasure policy are possible follow-ups. Portable active-content archive/restore,
@@ -48,6 +43,13 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and SMTP credentials).
 
 ### Done
+
+- **Timezone, keyboard and responsive checks (2026-11-06)** — published `5ececd8`; GitHub's
+  full run passed 234 unit tests, 82 PostgreSQL cases and 40 browser checks, lint, TypeScript and
+  build. Fixed expense clock conversion/preservation, hidden initial focus and nested scroll
+  cleanup. Verified 16 routes at seven viewport sizes. UI styling and integration keys unchanged.
+  Vercel remains enabled; the new deployment is queued. Current served login/health return 200
+  and health reports database reachable. Actual-device, provider and operational checks remain.
 
 - **Continued delivery and browser CI (2026-11-05)** — Vercel Git deployments re-enabled and
   milestone commits `b18f877` and `5883d55` pushed. All 36 browser checks and the code/database
@@ -920,7 +922,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-05 — Remaining functionality and responsive checks
 
-- **IN PROGRESS.** Continuing the user's existing scope after 36 browser checks and GitHub CI
+- **DONE (completed 2026-11-06).** Continuing the user's existing scope after 36 browser checks and GitHub CI
   passed. Remaining release work includes broader responsive/keyboard checks, real-device QA,
   configured-provider delivery and operational verification. Keys remain deferred. Investigate
   expense timestamps because datetime-local values currently depend on the server timezone.
@@ -948,6 +950,15 @@ components. Business rules never live only in React components — they live in
 - Required production build passed. Final local verification found zero fixture users, spaces,
   sessions and cleanup jobs; stopped the isolated PostgreSQL instance. Publishing this milestone
   for the full GitHub checks and Vercel deployment verification.
+- Published implementation commit `5ececd8` successfully to `origin main`. GitHub run
+  `https://github.com/Tus-GitHub/MONO/actions/runs/42086621709` passed both jobs, including all
+  40 browser checks against the final shared-dialog code and expanded responsive matrix.
+- Vercel run `dpl_4sdgKf4LdTDdPMHTJ1dDVuCRGKqA` remains QUEUED with no build logs at verification;
+  automatic deployment is still enabled. Read-only checks of the currently served production
+  alias returned `/login` 200 with the sign-in form and `/api/health` 200 with `database: up`.
+  These confirm basic serving/reachability, not provider delivery or full schema/migration readiness.
+  Used the authenticated Vercel connector per its access-testing guidance; no key values or
+  authentication/share tokens were printed or committed, and no protection setting was changed.
 
 ### 2026-11-05 — Continued delivery and Vercel deployment authorization
 
