@@ -55,12 +55,17 @@ src/
     env.ts                Zod-validated environment
   types/                  Shared types (Prisma enums re-exported)
 prisma/
-  schema.prisma           21 models + enums
+  schema.prisma           Application models + enums
   seed.ts                 Backfills default review categories
 ```
 
 **Business rules never live only in components.** They live in `src/server/services/**` and
 `src/lib/**`. See [docs/architecture.md](docs/architecture.md).
+
+Portable media archives and protected restore are documented in [archive/restore](docs/archive-restore.md).
+Per-device session revocation and password changes are documented in [account/session controls](docs/account-sessions.md).
+These backend controls preserve the current UI. Apply pending migrations before running this
+version against an existing database; existing cookies will require a fresh login.
 
 ## Setup
 
@@ -114,6 +119,32 @@ and device draft recovery are implemented with regression tests. Nodemailer hand
 SMTP protocol/TLS and MIME formatting rather than adding a custom mail protocol implementation.
 
 Credentials are intentionally left for deployment: see `.env.example` and `DEPLOY.md`.
+
+## Database regression checks
+
+The audit remediation adds private-review filtering, transactional plan/review writes, stale
+form detection, timezone-aware scheduling, currency-safe totals, and initial SQL constraints.
+The migration `20261105000000_integrity_and_plan_versions` must be applied before starting this
+version against an existing database. Preflight existing rows first; no live migration is automatic
+when running `npm run dev`.
+
+Run `npm test` for unit checks. For actual PostgreSQL behavior, set an explicit local
+`MONO_TEST_DATABASE_URL` pointing at an isolated `mono_test_*` database, then run
+`npm run test:integration`. See [testing instructions](docs/testing.md) for setup and scope.
+GitHub Actions runs both suites plus lint, TypeScript and a production build using a disposable database.
+
+Run `npm run test:e2e` for real Chrome browser journeys with a separate local
+`mono_test_e2e_*` database. The runner starts/stops its own app server and cleans only its test
+fixtures. See [browser testing](docs/testing.md#browser-e2e) for setup, coverage and device limits.
+
+The reliability follow-up also adds `20261105010000_durable_delivery_and_cleanup`. Apply all
+pending migrations before starting the updated app. It preserves usable legacy subscriptions,
+supports multiple browsers, and persists push retries and media cleanup work. The existing
+authenticated reminder scheduler/worker processes these queues; no new key is required.
+
+Deleted/replaced media is inaccessible through the media route and retained for seven days before
+physical cleanup. The separate portable archive API supports bounded active-content downloads
+with embedded media and restore into an empty space with both partners' approvals.
 Run `npm run check:email` to verify SMTP without sending mail, and configure either an HTTP
 scheduler or `npm run reminders:worker` for closed-app reminders. Real-provider delivery,
 production deployment, and real-device checks must still be verified after configuration.

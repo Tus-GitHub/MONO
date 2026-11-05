@@ -9,6 +9,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { PlanDateButton } from "@/components/navigation/plan-date-button";
 import { requireOnboarded } from "@/lib/onboarding";
 import { getDayDates, getMonthDates } from "@/server/services/calendar-service";
+import { requireCoupleContext } from "@/lib/authz";
+import { todayYmdInTimeZone } from "@/lib/utils/timezone";
 
 export const metadata: Metadata = { title: "Our calendar" };
 
@@ -19,7 +21,8 @@ export default async function DatesPage({
 }) {
   await requireOnboarded();
   const { month: rawMonth, day: rawDay } = await searchParams;
-  const today = new Date().toISOString().slice(0, 10);
+  const { couple } = await requireCoupleContext();
+  const today = todayYmdInTimeZone(couple.timezone);
   const month = /^\d{4}-\d{2}$/.test(rawMonth ?? "") ? rawMonth! : today.slice(0, 7);
   const day = /^\d{4}-\d{2}-\d{2}$/.test(rawDay ?? "") ? rawDay! : today;
 
@@ -34,7 +37,7 @@ export default async function DatesPage({
         action={<DatesNav />}
       />
 
-      <MonthCalendar month={month} selectedDay={day} dates={monthDates} />
+      <MonthCalendar month={month} selectedDay={day} dates={monthDates} today={today} />
 
       <DayDetailPanel day={day} dates={dayDates} />
 

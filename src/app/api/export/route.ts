@@ -17,7 +17,7 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ error: "Not signed in to a couple space." }, { status: 401 });
     }
 
-    const data = await exportCoupleData(context.couple.id);
+    const data = await exportCoupleData();
     const stamp = new Date().toISOString().slice(0, 10);
 
     return new NextResponse(JSON.stringify(data, null, 2), {

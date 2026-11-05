@@ -75,8 +75,9 @@ export function BudgetStep({ plan, userId }: { plan: PlanDateDTO; userId: string
 
   return (
     <form action={action} className="space-y-6" noValidate>
-      <UnsavedGuard />
+      <UnsavedGuard state={state} />
       <input type="hidden" name="dateId" value={plan.id} />
+      <input type="hidden" name="version" value={plan.version} />
       <input type="hidden" name="step" value="budget" />
 
       <PlanStepper dateId={plan.id} current="budget" variant="buttons" />

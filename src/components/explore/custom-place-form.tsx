@@ -21,7 +21,7 @@ export function CustomPlaceForm({ forDate }: { forDate?: string }) {
 
   return (
     <form action={dispatch} className="space-y-4" noValidate>
-      <UnsavedGuard />
+      <UnsavedGuard state={state} />
       <FormFeedback state={state} />
       {forDate ? (
         <>

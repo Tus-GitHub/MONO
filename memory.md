@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-05 (publishing functionality completion)
+Last updated: 2026-11-05 (publishing verified functionality changes)
 
 ## Project Overview
 
@@ -23,6 +23,15 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
+- **Publish verified functionality changes (2026-11-05)** — user authorized publication to
+  GitHub; update this log, rerun the required production build, then commit and push to
+  `origin main`. Keys, deployment and live database migration remain deferred.
+
+- **Remaining verification / optional hardening** — real-device QA and live provider
+  verification remain. Shared rate limiting, OAuth-token encryption at rest and operator recovery /
+  permanent-erasure policy are possible follow-ups. Portable active-content archive/restore,
+  per-device session controls and atomic account closure are implemented. Production activation
+  and migrations on the existing DB remain deferred.
 
 - **Production activation / real-device QA** — add keys separately when ready, deploy,
   verify actual SMTP/Google/Push/storage delivery, and complete device/browser QA.
@@ -32,12 +41,49 @@ components. Business rules never live only in React components — they live in
 
 
 - **Prod/PWA conversion (prompt 21+)** — Phases 0–8 done; prompts 30 (launch-readiness) + 31
-  (mobile keyboard) done. **Next action: run `publish`.** Then real deploy per `DEPLOY.md`
+  (mobile keyboard) done. Published to GitHub on 2026-11-05. Deployment deferred by user; later follow `DEPLOY.md`
   (needs a host + prod Neon branch + S3 bucket + domain/HTTPS). Outstanding non-blockers in
   `docs/pwa-conversion-checklist.md` (Lighthouse on the live origin, real-device passes, a
   reminder worker activation and SMTP credentials).
 
 ### Done
+
+- **Browser E2E and functionality fixes (2026-11-05)** — added repeatable isolated Chrome suites
+  and fixed calendar initialization, photo pagination/retries/caption handling, modal history and
+  confirmation redirects, revoked-session navigation, private memory drafts/deletion, and image
+  conversion. Verified 28 browser checks, 212 unit tests, 75 PostgreSQL cases, lint, TypeScript and
+  production build. Existing UI preserved; keys, live migration, deployment and publish deferred.
+  User's two-day target prioritizes the existing scope and final device/provider verification.
+
+- **Archive/restore and account/session controls (2026-11-05)** — added bounded versioned media
+  archives, session-bound per-member approvals, empty-space atomic restore and replay receipts;
+  persistent device sessions, individual/other/all-device revocation, password changes, atomic
+  account closure and deletion-race safeguards. Existing UI preserved. Verified 203 unit tests,
+  73 PostgreSQL cases, all six migrations from an empty DB, type checks, lint and production build.
+  No keys changed, live migrations, deployment or publish. See the Task Log and new usage docs.
+
+- **Deep audit remediation pass two (2026-11-05)** — persisted per-browser push tasks with leased
+  retries, device-specific subscription cleanup/logout, corrected history/photo pagination,
+  staged-upload cleanup and seven-day deletion retention, current-reference media authorization.
+  Added migration and operational diagnostics. Verified 183 unit tests, 42 PostgreSQL cases,
+  type checks, lint, production build and preserved styling. No live database migration or publish.
+
+- **Deep audit remediation pass one (2026-11-05)** — protected review exports/place totals and
+  recommendations; serialized plan/activity/place/review/lifecycle writes; versioned plan forms;
+  couple-timezone calculations and currency-safe totals. Added initial SQL integrity migration,
+  real PostgreSQL integration tests and CI. Current UI preserved. Existing application DB has
+  not been migrated; apply the reviewed migration after preflight before running this version there.
+
+- **Deep project / PostgreSQL research report (2026-11-05)** — saved
+  `docs/project-postgresql-audit-2026-11-05.md` and unexecuted read-only
+  `docs/sql/postgresql-audit.sql`. Fourteen findings and twelve feature proposals, with code
+  evidence, official sources, PostgreSQL recommendations, acceptance criteria and sequencing.
+  Original priority gaps included review privacy, mutation-level plan locking, timezone semantics,
+  currency totals, concurrency and database verification; remediation progress is recorded above.
+
+- **Codebase completion follow-up (2026-11-05)** — independent reminders, rescheduling
+  race protection, blocked-storage draft reset, plan-save validation, save-result-aware unsaved
+  guards, and latest-result review feedback. UI preserved. See Task Log.
 
 - **Publish (2026-11-05)** — production build passed; implementation commit `ad4ab82`
   successfully pushed to origin/main (Tus-GitHub/MONO). Credentials stayed excluded.
@@ -858,7 +904,211 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
+### 2026-11-05 — Publish verified functionality changes
+
+- **IN PROGRESS.** User requested publishing all completed changes to GitHub while keeping keys
+  and deployment for later. Scope includes the audit fixes, archive/restore, account/session
+  controls, browser regressions, PostgreSQL migrations, tests and documentation from the prior
+  local passes. Follow the repository's build-before-commit/push sequence; preserve the UI and
+  exclude environment secrets, local databases, test artifacts and generated output.
+- Required production build passed before staging. The prior verified baseline remains
+  212 unit tests, 75 PostgreSQL cases and 28 browser checks. Publication excludes `.env`, local
+  storage/test databases, browser artifacts and generated files; no deployment or live migration
+  is included. The configured destination is `Tus-GitHub/MONO`, branch `main`.
+
+### 2026-11-05 — Browser E2E and two-day completion target
+
+- **DONE.** User requested browser E2E testing and fixes with unchanged UI, keys and
+  deployment deferred, then asked what could delay a two-day finish. Explained that local code
+  completion and live readiness differ: external configuration and real-device/provider checks
+  remain prerequisites for live readiness. Prioritized existing-feature failures and regression
+  checks over additional features.
+- Added `npm run test:e2e` using existing Puppeteer/Chromium, a dedicated loopback-only
+  `mono_test_e2e_*` database, ephemeral auth configuration, disabled external providers and
+  temporary local media/browser contexts. Each suite runs against a fresh Next development
+  server with real rate limits. The runner preserves generated configuration, supports fresh
+  checkouts without next-env.d.ts, captures failure evidence and cleans only its exact fixtures.
+- Fixed empty-string date-picker initialization and the action cursor limit that prevented the
+  photo wall loading beyond 48 items. Offline upload retry now keeps side effects outside React
+  state updaters and deduplicates queued work. Photo controls await action results, show existing
+  toast feedback on errors, and preserve controlled caption drafts after rejected submissions.
+- Fixed overlay history for StrictMode replay, nested Back and simultaneous Escape. Accepted
+  confirmations now wait for their own history entry to be removed before starting actions;
+  a real browser trace reproduced the old race that undid memory-removal redirects.
+- Revoked sessions now reach login through page guards. Memory draft keys include the user ID,
+  legacy unscoped drafts are ignored, deleted memory text is excluded from editors, and an
+  explicit replacement save has current authorship. Wrapped programmatic action dispatches in
+  transitions. Successfully converted HEIC/HEIF JPEGs are retained even when larger than the
+  unsupported original; five simulated-browser adapter tests cover conversion/failure paths.
+- Final verification: **212/212 unit tests (35 files), 75/75 real PostgreSQL cases (7 files),
+  and 28/28 browser checks** (journey 10, account/archive 12, pagination/memory 6). Combined
+  browser evidence is under ignored `.postgres-test/e2e/070dfba0d01e9522`. TypeScript, full lint,
+  production build and whitespace checks passed. The reliability test fixture now makes queued
+  work explicitly due, avoiding PostgreSQL/Windows clock-precision flakiness; production queue
+  behavior is unchanged. All 26 changed TSX files retain their className expressions and the
+  global stylesheet is unchanged. Inspected desktop and phone-viewport screenshots.
+- Verified zero fixture users, spaces, sessions and cleanup jobs after browser cleanup; stopped
+  the isolated PostgreSQL server. No new package, .env change, live database migration, publish
+  or deployment. Updated testing, architecture, account/archive guides and audit status.
+- Remaining launch work: actual iOS/Android keyboard/camera/installed-PWA checks, real provider
+  delivery, production configuration and existing-data migration preflight. Browser E2E uses
+  development mode and viewport emulation; the production build is verified separately. These
+  checks do not claim actual-device HEIC decoding or configured-provider delivery.
+
+### 2026-11-05 — Archive/restore and account/session controls
+
+- **DONE.** User requested archive/restore and account/session controls, preserving the UI and
+  leaving keys/deployment for later. Independent archive/session implementation and a read-only
+  security review complemented the account-closure work. No new dependency or visible screen.
+- Added `GET/POST /api/archive` with `mono.archive.v1`, embedded owned photo/cover variants,
+  SHA-256 integrity, strict graph/enum/image validation, 64 MiB JSON / 32 MiB media / 10,000-row
+  limits, an eight-request per-user limiter, and bounded IO/DB work. Own draft/revealed-review
+  visibility is preserved. Deleted content, unseen partner reviews, personal avatars, auth/device
+  credentials and notification jobs are deliberately excluded; this is an active-content archive,
+  not operator disaster recovery. Existing `/api/export` and settings UI remain compatible.
+- Restore maps the same people and OWNER/PARTNER roles to fresh IDs/storage keys in an empty
+  current space. Each active member approves the exact digest/target for 15 minutes; approval
+  validity includes the live browser session and token version. It rechecks account/membership,
+  approvals and destination emptiness after media staging. All rows and a unique receipt commit
+  atomically; failures/concurrent losers retain durable orphan cleanup tasks. Restored personal
+  reminders are dismissed so historic snapshots cannot replay deliveries. Fixed AVIF media MIME.
+- Added AuthSession and session-bound push subscriptions. JWT cookies carry a session ID and
+  protected requests validate owner/version/expiry/revocation. Current, individual, other-device
+  and all-device revocation are supported by protected API endpoints. Remember-me behavior is
+  retained, 20 devices are bounded, and only coarse device labels are stored. Old cookies need
+  sign-in after migration; old unbound push capabilities are retired and settings re-register.
+- Password changes verify current credentials and revoke all sessions/reset tokens/push devices
+  atomically. Reset/link issuance and OAuth linkage lock/recheck living users; conditional login
+  rehash cannot overwrite concurrent password changes. Register/reset/change all enforce bcrypt's
+  72 UTF-8-byte bound. Same-origin JSON APIs stream-limit request bytes. Revoked-cookie login
+  routing avoids redirect loops. Logout still clears cookies when DB revocation is unavailable;
+  docs explicitly explain that server revocation cannot be guaranteed during an outage.
+- Account closure now self-authorizes and locks the user before atomically archiving the active
+  space, retiring memberships, dismissing reminders, revoking invitations/sessions/deliveries and
+  removing password/OAuth/reset/push credentials. Shared authored history and profile identity
+  remain retained; this is soft closure, not physical erasure. Couple creation/join, invitation
+  creation/acceptance and push registration use the same living-user lock. Addressed invites
+  enforce intended email. Failure at the final user update rolls back every prior change.
+- Verification: full unit suite **203/203** (33 files), real PostgreSQL **73/73** (6 files),
+  including 12 archive, 10 account and 9 session cases. Tested both an existing isolated DB upgrade
+  and all six migrations from scratch in `mono_test_archive_sessions_fresh`; latest archive query
+  bound was covered by the fresh run and type check. Lint has zero errors/warnings; production
+  build passes. Compared className expressions in 18 existing TSX files and unchanged global CSS.
+  Fresh test DB fixture counts are zero for users/couples/sessions/receipts/cleanup tasks; local
+  PostgreSQL server stopped. Existing application DB, keys, deployment and GitHub untouched.
+- Added `docs/archive-restore.md`, `docs/account-sessions.md`; updated testing/architecture/security,
+  README, report implementation status and aggregate-only SQL diagnostics. Full browser E2E,
+  live provider delivery and real-device verification remain pending.
+
 ### 2026-11-05
+
+- **Audit remediation pass two — DONE.** User asked to continue and reiterated continuation
+  during the active work. Preserved the original objective/UI and existing local changes.
+  Added PushSubscription, NotificationDelivery and StorageCleanup plus atomic migration
+  20261105010000_durable_delivery_and_cleanup. Legacy subscriptions migrate to their most recent
+  owner and the deprecated JSON field is cleared; an isolated-schema migration regression verifies it.
+  Notification rows, reminder claims and per-browser push tasks persist atomically. Leased workers
+  retry six times with backoff, recover crashed attempts, retain terminal errors, and cancel stale
+  work after membership/preferences/date/reminder changes. No provider HTTP runs inside a DB
+  transaction. Expired endpoints clear only the matching browser; conditional deletion compares
+  both keys and timestamp so same-millisecond rotations survive stale failures. Supported provider
+  HTTPS origins and encryption key shape are validated; transport rejects redirects.
+  Browser enable/disable preserves other devices. Device cookie identifies the current browser;
+  logout unlinks only that user/device or their migrated legacy subscription, still clearing auth
+  during DB outages. Polling and the scheduler retry previously queued deliveries even with no
+  newly due reminders; scheduler failures and cleanup counts appear in secret-free worker logs.
+  History scans bounded batches before display filters/cap and counts all matches. Year filters
+  use actual date with scheduled fallback. Photo cursors include time and ID to preserve ties.
+  Photo/avatar/cover uploads reserve orphan cleanup before IO, publish references transactionally,
+  and retain deleted/replaced objects seven days. Date deletion also enqueues its photo keys.
+  Cleanup uses leases, bounded retries, reference rechecks and terminal failure metadata. Partial
+  uploads wait for all writes to settle; losing a concurrent deletion leaves only cleanup work.
+  Private media checks live references before 200/304, returns 404 for removed references, and
+  requires cache revalidation. Existing downloaded files cannot be recalled. S3 operations have
+  bounded abort signals. Full portable archive/import and a restore UI are still not implemented.
+  Added queue status SQL, migration/provider/retention documentation, generated-output lint ignores,
+  and regression cases. Verification: 183 unit cases passed across 28 files (final added legacy
+  logout case verified with its 3-case action suite); all 42 real PostgreSQL integration cases
+  passed across 3 files, with mocked push HTTP and real local storage. Production build, TypeScript,
+  full lint, worker CLI authorization/failure/logging checks and git whitespace checks passed.
+  Confirmed unchanged className expressions in 18 existing TSX files and unchanged globals.css.
+  Local PostgreSQL stopped after fixture cleanup. Migration applied only to isolated local test DB;
+  existing application DB and credentials untouched. All changes remain local; no publish/deploy.
+
+- **Audit remediation in depth, pass one — DONE.** Implemented the priority fixes from the
+  research report while retaining the earlier local changes and existing design. Shared review
+  helpers exclude partner drafts/unrevealed reviews and former members from exports/place
+  averages/recommendations; the generic date-detail read is filtered too. Exports include active
+  standalone memories/expenses and more plan fields, and omit deleted nested memories.
+  Added withDateWrite: parent-date locking, membership/state recheck, serializable transaction,
+  per-date version increment. Plan basics/budget forms submit versions and reject stale saves;
+  all plan/activity/place writes enforce editability. Review submit/reopen/delete and lifecycle
+  changes now check and write under the same lock. Real concurrent tests exposed PostgreSQL
+  40001 errors wrapped by Prisma P2010; bounded retries now handle those and deadlocks as well
+  as P2034. Competing activity additions receive distinct positions.
+  Existing wall-time storage remains compatible; reminders/countdowns explicitly convert to
+  instants using the couple zone. Fixed upcoming countdown target mismatch, local-day calendar
+  and date-picker defaults, timezone-aware validation/day mode, and missing start times. New
+  spaces capture the browser timezone in a hidden field; existing couple timezones are unchanged.
+  Date expense writes require the date currency; totals group/filter by original currency so
+  profile currency edits never relabel unlike amounts. Added atomic migration
+  20261105000000_integrity_and_plan_versions (version, score/money/budget/coordinate checks,
+  partial unique membership indexes). Regenerated Prisma client. Migration applied only to two
+  isolated local databases created for testing, never to the existing remote application DB.
+  Added safe explicit-loopback test launcher, 23 real PostgreSQL service integration cases,
+  CI workflow with disposable PostgreSQL 17, testing guide, and updated architecture/security/
+  audit report. Tests simulate authenticated identities per async context; real cookies/browser
+  end-to-end and live provider delivery remain unverified. No keys or UI styling changed.
+  Verification: 155 unit tests passed; 23 PostgreSQL tests passed, including a fresh application
+  of the finalized atomic migration; production build and TypeScript passed. Initial Turbopack
+  build hit resource limits and cached that failure; cleared generated .next cache and rebuilt
+  successfully outside the sandbox. Changed-component and final full lint passed without warnings;
+  removed the temporary formatting helper from ignored QA output before final lint. Checked
+  unchanged className expressions in 17 existing TSX
+  files and unchanged globals.css. Local test server stopped after fixtures cleaned up.
+  Changes remain local; no commit, push or deployment in this turn.
+
+- **Deep project / PostgreSQL report — DONE.** User requested deep research on gaps, additional
+  features, and PostgreSQL. Audited current services/schema/baseline migration and consulted
+  official PostgreSQL, Prisma 6, Neon, ISO currency, iCalendar and Between sources. Wrote a
+  4,884-word report in docs with fourteen findings, twelve feature proposals, schema inventory
+  (21 models, 16 enums, 43 foreign keys, 38 ordinary and 14 explicit unique indexes; no CHECKs
+  in the checked-in migration), recommended transactions/constraints/indexing/recovery, test
+  acceptance criteria and phased priorities. Added read-only metadata/integrity SQL for later
+  manual use; not executed. Verified all 36 local report references resolve. No application
+  behavior, environment values, live database, deployment, or GitHub changes in this research turn.
+  Key open defects: export leaks unrevealed partner reviews; place aggregates bypass reveal;
+  plan mutations lack lifecycle editability checks; wall-time/instant calculations differ;
+  unlike currencies are summed. Concurrency issues are source-level risks, not live reproductions.
+
+- **Codebase completion follow-up — DONE.** User deferred deployment and requested code work.
+  Removed broad 18-hour reminder suppression so distinct kinds and snoozed occurrences deliver;
+  atomic claims still prevent duplicate concurrent delivery. Retirement now matches the read
+  schedule to avoid dismissing a concurrently rescheduled reminder. Invalid plan IDs/steps/targets
+  return feedback before mutations. Draft scope resets safely even when browser storage throws.
+  Unsaved guards remain armed through submission/errors and clear on confirmed success; custom
+  review/date controls are tracked. Review draft/submit share one action state, preventing an old
+  submission error from masking a later draft-save result. No styling, keys or database changes.
+  Verification: 144 unit tests across 25 files passed; lint and production build (including
+  TypeScript) passed. Headless Chrome checks passed for draft reload/empty strings/user scope/
+  changed server baseline/save clearing/blocked storage and unsaved guard failure/success/custom
+  controls. Existing styles checked against HEAD. Real provider delivery and authenticated
+  end-to-end device checks remain unverified; deployment stays deferred. Changes are local.
+
+- **Existing env inventory — DONE.** Inspected presence/configuration only, without printing
+  secrets. Existing: pooled Neon DATABASE_URL with SSL, complete R2 variables, Google Places
+  key/provider, and matching public VAPID variables. AUTH_SECRET is a development placeholder;
+  APP_URL is local; storage/email currently local/console. SMTP credentials, Google OAuth
+  credentials and CRON_SECRET are absent. Preparing step-by-step Vercel setup; no env values
+  changed and no cloud resources created.
+
+- **Vercel setup guidance — DONE.** User requested exact keys/settings before deployment.
+  Reviewed current env schema, Prisma datasource and build scripts. Recommended explicit
+  `npm run vercel-build`, Node 22, production-scoped variables, separate production database,
+  private R2 storage, SMTP, optional OAuth/Places/VAPID and CRON_SECRET. No credentials
+  read or changed, no deployment started; user will enter values in Vercel.
+  Corrected DEPLOY.md to recommend a direct Neon URL for the current single-URL
+  migration/runtime schema; pooled runtime should use a separate migration connection.
 
 - **Publish — DONE.** User explicitly requested publishing these changes to GitHub.
   Target: origin/main (Tus-GitHub/MONO). Includes implementation, tests, documentation,

@@ -15,6 +15,8 @@ import { notifyCouple, notifyPartner } from "@/server/services/notification-serv
 import { PHOTO_SELECT, resolveDateCover } from "@/server/services/photo-service";
 import { ensureReviewReminders } from "@/server/services/reminder-service";
 
+import { withDateWrite } from "@/server/services/date-write";
+
 const REVIEWABLE_STATUSES: DateStatus[] = [DateStatus.IN_PROGRESS, DateStatus.COMPLETED];
 
 const REVIEW_SELECT = {
@@ -169,54 +171,53 @@ async function writeReview(
   categoryScores: Record<string, number>,
   opts: { submit: boolean },
 ): Promise<WriteResult> {
-  const { context, resource } = await authorizeDate(dateId);
-  if (!REVIEWABLE_STATUSES.includes(resource.status)) {
-    throw new ValidationError("Reviews open once the date has happened.");
-  }
+  const { context, resource, submittedAt, isNew, nowRevealed } = await withDateWrite(dateId, async (tx, resource, context) => {
+    if (!REVIEWABLE_STATUSES.includes(resource.status)) {
+      throw new ValidationError("Reviews open once the date has happened.");
+    }
 
-  const [mine, partner, memberCount, categoryIds] = await Promise.all([
-    prisma.dateReview.findUnique({
-      where: { dateId_authorId: { dateId: resource.id, authorId: context.user.id } },
-      select: { id: true, submittedAt: true },
-    }),
-    prisma.dateReview.findFirst({
-      where: { dateId: resource.id, authorId: { not: context.user.id } },
-      select: { submittedAt: true },
-    }),
-    prisma.coupleMember.count({ where: { coupleId: context.couple.id, status: "ACTIVE" } }),
-    prisma.reviewCategory
-      .findMany({ where: { coupleId: context.couple.id }, select: { id: true } })
-      .then((rows) => new Set(rows.map((r) => r.id))),
-  ]);
+    const [mine, partner, memberCount, categoryIds] = await Promise.all([
+      tx.dateReview.findUnique({
+        where: { dateId_authorId: { dateId: resource.id, authorId: context.user.id } },
+        select: { id: true, submittedAt: true },
+      }),
+      tx.dateReview.findFirst({
+        where: { dateId: resource.id, authorId: { not: context.user.id } },
+        select: { submittedAt: true },
+      }),
+      tx.coupleMember.count({ where: { coupleId: context.couple.id, status: "ACTIVE" } }),
+      tx.reviewCategory
+        .findMany({ where: { coupleId: context.couple.id }, select: { id: true } })
+        .then((rows) => new Set(rows.map((r) => r.id))),
+    ]);
 
-  const hasPartner = memberCount >= 2;
-  const alreadyRevealed =
-    mine?.submittedAt != null && (partner?.submittedAt != null || !hasPartner);
-  if (alreadyRevealed) {
-    throw new ConflictError("Both sides are in — this review is locked now.");
-  }
+    const hasPartner = memberCount >= 2;
+    const alreadyRevealed =
+      mine?.submittedAt != null && (partner?.submittedAt != null || !hasPartner);
+    if (alreadyRevealed) {
+      throw new ConflictError("Both sides are in — this review is locked now.");
+    }
 
-  const scores = Object.entries(categoryScores).filter(
-    ([id, score]) => categoryIds.has(id) && score >= SCORE_MIN && score <= SCORE_MAX,
-  );
-  const suggested = suggestedOverall(scores.map(([, score]) => score));
+    const scores = Object.entries(categoryScores).filter(
+      ([id, score]) => categoryIds.has(id) && score >= SCORE_MIN && score <= SCORE_MAX,
+    );
+    const suggested = suggestedOverall(scores.map(([, score]) => score));
 
-  const submittedAt = opts.submit ? (mine?.submittedAt ?? new Date()) : (mine?.submittedAt ?? null);
-  const isNew = mine == null;
+    const submittedAt = opts.submit ? (mine?.submittedAt ?? new Date()) : (mine?.submittedAt ?? null);
+    const isNew = mine == null;
 
-  const data = {
-    overallRating: input.overallRating ?? null,
-    suggestedOverall: suggested,
-    personalRevisit: input.personalRevisit ?? null,
-    personalRevisitNote: input.personalRevisitNote ?? null,
-    lovedText: input.lovedText ?? null,
-    betterText: input.betterText ?? null,
-    rememberText: input.rememberText ?? null,
-    unexpectedText: input.unexpectedText ?? null,
-    submittedAt,
-  };
+    const data = {
+      overallRating: input.overallRating ?? null,
+      suggestedOverall: suggested,
+      personalRevisit: input.personalRevisit ?? null,
+      personalRevisitNote: input.personalRevisitNote ?? null,
+      lovedText: input.lovedText ?? null,
+      betterText: input.betterText ?? null,
+      rememberText: input.rememberText ?? null,
+      unexpectedText: input.unexpectedText ?? null,
+      submittedAt,
+    };
 
-  await prisma.$transaction(async (tx) => {
     const review = await tx.dateReview.upsert({
       where: { dateId_authorId: { dateId: resource.id, authorId: context.user.id } },
       create: { dateId: resource.id, authorId: context.user.id, ...data },
@@ -228,10 +229,12 @@ async function writeReview(
         data: scores.map(([categoryId, score]) => ({ reviewId: review.id, categoryId, score })),
       });
     }
-  });
 
-  const nowRevealed =
-    opts.submit && (partner?.submittedAt != null || !hasPartner);
+    const nowRevealed =
+      opts.submit && (partner?.submittedAt != null || !hasPartner);
+
+    return { context, resource, submittedAt, isNew, nowRevealed };
+  });
 
   if (opts.submit) {
     await logDateEvent(
@@ -285,47 +288,51 @@ export function submitReview(
 
 /** Re-open a submitted-but-not-yet-revealed review for editing. */
 export async function reopenReview(dateId: string) {
-  const { context, resource } = await authorizeDate(dateId);
-  const [mine, partner, memberCount] = await Promise.all([
-    prisma.dateReview.findUnique({
-      where: { dateId_authorId: { dateId: resource.id, authorId: context.user.id } },
-      select: { id: true, submittedAt: true },
-    }),
-    prisma.dateReview.findFirst({
-      where: { dateId: resource.id, authorId: { not: context.user.id } },
-      select: { submittedAt: true },
-    }),
-    prisma.coupleMember.count({ where: { coupleId: context.couple.id, status: "ACTIVE" } }),
-  ]);
+  const resourceId = await withDateWrite(dateId, async (tx, resource, context) => {
+    const [mine, partner, memberCount] = await Promise.all([
+      tx.dateReview.findUnique({
+        where: { dateId_authorId: { dateId: resource.id, authorId: context.user.id } },
+        select: { id: true, submittedAt: true },
+      }),
+      tx.dateReview.findFirst({
+        where: { dateId: resource.id, authorId: { not: context.user.id } },
+        select: { submittedAt: true },
+      }),
+      tx.coupleMember.count({ where: { coupleId: context.couple.id, status: "ACTIVE" } }),
+    ]);
 
-  if (!mine?.submittedAt) throw new NotFoundError("There's nothing submitted to re-open.");
-  const hasPartner = memberCount >= 2;
-  if (partner?.submittedAt != null || !hasPartner) {
-    throw new ConflictError("Both sides are in — this review is locked now.");
-  }
+    if (!mine?.submittedAt) throw new NotFoundError("There's nothing submitted to re-open.");
+    const hasPartner = memberCount >= 2;
+    if (partner?.submittedAt != null || !hasPartner) {
+      throw new ConflictError("Both sides are in — this review is locked now.");
+    }
 
-  await prisma.dateReview.update({ where: { id: mine.id }, data: { submittedAt: null } });
-  await ensureReviewReminders(resource.id);
+    await tx.dateReview.update({ where: { id: mine.id }, data: { submittedAt: null } });
+    return resource.id;
+  });
+  await ensureReviewReminders(resourceId);
 }
 
 export async function deleteReview(dateId: string) {
-  const { context, resource } = await authorizeDate(dateId);
-  const [mine, partner, memberCount] = await Promise.all([
-    prisma.dateReview.findUnique({
-      where: { dateId_authorId: { dateId: resource.id, authorId: context.user.id } },
-      select: { id: true, submittedAt: true },
-    }),
-    prisma.dateReview.findFirst({
-      where: { dateId: resource.id, authorId: { not: context.user.id } },
-      select: { submittedAt: true },
-    }),
-    prisma.coupleMember.count({ where: { coupleId: context.couple.id, status: "ACTIVE" } }),
-  ]);
-  if (!mine) throw new NotFoundError("You don't have a review on this date.");
-  const hasPartner = memberCount >= 2;
-  if (mine.submittedAt != null && (partner?.submittedAt != null || !hasPartner)) {
-    throw new ConflictError("Both sides are in — this review can't be withdrawn now.");
-  }
-  await prisma.dateReview.delete({ where: { id: mine.id } });
-  await ensureReviewReminders(resource.id);
+  const resourceId = await withDateWrite(dateId, async (tx, resource, context) => {
+    const [mine, partner, memberCount] = await Promise.all([
+      tx.dateReview.findUnique({
+        where: { dateId_authorId: { dateId: resource.id, authorId: context.user.id } },
+        select: { id: true, submittedAt: true },
+      }),
+      tx.dateReview.findFirst({
+        where: { dateId: resource.id, authorId: { not: context.user.id } },
+        select: { submittedAt: true },
+      }),
+      tx.coupleMember.count({ where: { coupleId: context.couple.id, status: "ACTIVE" } }),
+    ]);
+    if (!mine) throw new NotFoundError("You don't have a review on this date.");
+    const hasPartner = memberCount >= 2;
+    if (mine.submittedAt != null && (partner?.submittedAt != null || !hasPartner)) {
+      throw new ConflictError("Both sides are in — this review can't be withdrawn now.");
+    }
+    await tx.dateReview.delete({ where: { id: mine.id } });
+    return resource.id;
+  });
+  await ensureReviewReminders(resourceId);
 }

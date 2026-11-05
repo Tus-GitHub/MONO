@@ -31,21 +31,16 @@ const timeString = z.preprocess(
     .optional(),
 );
 
-/** A real "YYYY-MM-DD" that is today or later. */
+/** A real day; future-day validation happens in the service using the couple's timezone. */
 const futureDateString = z.preprocess(
   blankToUndef,
   z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid date.")
     .refine((value) => {
-      const parsed = new Date(`${value}T12:00:00`);
+      const parsed = new Date(`${value}T00:00:00.000Z`);
       return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
     }, "That date doesn't exist.")
-    .refine((value) => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      return new Date(`${value}T00:00:00`).getTime() >= today.getTime();
-    }, "Pick today or a future date.")
     .optional(),
 );
 
@@ -68,7 +63,7 @@ const wallDateString = z.preprocess(
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid date.")
     .refine((value) => {
-      const parsed = new Date(`${value}T12:00:00`);
+      const parsed = new Date(`${value}T00:00:00.000Z`);
       return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
     }, "That date doesn't exist.")
     .optional(),

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { redirect } from "next/navigation";
+import { requireUserOrRedirect } from "@/lib/auth/guards";
 
 import { getCoupleContext, type CoupleContext } from "@/lib/authz/couple";
 
@@ -11,6 +12,7 @@ import { getCoupleContext, type CoupleContext } from "@/lib/authz/couple";
 export async function requireCoupleOrOnboard(
   onboardingPath = "/onboarding",
 ): Promise<CoupleContext> {
+  await requireUserOrRedirect();
   const context = await getCoupleContext();
   if (!context) redirect(onboardingPath);
   return context;
@@ -18,6 +20,7 @@ export async function requireCoupleOrOnboard(
 
 /** Inverse: keep users who already have a couple out of the onboarding flow. */
 export async function redirectIfHasCouple(to = "/home"): Promise<void> {
+  await requireUserOrRedirect();
   const context = await getCoupleContext();
   if (context) redirect(to);
 }

@@ -3,7 +3,7 @@ import "server-only";
 import { AuthProvider } from "@prisma/client";
 
 import { env, googleOAuthConfigured } from "@/config/env";
-import { prisma } from "@/lib/db/prisma";
+import { serializable } from "@/lib/db/serializable";
 import { AuthenticationError } from "@/lib/errors";
 
 /**
@@ -56,7 +56,7 @@ export interface OAuthProfile {
 export async function upsertUserFromOAuthProfile(profile: OAuthProfile) {
   const email = profile.email.trim().toLowerCase();
 
-  return prisma.$transaction(async (tx) => {
+  return serializable(async (tx) => {
     const linked = await tx.account.findUnique({
       where: {
         provider_providerAccountId: {
@@ -67,8 +67,10 @@ export async function upsertUserFromOAuthProfile(profile: OAuthProfile) {
       include: { user: true },
     });
     if (linked) {
-      if (linked.user.deletedAt) throw new AuthenticationError("This account is unavailable.");
-      return linked.user;
+      await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${linked.userId} FOR UPDATE`;
+      const current = await tx.user.findUniqueOrThrow({ where: { id: linked.userId } });
+      if (current.deletedAt) throw new AuthenticationError("This account is unavailable.");
+      return current;
     }
 
     const user =
@@ -82,7 +84,9 @@ export async function upsertUserFromOAuthProfile(profile: OAuthProfile) {
         },
       }));
 
-    if (user.deletedAt) throw new AuthenticationError("This account is unavailable.");
+    await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${user.id} FOR UPDATE`;
+    const current = await tx.user.findUniqueOrThrow({ where: { id: user.id } });
+    if (current.deletedAt) throw new AuthenticationError("This account is unavailable.");
     await tx.account.create({
       data: {
         userId: user.id,
@@ -97,6 +101,6 @@ export async function upsertUserFromOAuthProfile(profile: OAuthProfile) {
       },
     });
 
-    return user;
+    return current;
   });
 }

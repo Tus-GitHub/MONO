@@ -19,18 +19,20 @@ export function useDraftState<T>(key: string, initial: T, schema: z.ZodType<T>) 
     queueMicrotask(() => {
       if (cancelled) return;
       accepted.current = base;
+      let nextValue = JSON.parse(base) as T;
+      let nextRestored = false;
       try {
         const candidate = readDraft(localStorage.getItem(key), base);
         const parsed = schema.safeParse(candidate);
         if (candidate !== undefined && parsed.success) {
-          setValue(parsed.data);
-          setRestored(true);
+          nextValue = parsed.data;
+          nextRestored = true;
         } else {
           localStorage.removeItem(key);
-          setValue(JSON.parse(base) as T);
-          setRestored(false);
         }
       } catch { /* Storage may be disabled; form editing still works. */ }
+      setValue(nextValue);
+      setRestored(nextRestored);
       ready.current = identity;
     });
     return () => { cancelled = true; };

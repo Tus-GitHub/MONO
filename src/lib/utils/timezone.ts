@@ -65,3 +65,23 @@ export function todayYmdInTimeZone(timeZone: string, now: Date = new Date()): st
     return now.toISOString().slice(0, 10);
   }
 }
+
+/** Convert the existing UTC-encoded plan wall clock to an actual instant, without changing its storage/display meaning. */
+export function planTimeToInstant(value: Date | null, timeZone: string): Date | null {
+  if (!value) return null;
+  const ymd = value.toISOString().slice(0, 10);
+  return zonedTimeToUtc(ymd, value.getUTCHours(), value.getUTCMinutes(), timeZone);
+}
+
+/** Local clock used by day-mode follows the couple timezone, including when a device is travelling. */
+export function minutesInTimeZone(timeZone: string, now: Date = new Date()): number {
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).formatToParts(now);
+    return Number(parts.find((part) => part.type === "hour")?.value) * 60
+      + Number(parts.find((part) => part.type === "minute")?.value);
+  } catch {
+    return now.getUTCHours() * 60 + now.getUTCMinutes();
+  }
+}

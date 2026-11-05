@@ -27,9 +27,15 @@ do {
       signal: AbortSignal.any([controller.signal, AbortSignal.timeout(60_000)]),
       redirect: "error",
     });
+    const result = await response.json();
+    const count = (value) => typeof value === "number" && Number.isFinite(value) ? value : 0;
+    console.log(JSON.stringify({
+      time: new Date().toISOString(), status: response.status,
+      users: count(result.users), delivered: count(result.delivered), failedUsers: count(result.failedUsers),
+      pushDelivered: count(result.delivery?.delivered), pushFailed: count(result.delivery?.failed),
+      filesRemoved: count(result.cleanup?.removed), cleanupFailed: count(result.cleanup?.failed),
+    }));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const { users, delivered, failedUsers } = await response.json();
-    console.log(JSON.stringify({ time: new Date().toISOString(), users, delivered, failedUsers }));
   } catch (error) {
     if (!stopping) console.error(`[reminder-worker] ${error instanceof Error ? error.message : "dispatch failed"}`);
     if (once) process.exitCode = 1;

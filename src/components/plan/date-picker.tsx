@@ -5,10 +5,8 @@ import { useState } from "react";
 import { Chip } from "@/components/ui/chip";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils/cn";
+import { todayYmdInTimeZone } from "@/lib/utils/timezone";
 
-function todayYmd(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 function ymdToUtcNoon(ymd: string): Date {
   return new Date(`${ymd}T12:00:00.000Z`);
 }
@@ -28,13 +26,15 @@ export function DatePicker({
   value,
   onChange,
   className,
+  timezone,
 }: {
   value: string | null;
   onChange: (value: string | null) => void;
   className?: string;
+  timezone: string;
 }) {
-  const today = todayYmd();
-  const anchor = value ?? today;
+  const today = todayYmdInTimeZone(timezone);
+  const anchor = value || today;
   const [view, setView] = useState(() => ({
     year: Number(anchor.slice(0, 4)),
     month: Number(anchor.slice(5, 7)) - 1,

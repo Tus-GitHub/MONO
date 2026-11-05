@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { errorState, successState, type ActionState } from "@/lib/utils/result";
 import { idSchema } from "@/lib/validation/common";
+import { PHOTO_WALL_CURSOR_MAX_LENGTH } from "@/lib/date/photo-pagination";
 import { photoCaptionSchema } from "@/lib/validation/date";
 import {
   deleteDatePhoto,
@@ -17,7 +18,7 @@ import { formValues, toActionError } from "@/server/actions/_helpers";
 
 /** "Load more" for the photo wall — read-only, couple-scoped inside the service. */
 export async function loadMoreBestPhotosAction(cursor: string): Promise<PhotoWallPage> {
-  if (typeof cursor !== "string" || cursor.length > 40) {
+  if (typeof cursor !== "string" || cursor.length > PHOTO_WALL_CURSOR_MAX_LENGTH) {
     return { photos: [], nextCursor: null };
   }
   try {

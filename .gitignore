@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/.postgres-test
 
 # next.js
 /.next/

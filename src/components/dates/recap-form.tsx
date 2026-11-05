@@ -68,7 +68,7 @@ export function RecapForm({
 
   return (
     <form action={action} className="space-y-6" noValidate>
-      <UnsavedGuard />
+      <UnsavedGuard state={state} valueKey={JSON.stringify([mode, savedId, locationText, day, start, end])} />
       <input type="hidden" name="dateId" value={dateId} />
       <input type="hidden" name="actualStartTime" value={start} />
       <input type="hidden" name="actualEndTime" value={end} />

@@ -1,6 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { getCurrentUser } from "@/lib/auth/current-user";
+import { prisma } from "@/lib/db/prisma";
 
 import { clearSessionCookie, writeSessionCookie } from "@/lib/auth/session-cookie";
 import { MINUTE, checkRateLimit } from "@/lib/security/rate-limit";
@@ -19,6 +22,7 @@ import {
   registerUser,
 } from "@/server/services/auth-service";
 import { formValues, toActionError } from "@/server/actions/_helpers";
+import { revokeCurrentAuthSession } from "@/server/services/session-service";
 
 const GENERIC_RESET_MESSAGE = "If that email has an account, a reset link is on its way.";
 
@@ -78,6 +82,19 @@ export async function loginAction(
 }
 
 export async function logoutAction(_formData?: FormData): Promise<void> {
+  const cookieStore = await cookies();
+  const deviceId = cookieStore.get("mono_push_device")?.value;
+  let user: Awaited<ReturnType<typeof getCurrentUser>> = null;
+  try { user = await getCurrentUser(); }
+  catch { console.error("[logout] current user unavailable"); }
+  try { await revokeCurrentAuthSession(); }
+  catch { console.error("[logout] session revocation unavailable"); }
+  try {
+    if (user) await prisma.pushSubscription.deleteMany({ where: {
+      userId: user.id, id: deviceId ?? { startsWith: "legacy_" },
+    } });
+  } catch { console.error("[logout] push device unlink unavailable"); }
+  cookieStore.delete("mono_push_device");
   await clearSessionCookie();
   redirect("/login");
 }

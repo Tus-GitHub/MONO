@@ -25,6 +25,9 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    ".postgres-test/**",
+    ".screenshots/**",
+    ".storage/**",
     "next-env.d.ts",
   ]),
 ]);

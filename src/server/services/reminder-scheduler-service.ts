@@ -1,7 +1,9 @@
 import "server-only";
 
 import { prisma } from "@/lib/db/prisma";
-import { dispatchDueReminders } from "@/server/services/reminder-service";
+import { dispatchDueRemindersDetailed } from "@/server/services/reminder-service";
+import { processNotificationDeliveries } from "@/server/services/notification-delivery-service";
+import { processStorageCleanup } from "@/server/services/storage-cleanup-service";
 
 /** Trusted scheduler entry point; user IDs come only from persisted due reminders. */
 export async function dispatchScheduledReminders() {
@@ -21,11 +23,15 @@ export async function dispatchScheduledReminders() {
   let failedUsers = 0;
   for (const { userId } of recipients) {
     try {
-      delivered += await dispatchDueReminders(userId);
+      const result = await dispatchDueRemindersDetailed(userId);
+      delivered += result.delivered;
+      if (result.failed > 0) failedUsers++;
     } catch (error) {
       failedUsers += 1;
       console.error("[reminder-scheduler] dispatch failed:", error);
     }
   }
-  return { users: recipients.length, delivered, failedUsers };
+  const delivery = await processNotificationDeliveries();
+  const cleanup = await processStorageCleanup();
+  return { users: recipients.length, delivered, failedUsers, delivery, cleanup };
 }

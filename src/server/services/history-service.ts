@@ -22,6 +22,7 @@ export const HISTORY_INCLUDE = {
   actualPlace: PLACE_MINI,
   bestPhoto: { select: PHOTO_SELECT },
   memory: {
+    where: { deletedAt: null },
     select: {
       id: true,
       title: true,
@@ -39,7 +40,7 @@ export const HISTORY_INCLUDE = {
   revisitDecision: { select: { choice: true } },
   reviews: { select: { authorId: true, submittedAt: true, overallRating: true } },
   activities: { orderBy: { sortOrder: "asc" }, select: { title: true, kind: true } },
-  expenses: { where: { deletedAt: null }, select: { amountCents: true } },
+  expenses: { where: { deletedAt: null }, select: { amountCents: true, currency: true } },
   _count: { select: { photos: true } },
 } satisfies Prisma.DateInclude;
 
@@ -70,7 +71,8 @@ export function mapDateRowToItem(
 
   const actualActs = date.activities.filter((a) => a.kind === "ACTUAL").map((a) => a.title);
   const plannedActs = date.activities.filter((a) => a.kind === "PLANNED").map((a) => a.title);
-  const expenseSum = date.expenses.reduce((sum, e) => sum + e.amountCents, 0);
+  const baseExpenses = date.expenses.filter((expense) => expense.currency === date.currency);
+  const expenseSum = baseExpenses.reduce((sum, e) => sum + e.amountCents, 0);
 
   return {
     id: date.id,
@@ -98,7 +100,7 @@ export function mapDateRowToItem(
     memoryIsFavorite: date.memory?.isFavorite ?? false,
     memoryTitle: date.memory?.title ?? null,
     memorySnippet: memorySnippet(date.memory?.body),
-    spendCents: date.actualSpendCents ?? (date.expenses.length > 0 ? expenseSum : null),
+    spendCents: date.actualSpendCents ?? (baseExpenses.length > 0 ? expenseSum : null),
     currency: date.currency,
     activityTitles: (actualActs.length > 0 ? actualActs : plannedActs).slice(0, 5),
   };
@@ -131,7 +133,10 @@ export async function getDateHistory(query: HistoryQuery): Promise<DateHistoryRe
     const end = query.month
       ? new Date(Date.UTC(query.year, query.month, 1))
       : new Date(Date.UTC(query.year + 1, 0, 1));
-    where.scheduledFor = { gte: start, lt: end };
+    where.OR = [
+      { actualStartAt: { gte: start, lt: end } },
+      { actualStartAt: null, scheduledFor: { gte: start, lt: end } },
+    ];
   }
 
   const and: Prisma.DateWhereInput[] = [];
@@ -173,34 +178,34 @@ export async function getDateHistory(query: HistoryQuery): Promise<DateHistoryRe
         { actualPlace: { is: { city: { contains: q, mode: "insensitive" } } } },
         { plannedPlace: { is: { city: { contains: q, mode: "insensitive" } } } },
         { activities: { some: { title: { contains: q, mode: "insensitive" } } } },
-        { memory: { is: { title: { contains: q, mode: "insensitive" } } } },
-        { memory: { is: { body: { contains: q, mode: "insensitive" } } } },
+        { memory: { is: { deletedAt: null, title: { contains: q, mode: "insensitive" } } } },
+        { memory: { is: { deletedAt: null, body: { contains: q, mode: "insensitive" } } } },
       ],
     });
   }
   if (and.length) where.AND = and;
 
-  const rows = await prisma.date.findMany({
-    where,
-    orderBy: [{ scheduledFor: { sort: "desc", nulls: "last" } }, { completedAt: "desc" }],
-    take: HISTORY_TAKE,
-    include: HISTORY_INCLUDE,
-  });
-
-  let items = rows.map((date) => mapDateRowToItem(date, { userId: user.id, hasPartner }));
-
-  // Filters SQL can't express cleanly.
-  if (query.month && !query.year) {
-    items = items.filter(
-      (item) => item.dateYmd != null && Number(item.dateYmd.slice(5, 7)) === query.month,
-    );
+  const items: DateHistoryItem[] = [];
+  let total = 0;
+  let cursor: string | undefined;
+  // Stream bounded batches before the display cap. Older matching records must remain discoverable.
+  // A unique tie-breaker also keeps pagination deterministic when dates share timestamps.
+  for (;;) {
+    const rows = await prisma.date.findMany({
+      where, orderBy: [{ scheduledFor: { sort: "desc", nulls: "last" } }, { completedAt: "desc" }, { id: "desc" }],
+      take: HISTORY_TAKE, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), include: HISTORY_INCLUDE,
+    });
+    for (const row of rows) {
+      const item = mapDateRowToItem(row, { userId: user.id, hasPartner });
+      if (query.month && !query.year && Number(item.dateYmd?.slice(5, 7)) !== query.month) continue;
+      if (query.minScore != null && (item.coupleScore == null || item.coupleScore < query.minScore)) continue;
+      total++;
+      if (items.length < HISTORY_TAKE) items.push(item);
+    }
+    if (rows.length < HISTORY_TAKE) break;
+    cursor = rows[rows.length - 1].id;
   }
-  if (query.minScore != null) {
-    const min = query.minScore;
-    items = items.filter((item) => item.coupleScore != null && item.coupleScore >= min);
-  }
-
-  return { items, total: items.length, totalCompleted };
+  return { items, total, totalCompleted };
 }
 
 export interface HistoryFilterOptions {

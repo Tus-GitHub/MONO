@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { todayYmdInTimeZone, zonedTimeToUtc } from "@/lib/utils/timezone";
+import { minutesInTimeZone, planTimeToInstant, todayYmdInTimeZone, zonedTimeToUtc } from "@/lib/utils/timezone";
 
 describe("zonedTimeToUtc — the day-of reminder is 09:00 *local*, not 09:00 UTC", () => {
   it("UTC zone: 09:00 stays 09:00Z", () => {
@@ -29,6 +29,27 @@ describe("zonedTimeToUtc — the day-of reminder is 09:00 *local*, not 09:00 UTC
     expect(zonedTimeToUtc("2026-06-01", 9, 0, "Not/AZone").toISOString()).toBe(
       "2026-06-01T09:00:00.000Z",
     );
+  });
+});
+
+describe("plan wall clock to actual instant", () => {
+  it("converts a Kolkata 19:00 plan without mutating its stored wall clock", () => {
+    const stored = new Date("2026-11-06T19:00:00Z");
+    expect(planTimeToInstant(stored, "Asia/Kolkata")?.toISOString()).toBe("2026-11-06T13:30:00.000Z");
+    expect(stored.toISOString()).toBe("2026-11-06T19:00:00.000Z");
+  });
+  it("converts local midnight even when the UTC instant is the preceding day", () => {
+    expect(planTimeToInstant(new Date("2026-11-06T00:00:00Z"), "Asia/Kolkata")?.toISOString()).toBe("2026-11-05T18:30:00.000Z");
+    expect(planTimeToInstant(null, "UTC")).toBeNull();
+  });
+  it("tracks daylight savings on both sides of the transition", () => {
+    expect(planTimeToInstant(new Date("2026-03-07T19:00:00Z"), "America/New_York")?.toISOString()).toBe("2026-03-08T00:00:00.000Z");
+    expect(planTimeToInstant(new Date("2026-03-08T19:00:00Z"), "America/New_York")?.toISOString()).toBe("2026-03-08T23:00:00.000Z");
+  });
+  it("day mode uses the couple's local clock rather than the device zone", () => {
+    const now = new Date("2026-11-06T13:30:00Z");
+    expect(minutesInTimeZone("Asia/Kolkata", now)).toBe(19 * 60);
+    expect(minutesInTimeZone("America/New_York", now)).toBe(8 * 60 + 30);
   });
 });
 

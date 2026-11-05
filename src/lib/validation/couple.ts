@@ -10,7 +10,9 @@ const optionalDate = z.preprocess(
 export const createCoupleSchema = z.object({
   name: optionalText(80),
   anniversaryAt: optionalDate,
-  timezone: z.string().trim().max(64).optional(),
+  timezone: z.string().trim().max(64).refine((zone) => {
+    try { new Intl.DateTimeFormat("en", { timeZone: zone }); return true; } catch { return false; }
+  }, "Choose a valid timezone.").optional(),
   currency: z.string().trim().toUpperCase().length(3).optional(),
 });
 

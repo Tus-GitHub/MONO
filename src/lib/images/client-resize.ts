@@ -10,9 +10,11 @@
  * stays on the original bytes and the server rotates it.
  *
  * Best-effort: if the browser can't decode the file (HEIC in a non-Safari browser, an option
- * bag it doesn't understand, anything else) the original `File` is returned and the server
- * handles it.
+ * bag it doesn't understand, anything else) the original `File` is returned for the normal
+ * upload validation and processing path.
  */
+import { IMAGE_UPLOAD } from "@/lib/storage/image-rules";
+
 const MAX_EDGE = 2560; // long edge, px — matches the server's "original" variant
 const RESIZE_ABOVE_BYTES = 1_100_000; // don't bother re-encoding already-small images
 const JPEG_QUALITY = 0.82; // keeps useful quality; the server re-encodes to WebP regardless
@@ -30,7 +32,8 @@ export async function downscaleImage(file: File): Promise<File> {
   if (typeof window === "undefined" || typeof createImageBitmap !== "function") return file;
   // Leave animations and vectors alone.
   if (file.type === "image/gif" || file.type === "image/svg+xml") return file;
-  if (file.size <= RESIZE_ABOVE_BYTES && file.type !== "image/heic" && file.type !== "image/heif") {
+  const serverAcceptsOriginal = IMAGE_UPLOAD.accept.some((type) => type === file.type);
+  if (file.size <= RESIZE_ABOVE_BYTES && serverAcceptsOriginal) {
     return file;
   }
 
@@ -58,7 +61,9 @@ export async function downscaleImage(file: File): Promise<File> {
     const blob: Blob | null = await new Promise((resolve) =>
       canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY),
     );
-    if (!blob || blob.size >= file.size) return file;
+    // A decoded HEIC/HEIF still needs conversion even when its JPEG is larger:
+    // returning the unsupported original would make upload validation reject it.
+    if (!blob || (serverAcceptsOriginal && blob.size >= file.size)) return file;
 
     const name = file.name.replace(/\.[^.]+$/, "") + ".jpg";
     return new File([blob], name, { type: "image/jpeg", lastModified: Date.now() });

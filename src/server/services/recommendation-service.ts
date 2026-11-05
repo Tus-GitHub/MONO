@@ -4,6 +4,7 @@ import { DateStatus, PlaceCategory, RevisitChoice } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
 import { mean } from "@/lib/review/scale";
+import { sharedReviews } from "@/lib/date/review-reveal";
 
 /**
  * Deterministic date recommendations — no AI, no randomness. Everything is derived from the
@@ -60,7 +61,7 @@ export async function getRecommendedDates(
   coupleId: string,
   limit = 3,
 ): Promise<DateRecommendation[]> {
-  const [completed, savedPlaces] = await Promise.all([
+  const [completed, savedPlaces, members] = await Promise.all([
     prisma.date.findMany({
       where: { coupleId, deletedAt: null, status: DateStatus.COMPLETED },
       select: {
@@ -70,7 +71,7 @@ export async function getRecommendedDates(
         plannedPlaceId: true,
         actualPlace: { select: { id: true, name: true, category: true } },
         plannedPlace: { select: { id: true, name: true, category: true } },
-        reviews: { where: { submittedAt: { not: null } }, select: { overallRating: true } },
+        reviews: { select: { authorId: true, submittedAt: true, overallRating: true } },
         revisitDecision: { select: { choice: true } },
       },
       orderBy: { completedAt: "desc" },
@@ -80,6 +81,7 @@ export async function getRecommendedDates(
       select: { id: true, name: true, category: true },
       orderBy: { createdAt: "asc" },
     }),
+    prisma.coupleMember.findMany({ where: { coupleId, status: "ACTIVE" }, select: { userId: true } }),
   ]);
 
   const visitedPlaceIds = new Set<string>();
@@ -88,7 +90,7 @@ export async function getRecommendedDates(
   for (const date of completed) {
     const place = date.actualPlace ?? date.plannedPlace;
     if (place) visitedPlaceIds.add(place.id);
-    const scores = date.reviews
+    const scores = sharedReviews(date.reviews, members.map((member) => member.userId))
       .map((review) => review.overallRating)
       .filter((n): n is number => n != null);
     const avg = mean(scores);

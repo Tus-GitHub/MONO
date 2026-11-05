@@ -29,8 +29,9 @@ export function BasicsStep({ plan, userId }: { plan: PlanDateDTO; userId: string
 
   return (
     <form action={action} className="space-y-6" noValidate>
-      <UnsavedGuard />
+      <UnsavedGuard state={state} valueKey={JSON.stringify([date, startTime, endTime])} />
       <input type="hidden" name="dateId" value={plan.id} />
+      <input type="hidden" name="version" value={plan.version} />
       <input type="hidden" name="step" value="basics" />
       <input type="hidden" name="date" value={date ?? ""} />
       <input type="hidden" name="startTime" value={date ? startTime : ""} />
@@ -62,7 +63,7 @@ export function BasicsStep({ plan, userId }: { plan: PlanDateDTO; userId: string
 
       <div>
         <p className="mb-2 text-sm font-medium text-ink">When?</p>
-        <DatePicker value={date} onChange={(value) => setDate(value ?? "")} />
+        <DatePicker value={date} onChange={(value) => setDate(value ?? "")} timezone={plan.timezone} />
         {fieldErrors?.date ? (
           <p className="mt-1.5 text-xs text-error">{fieldErrors.date.join(" ")}</p>
         ) : null}

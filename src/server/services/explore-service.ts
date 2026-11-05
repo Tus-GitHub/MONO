@@ -15,7 +15,7 @@ import { DATE_IDEA_BY_KEY, DATE_IDEAS, type DateIdea } from "@/lib/explore/date-
 import { classifyVisited, type VisitedStatus } from "@/lib/explore/visited";
 import { PLACE_CATEGORY_LABEL, PLACE_CATEGORY_SHORT } from "@/lib/date/place-category";
 import { prisma } from "@/lib/db/prisma";
-import { isRevealed } from "@/lib/date/review-reveal";
+import { sharedReviews } from "@/lib/date/review-reveal";
 import { averageScore } from "@/lib/review/scale";
 import { NotFoundError } from "@/lib/errors";
 import type { IconName } from "@/components/ui/icon";
@@ -178,7 +178,6 @@ export async function getExploreHome(
     id: r.user.id,
     name: r.user.nickname || r.user.name,
   }));
-  const hasPartner = members.length >= 2;
 
   // --- Per-member × place-category rating history (reveal-gated) --------------
   const memberCat = new Map<string, Map<PlaceCategory, number[]>>();
@@ -192,8 +191,8 @@ export async function getExploreHome(
 
   for (const date of completed) {
     const place = date.actualPlace ?? date.plannedPlace;
-    const submitted = date.reviews.filter((r) => r.submittedAt != null);
-    const revealed = isRevealed(submitted.length, hasPartner);
+    const submitted = sharedReviews(date.reviews, members.map((member) => member.id));
+    const revealed = submitted.length > 0;
 
     if (place) {
       const agg = placeAgg.get(place.id) ?? { scores: [], visits: 0, lastRevisit: null };

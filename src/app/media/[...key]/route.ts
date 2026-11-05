@@ -4,6 +4,9 @@ import { requireUser } from "@/lib/auth";
 import { requireCoupleMembership } from "@/lib/authz";
 import { isAppError } from "@/lib/errors";
 import { coupleIdFromKey, storage, userIdFromKey } from "@/lib/storage";
+import { isCanonicalStorageKey } from "@/lib/storage/key";
+import { isActiveMediaKey } from "@/server/services/storage-cleanup-service";
+import { createHash } from "node:crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -13,27 +16,13 @@ const MIME: Record<string, string> = {
   png: "image/png",
   webp: "image/webp",
   gif: "image/gif",
+  avif: "image/avif",
   pdf: "application/pdf",
 };
 
 function contentTypeFor(key: string): string {
   const ext = key.split(".").pop()?.toLowerCase() ?? "";
   return MIME[ext] ?? "application/octet-stream";
-}
-
-/**
- * A storage key must be a plain, forward-only path. Rejecting `..` / `.` / empty segments,
- * backslashes, a leading slash and control characters here is essential: the ownership check
- * below trusts the key's *prefix*, so a `..` that later cancels out
- * (`couples/<mine>/../users/<victim>/…`) must never reach the storage layer.
- */
-function isCanonicalKey(key: string): boolean {
-  if (!key || key.length > 1024) return false;
-  if (key.startsWith("/") || key.includes("\\")) return false;
-  for (let i = 0; i < key.length; i += 1) {
-    if (key.charCodeAt(i) < 0x20) return false; // ASCII control character
-  }
-  return key.split("/").every((s) => s.length > 0 && s !== "." && s !== "..");
 }
 
 /**
@@ -47,9 +36,11 @@ export async function GET(
   { params }: { params: Promise<{ key: string[] }> },
 ) {
   const { key: segments } = await params;
-  const key = segments.map((segment) => decodeURIComponent(segment)).join("/");
+  let key: string;
+  try { key = segments.map((segment) => decodeURIComponent(segment)).join("/"); }
+  catch { return new NextResponse(null, { status: 404 }); }
 
-  if (!isCanonicalKey(key)) return new NextResponse(null, { status: 404 });
+  if (!isCanonicalStorageKey(key)) return new NextResponse(null, { status: 404 });
 
   try {
     const userScope = userIdFromKey(key);
@@ -64,15 +55,19 @@ export async function GET(
       return new NextResponse(null, { status: 404 });
     }
 
+    if (!await isActiveMediaKey(key)) return new NextResponse(null, { status: 404 });
+    const etag = `"${createHash("sha256").update(key).digest("hex")}"`;
+    if (_request.headers.get("if-none-match") === etag) {
+      return new NextResponse(null, { status: 304, headers: { etag, "cache-control": "private, no-cache" } });
+    }
     const body = await storage.get(key);
     return new NextResponse(new Uint8Array(body), {
       status: 200,
       headers: {
         "content-type": contentTypeFor(key),
-        // Object keys carry a random token and are never rewritten in place (replace/delete
-        // allocate fresh keys), so a hit is safe to cache hard — but only in the member's own
-        // browser: `private` keeps it out of any shared cache or CDN.
-        "cache-control": "private, max-age=31536000, immutable",
+        // Revalidate authorization and active references before serving cached private media.
+        "cache-control": "private, no-cache",
+        etag,
         "content-disposition": "inline",
         // Private media — never index, never follow.
         "x-robots-tag": "noindex, nofollow, noimageindex",

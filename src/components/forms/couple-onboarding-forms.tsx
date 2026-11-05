@@ -8,12 +8,14 @@ import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { idleState } from "@/lib/utils/result";
 import { createCoupleAction, joinCoupleAction } from "@/server/actions/couple";
+import { BrowserTimezoneInput } from "@/components/forms/browser-timezone-input";
 
 /** Minimal "create our space" — no fields; name/date are set in the couple-setup step. */
 export function CreateSpaceButton() {
   const [state, action] = useActionState(createCoupleAction, idleState);
   return (
     <form action={action}>
+      <BrowserTimezoneInput />
       <FormFeedback state={state} />
       <SubmitButton fullWidth pendingText="Creating…" className="mt-1">
         Create our space
@@ -28,6 +30,7 @@ export function CreateCoupleForm() {
 
   return (
     <form action={action} className="space-y-4" noValidate>
+      <BrowserTimezoneInput />
       <FormFeedback state={state} />
 
       <Field

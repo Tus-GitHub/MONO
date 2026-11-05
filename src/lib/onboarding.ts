@@ -2,7 +2,8 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 
-import { requireUser, type SessionUser } from "@/lib/auth/current-user";
+import type { SessionUser } from "@/lib/auth/current-user";
+import { requireUserOrRedirect } from "@/lib/auth/guards";
 import {
   getOnboardingStatus,
   onboardingPath,
@@ -17,7 +18,7 @@ interface Guarded {
 
 /** Feature-page guard: finished onboarding, or bounce to the current step. */
 export async function requireOnboarded(): Promise<Guarded> {
-  const user = await requireUser();
+  const user = await requireUserOrRedirect();
   const status = await getOnboardingStatus(user.id);
   if (status.step !== "ready") redirect(onboardingPath(status.step));
   return { user, status };
@@ -27,7 +28,7 @@ export async function requireOnboarded(): Promise<Guarded> {
 export async function requireOnboardingStep(
   step: Exclude<OnboardingStep, "ready">,
 ): Promise<Guarded> {
-  const user = await requireUser();
+  const user = await requireUserOrRedirect();
   const status = await getOnboardingStatus(user.id);
   if (status.step === "ready") redirect("/home");
   if (status.step !== step) redirect(onboardingPath(status.step));
@@ -36,7 +37,7 @@ export async function requireOnboardingStep(
 
 /** Just resolve where the user should be right now (no redirect). */
 export async function resolveOnboarding(): Promise<Guarded> {
-  const user = await requireUser();
+  const user = await requireUserOrRedirect();
   const status = await getOnboardingStatus(user.id);
   return { user, status };
 }

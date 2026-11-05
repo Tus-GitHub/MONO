@@ -4,6 +4,7 @@ import { DateStatus, RevisitChoice } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
 import { averageScore } from "@/lib/review/scale";
+import { sharedReviews } from "@/lib/date/review-reveal";
 
 export interface PlaceHistoryEntry {
   /** submitted overall ratings, on the 1–10 scale */
@@ -17,17 +18,21 @@ export interface PlaceHistoryEntry {
 export async function getPlaceHistoryMap(
   coupleId: string,
 ): Promise<Map<string, PlaceHistoryEntry>> {
-  const dates = await prisma.date.findMany({
-    where: { coupleId, deletedAt: null, status: DateStatus.COMPLETED },
-    orderBy: { completedAt: "asc" },
-    select: {
-      completedAt: true,
-      actualPlaceId: true,
-      plannedPlaceId: true,
-      reviews: { where: { submittedAt: { not: null } }, select: { overallRating: true } },
-      revisitDecision: { select: { choice: true } },
-    },
-  });
+  const [members, dates] = await Promise.all([
+    prisma.coupleMember.findMany({ where: { coupleId, status: "ACTIVE" }, select: { userId: true } }),
+    prisma.date.findMany({
+      where: { coupleId, deletedAt: null, status: DateStatus.COMPLETED },
+      orderBy: { completedAt: "asc" },
+      select: {
+        completedAt: true,
+        actualPlaceId: true,
+        plannedPlaceId: true,
+        reviews: { select: { authorId: true, submittedAt: true, overallRating: true } },
+        revisitDecision: { select: { choice: true } },
+      },
+    }),
+  ]);
+  const memberIds = members.map((member) => member.userId);
 
   const map = new Map<string, PlaceHistoryEntry>();
   for (const date of dates) {
@@ -36,7 +41,7 @@ export async function getPlaceHistoryMap(
     const entry =
       map.get(placeId) ?? { scores: [], visits: 0, lastRevisit: null, lastCompletedAt: 0 };
     entry.visits += 1;
-    for (const review of date.reviews) {
+    for (const review of sharedReviews(date.reviews, memberIds)) {
       if (review.overallRating != null) entry.scores.push(review.overallRating);
     }
     if (date.revisitDecision) entry.lastRevisit = date.revisitDecision.choice;

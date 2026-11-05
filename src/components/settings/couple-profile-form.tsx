@@ -28,7 +28,7 @@ export function CoupleProfileForm({ initial }: Props) {
 
   return (
     <form action={action} className="space-y-5" noValidate>
-      <UnsavedGuard />
+      <UnsavedGuard state={state} />
       <FormFeedback state={state} />
 
       <ImageUpload

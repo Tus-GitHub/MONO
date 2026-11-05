@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   type ReactNode,
@@ -140,25 +141,73 @@ export function useEscapeKey(onClose: () => void, active: boolean) {
  * `popstate` closes the overlay; closing it any other way quietly pops that entry back off.
  * Standard History API — degrades to "no-op" if it isn't there.
  */
-export function useBackButton(onClose: () => void, active: boolean) {
+export function useBackButton(
+  onClose: () => void,
+  active: boolean,
+  onHistoryClosed?: (stayedOnPage: boolean) => void,
+) {
   const onCloseRef = useRef(onClose);
+  const onHistoryClosedRef = useRef(onHistoryClosed);
+  const entryId = useId();
+  const cleanupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelPendingCleanup = useRef<(() => void) | null>(null);
   useEffect(() => {
     onCloseRef.current = onClose;
+    onHistoryClosedRef.current = onHistoryClosed;
   });
 
   useEffect(() => {
     if (!active || typeof window === "undefined" || !window.history) return;
 
-    window.history.pushState({ ...window.history.state, monoOverlay: true }, "");
-    const onPop = () => onCloseRef.current();
+    // Strict Mode replays mount effects. Reuse our entry and cancel the deferred
+    // teardown instead of letting an asynchronous history.back close the replay.
+    if (cleanupTimer.current !== null) {
+      clearTimeout(cleanupTimer.current);
+      cleanupTimer.current = null;
+    }
+    cancelPendingCleanup.current?.();
+    const entries = (): string[] => {
+      const value = window.history.state?.monoOverlay;
+      return Array.isArray(value) ? value : [];
+    };
+    const entryUrl = window.location.href;
+    if (!entries().includes(entryId)) {
+      window.history.pushState({ ...window.history.state, monoOverlay: [...entries(), entryId] }, "");
+    }
+    // A nested confirmation owns its own entry; Back closes only that overlay.
+    const onPop = () => {
+      if (!entries().includes(entryId)) onCloseRef.current();
+    };
     window.addEventListener("popstate", onPop);
 
     return () => {
       window.removeEventListener("popstate", onPop);
       // Closed by button / Escape / backdrop rather than Back — remove our synthetic entry.
-      if (window.history.state?.monoOverlay) window.history.back();
+      cleanupTimer.current = setTimeout(() => {
+        cleanupTimer.current = null;
+        let traversalRequested = false;
+        const cancel = () => {
+          window.removeEventListener("popstate", removeEntry);
+          cancelPendingCleanup.current = null;
+        };
+        const removeEntry = () => {
+          const stack = entries();
+          if (window.location.href !== entryUrl || !stack.includes(entryId)) {
+            cancel();
+            onHistoryClosedRef.current?.(window.location.href === entryUrl);
+          } else if (stack.at(-1) === entryId && !traversalRequested) {
+            traversalRequested = true;
+            window.history.back();
+          }
+        };
+        // Escape can close a confirmation and its parent together. Wait for
+        // the child's asynchronous pop before removing the parent's entry.
+        cancelPendingCleanup.current = cancel;
+        window.addEventListener("popstate", removeEntry);
+        removeEntry();
+      }, 0);
     };
-  }, [active]);
+  }, [active, entryId]);
 }
 
 export function useBodyRef() {

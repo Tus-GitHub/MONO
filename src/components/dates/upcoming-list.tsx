@@ -13,6 +13,7 @@ export interface UpcomingItem {
   status: DateStatus;
   scheduledForIso: string | null;
   startIso: string | null;
+  countdownAt: string | null;
   placeLabel: string | null;
   activities: string[];
   activityCount: number;
@@ -61,10 +62,10 @@ export function UpcomingList({ items }: { items: UpcomingItem[] }) {
           <span className="text-2xs font-semibold uppercase tracking-wide text-primary">
             Next up
           </span>
-          {next.scheduledForIso ? (
+          {next.countdownAt ? (
             <Countdown
-              target={next.scheduledForIso}
-              initialLabel={countdownLabel(next.startIso ?? next.scheduledForIso)}
+              target={next.countdownAt}
+              initialLabel={countdownLabel(next.countdownAt)}
             />
           ) : null}
         </div>

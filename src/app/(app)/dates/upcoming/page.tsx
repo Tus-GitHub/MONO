@@ -30,6 +30,7 @@ export default async function UpcomingDatesPage({
     status: date.status,
     scheduledForIso: date.scheduledFor?.toISOString() ?? null,
     startIso: date.plannedStartAt?.toISOString() ?? null,
+    countdownAt: date.countdownAt,
     placeLabel: date.plannedPlace
       ? `${date.plannedPlace.name}${date.plannedPlace.city ? `, ${date.plannedPlace.city}` : ""}`
       : null,

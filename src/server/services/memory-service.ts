@@ -52,7 +52,7 @@ export async function getMemoryContext(dateId: string): Promise<MemoryContext> {
         orderBy: { sortOrder: "asc" },
         select: PHOTO_SELECT,
       },
-      memory: { select: { id: true, title: true, body: true, isFavorite: true, coverPhotoId: true } },
+      memory: { where: { deletedAt: null }, select: { id: true, title: true, body: true, isFavorite: true, coverPhotoId: true } },
     },
   });
   return {
@@ -82,9 +82,9 @@ export async function saveMemory(dateId: string, input: DateMemoryInput) {
 
   const date = await prisma.date.findUniqueOrThrow({
     where: { id: resource.id },
-    select: { actualStartAt: true, scheduledFor: true, memory: { select: { id: true } } },
+    select: { actualStartAt: true, scheduledFor: true, memory: { select: { id: true, deletedAt: true } } },
   });
-  const isNew = !date.memory;
+  const isNew = !date.memory || date.memory.deletedAt !== null;
   const occurredOn = date.actualStartAt ?? date.scheduledFor ?? null;
 
   await prisma.memory.upsert({
@@ -105,6 +105,7 @@ export async function saveMemory(dateId: string, input: DateMemoryInput) {
       isFavorite: input.isFavorite,
       coverPhotoId,
       deletedAt: null,
+      ...(isNew ? { authorId: context.user.id, occurredOn } : {}),
     },
   });
 

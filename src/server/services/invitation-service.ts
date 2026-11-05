@@ -9,6 +9,8 @@ import {
 
 import { env } from "@/config/env";
 import { serializable } from "@/lib/db/serializable";
+import { lockLivingUser, requireSelf } from "@/lib/authz/user-write";
+import { requireCoupleMembership } from "@/lib/authz";
 import { prisma } from "@/lib/db/prisma";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { randomToken, sha256 } from "@/lib/utils/crypto";
@@ -46,33 +48,39 @@ export async function createInvitation(
   createdById: string,
   options: { email?: string; ttlHours?: number } = {},
 ) {
-  const couple = await prisma.couple.findFirst({
-    where: { id: coupleId, deletedAt: null },
-    include: { members: { where: { status: CoupleMemberStatus.ACTIVE } } },
-  });
-  if (!couple) throw new NotFoundError("Couple not found.");
-  if (couple.members.length >= MAX_MEMBERS) {
-    throw new ConflictError("Your space is already full.");
-  }
+  const { user } = await requireCoupleMembership(coupleId);
+  await requireSelf(createdById);
+  return serializable(async (tx) => {
+    await lockLivingUser(tx, user.id);
+    await tx.$queryRaw`SELECT id FROM couples WHERE id = ${coupleId} FOR UPDATE`;
+    const couple = await tx.couple.findFirst({
+      where: { id: coupleId, deletedAt: null, status: { in: ["PENDING", "ACTIVE"] }, members: { some: { userId: user.id, status: "ACTIVE" } } },
+      include: { members: { where: { status: CoupleMemberStatus.ACTIVE } } },
+    });
+    if (!couple) throw new NotFoundError("Couple not found.");
+    if (couple.members.length >= MAX_MEMBERS) {
+      throw new ConflictError("Your space is already full.");
+    }
 
-  await prisma.coupleInvitation.updateMany({
-    where: { coupleId, acceptedAt: null, revokedAt: null },
-    data: { revokedAt: new Date() },
-  });
+    await tx.coupleInvitation.updateMany({
+      where: { coupleId, acceptedAt: null, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
 
-  const token = randomToken(24);
-  const ttlHours = Math.min(Math.max(options.ttlHours ?? DEFAULT_TTL_HOURS, 1), MAX_TTL_HOURS);
-  const invitation = await prisma.coupleInvitation.create({
-    data: {
-      coupleId,
-      createdById,
-      tokenHash: sha256(token),
-      email: options.email?.trim().toLowerCase() || null,
-      expiresAt: new Date(Date.now() + ttlHours * 3_600_000),
-    },
-  });
+    const token = randomToken(24);
+    const ttlHours = Math.min(Math.max(options.ttlHours ?? DEFAULT_TTL_HOURS, 1), MAX_TTL_HOURS);
+    const invitation = await tx.coupleInvitation.create({
+      data: {
+        coupleId,
+        createdById,
+        tokenHash: sha256(token),
+        email: options.email?.trim().toLowerCase() || null,
+        expiresAt: new Date(Date.now() + ttlHours * 3_600_000),
+      },
+    });
 
-  return { token, invitation, url: invitationUrl(token) };
+    return { token, invitation, url: invitationUrl(token) };
+  });
 }
 
 export async function getInvitationByToken(token: string) {
@@ -99,9 +107,13 @@ export async function getInvitationByToken(token: string) {
 }
 
 export async function acceptInvitation(token: string, userId: string) {
+  await requireSelf(userId);
   return serializable(async (tx) => {
+    await lockLivingUser(tx, userId);
+    const tokenHash = sha256(token);
+    await tx.$queryRaw`SELECT id FROM couples WHERE id = (SELECT "coupleId" FROM couple_invitations WHERE "tokenHash" = ${tokenHash}) FOR UPDATE`;
     const invitation = await tx.coupleInvitation.findUnique({
-      where: { tokenHash: sha256(token) },
+      where: { tokenHash },
       include: {
         couple: { include: { members: { where: { status: CoupleMemberStatus.ACTIVE } } } },
       },
@@ -120,6 +132,12 @@ export async function acceptInvitation(token: string, userId: string) {
     }
     if (invitation.createdById === userId) {
       throw new ConflictError("You can't accept your own invitation.");
+    }
+    if (invitation.email) {
+      const recipient = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true } });
+      if (recipient.email.trim().toLowerCase() !== invitation.email.trim().toLowerCase()) {
+        throw new ValidationError("Sign in with the email this invitation was sent to.");
+      }
     }
     if (invitation.couple.status === CoupleStatus.ARCHIVED) throw new ConflictError("That space is no longer active.");
     if (invitation.couple.deletedAt) throw new NotFoundError("That space no longer exists.");
@@ -180,6 +198,7 @@ export async function getActiveInvitation(coupleId: string) {
 }
 
 export async function revokeInvitation(id: string, coupleId: string) {
+  await requireCoupleMembership(coupleId);
   const result = await prisma.coupleInvitation.updateMany({
     where: { id, coupleId, acceptedAt: null, revokedAt: null },
     data: { revokedAt: new Date() },

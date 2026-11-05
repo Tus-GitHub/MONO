@@ -4,6 +4,9 @@ import { CoupleMemberRole, CoupleMemberStatus, CoupleStatus, NotificationType, P
 
 import { ConflictError, NotFoundError } from "@/lib/errors";
 import { serializable } from "@/lib/db/serializable";
+import { lockLivingUser, requireSelf } from "@/lib/authz/user-write";
+import { requireCoupleMembership } from "@/lib/authz";
+import { archiveCoupleInTransaction } from "@/server/services/couple-archive";
 import { prisma } from "@/lib/db/prisma";
 import { generateInviteCode } from "@/lib/utils/crypto";
 import type {
@@ -43,7 +46,9 @@ async function generateUniqueInviteCode(tx: Prisma.TransactionClient): Promise<s
 }
 
 export async function createCoupleForUser(userId: string, input: CreateCoupleInput) {
+  await requireSelf(userId);
   return serializable(async (tx) => {
+    await lockLivingUser(tx, userId);
     await assertUserHasNoActiveCouple(tx, userId);
 
     const couple = await tx.couple.create({
@@ -72,9 +77,12 @@ export async function createCoupleForUser(userId: string, input: CreateCoupleInp
 }
 
 export async function joinCoupleByInviteCode(userId: string, input: JoinCoupleInput) {
+  await requireSelf(userId);
   return serializable(async (tx) => {
+    await lockLivingUser(tx, userId);
     await assertUserHasNoActiveCouple(tx, userId);
 
+    await tx.$queryRaw`SELECT id FROM couples WHERE "inviteCode" = ${input.inviteCode} FOR UPDATE`;
     const couple = await tx.couple.findFirst({
       where: { inviteCode: input.inviteCode, deletedAt: null },
       include: { members: { where: { status: CoupleMemberStatus.ACTIVE } } },
@@ -82,6 +90,9 @@ export async function joinCoupleByInviteCode(userId: string, input: JoinCoupleIn
     if (!couple) throw new NotFoundError("That invite code doesn't match a couple space.");
     if (couple.status === CoupleStatus.ARCHIVED) {
       throw new ConflictError("That couple space is no longer active.");
+    }
+    if (couple.inviteCodeExpiresAt && couple.inviteCodeExpiresAt <= new Date()) {
+      throw new ConflictError("That invite code has expired.");
     }
     if (couple.members.length >= MAX_MEMBERS) {
       throw new ConflictError("That couple space is already full.");
@@ -165,23 +176,19 @@ export async function updateCoupleProfile(coupleId: string, input: CoupleProfile
  * users are free to start or join a new couple.
  */
 export async function disconnectCouple(coupleId: string) {
-  return prisma.$transaction(async (tx) => {
+  const { user } = await requireCoupleMembership(coupleId);
+  return serializable(async (tx) => {
+    await lockLivingUser(tx, user.id);
+    await tx.$queryRaw`SELECT id FROM couples WHERE id = ${coupleId} FOR UPDATE`;
     const couple = await tx.couple.findFirst({
-      where: { id: coupleId, deletedAt: null },
+      where: { id: coupleId, deletedAt: null, members: { some: { userId: user.id, status: "ACTIVE" } } },
       select: { id: true, status: true },
     });
     if (!couple) throw new NotFoundError("That couple space no longer exists.");
     if (couple.status === CoupleStatus.ARCHIVED) {
       throw new ConflictError("This space is already archived.");
     }
-    await tx.coupleMember.updateMany({
-      where: { coupleId, status: CoupleMemberStatus.ACTIVE },
-      data: { status: CoupleMemberStatus.LEFT },
-    });
-    await tx.couple.update({
-      where: { id: coupleId },
-      data: { status: CoupleStatus.ARCHIVED },
-    });
+    await archiveCoupleInTransaction(tx, coupleId, new Date());
   });
 }
 

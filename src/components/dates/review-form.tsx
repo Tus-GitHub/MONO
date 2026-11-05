@@ -39,11 +39,13 @@ const textsSchema = z.object({ lovedText: z.string(), betterText: z.string(), re
 
 export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string }) {
   const confirm = useConfirm();
-  const [draftState, draftAction] = useActionState(saveReviewDraftAction, idleState);
-  const [submitState, submitAction] = useActionState(submitReviewAction, idleState);
+  const [state, reviewAction] = useActionState(async (previous: ActionState, formData: FormData) => {
+    return formData.get("intent") === "submit"
+      ? submitReviewAction(previous, formData)
+      : saveReviewDraftAction(previous, formData);
+  }, idleState);
   const [, deleteAction] = useActionState(deleteReviewAction, idleState);
 
-  const state: ActionState = submitState.status !== "idle" ? submitState : draftState;
   const fieldErrors = state.status === "error" ? state.fieldErrors : undefined;
 
   const my = ctx.myReview;
@@ -67,12 +69,12 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
   const { value: texts, setValue: setTexts } = textsDraft;
 
   useEffect(() => {
-    if (draftState.status === "success") {
+    if (state.status === "success") {
       [scoresDraft, overallDraft, touchedDraft, revisitDraft, noteDraft, textsDraft].forEach((draft) => draft.clear());
     }
     // A completed save is the event; subsequent edits must create a new draft.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftState]);
+  }, [state]);
 
   const scoredValues = Object.values(scores).filter((n): n is number => n != null);
   const suggested = suggestedOverall(scoredValues);
@@ -93,8 +95,8 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
   };
 
   return (
-    <form action={draftAction} className="space-y-7" noValidate>
-      <UnsavedGuard />
+    <form action={reviewAction} className="space-y-7" noValidate>
+      <UnsavedGuard state={state} valueKey={JSON.stringify([scores, overall, revisit, revisitNote, texts])} />
       <input type="hidden" name="dateId" value={ctx.dateId} />
       <input type="hidden" name="personalRevisitNote" value={revisitNote} />
 
@@ -279,7 +281,7 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
           <SubmitButton variant="secondary" pendingText="Saving…">
             Save draft
           </SubmitButton>
-          <SubmitButton formAction={submitAction} pendingText="Submitting…">
+          <SubmitButton name="intent" value="submit" pendingText="Submitting…">
             Submit my side
           </SubmitButton>
         </div>

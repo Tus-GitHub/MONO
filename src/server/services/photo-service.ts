@@ -4,6 +4,7 @@ import { DateStatus, Prisma } from "@prisma/client";
 
 import { authorizeDate, authorizePhoto, requireCoupleContext } from "@/lib/authz";
 import type { CoverImage, PhotoView, WallPhoto } from "@/lib/date/photo-view";
+import { PHOTO_WALL_CURSOR_MAX_LENGTH } from "@/lib/date/photo-pagination";
 import { prisma } from "@/lib/db/prisma";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import type { ProcessedImage } from "@/lib/images";
@@ -14,6 +15,8 @@ import {
   type PhotoVariant,
 } from "@/lib/storage";
 import { logDateEvent } from "@/server/services/date-event-service";
+import { withDateWrite } from "@/server/services/date-write";
+import { queueStorageCleanup, STAGED_UPLOAD_MS } from "@/server/services/storage-cleanup-service";
 
 const PHOTOGRAPHABLE_STATUSES: DateStatus[] = [
   DateStatus.TODAY,
@@ -124,7 +127,8 @@ async function storeVariants(
     display: datePhotoVariantKey(baseKey, "display", processed.ext),
     thumb: datePhotoVariantKey(baseKey, "thumb", processed.ext),
   };
-  await Promise.all([
+  await queueStorageCleanup(Object.values(keys), new Date(Date.now() + STAGED_UPLOAD_MS));
+  const results = await Promise.allSettled([
     storage.put({
       key: keys.original,
       body: processed.original.buffer,
@@ -141,13 +145,9 @@ async function storeVariants(
       contentType: processed.thumb.contentType,
     }),
   ]);
+  const failed = results.find((result) => result.status === "rejected");
+  if (failed?.status === "rejected") throw failed.reason;
   return keys;
-}
-
-async function removeKeys(keys: (string | null | undefined)[]): Promise<void> {
-  await Promise.all(
-    keys.filter((k): k is string => Boolean(k)).map((k) => storage.delete(k).catch(() => undefined)),
-  );
 }
 
 /** Store a processed upload against a date and record the row. */
@@ -164,30 +164,32 @@ export async function addDatePhoto(
   const baseKey = buildDatePhotoBaseKey(context.couple.id, resource.id, filename);
   const keys = await storeVariants(baseKey, processed);
 
-  const [max, date] = await Promise.all([
-    prisma.datePhoto.aggregate({
+  const { row, date } = await withDateWrite(dateId, async (tx, current) => {
+    if (!PHOTOGRAPHABLE_STATUSES.includes(current.status)) throw new ValidationError("Photos can be added once the date is under way.");
+    const max = await tx.datePhoto.aggregate({
       where: { dateId: resource.id },
       _max: { sortOrder: true },
-    }),
-    prisma.date.findUniqueOrThrow({ where: { id: resource.id }, select: { bestPhotoId: true } }),
-  ]);
+    });
 
-  const row = await prisma.datePhoto.create({
-    data: {
-      dateId: resource.id,
-      uploadedById: context.user.id,
-      storageKey: keys.original,
-      displayKey: keys.display,
-      thumbKey: keys.thumb,
-      blurDataUrl: processed.blurDataUrl || null,
-      url: storage.publicUrl(keys.original),
-      width: processed.width || null,
-      height: processed.height || null,
-      sizeBytes: processed.original.bytes,
-      contentType: processed.original.contentType,
-      sortOrder: (max._max.sortOrder ?? -1) + 1,
-    },
-    select: PHOTO_SELECT,
+    const row = await tx.datePhoto.create({
+      data: {
+        dateId: resource.id,
+        uploadedById: context.user.id,
+        storageKey: keys.original,
+        displayKey: keys.display,
+        thumbKey: keys.thumb,
+        blurDataUrl: processed.blurDataUrl || null,
+        url: storage.publicUrl(keys.original),
+        width: processed.width || null,
+        height: processed.height || null,
+        sizeBytes: processed.original.bytes,
+        contentType: processed.original.contentType,
+        sortOrder: (max._max.sortOrder ?? -1) + 1,
+      },
+      select: PHOTO_SELECT,
+    });
+    await tx.storageCleanup.deleteMany({ where: { key: { in: Object.values(keys) } } });
+    return { row, date: current };
   });
 
   await logDateEvent(resource.id, context.user.id, "PHOTO_ADDED", "added a photo");
@@ -201,17 +203,13 @@ export async function replaceDatePhoto(
   filename: string,
 ): Promise<PhotoView> {
   const { context, resource } = await authorizePhoto(photoId);
-  const old = {
-    storageKey: resource.storageKey,
-    displayKey: resource.displayKey,
-    thumbKey: resource.thumbKey,
-  };
-
   const baseKey = buildDatePhotoBaseKey(context.couple.id, resource.date.id, filename);
   const keys = await storeVariants(baseKey, processed);
 
-  const [row, date] = await Promise.all([
-    prisma.datePhoto.update({
+  const { row, date } = await withDateWrite(resource.date.id, async (tx, date) => {
+    const current = await tx.datePhoto.findFirst({ where: { id: photoId, dateId: date.id, deletedAt: null } });
+    if (!current) throw new NotFoundError("That photo is no longer available.");
+    const row = await tx.datePhoto.update({
       where: { id: resource.id },
       data: {
         storageKey: keys.original,
@@ -225,14 +223,11 @@ export async function replaceDatePhoto(
         contentType: processed.original.contentType,
       },
       select: PHOTO_SELECT,
-    }),
-    prisma.date.findUniqueOrThrow({
-      where: { id: resource.date.id },
-      select: { bestPhotoId: true },
-    }),
-  ]);
-
-  await removeKeys([old.storageKey, old.displayKey, old.thumbKey]);
+    });
+    await queueStorageCleanup([current.storageKey, current.displayKey, current.thumbKey], undefined, tx);
+    await tx.storageCleanup.deleteMany({ where: { key: { in: Object.values(keys) } } });
+    return { row, date };
+  });
   await logDateEvent(resource.date.id, context.user.id, "PHOTO_ADDED", "replaced a photo");
   return toPhotoView(row, date.bestPhotoId);
 }
@@ -247,21 +242,23 @@ export async function setPhotoCaption(photoId: string, caption: string | undefin
 
 export async function deleteDatePhoto(photoId: string) {
   const { resource } = await authorizePhoto(photoId);
-  await prisma.$transaction([
-    prisma.memory.updateMany({
+  await withDateWrite(resource.date.id, async (tx, date) => {
+    const current = await tx.datePhoto.findFirst({ where: { id: photoId, dateId: date.id, deletedAt: null } });
+    if (!current) throw new NotFoundError();
+    await tx.memory.updateMany({
       where: { coverPhotoId: resource.id },
       data: { coverPhotoId: null },
-    }),
-    prisma.date.updateMany({
+    });
+    await tx.date.updateMany({
       where: { bestPhotoId: resource.id },
       data: { bestPhotoId: null },
-    }),
-    prisma.datePhoto.update({
+    });
+    await tx.datePhoto.update({
       where: { id: resource.id },
       data: { deletedAt: new Date() },
-    }),
-  ]);
-  await removeKeys([resource.storageKey, resource.displayKey, resource.thumbKey]);
+    });
+    await queueStorageCleanup([current.storageKey, current.displayKey, current.thumbKey], undefined, tx);
+  });
 }
 
 /** Part 4 — set (or clear, with `null`) the couple's one "most like us" photo for a date. */
@@ -349,16 +346,24 @@ export interface PhotoWallPage {
 }
 
 /**
- * Cursor-paginated best-photo wall for the dedicated page — ordered by `completedAt` (always
- * set on a completed date) so the cursor is a single, stable field. The cursor is the last
- * item's `completedAt` ISO string.
+ * Cursor-paginated best-photo wall. Both timestamp and ID are needed when completions share a time.
  */
 export async function getBestPhotoWallPage(
   cursor?: string,
   take = PHOTO_WALL_PAGE_SIZE,
 ): Promise<PhotoWallPage> {
   const { couple } = await requireCoupleContext();
-  const before = cursor ? new Date(cursor) : null;
+  take = Math.min(Math.max(Math.trunc(take) || 1, 1), 100);
+  let before: { at: Date; id: string } | null = null;
+  if (cursor && cursor.length <= PHOTO_WALL_CURSOR_MAX_LENGTH) {
+    try {
+      const value = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
+      if (typeof value.at === "string" && typeof value.id === "string" && /^[a-z0-9_-]{1,64}$/i.test(value.id)) {
+        const at = new Date(value.at);
+        if (!Number.isNaN(at.getTime())) before = { at, id: value.id };
+      }
+    } catch { /* A malformed/old cursor starts a fresh page without weakening couple scope. */ }
+  }
 
   const rows = await prisma.date.findMany({
     where: {
@@ -366,12 +371,13 @@ export async function getBestPhotoWallPage(
       deletedAt: null,
       status: DateStatus.COMPLETED,
       bestPhotoId: { not: null },
-      ...(before && !Number.isNaN(before.getTime())
-        ? { completedAt: { lt: before } }
+      bestPhoto: { deletedAt: null },
+      ...(before
+        ? { OR: [{ completedAt: { lt: before.at } }, { completedAt: before.at, id: { lt: before.id } }] }
         : {}),
     },
-    orderBy: { completedAt: "desc" },
-    take: take + 1,
+    orderBy: [{ completedAt: "desc" }, { id: "desc" }],
+    take: Math.min(Math.max(take, 1), 100) + 1,
     select: { ...WALL_DATE_SELECT, completedAt: true, bestPhoto: { select: PHOTO_SELECT } },
   });
 
@@ -385,7 +391,8 @@ export async function getBestPhotoWallPage(
         ? [{ ...toPhotoView(date.bestPhoto, date.bestPhotoId), ...wallDateContext(date) }]
         : [],
     ),
-    nextCursor: hasMore && last?.completedAt ? last.completedAt.toISOString() : null,
+    nextCursor: hasMore && last?.completedAt
+      ? Buffer.from(JSON.stringify({ at: last.completedAt.toISOString(), id: last.id })).toString("base64url") : null,
   };
 }
 

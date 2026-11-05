@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  startTransition,
   useActionState,
   useCallback,
   useEffect,
@@ -14,8 +15,9 @@ import { useRouter } from "next/navigation";
 import { Portal, useBackButton, useEscapeKey, useScrollLock } from "@/components/ui/_dialog-primitives";
 import { Icon } from "@/components/ui/icon";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 import type { PhotoView } from "@/lib/date/photo-view";
-import { idleState } from "@/lib/utils/result";
+import { idleState, type ActionState } from "@/lib/utils/result";
 import { cn } from "@/lib/utils/cn";
 import {
   deleteDatePhotoAction,
@@ -45,13 +47,25 @@ export function PhotoLightbox({
 }) {
   const router = useRouter();
   const confirm = useConfirm();
-  const [, captionAction] = useActionState(setPhotoCaptionAction, idleState);
-  const [, bestAction, bestPending] = useActionState(setBestCouplePhotoAction, idleState);
+  const { toast } = useToast();
+  const [editing, setEditing] = useState(false);
+  const [captionDraft, setCaptionDraft] = useState("");
+  const [, captionAction, captionPending] = useActionState(async (previous: ActionState, formData: FormData) => {
+    const result = await setPhotoCaptionAction(previous, formData);
+    if (result.status === "error") toast({ title: result.message, variant: "error" });
+    if (result.status === "success") { setEditing(false); router.refresh(); }
+    return result;
+  }, idleState);
+  const [, bestAction, bestPending] = useActionState(async (previous: ActionState, formData: FormData) => {
+    const result = await setBestCouplePhotoAction(previous, formData);
+    if (result.status === "error") toast({ title: result.message, variant: "error" });
+    if (result.status === "success") router.refresh();
+    return result;
+  }, idleState);
 
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [swipeX, setSwipeX] = useState(0);
-  const [editing, setEditing] = useState(false);
   const [interacting, setInteracting] = useState(false);
 
   const stageRef = useRef<HTMLDivElement>(null);
@@ -173,8 +187,6 @@ export function PhotoLightbox({
 
   const runCaption = (formData: FormData) => {
     captionAction(formData);
-    setEditing(false);
-    setTimeout(() => router.refresh(), 150);
   };
 
   const setBest = () => {
@@ -182,8 +194,7 @@ export function PhotoLightbox({
     const fd = new FormData();
     fd.set("dateId", dateId);
     fd.set("photoId", photo.isBest ? "" : photo.id);
-    bestAction(fd);
-    setTimeout(() => router.refresh(), 150);
+    startTransition(() => bestAction(fd));
   };
 
   const remove = async () => {
@@ -197,7 +208,11 @@ export function PhotoLightbox({
     const fd = new FormData();
     fd.set("dateId", dateId);
     fd.set("photoId", photo.id);
-    await deleteDatePhotoAction(idleState, fd);
+    const result = await deleteDatePhotoAction(idleState, fd);
+    if (result.status !== "success") {
+      if (result.status === "error") toast({ title: result.message, variant: "error" });
+      return;
+    }
     if (count <= 1) onClose();
     else {
       onIndex(Math.min(index, count - 2));
@@ -233,7 +248,7 @@ export function PhotoLightbox({
                 >
                   <Icon name="star" size={17} />
                 </ChromeButton>
-                <ChromeButton label="Edit caption" onClick={() => setEditing((v) => !v)}>
+                <ChromeButton label="Edit caption" onClick={() => { setCaptionDraft(photo.caption ?? ""); setEditing((v) => !v); }}>
                   <Icon name="pencil" size={16} />
                 </ChromeButton>
               </>
@@ -295,13 +310,15 @@ export function PhotoLightbox({
               <input type="hidden" name="photoId" value={photo.id} />
               <input
                 name="caption"
-                defaultValue={photo.caption ?? ""}
+                value={captionDraft}
+                onChange={(event) => setCaptionDraft(event.target.value)}
                 placeholder="Add a caption"
                 autoFocus
                 className="h-9 flex-1 rounded-lg border border-white/25 bg-white/10 px-3 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/40"
               />
               <button
                 type="submit"
+                disabled={captionPending}
                 className="rounded-lg bg-white/15 px-3 text-xs font-medium text-white hover:bg-white/25"
               >
                 Save
@@ -312,7 +329,7 @@ export function PhotoLightbox({
           ) : !readOnly ? (
             <button
               type="button"
-              onClick={() => setEditing(true)}
+              onClick={() => { setCaptionDraft(photo.caption ?? ""); setEditing(true); }}
               className="text-xs text-white/50 hover:text-white/80"
             >
               Add a caption

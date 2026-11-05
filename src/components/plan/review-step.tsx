@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { startTransition, useActionState } from "react";
 import { DateStatus } from "@prisma/client";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
@@ -62,7 +62,7 @@ export function ReviewStep({ plan }: { plan: PlanDateDTO }) {
       if (!ok) return;
       const fd = new FormData();
       fd.set("dateId", plan.id);
-      action(fd);
+      startTransition(() => action(fd));
     };
 
   return (
@@ -125,7 +125,7 @@ export function ReviewStep({ plan }: { plan: PlanDateDTO }) {
           onClick={() => {
             const fd = new FormData();
             fd.set("dateId", plan.id);
-            duplicate(fd);
+            startTransition(() => duplicate(fd));
           }}
           className="inline-flex items-center gap-1.5 text-muted transition-colors hover:text-ink"
         >

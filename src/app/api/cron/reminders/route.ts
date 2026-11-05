@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   }
   try {
     const result = await dispatchScheduledReminders();
-    return Response.json(result, { status: result.failedUsers ? 503 : 200, headers });
+    return Response.json(result, { status: result.failedUsers || result.delivery?.failed || result.cleanup?.failed ? 503 : 200, headers });
   } catch (error) {
     console.error("[reminder-scheduler] run failed:", error);
     return Response.json({ error: "Reminder dispatch failed" }, { status: 503, headers });

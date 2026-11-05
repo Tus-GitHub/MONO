@@ -46,6 +46,10 @@ export function PhotoUploader({
   const activeRef = useRef(0);
   const canceledRef = useRef<Set<string>>(new Set());
   const pumpRef = useRef<() => void>(() => {});
+  const itemsRef = useRef(items);
+  const tasksRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => { itemsRef.current = items; }, [items]);
 
   const patch = useCallback((id: string, next: Partial<UploadItem>) => {
     setItems((list) => list.map((it) => (it.id === id ? { ...it, ...next } : it)));
@@ -105,6 +109,7 @@ export function PhotoUploader({
   const processOne = useCallback(
     async (id: string, file: File) => {
       const done = () => {
+        tasksRef.current.delete(id);
         activeRef.current = Math.max(0, activeRef.current - 1);
         pumpRef.current();
       };
@@ -148,6 +153,8 @@ export function PhotoUploader({
 
   const enqueue = useCallback(
     (id: string, file: File) => {
+      if (tasksRef.current.has(id)) return;
+      tasksRef.current.add(id);
       queueRef.current.push({ id, file });
       pump();
     },
@@ -185,21 +192,16 @@ export function PhotoUploader({
   // Connection came back — re-queue anything that failed, without asking for the files again.
   useEffect(() => {
     const onOnline = () => {
-      let any = false;
-      setItems((list) =>
-        list.map((it) => {
-          if (it.status !== "error") return it;
-          any = true;
-          canceledRef.current.delete(it.id);
-          queueRef.current.push({ id: it.id, file: it.file });
-          return { ...it, status: "queued", error: undefined, progress: 0 };
-        }),
-      );
-      if (any) pump();
+      for (const item of itemsRef.current) {
+        if (item.status !== "error") continue;
+        canceledRef.current.delete(item.id);
+        patch(item.id, { status: "queued", error: undefined, progress: 0 });
+        enqueue(item.id, item.file);
+      }
     };
     window.addEventListener("online", onOnline);
     return () => window.removeEventListener("online", onOnline);
-  }, [pump]);
+  }, [enqueue, patch]);
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -215,6 +217,7 @@ export function PhotoUploader({
     // Still queued or preparing — pull it before it starts.
     canceledRef.current.add(item.id);
     queueRef.current = queueRef.current.filter((t) => t.id !== item.id);
+    if (item.status === "queued") tasksRef.current.delete(item.id);
     patch(item.id, { status: "canceled" });
   };
   const retry = (item: UploadItem) => {

@@ -71,6 +71,15 @@ export function EnableBrowserNotifications() {
       }
       const reg = await navigator.serviceWorker.ready.catch(() => null);
       const sub = reg ? await reg.pushManager.getSubscription() : null;
+      if (sub && !cancelled) {
+        const fd = new FormData();
+        fd.set("subscription", JSON.stringify(sub.toJSON()));
+        const result = await savePushSubscriptionAction(idleState, fd).catch(() => null);
+        if (result?.status !== "success") {
+          if (!cancelled) setState("off");
+          return;
+        }
+      }
       if (!cancelled) setState(sub ? "on" : "off");
     })();
     return () => {
@@ -117,12 +126,19 @@ export function EnableBrowserNotifications() {
     try {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
-      await sub?.unsubscribe().catch(() => undefined);
       const fd = new FormData();
       fd.set("subscription", "null");
-      await savePushSubscriptionAction(idleState, fd);
+      if (sub) fd.set("endpoint", sub.endpoint);
+      const result = await savePushSubscriptionAction(idleState, fd);
+      if (result.status === "error") {
+        toast({ title: result.message, variant: "error" });
+        return;
+      }
+      await sub?.unsubscribe().catch(() => undefined);
       setState("off");
       toast({ title: "Browser reminders off." });
+    } catch {
+      toast({ title: "Couldn't turn off reminders. Try again.", variant: "error" });
     } finally {
       setBusy(false);
     }

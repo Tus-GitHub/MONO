@@ -7,6 +7,7 @@ import type { CoverImage } from "@/lib/date/photo-view";
 import { prisma } from "@/lib/db/prisma";
 import { notifyCouple } from "@/server/services/notification-service";
 import { PHOTO_SELECT, resolveDateCover } from "@/server/services/photo-service";
+import { planTimeToInstant, todayYmdInTimeZone } from "@/lib/utils/timezone";
 
 const HOUR = 3_600_000;
 
@@ -26,7 +27,8 @@ export interface CalendarDate {
  * calendar / upcoming / home reads so status stays honest without a scheduler.
  */
 export async function promoteDueDates(coupleId: string): Promise<void> {
-  const startOfToday = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`);
+  const couple = await prisma.couple.findUniqueOrThrow({ where: { id: coupleId }, select: { timezone: true } });
+  const startOfToday = new Date(`${todayYmdInTimeZone(couple.timezone)}T00:00:00.000Z`);
   const endOfToday = new Date(startOfToday.getTime() + 24 * HOUR);
   await prisma.date.updateMany({
     where: {
@@ -37,14 +39,14 @@ export async function promoteDueDates(coupleId: string): Promise<void> {
     },
     data: { status: DateStatus.TODAY },
   });
-  await nudgeStaleDates(coupleId);
+  await nudgeStaleDates(coupleId, couple.timezone);
 }
 
 /**
  * A date whose time has clearly passed but which is still TODAY / IN_PROGRESS needs a wrap-up.
  * One "needs completion" notification per date per day — never for a cancelled or deleted date.
  */
-async function nudgeStaleDates(coupleId: string): Promise<void> {
+async function nudgeStaleDates(coupleId: string, timeZone: string): Promise<void> {
   try {
     const cutoff = new Date(Date.now() - 18 * HOUR);
     const stale = await prisma.date.findMany({
@@ -52,18 +54,16 @@ async function nudgeStaleDates(coupleId: string): Promise<void> {
         coupleId,
         deletedAt: null,
         status: { in: [DateStatus.TODAY, DateStatus.IN_PROGRESS] },
-        OR: [
-          { plannedEndAt: { lt: cutoff } },
-          { AND: [{ plannedEndAt: null }, { scheduledFor: { lt: cutoff } }] },
-        ],
       },
-      select: { id: true, title: true },
-      take: 10,
+      select: { id: true, title: true, plannedEndAt: true, scheduledFor: true },
     });
     if (stale.length === 0) return;
 
     const since = new Date(Date.now() - 24 * HOUR);
-    for (const date of stale) {
+    for (const date of stale.filter((date) => {
+      const end = planTimeToInstant(date.plannedEndAt ?? date.scheduledFor, timeZone);
+      return end != null && end < cutoff;
+    }).slice(0, 10)) {
       const recent = await prisma.notification.findFirst({
         where: {
           coupleId,

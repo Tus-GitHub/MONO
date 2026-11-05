@@ -19,6 +19,7 @@ import {
   type DateRecommendation,
 } from "@/server/services/recommendation-service";
 import { dispatchDueReminders } from "@/server/services/reminder-service";
+import { planTimeToInstant } from "@/lib/utils/timezone";
 
 /** A section either loaded, or it didn't — so one failing query never blanks the whole page. */
 export type Section<T> = { ok: true; value: T } | { ok: false };
@@ -80,6 +81,7 @@ export interface UpcomingDateView {
   scheduledFor: string | null;
   startAt: string | null;
   endAt: string | null;
+  countdownAt: string | null;
   activities: string[];
   activityCount: number;
   expectedBudgetCents: number | null;
@@ -97,6 +99,7 @@ async function getUpcomingDate(coupleId: string): Promise<UpcomingDateView | nul
       { createdAt: "asc" },
     ],
     include: {
+      couple: { select: { timezone: true } },
       plannedPlace: { select: { name: true, city: true, category: true } },
       bestPhoto: { select: PHOTO_SELECT },
       activities: {
@@ -121,6 +124,7 @@ async function getUpcomingDate(coupleId: string): Promise<UpcomingDateView | nul
     placeCity: date.plannedPlace?.city ?? null,
     placeCategory: date.plannedPlace?.category ?? null,
     scheduledFor: date.scheduledFor?.toISOString() ?? null,
+    countdownAt: planTimeToInstant(date.plannedStartAt ?? date.scheduledFor, date.couple.timezone)?.toISOString() ?? null,
     startAt: date.plannedStartAt?.toISOString() ?? null,
     endAt: date.plannedEndAt?.toISOString() ?? null,
     activities: date.activities.slice(0, 4).map((activity) => activity.title),

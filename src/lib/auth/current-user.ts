@@ -3,9 +3,9 @@ import "server-only";
 import { cache } from "react";
 
 import { AuthenticationError } from "@/lib/errors";
-import { prisma } from "@/lib/db/prisma";
 import { readSessionToken } from "@/lib/auth/session-cookie";
 import { verifySession } from "@/lib/auth/session";
+import { resolveSessionUser } from "@/lib/auth/session-store";
 
 /** The authenticated user as the app is allowed to see it — never includes `passwordHash`. */
 export interface SessionUser {
@@ -30,22 +30,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   const payload = await verifySession(token);
   if (!payload) return null;
 
-  const user = await prisma.user.findFirst({
-    where: { id: payload.userId, deletedAt: null },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      avatarUrl: true,
-      emailVerified: true,
-      createdAt: true,
-      tokenVersion: true,
-    },
-  });
-  if (!user || user.tokenVersion !== payload.tokenVersion) return null;
-
-  const { tokenVersion: _tokenVersion, ...safe } = user;
-  return safe;
+  return resolveSessionUser(payload);
 });
 
 /** Same as `getCurrentUser` but throws `AuthenticationError` when unauthenticated. */

@@ -27,6 +27,7 @@ const ConfirmContext = createContext<ConfirmFn | null>(null);
 export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
   const resolver = useRef<((value: boolean) => void) | null>(null);
+  const acceptedResolver = useRef<((value: boolean) => void) | null>(null);
 
   const confirm = useCallback<ConfirmFn>((opts) => {
     setOptions(opts);
@@ -36,9 +37,20 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const settle = useCallback((value: boolean) => {
-    resolver.current?.(value);
+    const resolve = resolver.current;
+    if (!resolve) return;
     resolver.current = null;
+    // Redirecting actions must start after the modal's history.back traversal,
+    // or the restored editor route can overwrite the action's destination.
+    if (value) acceptedResolver.current = resolve;
+    else resolve(false);
     setOptions(null);
+  }, []);
+
+  const finishHistoryClose = useCallback((stayedOnPage: boolean) => {
+    const resolve = acceptedResolver.current;
+    acceptedResolver.current = null;
+    resolve?.(stayedOnPage);
   }, []);
 
   return (
@@ -47,6 +59,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       <Modal
         open={options !== null}
         onClose={() => settle(false)}
+        onHistoryClosed={finishHistoryClose}
         title={options?.title}
         description={options?.description}
         size="sm"

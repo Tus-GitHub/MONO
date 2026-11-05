@@ -37,3 +37,10 @@ it.each([0, 1])("returns aggregate counts without caching (failed users: %s)", a
   expect(await response.json()).toEqual(result);
   expect(mocks.dispatch).toHaveBeenCalledWith();
 });
+
+it.each(["delivery", "cleanup"])("reports persisted worker failures (%s)", async (section) => {
+  mocks.dispatch.mockResolvedValue({ users: 0, delivered: 0, failedUsers: 0, [section]: { failed: 1 } });
+  expect((await GET(new Request("https://mono.test/api/cron/reminders", {
+    headers: { Authorization: `Bearer ${mocks.env.CRON_SECRET}` },
+  }))).status).toBe(503);
+});

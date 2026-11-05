@@ -3,21 +3,19 @@ import "server-only";
 import { DateStatus, NotificationType, ReminderKind } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
-import { getNotificationChannels } from "@/lib/notifications/channels";
+import { enqueueNotification, processNotificationDeliveries } from "@/server/services/notification-delivery-service";
 import {
   DEFAULT_CATEGORY_PREFS,
   type NotificationCategory,
 } from "@/lib/notifications/prefs";
 import { REMINDER_CATEGORY_OF } from "@/lib/notifications/types";
 import { formatWallDate, formatWallTime } from "@/lib/utils/format";
-import { zonedTimeToUtc } from "@/lib/utils/timezone";
+import { planTimeToInstant, zonedTimeToUtc } from "@/lib/utils/timezone";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 /** A reminder more than this far past its time is treated as expired. */
 const STALE_MS = 2 * DAY;
-/** Don't create the same date's reminder-notification twice inside this window. */
-const REDELIVER_MS = 18 * HOUR;
 
 const LIVE_STATUSES: DateStatus[] = [
   DateStatus.PLANNED,
@@ -95,7 +93,7 @@ export async function ensureRemindersForDate(dateId: string): Promise<void> {
     return;
   }
 
-  const startsAt = date.plannedStartAt ?? date.scheduledFor;
+  const startsAt = planTimeToInstant(date.plannedStartAt ?? date.scheduledFor, date.couple.timezone)!;
   const ymd = date.scheduledFor.toISOString().slice(0, 10);
   const dayAt = zonedTimeToUtc(ymd, 9, 0, date.couple.timezone); // 09:00 in the couple's tz
   const memberIds = await activeMemberIds(date.coupleId);
@@ -339,7 +337,7 @@ export async function getDueReminders(userId: string, now: Date = new Date()) {
       take: 25,
       include: {
         date: {
-          select: { id: true, title: true, status: true, scheduledFor: true, plannedStartAt: true },
+          select: { id: true, coupleId: true, title: true, status: true, scheduledFor: true, plannedStartAt: true },
         },
       },
     }),
@@ -366,8 +364,16 @@ export async function getDueReminders(userId: string, now: Date = new Date()) {
 
   if (expiredIds.length > 0) {
     await prisma.dateReminder
-      .updateMany({ where: { id: { in: expiredIds } }, data: { dismissedAt: now } })
-      .catch(() => undefined);
+      .updateMany({
+        where: {
+          sentAt: null,
+          dismissedAt: null,
+          OR: rows.filter((row) => expiredIds.includes(row.id)).map((row) => ({
+            id: row.id, scheduledFor: row.scheduledFor,
+          })),
+        },
+        data: { dismissedAt: now },
+      });
   }
 
   return live;
@@ -375,14 +381,13 @@ export async function getDueReminders(userId: string, now: Date = new Date()) {
 
 /**
  * Deliver every due reminder across all channels. Idempotent — a reminder is marked `sentAt`
- * only once the in-app row is written, so a transient failure retries next pass. Also skips a
- * date whose same reminder-notification landed in the last 18h. Safe to call on page load.
+ * only once the in-app row is written, so a transient failure retries next pass. Each kind
+ * and explicitly rescheduled occurrence can notify independently. Safe to call on page load.
  */
-export async function dispatchDueReminders(userId: string): Promise<number> {
+export async function dispatchDueRemindersDetailed(userId: string) {
   const due = await getDueReminders(userId);
-  if (due.length === 0) return 0;
-
   let delivered = 0;
+  let failed = 0;
   for (const reminder of due) {
     try {
       const type = NOTIF_TYPE_OF[reminder.kind];
@@ -393,7 +398,7 @@ export async function dispatchDueReminders(userId: string): Promise<number> {
         body: message.body,
         entityType: "Date",
         entityId: reminder.date.id,
-        data: { reminderKind: reminder.kind, reminderId: reminder.id },
+        data: { reminderKind: reminder.kind, reminderId: reminder.id, scheduledFor: reminder.scheduledFor.toISOString() },
       };
       // Claim and persist together. A competing tab/cron waits for the row lock, then
       // sees sentAt set. A failed notification insert rolls back the claim for retry.
@@ -406,31 +411,22 @@ export async function dispatchDueReminders(userId: string): Promise<number> {
           data: { sentAt: new Date() },
         });
         if (claim.count === 0) return false;
-        const recent = await tx.notification.findFirst({
-          where: {
-            userId, type, entityId: reminder.date.id,
-            createdAt: { gte: new Date(Date.now() - REDELIVER_MS) },
-          },
-          select: { id: true },
-        });
-        if (recent) return false;
-        await tx.notification.create({ data: { userId, ...payload } });
+        await enqueueNotification(tx, userId, payload, reminder.date.coupleId);
         return true;
       });
       if (!written) continue;
-      // External delivery stays outside the DB transaction and is best-effort.
-      for (const channel of getNotificationChannels().filter((c) => c.name !== "inapp")) {
-        try {
-          const result = await channel.deliver(userId, payload);
-          if (!result.ok) console.error(`[reminder] ${channel.name} delivery failed`);
-        } catch (error) {
-          console.error(`[reminder] ${channel.name} delivery failed:`, error);
-        }
-      }
       delivered += 1;
     } catch (error) {
+      failed += 1;
       console.error("[reminder] dispatch failed:", error);
     }
   }
-  return delivered;
+  return { delivered, failed };
+}
+
+/** Signed-in polling also retries earlier pending pushes when no new reminder is due. */
+export async function dispatchDueReminders(userId: string): Promise<number> {
+  const result = await dispatchDueRemindersDetailed(userId);
+  await processNotificationDeliveries({ userId }).catch(() => undefined);
+  return result.delivered;
 }

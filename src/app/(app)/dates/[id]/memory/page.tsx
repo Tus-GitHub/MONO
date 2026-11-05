@@ -10,7 +10,7 @@ import { getMemoryContext } from "@/server/services/memory-service";
 export const metadata: Metadata = { title: "Keep the memory" };
 
 export default async function MemoryPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireOnboarded();
+  const { user } = await requireOnboarded();
   const { id } = await params;
 
   let context;
@@ -31,6 +31,7 @@ export default async function MemoryPage({ params }: { params: Promise<{ id: str
       />
       <MemoryForm
         dateId={id}
+        userId={user.id}
         dateTitle={context.dateTitle}
         photos={context.photos}
         memory={context.memory}

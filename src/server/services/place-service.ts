@@ -14,10 +14,12 @@ import { prisma } from "@/lib/db/prisma";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { getExternalPlaceProvider } from "@/lib/places";
 import { averageScore } from "@/lib/review/scale";
+import { sharedReviews } from "@/lib/date/review-reveal";
 import { storage } from "@/lib/storage";
 import { logDateEvent } from "@/server/services/date-event-service";
 import { getPlaceHistoryMap, score10 } from "@/server/services/place-history";
 import type { CustomPlaceInput, SelectPlaceInput } from "@/lib/validation/place";
+import { assertPlanEditable, withDateWrite } from "@/server/services/date-write";
 
 export interface PlaceSummary {
   id: string;
@@ -148,9 +150,15 @@ export async function setDatePlannedPlace(
   input: SelectPlaceInput,
 ): Promise<PlaceSummary> {
   const { context, resource } = await authorizeDate(dateId);
+  assertPlanEditable(resource);
   const place = await resolvePlace(context, input);
-  if (resource.plannedPlaceId !== place.id) {
-    await prisma.date.update({ where: { id: resource.id }, data: { plannedPlaceId: place.id } });
+  const changed = await withDateWrite(dateId, async (tx, current) => {
+    assertPlanEditable(current);
+    if (current.plannedPlaceId === place.id) return false;
+    await tx.date.update({ where: { id: current.id }, data: { plannedPlaceId: place.id } });
+    return true;
+  });
+  if (changed) {
     await logDateEvent(
       resource.id,
       context.user.id,
@@ -162,9 +170,12 @@ export async function setDatePlannedPlace(
 }
 
 export async function clearDatePlannedPlace(dateId: string): Promise<void> {
-  const { context, resource } = await authorizeDate(dateId);
+  const { context, resource } = await withDateWrite(dateId, async (tx, current, context) => {
+    assertPlanEditable(current);
+    await tx.date.update({ where: { id: current.id }, data: { plannedPlaceId: null } });
+    return { context, resource: current };
+  });
   if (resource.plannedPlaceId) {
-    await prisma.date.update({ where: { id: resource.id }, data: { plannedPlaceId: null } });
     await logDateEvent(resource.id, context.user.id, "PLACE_CHANGED", "removed the place");
   }
 }
@@ -174,19 +185,21 @@ export async function setActivityPlace(
   activityId: string,
   savedPlaceId: string | null,
 ): Promise<void> {
-  const { context, resource } = await authorizeDate(dateId);
+  await withDateWrite(dateId, async (tx, resource, context) => {
+  assertPlanEditable(resource);
   if (savedPlaceId) {
-    const place = await prisma.place.findFirst({
+    const place = await tx.place.findFirst({
       where: { id: savedPlaceId, coupleId: context.couple.id, deletedAt: null },
       select: { id: true },
     });
     if (!place) throw new NotFoundError("That place isn't in your list.");
   }
-  const result = await prisma.dateActivity.updateMany({
+  const result = await tx.dateActivity.updateMany({
     where: { id: activityId, dateId: resource.id, kind: "PLANNED" },
     data: { placeId: savedPlaceId },
   });
   if (result.count === 0) throw new NotFoundError("That activity isn't on this date.");
+  });
 }
 
 // --- detail + couple intelligence ----------------------------------------
@@ -229,7 +242,7 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
   const { context, resource } = await authorizePlace(placeId);
   const coupleId = context.couple.id;
 
-  const [datesHere, historyMap, sameCategory] = await Promise.all([
+  const [datesHere, historyMap, sameCategory, members] = await Promise.all([
     prisma.date.findMany({
       where: {
         coupleId,
@@ -242,7 +255,7 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
         id: true,
         title: true,
         completedAt: true,
-        reviews: { where: { submittedAt: { not: null } }, select: { overallRating: true } },
+        reviews: { select: { authorId: true, submittedAt: true, overallRating: true } },
         revisitDecision: { select: { choice: true, reason: true } },
         photos: {
           where: { deletedAt: null },
@@ -258,10 +271,12 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
       select: { id: true, name: true },
       take: 30,
     }),
+    prisma.coupleMember.findMany({ where: { coupleId, status: "ACTIVE" }, select: { userId: true } }),
   ]);
 
+  const memberIds = members.map((member) => member.userId);
   const allScores = datesHere.flatMap((date) =>
-    date.reviews.map((r) => r.overallRating).filter((n): n is number => n != null),
+    sharedReviews(date.reviews, memberIds).map((r) => r.overallRating).filter((n): n is number => n != null),
   );
   const coupleScore10 = averageScore(allScores);
   const lastRevisitDate = datesHere.find((date) => date.revisitDecision);
@@ -324,7 +339,7 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
       lastRevisit: lastRevisitDate?.revisitDecision?.choice ?? null,
       lastRevisitReason: lastRevisitDate?.revisitDecision?.reason ?? null,
       dates: datesHere.slice(0, 5).map((date) => {
-        const overalls = date.reviews
+        const overalls = sharedReviews(date.reviews, memberIds)
           .map((r) => r.overallRating)
           .filter((n): n is number => n != null);
         return {

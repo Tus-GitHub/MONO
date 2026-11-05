@@ -23,8 +23,6 @@ const PROTECTED_PREFIXES = [
   "/settings",
 ];
 
-const AUTH_ONLY_PATHS = ["/login", "/register"];
-
 function isProtected(pathname: string): boolean {
   return PROTECTED_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
@@ -44,12 +42,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (session && AUTH_ONLY_PATHS.includes(pathname)) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/home";
-    url.search = "";
-    return NextResponse.redirect(url);
-  }
+  // Auth pages check the database-backed session themselves. A signature-valid but revoked
+  // cookie must be allowed through here, otherwise /login and /home redirect in a loop.
 
   return NextResponse.next();
 }

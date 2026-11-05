@@ -134,6 +134,7 @@ export class WebPushChannel implements PushChannel {
 
     const res = await fetch(subscription.endpoint, {
       signal: AbortSignal.timeout(10_000),
+      redirect: "error",
       method: "POST",
       headers: {
         Authorization: await this.vapidHeader(origin),

@@ -13,7 +13,7 @@ import {
   type PreferenceGap,
 } from "@/lib/couple/insights";
 import { PLACE_CATEGORY_LABEL } from "@/lib/date/place-category";
-import { dateCoupleScore, isRevealed } from "@/lib/date/review-reveal";
+import { dateCoupleScore, sharedReviews } from "@/lib/date/review-reveal";
 import { averageScore } from "@/lib/review/scale";
 import { prisma } from "@/lib/db/prisma";
 import { formatMoney } from "@/lib/utils/format";
@@ -131,6 +131,7 @@ export async function getCoupleProfile(
           scheduledFor: true,
           actualStartAt: true,
           actualSpendCents: true,
+          currency: true,
           actualPlace: { select: { id: true, name: true, category: true, city: true } },
           plannedPlace: { select: { id: true, name: true, category: true, city: true } },
           revisitDecision: { select: { choice: true } },
@@ -143,7 +144,7 @@ export async function getCoupleProfile(
             },
           },
           activities: { select: { title: true } },
-          expenses: { where: { deletedAt: null }, select: { amountCents: true } },
+          expenses: { where: { deletedAt: null }, select: { amountCents: true, currency: true } },
         },
       }),
       prisma.reviewCategory.findMany({
@@ -151,7 +152,8 @@ export async function getCoupleProfile(
         orderBy: { sortOrder: "asc" },
         select: { id: true, key: true, label: true, sortOrder: true },
       }),
-      prisma.expense.aggregate({
+      prisma.expense.groupBy({
+        by: ["currency"],
         where: { coupleId, deletedAt: null },
         _sum: { amountCents: true },
         _count: { _all: true },
@@ -206,8 +208,8 @@ export async function getCoupleProfile(
       activityTally.set(key, entry);
     }
 
-    const submitted = date.reviews.filter((r) => r.submittedAt != null);
-    const revealed = isRevealed(submitted.length, hasPartner);
+    const submitted = sharedReviews(date.reviews, members.map((member) => member.id));
+    const revealed = submitted.length > 0;
 
     const overalls = submitted
       .map((r) => r.overallRating)
@@ -234,12 +236,13 @@ export async function getCoupleProfile(
       }
     }
 
+    const baseExpenses = date.expenses.filter((expense) => expense.currency === date.currency);
     const spendCents =
       date.actualSpendCents ??
-      (date.expenses.length > 0
-        ? date.expenses.reduce((sum, e) => sum + e.amountCents, 0)
+      (baseExpenses.length > 0
+        ? baseExpenses.reduce((sum, e) => sum + e.amountCents, 0)
         : 0);
-    perDateSpend.push({ title: date.title, score: coupleScore, spendCents });
+    if (date.currency === couple.currency) perDateSpend.push({ title: date.title, score: coupleScore, spendCents });
   }
 
   // --- Statistics (part 2) -------------------------------------------------
@@ -259,6 +262,7 @@ export async function getCoupleProfile(
   )[0];
 
   const currency = couple.currency;
+  const currentCurrencySpend = spendAgg.find((group) => group.currency === currency);
   const statistics: DateStatistics = {
     totalDates,
     completedDates: completed.length,
@@ -276,7 +280,7 @@ export async function getCoupleProfile(
           count: favoriteCategoryEntry[1],
         }
       : null,
-    totalSpendCents: spendAgg._count._all > 0 ? (spendAgg._sum.amountCents ?? 0) : null,
+    totalSpendCents: currentCurrencySpend ? (currentCurrencySpend._sum.amountCents ?? 0) : null,
     currency,
   };
 

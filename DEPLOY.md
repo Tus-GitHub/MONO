@@ -36,7 +36,7 @@ in the local `.env` are for development only.
 
 | Name | Example / how to get it |
 |---|---|
-| `DATABASE_URL` | Neon **pooled** connection string (`...-pooler...`), ending `?sslmode=require&pgbouncer=true&connect_timeout=15` |
+| `DATABASE_URL` | Neon **direct/unpooled** production connection string with `sslmode=require&connect_timeout=15&connection_limit=5` (current code uses the same URL for migrations and runtime) |
 | `AUTH_SECRET` | 48 random bytes — `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
 | `APP_URL` | `https://your-domain` (or the `*.vercel.app` URL). Used for invite links, password-reset links, OAuth redirects. |
 | `STORAGE_DRIVER` | `s3` |
@@ -99,10 +99,11 @@ everything.
 ## 3. Database setup (Neon)
 
 1. Create a Neon project. Use the **production** branch for prod; a separate branch for dev.
-2. In *Connect*, enable **Connection pooling** and copy the **pooled** string (host contains
-   `-pooler`). That's `DATABASE_URL`.
+2. In *Connect*, disable **Connection pooling** and copy the direct string for
+   `DATABASE_URL`. The current Prisma 6 schema uses this URL for both runtime and migrations.
+   A future pooled runtime setup should add a separate direct migration URL first.
 3. First deploy runs the migration automatically (below). To do it by hand:
-   `DATABASE_URL=<prod pooled> npx prisma migrate deploy`.
+   `DATABASE_URL=<prod direct> npx prisma migrate deploy`.
 4. Neon free-tier compute auto-suspends when idle; the first request after a pause takes
    ~0.5 s. `connect_timeout=15` in the URL absorbs it.
 

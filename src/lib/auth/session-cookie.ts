@@ -1,6 +1,7 @@
 import "server-only";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { createAuthSession } from "@/lib/auth/session-store";
 
 import {
   SESSION_COOKIE_NAME,
@@ -24,11 +25,12 @@ export async function readSessionToken(): Promise<string | null> {
  * cookie that clears when the browser closes ("remember me" unchecked).
  */
 export async function writeSessionCookie(
-  payload: SessionPayload,
+  payload: Pick<SessionPayload, "userId" | "tokenVersion">,
   remember = true,
 ): Promise<void> {
-  const token = await signSession(payload, remember);
   const store = await cookies();
+  const session = await createAuthSession(payload, remember, (await headers()).get("user-agent"), store.get("mono_push_device")?.value);
+  const token = await signSession({ ...payload, sessionId: session.id }, remember);
   store.set(
     SESSION_COOKIE_NAME,
     token,

@@ -1,13 +1,10 @@
 import "server-only";
 
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import type { NotificationType } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
-import { getPushChannel } from "@/lib/notifications/push";
-import { notificationHref } from "@/lib/notifications/types";
-import { PushSubscriptionGoneError } from "@/lib/notifications/web-push";
-import { setPushSubscription } from "@/server/services/notification-preference-service";
+import { enqueueNotification, processNotificationDeliveries } from "@/server/services/notification-delivery-service";
 
 /**
  * Delivery is provider-agnostic. A `NotificationChannel` takes a resolved payload and gets it to
@@ -41,17 +38,7 @@ class InAppChannel implements NotificationChannel {
   readonly name = "inapp";
   async deliver(userId: string, payload: DeliverablePayload): Promise<DeliveryResult> {
     try {
-      await prisma.notification.create({
-        data: {
-          userId,
-          type: payload.type,
-          title: payload.title,
-          body: payload.body ?? null,
-          entityType: payload.entityType ?? null,
-          entityId: payload.entityId ?? null,
-          data: payload.data ?? Prisma.DbNull,
-        },
-      });
+      await prisma.$transaction((tx) => enqueueNotification(tx, userId, payload));
       return { channel: this.name, ok: true };
     } catch (error) {
       return { channel: this.name, ok: false, error: String(error) };
@@ -59,40 +46,12 @@ class InAppChannel implements NotificationChannel {
   }
 }
 
-/** Best-effort browser push via whatever provider `push.ts` returns (Noop until wired). */
+/** Flush persisted push work without recreating the in-app notification. */
 class PushRelayChannel implements NotificationChannel {
   readonly name = "push";
-  async deliver(userId: string, payload: DeliverablePayload): Promise<DeliveryResult> {
-    try {
-      const pref = await prisma.notificationPreference.findUnique({
-        where: { userId },
-        select: { pushEnabled: true, pushSubscription: true },
-      });
-      if (!pref?.pushEnabled || !pref.pushSubscription) {
-        return { channel: this.name, ok: true, skipped: true };
-      }
-      try {
-        await getPushChannel().send(pref.pushSubscription, {
-          title: payload.title,
-          body: payload.body ?? "",
-          url: notificationHref({
-            type: payload.type,
-            entityType: payload.entityType ?? null,
-            entityId: payload.entityId ?? null,
-          }),
-        });
-      } catch (error) {
-        if (error instanceof PushSubscriptionGoneError) {
-          // The browser unsubscribed / the endpoint rotated — forget it so we stop trying.
-          await setPushSubscription(userId, null).catch(() => undefined);
-          return { channel: this.name, ok: true, skipped: true };
-        }
-        throw error;
-      }
-      return { channel: this.name, ok: true };
-    } catch (error) {
-      return { channel: this.name, ok: false, error: String(error) };
-    }
+  async deliver(userId: string, _payload: DeliverablePayload): Promise<DeliveryResult> {
+    const result = await processNotificationDeliveries({ userId });
+    return { channel: this.name, ok: result.failed === 0 };
   }
 }
 
@@ -111,9 +70,12 @@ export async function deliverNotification(
   userId: string,
   payload: DeliverablePayload,
 ): Promise<{ ok: boolean; results: DeliveryResult[] }> {
-  const results = await Promise.all(
-    getNotificationChannels().map((channel) => channel.deliver(userId, payload)),
-  );
+  const results: DeliveryResult[] = [];
+  for (const channel of getNotificationChannels()) {
+    try { results.push(await channel.deliver(userId, payload)); }
+    catch { results.push({ channel: channel.name, ok: false, error: "delivery_failed" }); }
+    if (channel.name === "inapp" && !results[0].ok) break;
+  }
   for (const r of results) {
     if (!r.ok) console.error(`[notify] channel ${r.channel} failed: ${r.error}`);
   }

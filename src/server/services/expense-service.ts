@@ -2,12 +2,13 @@ import "server-only";
 
 import { DateStatus, NotificationType } from "@prisma/client";
 
-import { authorizeDate, authorizeExpense, type CoupleContext } from "@/lib/authz";
+import { authorizeExpense, type CoupleContext } from "@/lib/authz";
 import { resolvePayer } from "@/lib/date/expense-split";
 import { prisma } from "@/lib/db/prisma";
 import { ValidationError } from "@/lib/errors";
 import type { DateExpenseInput } from "@/lib/validation/date";
 import { notifyPartner } from "@/server/services/notification-service";
+import { withDateWrite } from "@/server/services/date-write";
 
 const SPENDABLE_STATUSES: DateStatus[] = [
   DateStatus.TODAY,
@@ -36,19 +37,24 @@ function resolveExpense(context: CoupleContext, input: DateExpenseInput) {
 
 /** Add a spend line to a date — the quick action during the date, and edits after. */
 export async function addDateExpense(dateId: string, input: DateExpenseInput): Promise<string> {
-  const { context, resource } = await authorizeDate(dateId);
-  if (!SPENDABLE_STATUSES.includes(resource.status)) {
-    throw new ValidationError("Track spending once the date is under way.");
-  }
+  const { context, resource, expense } = await withDateWrite(dateId, async (tx, resource, context) => {
+    if (!SPENDABLE_STATUSES.includes(resource.status)) {
+      throw new ValidationError("Track spending once the date is under way.");
+    }
 
-  const expense = await prisma.expense.create({
-    data: {
-      coupleId: context.couple.id,
-      dateId: resource.id,
-      recordedById: context.user.id,
-      currency: input.currency ?? resource.currency,
-      ...resolveExpense(context, input),
-    },
+    if (input.currency && input.currency !== resource.currency) {
+      throw new ValidationError(`Record this date's spending in ${resource.currency}. Use a separate date for another currency.`);
+    }
+    const expense = await tx.expense.create({
+      data: {
+        coupleId: context.couple.id,
+        dateId: resource.id,
+        recordedById: context.user.id,
+        currency: resource.currency,
+        ...resolveExpense(context, input),
+      },
+    });
+    return { context, resource, expense };
   });
 
   await notifyPartner({
@@ -67,6 +73,16 @@ export async function addDateExpense(dateId: string, input: DateExpenseInput): P
 /** Correct any part of a spend line — description, amount, category, payer, split, note, time. */
 export async function updateDateExpense(expenseId: string, input: DateExpenseInput): Promise<void> {
   const { context, resource } = await authorizeExpense(expenseId);
+  if (resource.dateId) {
+    await withDateWrite(resource.dateId, async (tx, date, currentContext) => {
+      if (input.currency && input.currency !== date.currency) throw new ValidationError(`Record this date's spending in ${date.currency}.`);
+      await tx.expense.updateMany({
+        where: { id: resource.id, coupleId: currentContext.couple.id, deletedAt: null },
+        data: { currency: date.currency, ...resolveExpense(currentContext, input) },
+      });
+    });
+    return;
+  }
   await prisma.expense.update({
     where: { id: resource.id },
     data: {

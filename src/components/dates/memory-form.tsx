@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { startTransition, useActionState, useEffect, useState } from "react";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
 import { OfflineNotice } from "@/components/system/offline-notice";
@@ -27,11 +27,13 @@ interface Memory {
 
 export function MemoryForm({
   dateId,
+  userId,
   dateTitle,
   photos,
   memory,
 }: {
   dateId: string;
+  userId: string;
   dateTitle: string;
   photos: PhotoView[];
   memory: Memory | null;
@@ -44,8 +46,8 @@ export function MemoryForm({
   const [cover, setCover] = useState<string>(memory?.coverPhotoId ?? "");
 
   // Keep the two long text fields on the device so a crash / lost connection doesn't lose them.
-  const titleDraft = useLocalDraft(`mono:memory:${dateId}:title`, memory?.title ?? dateTitle);
-  const bodyDraft = useLocalDraft(`mono:memory:${dateId}:body`, memory?.body ?? "");
+  const titleDraft = useLocalDraft(`mono:memory:${userId}:${dateId}:title`, memory?.title ?? dateTitle);
+  const bodyDraft = useLocalDraft(`mono:memory:${userId}:${dateId}:body`, memory?.body ?? "");
 
   useEffect(() => {
     if (state.status === "success") {
@@ -67,7 +69,7 @@ export function MemoryForm({
     if (!ok) return;
     const fd = new FormData();
     fd.set("dateId", dateId);
-    deleteAction(fd);
+    startTransition(() => deleteAction(fd));
   };
 
   return (

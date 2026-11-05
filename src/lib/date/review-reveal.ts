@@ -5,6 +5,30 @@
 
 import { averageScore } from "@/lib/review/scale";
 
+type ReviewSubmission = { authorId: string; submittedAt: Date | string | null };
+
+/** Shared reads never include drafts, former members, or a single partner's hidden score. */
+export function sharedReviews<T extends ReviewSubmission>(
+  reviews: readonly T[],
+  activeMemberIds: readonly string[],
+): T[] {
+  const members = new Set(activeMemberIds);
+  if (members.size === 0) return [];
+  const submitted = reviews.filter((review) => members.has(review.authorId) && review.submittedAt != null);
+  if (new Set(submitted.map((review) => review.authorId)).size !== members.size) return [];
+  return submitted;
+}
+
+/** A viewer can always retrieve their own work; partner content requires the shared reveal. */
+export function reviewsForViewer<T extends ReviewSubmission>(
+  reviews: readonly T[],
+  viewerId: string,
+  activeMemberIds: readonly string[],
+): T[] {
+  const shared = new Set(sharedReviews(reviews, activeMemberIds));
+  return reviews.filter((review) => review.authorId === viewerId || shared.has(review));
+}
+
 export type ReviewStage =
   | "none" // I haven't started
   | "draft" // I have a private draft, not submitted

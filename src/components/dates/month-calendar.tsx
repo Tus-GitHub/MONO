@@ -26,13 +26,14 @@ export function MonthCalendar({
   month,
   selectedDay,
   dates,
+  today,
 }: {
   month: string;
   selectedDay: string;
   dates: Record<string, CalendarDate[]>;
+  today: string;
 }) {
   const [year, m] = month.split("-").map(Number);
-  const today = new Date().toISOString().slice(0, 10);
   // Monday-first offset for the 1st of the month.
   const firstDow = (new Date(Date.UTC(year, m - 1, 1)).getUTCDay() + 6) % 7;
   const daysInMonth = new Date(Date.UTC(year, m, 0)).getUTCDate();

@@ -30,9 +30,11 @@ Browser
 
 - **Passwords** — `bcryptjs`, cost 12. Never stored or logged in plaintext. Strength rules in
   `password.ts` (`passwordSchema`).
-- **Sessions** — stateless. A signed JWT (`jose`, HS256, `AUTH_SECRET`) in an httpOnly,
+- **Sessions** — a signed reference JWT (`jose`, HS256, `AUTH_SECRET`) in an httpOnly,
   SameSite=Lax, `Secure`-in-prod cookie. The token embeds `User.tokenVersion`; bumping it
-  (done on password reset) invalidates every existing session with no server-side store.
+  invalidates every existing session. Each request also checks its AuthSession row for owner,
+  version, expiry and revocation. The proxy only checks signatures; protected handlers perform
+  the authoritative database check. Auth pages accept revoked cookies so sign-in cannot loop.
 - **Helpers**
   - `getCurrentUser()` — `SessionUser | null`, memoized per request (`React.cache`).
   - `requireUser()` — throws `AuthenticationError` (actions / route handlers).
@@ -184,7 +186,8 @@ per-person breakdown for the viewer who set them.
 from the session, streamed as an attachment), sign-out, and a danger zone. "Disconnect
 partner" (`disconnectCouple`) archives the shared space and sets both memberships to `LEFT` —
 nothing is hard-deleted, so support can restore it; "Delete account" (`deleteAccount`) does the
-same to the couple, then soft-deletes the user and bumps `tokenVersion` to kill every session.
+same to the couple and closes the account in one transaction, including session revocation,
+credential/reset-token removal and cancellation of delivery capabilities.
 Both are confirmed — `useConfirm` for disconnect, a typed-"DELETE" form for deletion.
 
 ## Explore — discovery engine (`/explore`, `src/server/services/explore-service.ts`)
@@ -310,18 +313,47 @@ every card/hero. The client renders through `<Photo>` (aspect-ratio box, blur-up
   `<OfflineNotice>` warns inside long forms. `use-local-draft.ts` mirrors a form field to
   `localStorage` (wired into `<MemoryForm>`), and the plan flow server-autosaves each step, so
   draft work survives a reload or a dropped connection. Uploads retry per-item.
-- **Pagination**: `getBestPhotoWallPage(cursor)` (cursor = last `completedAt`) feeds
+- **Pagination**: `getBestPhotoWallPage(cursor)` (cursor encodes `completedAt` and unique ID) feeds
   `<PhotoWall>`'s IntersectionObserver infinite scroll with a "Load more" fallback; date
   history is capped at 250 with an on-screen note. `getFavorites` counts visits in one pass
   rather than one query per place.
 
 ## Tests (`npm test` → Vitest)
 
-68 unit tests over the pure business-rule modules — `lib/review/scale` + `comparison`,
+212 unit tests over business rules, integrations and action boundaries, including `lib/review/scale` + `comparison`,
 `lib/date/review-reveal` + `lifecycle`, `lib/date/expense-split` + `expense-breakdown`,
 `lib/explore/compatibility`, `lib/utils/timezone` — plus `lib/authz/couple` (couple isolation,
 with `prisma` + the session mocked). Node environment, no DB, no DOM. `vitest.config.ts` maps
 the `@/*` alias and stubs the `server-only` / `client-only` build guards.
+
+`npm run test:integration` applies the migrations and runs 75 regression cases against a real,
+isolated local PostgreSQL database. The launcher requires `MONO_TEST_DATABASE_URL`, refuses
+non-loopback hosts and database names outside `mono_test_*`, and does not fall back to the
+application DATABASE_URL. Authentication is simulated per async test context; persistence,
+constraints, locks and transactions are real. See `docs/testing.md`. The GitHub Actions
+workflow runs lint, type checks, both suites and a production build with a disposable PostgreSQL 17 service.
+
+`npm run test:e2e` adds real Chromium browser journeys against its own local app server and an
+explicit `mono_test_e2e_*` database. The current CI workflow still runs the unit/database/build
+checks; browser tests are runnable locally. See `docs/testing.md` for scope and safe setup.
+
+## Privacy and mutation safeguards added after the audit
+
+- Exports include the viewer's own reviews and revealed active-member reviews only. Place
+  aggregates and recommendations use the same shared-review filter.
+- Plan writes, activity/place changes, lifecycle changes and review mutations share a parent-date
+  lock inside a serializable transaction. Ownership and current state are checked after locking.
+- Basics/budget form saves carry Date.version; stale forms receive conflict feedback and keep
+  their device drafts. The version advances with related writes, including expense additions.
+- Serialization/deadlock retries include raw PostgreSQL SQLSTATE 40001/40P01, which Prisma can
+  expose as P2010 when a locking query conflicts.
+- Existing plan wall-time storage remains compatible; countdowns and reminder scheduling explicitly
+  convert through the couple timezone. Calendar defaults, date validation and day mode use that zone.
+- Date expenses enforce the date currency; historical aggregates group by currency and never
+  relabel a sum as converted money. Existing mixed-currency rows contribute only to their currency.
+- A new migration adds plan versions, score/money/budget/coordinate CHECKs and partial unique
+  indexes for active membership. It has been tested locally and still needs application to the
+  intended non-test database before running this version there.
 
 ## Deployment work remaining
 
@@ -345,4 +377,53 @@ the `@/*` alias and stubs the `server-only` / `client-only` build guards.
 - Couple creation/join and invitation acceptance use serializable transactions with bounded
   conflict retries so simultaneous joins cannot exceed the two-person constraint.
 - Scheduled reminders: bearer-authenticated endpoint and optional standalone worker;
-  in-app notification and sent marker commit together, then push is best-effort.
+  in-app notification, sent marker and per-browser delivery tasks commit together. The
+  scheduler and signed-in poller process retryable push tasks after commit.
+
+## Durable delivery and media cleanup
+
+PushSubscription stores each browser separately. Enabling one browser preserves others;
+disabling or expiring a subscription removes only that endpoint. A stale expiry response checks
+the stored keys as well as the update timestamp before deleting. Logout unlinks the current
+authenticated browser (or its migrated legacy entry). Registration accepts supported provider
+HTTPS endpoints with correctly shaped encryption keys; notification payloads are never sent to
+arbitrary client-provided hosts.
+
+NotificationDelivery is a transactional outbox. Workers atomically claim tasks with two-minute
+leases, perform HTTP outside the transaction, and retry with bounded backoff (six attempts).
+Permission/category changes, archived spaces, removed dates, completed review/memory actions,
+and snoozed occurrences cancel obsolete work. Attempts are at least once; stable notification
+tags reduce duplicate browser displays. Provider acceptance is not proof the device displayed it.
+Exhausted tasks remain FAILED with bounded error codes, not response bodies or endpoint secrets.
+
+StorageCleanup reserves keys before any upload bytes are written. Successful database commits
+remove the reservation; failed or interrupted uploads leave an orphan cleanup task. Replacements
+and deletions enqueue old keys in the same transaction as the reference change. Deleted media is
+retained for seven days, then a leased worker checks current references and deletes it idempotently.
+An active reference cancels deletion. Storage errors retry and eventually remain inspectable.
+This recovery window is separate from the portable archive/restore API documented below.
+
+The media route verifies current references after membership authorization. Retained deleted
+objects return 404. New responses use private cache revalidation and authorize conditional ETag
+requests before returning 304. Previously downloaded files cannot be recalled from a device.
+
+History streams bounded batches before applying month/score display filters and the 250-item
+display cap; totals count all matches. Photo-wall cursors contain completion time plus unique ID
+so equal timestamps cannot skip photos. The existing visible layout is unchanged.
+
+## Archive and account controls
+
+Portable archives include versioned relational data and embedded media, with size bounds,
+checksums, graph validation and privacy filtering. Restore creates fresh IDs and storage keys
+in an empty current space after both active members approve the exact archive. A transactional
+receipt prevents replay; staged object cleanup handles failed uploads/rollbacks. Credentials,
+sessions and delivery tasks are excluded. See [archive/restore](archive-restore.md).
+
+AuthSession stores revocable per-device sessions behind signed httpOnly cookie references.
+Account-security mutations validate current session state again under a user lock. Revocation,
+password change/reset and account closure invalidate relevant capabilities in the same
+transaction; no provider calls occur in it. Couple membership/invitation changes also check
+living users under that lock to serialize against closure. See [account/session controls](account-sessions.md).
+
+The UI remains the existing reference. New restore/session operations are backend endpoints
+documented for use without adding screens. Production migration, keys and deployment are deferred.

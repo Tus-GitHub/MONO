@@ -114,6 +114,7 @@ export default async function DateDetailPage({
           }
           startedAtIso={date.startedAt}
           plannedStartIso={plan.startIso}
+          timezone={date.timezone}
           activities={plan.activities}
           place={plan.place}
           currency={date.currency}

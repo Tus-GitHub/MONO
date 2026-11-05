@@ -3,11 +3,11 @@ import { SignJWT, jwtVerify } from "jose";
 import { env, isProduction } from "@/config/env";
 
 /**
- * Stateless session tokens.
+ * Signed references to revocable database sessions.
  *
  * The session is a signed JWT carried in an httpOnly cookie. It embeds the user's
  * `tokenVersion`; bumping `User.tokenVersion` (e.g. on password reset) invalidates every
- * outstanding session without server-side session storage. This module is runtime-agnostic
+ * outstanding session. Protected operations also validate the database session. This module is runtime-agnostic
  * (only `jose`) so it can also run inside `src/proxy.ts`.
  */
 export const SESSION_COOKIE_NAME = env.SESSION_COOKIE_NAME;
@@ -20,12 +20,13 @@ const secret = new TextEncoder().encode(env.AUTH_SECRET);
 export interface SessionPayload {
   userId: string;
   tokenVersion: number;
+  sessionId: string;
 }
 
 const SESSION_ONLY_SECONDS = 24 * 60 * 60; // "don't remember me" — one day, browser-session cookie
 
 export async function signSession(payload: SessionPayload, remember = true): Promise<string> {
-  return new SignJWT({ tv: payload.tokenVersion })
+  return new SignJWT({ tv: payload.tokenVersion, sid: payload.sessionId })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(payload.userId)
     .setIssuedAt()
@@ -40,9 +41,11 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
     const { payload } = await jwtVerify(token, secret, {
       issuer: ISSUER,
       audience: AUDIENCE,
+      algorithms: ["HS256"],
     });
-    if (typeof payload.sub !== "string" || typeof payload.tv !== "number") return null;
-    return { userId: payload.sub, tokenVersion: payload.tv };
+    if (typeof payload.sub !== "string" || !payload.sub || !Number.isInteger(payload.tv)
+      || Number(payload.tv) < 0 || typeof payload.sid !== "string" || !/^[a-zA-Z0-9_-]{1,128}$/.test(payload.sid)) return null;
+    return { userId: payload.sub, tokenVersion: Number(payload.tv), sessionId: payload.sid };
   } catch {
     return null;
   }
@@ -63,3 +66,4 @@ export function sessionCookieOptions(maxAgeSeconds?: number) {
 }
 
 export const SESSION_MAX_AGE_SECONDS = MAX_AGE_SECONDS;
+export const SESSION_ONLY_MAX_AGE_SECONDS = SESSION_ONLY_SECONDS;

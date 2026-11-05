@@ -211,6 +211,7 @@ model User {
   deletedAt DateTime?
 
   accounts            Account[]
+  sessions            AuthSession[]
   passwordResetTokens PasswordResetToken[]
   memberships         CoupleMember[]
   notifications       Notification[]
@@ -229,6 +230,8 @@ model User {
   dateEvents             DateEvent[]              @relation("DateEventActor")
   dateReminders          DateReminder[]
   notificationPreference NotificationPreference?
+  pushSubscriptions      PushSubscription[]
+  notificationDeliveries NotificationDelivery[]
   recommendationFeedback RecommendationFeedback[]
 
   @@index([deletedAt])
@@ -236,6 +239,25 @@ model User {
 }
 
 /// OAuth / external identities. Present so Google sign-in can be added without a schema change.
+model AuthSession {
+  id           String    @id @default(cuid())
+  userId       String
+  tokenVersion Int
+  deviceLabel  String    @default("Browser")
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  lastSeenAt   DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([expiresAt])
+  pushSubscriptions PushSubscription[]
+  @@map("auth_sessions")
+}
+
 model Account {
   id                String       @id @default(cuid())
   userId            String
@@ -308,6 +330,7 @@ model Couple {
   expenses         Expense[]
   memories         Memory[]
   notifications    Notification[]
+  archiveRestore   ArchiveRestore?
 
   recommendationFeedback RecommendationFeedback[]
 
@@ -319,6 +342,17 @@ model Couple {
 /// A shareable, single-use, expiring link for the second person to join a couple.
 /// Only the SHA-256 hash of the token is stored — the raw token lives only in the share URL,
 /// never in the database, and it is not a database id.
+model ArchiveRestore {
+  id           String   @id @default(cuid())
+  coupleId     String   @unique
+  digest       String
+  restoredById String
+  restoredAt   DateTime @default(now())
+  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  @@map("archive_restores")
+}
+
 model CoupleInvitation {
   id           String    @id @default(cuid())
   coupleId     String
@@ -429,6 +463,7 @@ model Date {
   coupleId    String
   createdById String
   status      DateStatus @default(DRAFT)
+  version     Int        @default(0) // conditional plan saves reject stale browser drafts
 
   // --- Planning ---
   title                  String
@@ -736,6 +771,7 @@ model Notification {
 
   couple Couple? @relation(fields: [coupleId], references: [id], onDelete: Cascade)
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries NotificationDelivery[]
 
   @@index([userId, readAt])
   @@index([coupleId])
@@ -800,13 +836,82 @@ model NotificationPreference {
   unfinishedPlan   Boolean @default(true)
   partnerEdits     Boolean @default(true)
   pushEnabled      Boolean @default(false)
-  pushSubscription Json?
+  pushSubscription Json? // legacy only; migrated to push_subscriptions
 
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_preferences")
+}
+
+enum DeliveryStatus {
+  PENDING
+  PROCESSING
+  DELIVERED
+  CANCELLED
+  FAILED
+}
+
+model PushSubscription {
+  id        String @id @default(cuid())
+  userId    String
+  authSessionId String?
+  endpoint  String @unique
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries NotificationDelivery[]
+  authSession AuthSession? @relation(fields: [authSessionId], references: [id], onDelete: Cascade)
+
+  @@index([authSessionId])
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+/// Transactional outbox: one retryable delivery per notification and browser.
+model NotificationDelivery {
+  id             String @id @default(cuid())
+  notificationId String
+  userId         String
+  subscriptionId String?
+  status         DeliveryStatus @default(PENDING)
+  attempts       Int @default(0)
+  nextAttemptAt  DateTime @default(now())
+  leaseToken     String?
+  leaseUntil     DateTime?
+  deliveredAt    DateTime?
+  lastError      String? // bounded error codes, never endpoints or provider response bodies
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription PushSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@unique([notificationId, subscriptionId])
+  @@index([status, nextAttemptAt])
+  @@index([userId, status])
+  @@map("notification_deliveries")
+}
+
+/// Also reserves staged uploads so a crash cannot leave permanent unreferenced objects.
+model StorageCleanup {
+  id            String @id @default(cuid())
+  key           String @unique
+  attempts      Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  leaseToken    String?
+  leaseUntil    DateTime?
+  lastError     String?
+  failedAt      DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([failedAt, nextAttemptAt])
+  @@map("storage_cleanup")
 }
 
 /// Lightweight, couple-shared feedback on an Explore recommendation. One row per (couple,

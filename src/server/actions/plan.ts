@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { planGotoHref, planStepHref } from "@/lib/date/plan-steps";
+import { isPlanStep, planGotoHref, planStepHref } from "@/lib/date/plan-steps";
 import { errorState, successState, type ActionState } from "@/lib/utils/result";
 import { idSchema, toFieldErrors } from "@/lib/validation/common";
 import {
@@ -49,9 +49,16 @@ export async function saveStepAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const id = dateId(formData);
+  const parsedId = idSchema.safeParse(formData.get("dateId"));
+  if (!parsedId.success) return errorState("Choose a valid date plan.");
+  const id = parsedId.data;
+  const rawVersion = formData.get("version");
+  const version = typeof rawVersion === "string" && /^\d+$/.test(rawVersion) ? Number(rawVersion) : NaN;
+  if (!Number.isSafeInteger(version)) return errorState("Reload this plan before saving; your device draft is kept.");
   const step = String(formData.get("step") ?? "basics");
   const goto = String(formData.get("goto") ?? "budget");
+  if (step !== "basics" && step !== "budget") return errorState("Choose a valid planning step.");
+  if (goto !== "exit" && !isPlanStep(goto)) return errorState("Choose a valid next step.");
   const values = formValues(formData);
 
   try {
@@ -60,13 +67,13 @@ export async function saveStepAction(
       if (!parsed.success) {
         return errorState("Check the highlighted fields.", toFieldErrors(parsed.error));
       }
-      await updateBasics(id, parsed.data);
+      await updateBasics(id, parsed.data, version);
     } else if (step === "budget") {
       const parsed = dateBudgetSchema.safeParse(values);
       if (!parsed.success) {
         return errorState("Check the highlighted fields.", toFieldErrors(parsed.error));
       }
-      await updateBudget(id, parsed.data);
+      await updateBudget(id, parsed.data, version);
     }
   } catch (error) {
     return toActionError(error);

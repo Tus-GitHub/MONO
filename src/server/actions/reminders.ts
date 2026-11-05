@@ -2,6 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { cookies } from "next/headers";
+import { sessionCookieOptions } from "@/lib/auth/session";
+import { prisma } from "@/lib/db/prisma";
+import { pushEndpointSchema, pushSubscriptionSchema } from "@/lib/notifications/subscription";
 
 import { requireUser } from "@/lib/auth/current-user";
 import { authorizeDate } from "@/lib/authz";
@@ -21,6 +25,7 @@ import {
   snoozeReminder,
 } from "@/server/services/reminder-service";
 import { toActionError } from "@/server/actions/_helpers";
+import { requireAuthSession } from "@/server/services/session-service";
 
 const bool = (value: FormDataEntryValue | null) => value === "on" || value === "true";
 
@@ -44,10 +49,7 @@ export async function updateNotificationPrefsAction(
   return successState(undefined, "Preferences saved.");
 }
 
-const subscriptionSchema = z
-  .object({ endpoint: z.string().url() })
-  .passthrough()
-  .nullable();
+const subscriptionSchema = pushSubscriptionSchema.nullable();
 
 export async function savePushSubscriptionAction(
   _prev: ActionState,
@@ -62,7 +64,20 @@ export async function savePushSubscriptionAction(
     return errorState("That subscription looks malformed.");
   }
   try {
-    await setPushSubscription(user.id, parsed);
+    const cookieStore = await cookies();
+    if (parsed) {
+      const session = await requireAuthSession();
+      const device = await setPushSubscription(user.id, parsed, undefined, session.sessionId);
+      cookieStore.set("mono_push_device", device!.id, sessionCookieOptions(365 * 86_400));
+    } else {
+      const endpoint = pushEndpointSchema.safeParse(formData.get("endpoint"));
+      if (endpoint.success) await setPushSubscription(user.id, null, endpoint.data);
+      else {
+        const deviceId = cookieStore.get("mono_push_device")?.value;
+        if (deviceId) await prisma.pushSubscription.deleteMany({ where: { id: deviceId, userId: user.id } });
+      }
+      cookieStore.delete("mono_push_device");
+    }
   } catch (error) {
     return toActionError(error);
   }

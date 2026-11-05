@@ -54,6 +54,7 @@ export class S3StorageDriver implements StorageDriver {
         ContentType: input.contentType,
         CacheControl: "private, max-age=31536000, immutable",
       }),
+      { abortSignal: AbortSignal.timeout(20_000) },
     );
     return {
       key: input.key,
@@ -67,6 +68,7 @@ export class S3StorageDriver implements StorageDriver {
     try {
       const res = await this.client.send(
         new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+        { abortSignal: AbortSignal.timeout(20_000) },
       );
       const bytes = await res.Body?.transformToByteArray();
       if (!bytes) throw new NotFoundError();
@@ -79,12 +81,12 @@ export class S3StorageDriver implements StorageDriver {
 
   async delete(key: string): Promise<void> {
     // A delete of a missing object is a success — S3 returns 204 either way.
-    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }), { abortSignal: AbortSignal.timeout(8_000) });
   }
 
   async exists(key: string): Promise<boolean> {
     try {
-      await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
+      await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }), { abortSignal: AbortSignal.timeout(8_000) });
       return true;
     } catch (error) {
       if (isNotFound(error)) return false;

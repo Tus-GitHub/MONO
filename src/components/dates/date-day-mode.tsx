@@ -13,6 +13,7 @@ import type { TimelineInput } from "@/lib/date/timeline";
 import { formatWallTime, relativeTime, wallTimeFromIso } from "@/lib/utils/format";
 import { mapsLink } from "@/lib/utils/geo";
 import { cn } from "@/lib/utils/cn";
+import { minutesInTimeZone } from "@/lib/utils/timezone";
 
 interface DayPlace {
   name: string | null;
@@ -21,11 +22,6 @@ interface DayPlace {
   latitude: number | null;
   longitude: number | null;
   mapUrl: string | null;
-}
-
-function nowMinutes(): number {
-  const now = new Date();
-  return now.getHours() * 60 + now.getMinutes();
 }
 
 function directionsUrl(place: DayPlace): string | null {
@@ -45,6 +41,7 @@ export function DateDayMode({
   startedByLabel,
   startedAtIso,
   plannedStartIso,
+  timezone,
   activities,
   place,
   currency,
@@ -55,17 +52,18 @@ export function DateDayMode({
   startedByLabel: string | null;
   startedAtIso: string | null;
   plannedStartIso: string | null;
+  timezone: string;
   activities: TimelineInput[];
   place: DayPlace | null;
   currency: string;
   partnerName?: string;
 }) {
-  const [minutes, setMinutes] = useState<number>(() => nowMinutes());
+  const [minutes, setMinutes] = useState<number>(() => minutesInTimeZone(timezone));
 
   useEffect(() => {
-    const id = setInterval(() => setMinutes(nowMinutes()), 30_000);
+    const id = setInterval(() => setMinutes(minutesInTimeZone(timezone)), 30_000);
     return () => clearInterval(id);
-  }, []);
+  }, [timezone]);
 
   const view = buildDayView(plannedStartIso, activities, minutes);
   const started = status === DateStatus.IN_PROGRESS;

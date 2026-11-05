@@ -1,7 +1,13 @@
 import "server-only";
 
 import { prisma } from "@/lib/db/prisma";
-import { disconnectCouple } from "@/server/services/couple-service";
+import { requireCoupleContext } from "@/lib/authz";
+import { reviewsForViewer } from "@/lib/date/review-reveal";
+import { serializable } from "@/lib/db/serializable";
+import { requireSelf } from "@/lib/authz/user-write";
+import { AuthenticationError } from "@/lib/errors";
+import { Prisma } from "@prisma/client";
+import { archiveCoupleInTransaction } from "@/server/services/couple-archive";
 
 // ---------------------------------------------------------------------------
 // Data export (part 6) — everything the couple has put in, as plain JSON.
@@ -13,9 +19,10 @@ export interface CoupleExport {
   couple: unknown;
 }
 
-export async function exportCoupleData(coupleId: string): Promise<CoupleExport> {
+export async function exportCoupleData(): Promise<CoupleExport> {
+  const { couple: authorizedCouple, user } = await requireCoupleContext();
   const couple = await prisma.couple.findUniqueOrThrow({
-    where: { id: coupleId },
+    where: { id: authorizedCouple.id },
     select: {
       id: true,
       name: true,
@@ -55,6 +62,12 @@ export async function exportCoupleData(coupleId: string): Promise<CoupleExport> 
           status: true,
           notes: true,
           scheduledFor: true,
+          plannedStartAt: true,
+          plannedEndAt: true,
+          expectedBudgetCents: true,
+          expectedBudgetMinCents: true,
+          expectedBudgetMaxCents: true,
+          budgetSplit: true,
           actualStartAt: true,
           actualEndAt: true,
           actualLocationText: true,
@@ -109,6 +122,7 @@ export async function exportCoupleData(coupleId: string): Promise<CoupleExport> 
             },
           },
           memory: {
+            where: { deletedAt: null },
             select: { title: true, body: true, occurredOn: true, isFavorite: true, createdAt: true },
           },
         },
@@ -116,13 +130,25 @@ export async function exportCoupleData(coupleId: string): Promise<CoupleExport> 
       reviewCategories: {
         select: { id: true, key: true, label: true, sortOrder: true, isActive: true },
       },
+      memories: { where: { deletedAt: null, dateId: null } },
+      expenses: { where: { deletedAt: null, dateId: null } },
     },
   });
 
   return {
     exportedAt: new Date().toISOString(),
     format: "mono.couple.v1",
-    couple,
+    couple: {
+      ...couple,
+      dates: couple.dates.map((date) => ({
+        ...date,
+        reviews: reviewsForViewer(
+          date.reviews,
+          user.id,
+          couple.members.filter((member) => member.status === "ACTIVE").map((member) => member.user.id),
+        ),
+      })),
+    },
   };
 }
 
@@ -131,25 +157,38 @@ export async function exportCoupleData(coupleId: string): Promise<CoupleExport> 
 // ---------------------------------------------------------------------------
 
 export async function deleteAccount(userId: string): Promise<void> {
-  const memberships = await prisma.coupleMember.findMany({
-    where: { userId, status: "ACTIVE" },
-    select: { coupleId: true },
-  });
-
-  // A two-person space can't function with one person gone — archive it (soft, keeps all data).
-  for (const membership of memberships) {
-    await disconnectCouple(membership.coupleId).catch(() => {
-      /* already archived — fine */
+  await requireSelf(userId);
+  await serializable(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
+    const user = await tx.user.findUnique({ where: { id: userId }, select: { deletedAt: true } });
+    if (!user) throw new AuthenticationError();
+    if (user.deletedAt) return;
+    const now = new Date();
+    const memberships = await tx.coupleMember.findMany({
+      where: { userId, status: "ACTIVE" }, orderBy: { coupleId: "asc" }, select: { coupleId: true },
     });
-  }
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      deletedAt: new Date(),
-      // invalidate every existing session for this user
-      tokenVersion: { increment: 1 },
-    },
-    select: { id: true },
+    for (const { coupleId } of memberships) {
+      await tx.$queryRaw`SELECT id FROM couples WHERE id = ${coupleId} FOR UPDATE`;
+      await archiveCoupleInTransaction(tx, coupleId, now);
+    }
+    // Credentials and delivery capabilities disappear in the same commit as access.
+    await tx.authSession.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } });
+    await tx.account.deleteMany({ where: { userId } });
+    await tx.passwordResetToken.deleteMany({ where: { userId } });
+    await tx.pushSubscription.deleteMany({ where: { userId } });
+    await tx.notificationPreference.updateMany({
+      where: { userId }, data: { pushEnabled: false, pushSubscription: Prisma.DbNull },
+    });
+    await tx.dateReminder.updateMany({ where: { userId, dismissedAt: null }, data: { dismissedAt: now } });
+    await tx.notificationDelivery.updateMany({
+      where: { userId, status: { in: ["PENDING", "PROCESSING"] } },
+      data: { status: "CANCELLED", leaseToken: null, leaseUntil: null, lastError: "account_deleted" },
+    });
+    await tx.coupleInvitation.updateMany({
+      where: { createdById: userId, acceptedAt: null, revokedAt: null }, data: { revokedAt: now },
+    });
+    await tx.user.update({
+      where: { id: userId }, data: { deletedAt: now, passwordHash: null, tokenVersion: { increment: 1 } },
+    });
   });
 }

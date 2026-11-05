@@ -8,7 +8,7 @@ import { assertTransition, lifecycleTimestampsFor } from "@/lib/date/lifecycle";
 import { buildPipeline } from "@/lib/date/pipeline";
 import { budgetDelta, categoryBreakdown } from "@/lib/date/expense-breakdown";
 import { contributionsOf, ownerShareOf, payerFacing } from "@/lib/date/expense-split";
-import { isReviewEditable, reviewStage } from "@/lib/date/review-reveal";
+import { isReviewEditable, reviewsForViewer, reviewStage } from "@/lib/date/review-reveal";
 import { valueForMoney } from "@/lib/date/value-for-money";
 import { buildReviewComparison, revisitCompatibility } from "@/lib/review/comparison";
 import { prisma } from "@/lib/db/prisma";
@@ -21,6 +21,8 @@ import type {
 } from "@/lib/validation/date";
 import { logDateEvent } from "@/server/services/date-event-service";
 import { PHOTO_SELECT, toPhotoView } from "@/server/services/photo-service";
+import { withDateWrite } from "@/server/services/date-write";
+import { planTimeToInstant } from "@/lib/utils/timezone";
 import {
   ensureMemoryReminder,
   ensureRemindersForDate,
@@ -107,9 +109,9 @@ export async function listDates(params: { status?: DateStatus } = {}) {
 }
 
 export async function getDateDetail(dateId: string) {
-  const { resource } = await authorizeDate(dateId);
+  const { resource, context } = await authorizeDate(dateId);
 
-  return prisma.date.findUniqueOrThrow({
+  const date = await prisma.date.findUniqueOrThrow({
     where: { id: resource.id },
     include: {
       plannedPlace: true,
@@ -127,13 +129,17 @@ export async function getDateDetail(dateId: string) {
       expenses: { where: { deletedAt: null }, orderBy: { spentAt: "asc" } },
     },
   });
+  const members = await prisma.coupleMember.findMany({
+    where: { coupleId: context.couple.id, status: "ACTIVE" }, select: { userId: true },
+  });
+  return { ...date, reviews: reviewsForViewer(date.reviews, context.user.id, members.map((member) => member.userId)) };
 }
 
 export async function transitionDate(dateId: string, input: TransitionDateInput) {
-  const { context, resource } = await authorizeDate(dateId);
+  const { context, resource, updated } = await withDateWrite(dateId, async (tx, resource, context) => {
   assertTransition(resource.status, input.to); // backend enforces the lifecycle
 
-  const updated = await prisma.date.update({
+  const updated = await tx.date.update({
     where: { id: resource.id },
     data: {
       status: input.to,
@@ -146,6 +152,8 @@ export async function transitionDate(dateId: string, input: TransitionDateInput)
           : undefined,
       ...lifecycleTimestampsFor(input.to),
     },
+  });
+    return { context, resource, updated };
   });
 
   await logDateEvent(
@@ -302,9 +310,10 @@ export async function getDateExperience(dateId: string, userId: string) {
     })),
   };
 
-  const expenseSumCents = date.expenses.reduce((sum, e) => sum + e.amountCents, 0);
+  const baseExpenses = date.expenses.filter((expense) => expense.currency === date.currency);
+  const expenseSumCents = baseExpenses.reduce((sum, e) => sum + e.amountCents, 0);
   const effectiveSpendCents =
-    date.actualSpendCents ?? (date.expenses.length > 0 ? expenseSumCents : null);
+    date.actualSpendCents ?? (baseExpenses.length > 0 ? expenseSumCents : null);
 
   // --- Money -------------------------------------------------------------
   const expenseViews = date.expenses.map((e) => {
@@ -331,7 +340,7 @@ export async function getDateExperience(dateId: string, userId: string) {
   });
 
   const contrib = contributionsOf(
-    date.expenses.map((e) => ({
+    baseExpenses.map((e) => ({
       amountCents: e.amountCents,
       paidBy: e.paidBy,
       ownerShareCents: e.ownerShareCents,
@@ -350,7 +359,7 @@ export async function getDateExperience(dateId: string, userId: string) {
     plannedMaxCents: date.expectedBudgetMaxCents,
     delta: budgetDelta(date.expectedBudgetCents, effectiveSpendCents, date.currency),
     categories: categoryBreakdown(
-      date.expenses.map((e) => ({ category: e.category, amountCents: e.amountCents })),
+      baseExpenses.map((e) => ({ category: e.category, amountCents: e.amountCents })),
     ),
     contributions: {
       mineCents: mineContribCents,
@@ -563,7 +572,7 @@ export type DateExperience = Awaited<ReturnType<typeof getDateExperience>>;
 /** All live dates (planned / today / in progress), chronological. */
 export async function getUpcomingDates(sort: "soonest" | "latest" = "soonest") {
   const { couple } = await requireCoupleContext();
-  return prisma.date.findMany({
+  const dates = await prisma.date.findMany({
     where: { coupleId: couple.id, deletedAt: null, status: { in: UPCOMING_STATUSES } },
     orderBy: [
       { scheduledFor: { sort: sort === "soonest" ? "asc" : "desc", nulls: "last" } },
@@ -576,4 +585,8 @@ export async function getUpcomingDates(sort: "soonest" | "latest" = "soonest") {
       _count: { select: { activities: true } },
     },
   });
+  return dates.map((date) => ({
+    ...date,
+    countdownAt: planTimeToInstant(date.plannedStartAt ?? date.scheduledFor, couple.timezone)?.toISOString() ?? null,
+  }));
 }

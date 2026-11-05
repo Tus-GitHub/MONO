@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { env } from "@/config/env";
 import { hashPassword, needsRehash, verifyPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/db/prisma";
+import { serializable } from "@/lib/db/serializable";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { AuthenticationError, ConflictError, ValidationError } from "@/lib/errors";
 import { randomToken, sha256 } from "@/lib/utils/crypto";
@@ -53,8 +54,8 @@ export async function authenticate(input: LoginInput): Promise<AuthedUser> {
   }
 
   if (user.passwordHash && needsRehash(user.passwordHash)) {
-    await prisma.user.update({
-      where: { id: user.id },
+    await prisma.user.updateMany({
+      where: { id: user.id, passwordHash: user.passwordHash, tokenVersion: user.tokenVersion, deletedAt: null },
       data: { passwordHash: await hashPassword(input.password) },
     });
   }
@@ -75,12 +76,14 @@ export async function beginPasswordReset(email: string): Promise<void> {
   const rawToken = randomToken(32);
   const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60_000);
 
-  await prisma.$transaction([
-    prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } }),
-    prisma.passwordResetToken.create({
-      data: { userId: user.id, tokenHash: sha256(rawToken), expiresAt },
-    }),
-  ]);
+  const allowed = await serializable(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${user.id} FOR UPDATE`;
+    if (!await tx.user.findFirst({ where: { id: user.id, deletedAt: null }, select: { id: true } })) return false;
+    await tx.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } });
+    await tx.passwordResetToken.create({ data: { userId: user.id, tokenHash: sha256(rawToken), expiresAt } });
+    return true;
+  });
+  if (!allowed) return;
 
   const resetUrl = new URL(`/reset-password?token=${rawToken}`, env.APP_URL).toString();
   await sendPasswordResetEmail({
@@ -107,7 +110,11 @@ export async function completePasswordReset(input: ResetPasswordInput): Promise<
 
   const passwordHash = await hashPassword(input.password);
 
-  await prisma.$transaction(async (tx) => {
+  await serializable(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${record.userId} FOR UPDATE`;
+    if (!await tx.user.findFirst({ where: { id: record.userId, deletedAt: null }, select: { id: true } })) {
+      throw new ValidationError("This reset link is invalid or has expired.");
+    }
     const claimed = await tx.passwordResetToken.updateMany({
       where: { id: record.id, usedAt: null, expiresAt: { gt: new Date() } },
       data: { usedAt: new Date() },
@@ -120,5 +127,7 @@ export async function completePasswordReset(input: ResetPasswordInput): Promise<
     await tx.passwordResetToken.deleteMany({
       where: { userId: record.userId, usedAt: null, id: { not: record.id } },
     });
+    await tx.authSession.updateMany({ where: { userId: record.userId, revokedAt: null }, data: { revokedAt: new Date() } });
+    await tx.pushSubscription.deleteMany({ where: { userId: record.userId } });
   });
 }

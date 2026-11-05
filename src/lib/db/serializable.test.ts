@@ -23,3 +23,17 @@ it("does not retry validation errors", async () => {
   await expect(serializable(vi.fn())).rejects.toThrow("space full");
   expect(transaction).toHaveBeenCalledTimes(1);
 });
+it.each(["40001", "40P01"])("retries raw PostgreSQL serialization/deadlock errors (%s)", async (code) => {
+  transaction.mockRejectedValueOnce(new Prisma.PrismaClientKnownRequestError("retry", {
+    code: "P2010", clientVersion: "test", meta: { code },
+  })).mockResolvedValueOnce("ok");
+  expect(await serializable(vi.fn())).toBe("ok");
+  expect(transaction).toHaveBeenCalledTimes(2);
+});
+it("does not retry other raw SQL failures", async () => {
+  transaction.mockRejectedValue(new Prisma.PrismaClientKnownRequestError("invalid", {
+    code: "P2010", clientVersion: "test", meta: { code: "23514" },
+  }));
+  await expect(serializable(vi.fn())).rejects.toThrow("invalid");
+  expect(transaction).toHaveBeenCalledTimes(1);
+});

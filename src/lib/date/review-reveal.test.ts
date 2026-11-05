@@ -5,6 +5,8 @@ import {
   isRevealed,
   isReviewEditable,
   reviewStage,
+  sharedReviews,
+  reviewsForViewer,
 } from "@/lib/date/review-reveal";
 
 describe("reviewStage — blind until both submit", () => {
@@ -31,6 +33,29 @@ describe("reviewStage — blind until both submit", () => {
   });
   it("partner submitting first does not reveal my un-submitted side", () => {
     expect(reviewStage({ ...base, partnerSubmitted: true })).toBe("none");
+  });
+});
+
+describe("review visibility across exports and aggregates", () => {
+  const first = { authorId: "a", submittedAt: new Date(), secret: "a-only" };
+  const second = { authorId: "b", submittedAt: null, secret: "b-only" };
+  it("returns only the viewer's own work until both partners submit", () => {
+    expect(sharedReviews([first, second], ["a", "b"])).toEqual([]);
+    expect(reviewsForViewer([first, second], "b", ["a", "b"])).toEqual([second]);
+  });
+  it("reveals submitted active-member reviews and excludes former members", () => {
+    const submitted = { ...second, submittedAt: new Date() };
+    const former = { authorId: "former", submittedAt: new Date(), secret: "former-only" };
+    expect(sharedReviews([first, submitted, former], ["a", "b"])).toEqual([first, submitted]);
+    expect(reviewsForViewer([first, submitted, former], "b", ["a", "b"])).toEqual([first, submitted]);
+  });
+  it("reveals a solo member's submission, but never a draft or an unknown membership set", () => {
+    expect(sharedReviews([first, second], ["a"])).toEqual([first]);
+    expect(sharedReviews([second], ["b"])).toEqual([]);
+    expect(sharedReviews([first], [])).toEqual([]);
+  });
+  it("duplicate submissions cannot stand in for the partner", () => {
+    expect(sharedReviews([first, { ...first }], ["a", "b"])).toEqual([]);
   });
 });
 

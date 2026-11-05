@@ -4,11 +4,12 @@ import { Icon } from "@/components/ui/icon";
 import { LinkButton } from "@/components/ui/link-button";
 import { Photo } from "@/components/ui/photo";
 import { PLACE_CATEGORY_ICON } from "@/lib/date/place-category";
-import { countdownLabel, formatDate, formatMoney, formatTimeRange } from "@/lib/utils/format";
+import { countdownLabel, formatWallDate, formatMoney, formatWallTime } from "@/lib/utils/format";
 import type { UpcomingDateView } from "@/server/services/home-service";
 
 export function UpcomingDateCard({ date }: { date: UpcomingDateView }) {
-  const target = date.startAt ?? date.scheduledFor;
+  const target = date.countdownAt;
+  const timeRange = [date.startAt, date.endAt].filter(Boolean).map((iso) => formatWallTime(iso!.slice(11, 16))).join(" – ");
   const heroIcon = date.placeCategory ? PLACE_CATEGORY_ICON[date.placeCategory] : "calendar";
   const shownActivities = date.activities.slice(0, 3);
   const extraActivities = date.activityCount - shownActivities.length;
@@ -56,13 +57,13 @@ export function UpcomingDateCard({ date }: { date: UpcomingDateView }) {
             {date.scheduledFor ? (
               <span className="inline-flex items-center gap-1.5">
                 <Icon name="calendar" size="sm" />
-                {formatDate(date.scheduledFor, "full")}
+                {formatWallDate(date.scheduledFor.slice(0, 10), "full")}
               </span>
             ) : null}
-            {formatTimeRange(date.startAt, date.endAt) ? (
+            {timeRange ? (
               <span className="inline-flex items-center gap-1.5">
                 <Icon name="clock" size="sm" />
-                {formatTimeRange(date.startAt, date.endAt)}
+                {timeRange}
               </span>
             ) : null}
           </div>

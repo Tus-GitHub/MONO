@@ -52,8 +52,8 @@ never the gate.
   raster image (JPEG / PNG / GIF / WebP / AVIF). The client `Content-Type` is discarded. SVG is
   intentionally unrecognised (inline-SVG XSS). Size ≤ 12 MB is enforced from the actual byte
   length. A cross-origin `Origin` is refused.
-- **Injection**: Prisma parameterises every query; the only raw SQL is `SELECT 1` in the health
-  check. No `$queryRawUnsafe`, `eval`, or `new Function`. The one `dangerouslySetInnerHTML` is a
+- **Injection**: Prisma parameterises queries, including the tagged SQL used for row locks.
+  Runtime inputs never become SQL identifiers. The one `dangerouslySetInnerHTML` is a
   static constant (the theme boot script), no interpolation.
 - **Lifecycle**: `transitionDateAction` accepts any `DateStatus` but `assertTransition` rejects
   an illegal state change before any write.
@@ -66,8 +66,10 @@ never the gate.
   never stored or logged.
 - **Sessions**: a signed JWT (`jose`, HS256) in an **httpOnly** cookie, `Secure` in production,
   `SameSite=Lax`, `Path=/`. It embeds `tokenVersion`; bumping `User.tokenVersion` (password
-  reset, account deletion) invalidates every outstanding session with no server-side store.
-  "Remember me" chooses a 30-day cookie vs a browser-session cookie.
+  reset, account deletion) invalidates every outstanding session. Each JWT also identifies an
+  AuthSession row; protected requests check its owner, version, expiry and revocation state.
+  "Remember me" chooses a persistent cookie vs a one-day browser-session token. Older cookies
+  without a session identifier require a fresh login after the migration. See [account sessions](account-sessions.md).
 - **No enumeration**: login returns one message for bad-email and bad-password; the
   password-reset request always returns the same generic line.
 - **CSRF**: Server Actions carry Next's built-in Origin check. The upload route handlers add an
@@ -93,7 +95,7 @@ never the gate.
   `requireCoupleContext`. All run `readImageUpload` (byte sniff + size + same-origin + rate
   limit).
 - **Delete**: `deleteDatePhoto` → `authorizePhoto`; it also nulls any `Memory.coverPhotoId` /
-  `Date.bestPhotoId` and removes all three stored variants.
+  `Date.bestPhotoId` and queues all three stored variants for cleanup after seven days.
 - **Storage URLs**: object keys are `users/<id>/…` or `couples/<id>/…` with a random token, and
   are never rewritten in place (replace/delete allocate fresh keys). They are not public bucket
   URLs — every request goes through `/media/[...key]`.
@@ -101,7 +103,7 @@ never the gate.
   leading slash, control char) **before** parsing the prefix, then re-checks ownership
   (`users/<id>` = that user, `couples/<id>` = an active member) and returns 404 on any failure.
   `LocalStorageDriver.resolveKey` independently refuses a `..` segment. Responses are
-  `Cache-Control: private, immutable`, `X-Robots-Tag: noindex,nofollow,noimageindex`,
+  `Cache-Control: private, no-cache`, `X-Robots-Tag: noindex,nofollow,noimageindex`,
   `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, `Content-Disposition:
   inline`, and the content-type is forced from the key extension (image/PDF only).
 - **Indexing**: `src/app/robots.ts` disallows everything, the root layout sets
@@ -122,6 +124,20 @@ confirmed:
 | Delete expense / memory | `authorizeExpense` / `authorizeDate` (soft) | `useConfirm` |
 | Delete account | `deleteAccountAction` → `requireUser` + typed `"DELETE"` → soft-delete user, bump `tokenVersion`, archive couple, clear cookie | typed confirmation phrase |
 | Export data | `GET /api/export` → `getCoupleContext` | n/a (read-only), `no-store` attachment |
+
+Account closure is a single serializable transaction: lock the authenticated user, archive the
+current space and release both memberships, revoke invitations and queued deliveries, dismiss
+reminders, revoke sessions, remove password/OAuth/reset credentials and push subscriptions, then
+mark the account deleted and advance its token version. A failure rolls back the entire operation.
+Profile identity and shared authored history remain retained; this is account closure, not a
+physical erasure of all historical content. The partner's account and credentials remain intact.
+Creation/join/invitation acceptance and push registration share the living-user lock, so an
+in-flight request cannot recreate those capabilities after closure. Addressed invitations enforce
+the intended email. No support reactivation endpoint is exposed by this change.
+
+Portable archive restore uses a separate protected API with both members' approvals and an empty
+destination. See [archive/restore](archive-restore.md) for limits, data inclusion and steps. The
+existing settings screens are unchanged; backend session/restore controls have no new visible UI.
 
 ## 6. Privacy posture
 
@@ -144,4 +160,22 @@ Stated in-app at `/settings/privacy`:
   Nonce-based CSP via middleware is the hardening step.
 - OAuth access/refresh tokens are stored plaintext in `Account` (standard, browser never sees
   them); encrypt-at-rest if OAuth is switched on.
-- Reminder dispatch is still opportunistic (on Home load) — see `docs/architecture.md`.
+- Reminder dispatch has an authenticated scheduler endpoint, standalone worker and durable push
+  retry. Production activation and real-provider verification remain pending — see `docs/architecture.md`.
+
+## Review privacy and write integrity
+
+The 2026-11-05 audit identified export and place-average paths that bypassed blind-review rules.
+They now use shared visibility helpers: the viewer can export their own work, while partner
+content is included only after the active members have submitted. Place ratings and category
+recommendations exclude unrevealed reviews. Deleted nested memories are excluded from export.
+
+Plan and review writes now lock the parent date and recheck membership/state in a serializable
+transaction. Long plan forms carry a version to detect stale saves. PostgreSQL constraints add
+defense for score/amount bounds and active membership uniqueness. Regression tests exercise real
+PostgreSQL reads, constraint violations and simultaneous partner writes in an isolated database.
+
+Media access also checks live references before serving or revalidating files. Removed photos,
+avatars and covers remain inaccessible through the media route while their bytes wait in the
+seven-day cleanup window. New media responses require private revalidation; this cannot revoke
+files a person has already downloaded. Cleanup tasks check references again before physical deletion.

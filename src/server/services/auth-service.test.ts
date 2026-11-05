@@ -17,7 +17,9 @@ beforeEach(() => {
   mocks.claim.mockResolvedValue({ count: 1 });
   mocks.transaction.mockImplementation((callback) => callback({
     passwordResetToken: { updateMany: mocks.claim, deleteMany: mocks.deleteTokens },
-    user: { update: mocks.updateUser },
+    user: { update: mocks.updateUser, findFirst: async () => ({ id: "user" }) },
+    $queryRaw: async () => [],
+    authSession: { updateMany: vi.fn() }, pushSubscription: { deleteMany: vi.fn() },
   }));
 });
 const input = { token: "token", password: "NewPassword123!", confirmPassword: "NewPassword123!" };

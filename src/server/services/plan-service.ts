@@ -1,6 +1,6 @@
 import "server-only";
 
-import { DateActivityKind, DateStatus, ExpensePayer, NotificationType } from "@prisma/client";
+import { DateActivityKind, DateStatus, ExpensePayer, NotificationType, type Prisma } from "@prisma/client";
 
 import { assertTransition } from "@/lib/date/lifecycle";
 import { authorizeDate, requireCoupleContext } from "@/lib/authz";
@@ -9,6 +9,9 @@ import { NotFoundError, ValidationError } from "@/lib/errors";
 import { formatWallDate, formatWallTime } from "@/lib/utils/format";
 import { logDateEvent } from "@/server/services/date-event-service";
 import { notifyPartner } from "@/server/services/notification-service";
+import { assertPlanEditable, withDateWrite } from "@/server/services/date-write";
+import { todayYmdInTimeZone } from "@/lib/utils/timezone";
+import { queueStorageCleanup } from "@/server/services/storage-cleanup-service";
 import {
   ensureRemindersForDate,
   ensureUnfinishedPlanReminder,
@@ -49,7 +52,7 @@ async function notePlanEditToPartner(
 
 /** Wall-clock times are stored as UTC-encoded so `YYYY-MM-DD` / `HH:MM` round-trip cleanly. */
 function combineWall(dateStr?: string, timeStr?: string): Date | null {
-  if (!dateStr) return null;
+  if (!dateStr || !timeStr) return null;
   return new Date(`${dateStr}T${timeStr ?? "00:00"}:00.000Z`);
 }
 
@@ -72,6 +75,8 @@ export interface SavedPlaceOption {
 
 export interface PlanDateDTO {
   id: string;
+  version: number;
+  timezone: string;
   status: DateStatus;
   title: string;
   notes: string | null;
@@ -94,6 +99,7 @@ function loadPlanRow(id: string) {
   return prisma.date.findUniqueOrThrow({
     where: { id },
     include: {
+      couple: { select: { timezone: true } },
       plannedPlace: { select: { id: true, name: true } },
       activities: {
         where: { kind: PLANNED },
@@ -115,6 +121,8 @@ function loadPlanRow(id: string) {
 function toDTO(date: DateRow): PlanDateDTO {
   return {
     id: date.id,
+    version: date.version,
+    timezone: date.couple.timezone,
     status: date.status,
     title: date.title,
     notes: date.notes,
@@ -219,29 +227,30 @@ export async function startDraft(options: {
 
 // --- step saves ------------------------------------------------------------
 
-export async function updateBasics(dateId: string, input: DateBasicsInput) {
-  const { context, resource } = await authorizeDate(dateId);
-  const before = await prisma.date.findUniqueOrThrow({
-    where: { id: resource.id },
-    select: { title: true, notes: true, scheduledFor: true, plannedStartAt: true, plannedEndAt: true },
-  });
-
+export async function updateBasics(dateId: string, input: DateBasicsInput, expectedVersion?: number) {
   const nextTitle = input.title?.trim() ?? "";
   const nextNotes = input.notes ?? null;
   const nextScheduled = input.date ? new Date(`${input.date}T00:00:00.000Z`) : null;
   const nextStart = combineWall(input.date, input.startTime);
   const nextEnd = combineWall(input.date, input.endTime);
 
-  await prisma.date.update({
-    where: { id: resource.id },
-    data: {
-      title: nextTitle,
-      notes: nextNotes,
-      scheduledFor: nextScheduled,
-      plannedStartAt: nextStart,
-      plannedEndAt: nextEnd,
-    },
-  });
+  const { context, resource, before } = await withDateWrite(dateId, async (tx, resource, context) => {
+    assertPlanEditable(resource);
+    if (input.date && input.date < todayYmdInTimeZone(context.couple.timezone)) {
+      throw new ValidationError("Pick today or a future date.", { date: ["Pick today or a future date."] });
+    }
+    await tx.date.update({
+      where: { id: resource.id },
+      data: {
+        title: nextTitle,
+        notes: nextNotes,
+        scheduledFor: nextScheduled,
+        plannedStartAt: nextStart,
+        plannedEndAt: nextEnd,
+      },
+    });
+    return { context, resource, before: resource };
+  }, expectedVersion);
 
   const actorId = context.user.id;
   const iso = (d: Date | null) => d?.toISOString() ?? null;
@@ -276,27 +285,22 @@ export async function updateBasics(dateId: string, input: DateBasicsInput) {
   await notePlanEditToPartner(context, resource);
 }
 
-export async function updateBudget(dateId: string, input: DateBudgetInput) {
-  const { context, resource } = await authorizeDate(dateId);
-  const before = await prisma.date.findUniqueOrThrow({
-    where: { id: resource.id },
-    select: {
-      expectedBudgetCents: true,
-      expectedBudgetMinCents: true,
-      expectedBudgetMaxCents: true,
-      budgetSplit: true,
-      currency: true,
-    },
-  });
-
-  const next = {
-    expectedBudgetCents: input.expectedTotal ?? null,
-    expectedBudgetMinCents: input.budgetMin ?? null,
-    expectedBudgetMaxCents: input.budgetMax ?? null,
-    budgetSplit: input.split,
-    currency: input.currency ?? "USD",
-  };
-  await prisma.date.update({ where: { id: resource.id }, data: next });
+export async function updateBudget(dateId: string, input: DateBudgetInput, expectedVersion?: number) {
+  const { context, resource, before, next } = await withDateWrite(dateId, async (tx, resource, context) => {
+    assertPlanEditable(resource);
+    const next = {
+      expectedBudgetCents: input.expectedTotal ?? null,
+      expectedBudgetMinCents: input.budgetMin ?? null,
+      expectedBudgetMaxCents: input.budgetMax ?? null,
+      budgetSplit: input.split,
+      currency: input.currency ?? resource.currency,
+    };
+    if (next.currency !== resource.currency && await tx.expense.count({ where: { dateId: resource.id, deletedAt: null } })) {
+      throw new ValidationError("This date already has spending. Keep its original currency.");
+    }
+    await tx.date.update({ where: { id: resource.id }, data: next });
+    return { context, resource, before: resource, next };
+  }, expectedVersion);
 
   if (
     next.expectedBudgetCents !== before.expectedBudgetCents ||
@@ -315,9 +319,10 @@ export async function updateBudget(dateId: string, input: DateBudgetInput) {
 async function resolveActivityPlace(
   coupleId: string,
   savedPlaceId: string | undefined,
+  db: Pick<Prisma.TransactionClient, "place"> = prisma,
 ): Promise<string | null> {
   if (!savedPlaceId) return null;
-  const place = await prisma.place.findFirst({
+  const place = await db.place.findFirst({
     where: { id: savedPlaceId, coupleId, deletedAt: null },
     select: { id: true },
   });
@@ -326,24 +331,27 @@ async function resolveActivityPlace(
 }
 
 export async function addActivity(dateId: string, input: PlannedActivityInput) {
-  const { context, resource } = await authorizeDate(dateId);
-  const [max, placeId] = await Promise.all([
-    prisma.dateActivity.aggregate({
-      where: { dateId: resource.id, kind: PLANNED },
-      _max: { sortOrder: true },
-    }),
-    resolveActivityPlace(context.couple.id, input.savedPlaceId),
-  ]);
-  await prisma.dateActivity.create({
-    data: {
-      dateId: resource.id,
-      kind: PLANNED,
-      title: input.title,
-      durationMinutes: input.durationMinutes ?? null,
-      costCents: input.costCents ?? null,
-      placeId,
-      sortOrder: (max._max.sortOrder ?? -1) + 1,
-    },
+  const { context, resource } = await withDateWrite(dateId, async (tx, resource, context) => {
+    assertPlanEditable(resource);
+    const [max, placeId] = await Promise.all([
+      tx.dateActivity.aggregate({
+        where: { dateId: resource.id, kind: PLANNED },
+        _max: { sortOrder: true },
+      }),
+      resolveActivityPlace(context.couple.id, input.savedPlaceId, tx),
+    ]);
+    await tx.dateActivity.create({
+      data: {
+        dateId: resource.id,
+        kind: PLANNED,
+        title: input.title,
+        durationMinutes: input.durationMinutes ?? null,
+        costCents: input.costCents ?? null,
+        placeId,
+        sortOrder: (max._max.sortOrder ?? -1) + 1,
+      },
+    });
+    return { context, resource };
   });
   await logDateEvent(resource.id, context.user.id, "ACTIVITY_ADDED", `added “${input.title}”`);
   await notePlanEditToPartner(context, resource);
@@ -354,24 +362,27 @@ export async function updateActivity(
   activityId: string,
   input: PlannedActivityInput,
 ) {
-  const { context, resource } = await authorizeDate(dateId);
-  const [placeId, before] = await Promise.all([
-    resolveActivityPlace(context.couple.id, input.savedPlaceId),
-    prisma.dateActivity.findFirst({
+  const { context, resource, before } = await withDateWrite(dateId, async (tx, resource, context) => {
+    assertPlanEditable(resource);
+    const [placeId, before] = await Promise.all([
+      resolveActivityPlace(context.couple.id, input.savedPlaceId, tx),
+      tx.dateActivity.findFirst({
+        where: { id: activityId, dateId: resource.id, kind: PLANNED },
+        select: { title: true },
+      }),
+    ]);
+    const result = await tx.dateActivity.updateMany({
       where: { id: activityId, dateId: resource.id, kind: PLANNED },
-      select: { title: true },
-    }),
-  ]);
-  const result = await prisma.dateActivity.updateMany({
-    where: { id: activityId, dateId: resource.id, kind: PLANNED },
-    data: {
-      title: input.title,
-      durationMinutes: input.durationMinutes ?? null,
-      costCents: input.costCents ?? null,
-      placeId,
-    },
+      data: {
+        title: input.title,
+        durationMinutes: input.durationMinutes ?? null,
+        costCents: input.costCents ?? null,
+        placeId,
+      },
+    });
+    if (result.count === 0) throw new NotFoundError("That activity isn't on this date.");
+    return { context, resource, before };
   });
-  if (result.count === 0) throw new NotFoundError("That activity isn't on this date.");
   const summary =
     before && before.title !== input.title
       ? `renamed an activity to “${input.title}”`
@@ -381,13 +392,16 @@ export async function updateActivity(
 }
 
 export async function deleteActivity(dateId: string, activityId: string) {
-  const { context, resource } = await authorizeDate(dateId);
-  const activity = await prisma.dateActivity.findFirst({
-    where: { id: activityId, dateId: resource.id, kind: PLANNED },
-    select: { title: true },
-  });
-  await prisma.dateActivity.deleteMany({
-    where: { id: activityId, dateId: resource.id, kind: PLANNED },
+  const { context, resource, activity } = await withDateWrite(dateId, async (tx, resource, context) => {
+    assertPlanEditable(resource);
+    const activity = await tx.dateActivity.findFirst({
+      where: { id: activityId, dateId: resource.id, kind: PLANNED },
+      select: { title: true },
+    });
+    await tx.dateActivity.deleteMany({
+      where: { id: activityId, dateId: resource.id, kind: PLANNED },
+    });
+    return { context, resource, activity };
   });
   if (activity) {
     await logDateEvent(
@@ -401,20 +415,21 @@ export async function deleteActivity(dateId: string, activityId: string) {
 }
 
 export async function reorderActivities(dateId: string, orderedIds: string[]) {
-  const { context, resource } = await authorizeDate(dateId);
-  const existing = await prisma.dateActivity.findMany({
-    where: { dateId: resource.id, kind: PLANNED },
-    select: { id: true },
+  const { context, resource } = await withDateWrite(dateId, async (tx, resource, context) => {
+    assertPlanEditable(resource);
+    const existing = await tx.dateActivity.findMany({
+      where: { dateId: resource.id, kind: PLANNED },
+      select: { id: true },
+    });
+    const ids = new Set(existing.map((activity) => activity.id));
+    if (orderedIds.length !== ids.size || new Set(orderedIds).size !== ids.size || orderedIds.some((id) => !ids.has(id))) {
+      throw new ValidationError("That ordering doesn't match this date's activities.");
+    }
+    for (const [index, id] of orderedIds.entries()) {
+      await tx.dateActivity.update({ where: { id }, data: { sortOrder: index } });
+    }
+    return { context, resource };
   });
-  const ids = new Set(existing.map((activity) => activity.id));
-  if (orderedIds.length !== ids.size || orderedIds.some((id) => !ids.has(id))) {
-    throw new ValidationError("That ordering doesn't match this date's activities.");
-  }
-  await prisma.$transaction(
-    orderedIds.map((id, index) =>
-      prisma.dateActivity.update({ where: { id }, data: { sortOrder: index } }),
-    ),
-  );
   await logDateEvent(
     resource.id,
     context.user.id,
@@ -428,25 +443,21 @@ export async function reorderActivities(dateId: string, orderedIds: string[]) {
 
 /** DRAFT/PLANNED/TODAY → PLANNED (or TODAY if it's today). Requires a title and a date. */
 export async function finalizePlan(dateId: string): Promise<{ id: string }> {
-  const { context, resource } = await authorizeDate(dateId);
-  if (!EDITABLE_STATUSES.includes(resource.status)) {
-    throw new ValidationError("This date can no longer be planned.");
-  }
-  const date = await prisma.date.findUniqueOrThrow({
-    where: { id: resource.id },
-    select: { title: true, scheduledFor: true },
-  });
-  if (!date.title.trim()) throw new ValidationError("Give your date a title first.");
-  if (!date.scheduledFor) throw new ValidationError("Pick a date first.");
+  const { context, resource, isToday } = await withDateWrite(dateId, async (tx, date, context) => {
+    assertPlanEditable(date);
+    if (!date.title.trim()) throw new ValidationError("Give your date a title first.");
+    if (!date.scheduledFor) throw new ValidationError("Pick a date first.");
 
-  const isToday = date.scheduledFor.toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10);
+    const isToday = date.scheduledFor.toISOString().slice(0, 10) === todayYmdInTimeZone(context.couple.timezone);
 
-  await prisma.date.update({
-    where: { id: resource.id },
-    data: {
-      status: isToday ? DateStatus.TODAY : DateStatus.PLANNED,
-      plannedAt: resource.status === DateStatus.DRAFT ? new Date() : undefined,
-    },
+    await tx.date.update({
+      where: { id: date.id },
+      data: {
+        status: isToday ? DateStatus.TODAY : DateStatus.PLANNED,
+        plannedAt: date.status === DateStatus.DRAFT ? new Date() : undefined,
+      },
+    });
+    return { context, resource: date, isToday };
   });
 
   await logDateEvent(
@@ -505,15 +516,17 @@ export async function duplicateDate(dateId: string): Promise<{ id: string }> {
 }
 
 export async function cancelDate(dateId: string, reason?: string) {
-  const { context, resource } = await authorizeDate(dateId);
-  assertTransition(resource.status, DateStatus.CANCELLED);
-  await prisma.date.update({
-    where: { id: resource.id },
-    data: {
-      status: DateStatus.CANCELLED,
-      cancelledAt: new Date(),
-      cancelReason: reason?.trim() || null,
-    },
+  const { context, resource } = await withDateWrite(dateId, async (tx, resource, context) => {
+    assertTransition(resource.status, DateStatus.CANCELLED);
+    await tx.date.update({
+      where: { id: resource.id },
+      data: {
+        status: DateStatus.CANCELLED,
+        cancelledAt: new Date(),
+        cancelReason: reason?.trim() || null,
+      },
+    });
+    return { context, resource };
   });
   await logDateEvent(resource.id, context.user.id, "STATUS_CHANGED", "cancelled the date", {
     from: resource.status,
@@ -523,9 +536,12 @@ export async function cancelDate(dateId: string, reason?: string) {
 }
 
 export async function deleteDatePlan(dateId: string) {
-  const { resource } = await authorizeDate(dateId);
-  await prisma.date.update({
-    where: { id: resource.id },
-    data: { deletedAt: new Date() },
+  await withDateWrite(dateId, async (tx, resource) => {
+    const photos = await tx.datePhoto.findMany({ where: { dateId: resource.id }, select: { storageKey: true, displayKey: true, thumbKey: true } });
+    await queueStorageCleanup(photos.flatMap((photo) => [photo.storageKey, photo.displayKey, photo.thumbKey]), undefined, tx);
+    await tx.date.update({
+      where: { id: resource.id },
+      data: { deletedAt: new Date() },
+    });
   });
 }

@@ -24,6 +24,8 @@ const SIZE: Record<ModalSize, string> = {
 interface ModalProps {
   open: boolean;
   onClose: () => void;
+  /** Runs after this modal's synthetic history entry has actually been removed. */
+  onHistoryClosed?: (stayedOnPage: boolean) => void;
   title?: ReactNode;
   description?: ReactNode;
   children?: ReactNode;
@@ -37,6 +39,7 @@ interface ModalProps {
 export function Modal({
   open,
   onClose,
+  onHistoryClosed,
   title,
   description,
   children,
@@ -53,7 +56,7 @@ export function Modal({
   useScrollLock(mounted);
   useFocusTrap(panelRef, visible);
   useEscapeKey(onClose, mounted);
-  useBackButton(onClose, open);
+  useBackButton(onClose, open, onHistoryClosed);
 
   if (!mounted) return null;
 

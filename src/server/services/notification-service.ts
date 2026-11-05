@@ -5,6 +5,7 @@ import { NotificationType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { NOTIFICATION_CATEGORY_OF } from "@/lib/notifications/types";
 import type { NotificationCategory } from "@/lib/notifications/prefs";
+import { enqueueNotification } from "@/server/services/notification-delivery-service";
 
 export async function getUnreadNotificationCount(userId: string): Promise<number> {
   return prisma.notification.count({ where: { userId, readAt: null } });
@@ -91,17 +92,15 @@ async function fanOut(params: FanParams, opts: { includeActor: boolean }): Promi
     targets = targets.filter((id) => !seen.has(id));
     if (targets.length === 0) return;
 
-    await prisma.notification.createMany({
-      data: targets.map((userId) => ({
-        coupleId: params.coupleId,
-        userId,
+    await prisma.$transaction(async (tx) => {
+      for (const userId of targets) await enqueueNotification(tx, userId, {
         type: params.type,
         title: params.title,
         body: params.body ?? null,
         entityType: params.entityType ?? null,
         entityId: params.entityId ?? null,
-        data: params.data ?? Prisma.DbNull,
-      })),
+        data: params.data,
+      }, params.coupleId);
     });
   } catch (error) {
     console.error("[notify] fan-out failed:", error);
