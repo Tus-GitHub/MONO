@@ -39,7 +39,9 @@ and serialization failures may appear in Prisma's test log even when the asserti
 
 The checked-in GitHub Actions workflow supplies a disposable PostgreSQL 17 container with test-only
 credentials and runs lint, type checks, unit tests, database tests and the build. The workflow has
-read-only repository permissions and does not deploy. It will run after these changes are published.
+read-only repository permissions. A separate browser job runs all three E2E suites against its
+own disposable database and retains only fixture screenshots/results for seven days; server
+logs and storage files are excluded. The independent Vercel Git integration remains enabled. It will run after these changes are published.
 
 ## Schema changes in this pass
 

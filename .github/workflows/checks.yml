@@ -47,3 +47,48 @@ jobs:
       - run: npm test
       - run: npm run test:integration
       - run: npm run build
+
+  browser:
+    name: Browser regression checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: mono_test
+          POSTGRES_PASSWORD: mono_test_ci_only
+          POSTGRES_DB: mono_test_e2e_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mono_test -d mono_test_e2e_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://mono_test:mono_test_ci_only@127.0.0.1:5432/mono_test_e2e_ci
+      MONO_TEST_DATABASE_URL: postgresql://mono_test:mono_test_ci_only@127.0.0.1:5432/mono_test_e2e_ci
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verify installed Chromium
+        run: google-chrome --version
+      - run: npm run test:e2e
+      - name: Save browser results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-results
+          include-hidden-files: true
+          path: |
+            .postgres-test/e2e/*/results.json
+            .postgres-test/e2e/*/*failure*.json
+            .postgres-test/e2e/*/*.png
+          retention-days: 7
+          if-no-files-found: ignore

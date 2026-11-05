@@ -334,8 +334,8 @@ constraints, locks and transactions are real. See `docs/testing.md`. The GitHub 
 workflow runs lint, type checks, both suites and a production build with a disposable PostgreSQL 17 service.
 
 `npm run test:e2e` adds real Chromium browser journeys against its own local app server and an
-explicit `mono_test_e2e_*` database. The current CI workflow still runs the unit/database/build
-checks; browser tests are runnable locally. See `docs/testing.md` for scope and safe setup.
+explicit `mono_test_e2e_*` database. The CI workflow runs the unit/database/build
+checks plus all three browser suites in a separate job with disposable PostgreSQL. See `docs/testing.md` for scope and safe setup.
 
 ## Privacy and mutation safeguards added after the audit
 

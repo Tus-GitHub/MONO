@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-05 (GitHub publication; pausing automatic Git deployments)
+Last updated: 2026-11-05 (continued delivery; Vercel deployments authorized)
 
 ## Project Overview
 
@@ -22,6 +22,12 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Continued delivery and release checks (2026-11-05)** — user explicitly accepted Vercel
+  deployments and requested continued work and pushes under the two-day deadline. Re-enable
+  automatic deployments, verify the GitHub checks, and prioritize remaining existing-feature
+  regressions with the UI unchanged. Keys remain deferred; publication no longer needs another
+  confirmation for completed, validated work in this scope.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification remain. Shared rate limiting, OAuth-token encryption at rest and operator recovery /
@@ -48,8 +54,8 @@ components. Business rules never live only in React components — they live in
   implementation commit `f371333` successfully pushed to `Tus-GitHub/MONO` on `origin main`.
   Includes the audited functionality, archive/account controls, regression tests, migrations and
   documentation. An existing Vercel integration automatically deployed that commit despite the
-  requested deployment deferral. `vercel.json` now disables future automatic Git deployments;
-  keys remain unchanged. See the Task Log for the observed deployment status and limitations.
+  initial deferral; a follow-up paused Git deployments. The user subsequently accepted Vercel
+  deployment and authorized resuming it. Keys remain unchanged. See the Task Log for details.
 
 - **Browser E2E and functionality fixes (2026-11-05)** — added repeatable isolated Chrome suites
   and fixed calendar initialization, photo pagination/retries/caption handling, modal history and
@@ -906,6 +912,17 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-05 — Continued delivery and Vercel deployment authorization
+
+- **IN PROGRESS.** User accepted the existing Vercel deployment and authorized continued work
+  and pushes because the deadline is tight. Re-enabling `git.deploymentEnabled`, keeping the
+  current UI and all integration keys unchanged. Focus this pass on release automation and
+  uncovered existing-feature workflows; no speculative feature expansion or live database write.
+- Confirmed the prior GitHub push checks succeeded and Vercel reports implementation commit
+  `f371333` READY in production. Added a separate CI browser job with disposable PostgreSQL,
+  installed Chromium and fixture-only screenshot/result artifacts. Production build passed
+  before publishing this milestone. Local storage, keys and server logs remain excluded.
 
 ### 2026-11-05 — Publish verified functionality changes
 

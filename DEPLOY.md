@@ -8,14 +8,15 @@ is swappable.
 Nothing here needs a secret in the repo. `.env*` is git-ignored (`.env.example` is the only
 tracked env file) — every secret lives in the host's environment settings.
 
-## Automatic deployment is paused
+## Automatic deployment is enabled
 
-`vercel.json` sets `git.deploymentEnabled` to `false`, so GitHub publication does not automatically
-deploy this project. This follows the request to keep keys and deployment for later; see
+`vercel.json` sets `git.deploymentEnabled` to `true`, so authorized GitHub pushes can deploy this
+project through the existing Vercel integration. The user approved continued deployments while
+leaving keys for later; see
 [Vercel's Git configuration](https://vercel.com/docs/project-configuration/git-configuration).
-When the user authorizes deployment, complete the environment and migration preflight below,
-then re-enable Git deployments or use an explicitly authorized manual deployment. Publishing
-code alone is not a request to change keys or activate production.
+Successful deployment does not verify configured-provider delivery or database readiness.
+Complete the environment and migration preflight below before relying on the live app. Do not
+add, rotate or expose keys as part of ordinary publication.
 
 ---
 
