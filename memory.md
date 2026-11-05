@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-05 (publishing verified functionality changes)
+Last updated: 2026-11-05 (GitHub publication; pausing automatic Git deployments)
 
 ## Project Overview
 
@@ -23,10 +23,6 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Publish verified functionality changes (2026-11-05)** — user authorized publication to
-  GitHub; update this log, rerun the required production build, then commit and push to
-  `origin main`. Keys, deployment and live database migration remain deferred.
-
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification remain. Shared rate limiting, OAuth-token encryption at rest and operator recovery /
   permanent-erasure policy are possible follow-ups. Portable active-content archive/restore,
@@ -47,6 +43,13 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and SMTP credentials).
 
 ### Done
+
+- **Publish verified functionality changes (2026-11-05)** — required production build passed;
+  implementation commit `f371333` successfully pushed to `Tus-GitHub/MONO` on `origin main`.
+  Includes the audited functionality, archive/account controls, regression tests, migrations and
+  documentation. An existing Vercel integration automatically deployed that commit despite the
+  requested deployment deferral. `vercel.json` now disables future automatic Git deployments;
+  keys remain unchanged. See the Task Log for the observed deployment status and limitations.
 
 - **Browser E2E and functionality fixes (2026-11-05)** — added repeatable isolated Chrome suites
   and fixed calendar initialization, photo pagination/retries/caption handling, modal history and
@@ -906,15 +909,29 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-05 — Publish verified functionality changes
 
-- **IN PROGRESS.** User requested publishing all completed changes to GitHub while keeping keys
+- **DONE.** User requested publishing all completed changes to GitHub while keeping keys
   and deployment for later. Scope includes the audit fixes, archive/restore, account/session
   controls, browser regressions, PostgreSQL migrations, tests and documentation from the prior
   local passes. Follow the repository's build-before-commit/push sequence; preserve the UI and
   exclude environment secrets, local databases, test artifacts and generated output.
 - Required production build passed before staging. The prior verified baseline remains
   212 unit tests, 75 PostgreSQL cases and 28 browser checks. Publication excludes `.env`, local
-  storage/test databases, browser artifacts and generated files; no deployment or live migration
-  is included. The configured destination is `Tus-GitHub/MONO`, branch `main`.
+  storage/test databases, browser artifacts and generated files. No manual deployment or live
+  migration command was run; the existing integration's automatic deployment is recorded below.
+  The configured destination is `Tus-GitHub/MONO`, branch `main`.
+- Committed 148 files as `f371333` ("Complete reliability, archive recovery, and account controls")
+  with the repository-required co-author trailer; `git push origin main` succeeded. Environment
+  secrets and local artifacts were excluded.
+- **Automatic deployment exception:** after the push, GitHub reported an existing Vercel check
+  pending, then successful, linking to
+  `https://vercel.com/tus-githubs-projects/mono/F5svdKawBtfZopk9quzN1mc1ftpk`.
+  No manual deployment was requested or invoked. The automatic run completed before cancellation
+  was possible. Its runtime health and any migration side effects were not verified; no live
+  rollback was attempted. Do not interpret the successful build/status as full launch readiness.
+- Added Vercel's documented `git.deploymentEnabled: false` setting to prevent additional automatic
+  Git deployments, matching the user's request to defer deployment. Re-enable only when the user
+  proceeds with activation; see `DEPLOY.md`. This follow-up records the confirmed publication and
+  deployment exception without changing `.env` or integration keys.
 
 ### 2026-11-05 — Browser E2E and two-day completion target
 

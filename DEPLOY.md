@@ -8,6 +8,15 @@ is swappable.
 Nothing here needs a secret in the repo. `.env*` is git-ignored (`.env.example` is the only
 tracked env file) — every secret lives in the host's environment settings.
 
+## Automatic deployment is paused
+
+`vercel.json` sets `git.deploymentEnabled` to `false`, so GitHub publication does not automatically
+deploy this project. This follows the request to keep keys and deployment for later; see
+[Vercel's Git configuration](https://vercel.com/docs/project-configuration/git-configuration).
+When the user authorizes deployment, complete the environment and migration preflight below,
+then re-enable Git deployments or use an explicitly authorized manual deployment. Publishing
+code alone is not a request to change keys or activate production.
+
 ---
 
 ## 1. Environments
@@ -15,7 +24,7 @@ tracked env file) — every secret lives in the host's environment settings.
 | | Database | Storage | `NODE_ENV` | Notes |
 |---|---|---|---|---|
 | **Development** | local Postgres or a Neon *dev* branch | `local` (writes `./.storage`) | `development` | `.env` on your machine. Dev secrets are fine. |
-| **Test** | same dev DB, or a throwaway one | `local` or `s3` | `test` | `npm test` is pure-unit (no DB). E2E uses the dev DB. |
+| **Test** | isolated loopback `mono_test_*` database | `local` | `test` | `npm test` needs no DB. Browser E2E uses a separate `mono_test_e2e_*` database and development server. |
 | **Production** | a **dedicated** Neon project/branch | `s3` (private bucket) | `production` | Host env only. Real secrets. |
 
 Keep production data on its own database — never point prod at the dev branch. `prisma/seed.ts`
