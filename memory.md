@@ -923,6 +923,15 @@ components. Business rules never live only in React components — they live in
   `f371333` READY in production. Added a separate CI browser job with disposable PostgreSQL,
   installed Chromium and fixture-only screenshot/result artifacts. Production build passed
   before publishing this milestone. Local storage, keys and server logs remain excluded.
+- Milestone `b18f877` pushed successfully: GitHub's browser and code/database jobs both passed,
+  and Vercel reports the corresponding deployment READY. Automatic deployments are enabled.
+- Added eight real-browser workflow checks for plan editing, stale partner drafts, duplication,
+  draft deletion/cancel confirmation, cancellation redirects, expense validation, payer changes
+  and removal. All eight pass locally. The new test reproduced lost expense descriptions/notes
+  after validation errors; controlled fields now retain edits, and collapsing optional details
+  preserves their submitted values. Existing className expressions and UI styling are unchanged.
+  Browser coverage is now 36 named checks. Full lint passed; the next push runs all four suites.
+- Required production build also passed for the expense-field fix and expanded workflow suite.
 
 ### 2026-11-05 — Publish verified functionality changes
 

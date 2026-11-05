@@ -55,6 +55,9 @@ export function ExpenseFields({
   currency?: string;
 }) {
   const [amount, setAmount] = useState(defaults.amount);
+  const [description, setDescription] = useState(defaults.description);
+  const [note, setNote] = useState(defaults.note);
+  const [spentAtLocal, setSpentAtLocal] = useState(defaults.spentAtLocal);
   const [category, setCategory] = useState<ExpenseCategory>(defaults.category);
   const [payer, setPayer] = useState<PayerFacing>(defaults.payer);
   const [pct, setPct] = useState(defaults.mySharePct);
@@ -97,7 +100,8 @@ export function ExpenseFields({
           <Input
             id="ef-desc"
             name="description"
-            defaultValue={defaults.description}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
             placeholder="Dinner, cab, tickets…"
             autoComplete="off"
             required
@@ -170,7 +174,8 @@ export function ExpenseFields({
             <Input
               id="ef-note"
               name="note"
-              defaultValue={defaults.note}
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
               placeholder="Anything worth remembering"
               maxLength={500}
             />
@@ -180,12 +185,18 @@ export function ExpenseFields({
               id="ef-when"
               name="spentAt"
               type="datetime-local"
-              defaultValue={defaults.spentAtLocal}
+              value={spentAtLocal}
+              onChange={(event) => setSpentAtLocal(event.target.value)}
               className={cn(fieldBase, "h-11 px-3.5 text-sm")}
             />
           </Field>
         </div>
-      ) : null}
+      ) : (
+        <>
+          <input type="hidden" name="note" value={note} />
+          <input type="hidden" name="spentAt" value={spentAtLocal} />
+        </>
+      )}
     </div>
   );
 }

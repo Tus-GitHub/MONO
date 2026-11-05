@@ -39,7 +39,7 @@ and serialization failures may appear in Prisma's test log even when the asserti
 
 The checked-in GitHub Actions workflow supplies a disposable PostgreSQL 17 container with test-only
 credentials and runs lint, type checks, unit tests, database tests and the build. The workflow has
-read-only repository permissions. A separate browser job runs all three E2E suites against its
+read-only repository permissions. A separate browser job runs all registered E2E suites against its
 own disposable database and retains only fixture screenshots/results for seven days; server
 logs and storage files are excluded. The independent Vercel Git integration remains enabled. It will run after these changes are published.
 
@@ -126,7 +126,7 @@ providers, and applies checked-in migrations only to the explicit test database.
 a fresh server process, so real rate limits remain enabled without interference between suites.
 It uses temporary browser profiles and separate contexts, never your signed-in browser profile.
 
-The three suites contain 28 named browser checks:
+The four suites contain 36 named browser checks:
 
 - `journey`: three real registrations/profile flows, two-person join and third-person denial,
   plan/calendar/custom place/budget/activity saves, lifecycle/recap, multipart photo uploads and
@@ -135,11 +135,13 @@ The three suites contain 28 named browser checks:
 - `account`: real UI login/reset/logout/deletion, stored cookie sessions, individual/other/all
   revocation, CSRF and cross-user denial, media access, archive download/privacy/dual approval/
   restore/replay, and the shipped service worker's offline fallback and private-cache exclusion.
+- `workflows`: existing-plan edits and stale partner conflicts, draft duplication/deletion,
+  cancellation redirects, expense validation with draft preservation, payer updates and removal.
 - `pagination`: 53 photos sharing a completion timestamp across the 48-item boundary, no skipped
   or repeated photos, phone viewport fit, same-browser account switching with private/legacy
   memory drafts, memory save/remove/reopen.
 
-Journey fixtures are created through the UI. Account/pagination fixtures use the database for
+Journey fixtures are created through the UI. Account/pagination/workflow fixtures use the database for
 setup; their authentication, forms and controls cross real browser HTTP. PostgreSQL assertions
 verify persisted results. The password-reset capability is seeded instead of sending mail.
 The service worker is explicitly registered for its test because development mode does not

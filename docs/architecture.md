@@ -335,7 +335,7 @@ workflow runs lint, type checks, both suites and a production build with a dispo
 
 `npm run test:e2e` adds real Chromium browser journeys against its own local app server and an
 explicit `mono_test_e2e_*` database. The CI workflow runs the unit/database/build
-checks plus all three browser suites in a separate job with disposable PostgreSQL. See `docs/testing.md` for scope and safe setup.
+checks plus all registered browser suites in a separate job with disposable PostgreSQL. See `docs/testing.md` for scope and safe setup.
 
 ## Privacy and mutation safeguards added after the audit
 

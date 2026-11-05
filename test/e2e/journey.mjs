@@ -7,7 +7,7 @@ const TIMEOUT = 60_000;
 const password = "BrowserJourney92!";
 let clickTargetId = 0;
 
-async function waitFor(work, label) {
+export async function waitFor(work, label) {
   const until = Date.now() + TIMEOUT;
   while (Date.now() < until) {
     if (await work()) return;
@@ -16,13 +16,13 @@ async function waitFor(work, label) {
   throw new Error(`Timed out: ${label}`);
 }
 
-async function fill(page, selector, value) {
+export async function fill(page, selector, value) {
   // Sheets are visible before their entrance transition has finished. Locators
   // wait for a stable bounding box before interacting with the real input.
   await page.locator(selector).fill(value);
 }
 
-async function clickText(page, text, selector = "button", prefix = false) {
+export async function clickText(page, text, selector = "button", prefix = false) {
   const predicate = (text, selector, prefix) => [...document.querySelectorAll(selector)].find((el) => {
     const label = el.textContent.trim().replace(/\s+/g, " ");
     return (prefix ? label.startsWith(text) : label === text) && !el.disabled && el.getClientRects().length;
@@ -39,11 +39,11 @@ async function clickText(page, text, selector = "button", prefix = false) {
   }
 }
 
-async function bodyContains(page, text) {
+export async function bodyContains(page, text) {
   await page.waitForFunction((text) => document.body.innerText.includes(text), { timeout: TIMEOUT }, text);
 }
 
-async function go(page, baseUrl, path) {
+export async function go(page, baseUrl, path) {
   const response = await page.goto(new URL(path, baseUrl).href, { waitUntil: "networkidle2", timeout: TIMEOUT });
   assert(response && response.status() < 500, `Route failed: ${path}`);
   await page.waitForFunction(() => document.readyState === "complete");

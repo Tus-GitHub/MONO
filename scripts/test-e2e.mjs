@@ -16,9 +16,9 @@ if (!["postgresql:", "postgres:"].includes(url.protocol)
   throw new Error("E2E requires a loopback PostgreSQL database named mono_test_e2e_*.");
 }
 if (!url.searchParams.has("connection_limit")) url.searchParams.set("connection_limit", "5");
-const suites = { journey: ["journey.mjs", "runJourney"], account: ["account.mjs", "runAccountControls"], pagination: ["pagination.mjs", "runPagination"] };
+const suites = { journey: ["journey.mjs", "runJourney"], account: ["account.mjs", "runAccountControls"], pagination: ["pagination.mjs", "runPagination"], workflows: ["workflows.mjs", "runWorkflows"] };
 const selected = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(suites);
-if (selected.some((name) => !suites[name])) throw new Error("Choose journey, account, or pagination.");
+if (selected.some((name) => !suites[name])) throw new Error("Choose journey, account, pagination, or workflows.");
 const port = Number(process.env.MONO_E2E_PORT ?? 3217);
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("Invalid local E2E port.");
 const baseUrl = `http://127.0.0.1:${port}`;
