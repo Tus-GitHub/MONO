@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-05 (continued delivery; Vercel deployments authorized)
+Last updated: 2026-11-05 (36 browser checks green on GitHub; Vercel enabled)
 
 ## Project Overview
 
@@ -23,12 +23,6 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Continued delivery and release checks (2026-11-05)** — user explicitly accepted Vercel
-  deployments and requested continued work and pushes under the two-day deadline. Re-enable
-  automatic deployments, verify the GitHub checks, and prioritize remaining existing-feature
-  regressions with the UI unchanged. Keys remain deferred; publication no longer needs another
-  confirmation for completed, validated work in this scope.
-
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification remain. Shared rate limiting, OAuth-token encryption at rest and operator recovery /
   permanent-erasure policy are possible follow-ups. Portable active-content archive/restore,
@@ -49,6 +43,12 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and SMTP credentials).
 
 ### Done
+
+- **Continued delivery and browser CI (2026-11-05)** — Vercel Git deployments re-enabled and
+  milestone commits `b18f877` and `5883d55` pushed. All 36 browser checks and the code/database
+  job passed on GitHub for `5883d55`; Vercel reports its production deployment READY. Fixed lost
+  expense corrections and collapsed optional details. UI styling and keys are unchanged.
+  User authorizes further validated pushes/deployments in scope without another confirmation.
 
 - **Publish verified functionality changes (2026-11-05)** — required production build passed;
   implementation commit `f371333` successfully pushed to `Tus-GitHub/MONO` on `origin main`.
@@ -915,7 +915,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-05 — Continued delivery and Vercel deployment authorization
 
-- **IN PROGRESS.** User accepted the existing Vercel deployment and authorized continued work
+- **DONE.** User accepted the existing Vercel deployment and authorized continued work
   and pushes because the deadline is tight. Re-enabling `git.deploymentEnabled`, keeping the
   current UI and all integration keys unchanged. Focus this pass on release automation and
   uncovered existing-feature workflows; no speculative feature expansion or live database write.
@@ -932,6 +932,14 @@ components. Business rules never live only in React components — they live in
   preserves their submitted values. Existing className expressions and UI styling are unchanged.
   Browser coverage is now 36 named checks. Full lint passed; the next push runs all four suites.
 - Required production build also passed for the expense-field fix and expanded workflow suite.
+- Published the functional fix and coverage as `5883d55`. GitHub run
+  `https://github.com/Tus-GitHub/MONO/actions/runs/42049480389` completed successfully: journey
+  10, account 12, pagination 6 and workflows 8, plus the code/database job (212 unit tests,
+  75 PostgreSQL cases, lint, TypeScript and production build). Vercel deployment
+  `dpl_CyC2hGg6Dy83XVzidHLF1B7yoq6J` for that exact commit reports READY.
+- Browser CI cleaned 11 fixture accounts and six fixture spaces. Local verification found
+  zero remaining users/spaces/sessions/cleanup jobs, and the isolated PostgreSQL server was
+  stopped. No new dependency, UI redesign, key change or manual live database write.
 
 ### 2026-11-05 — Publish verified functionality changes
 
