@@ -12,7 +12,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
-import { Portal, useBackButton, useEscapeKey, useScrollLock } from "@/components/ui/_dialog-primitives";
+import { Portal, useBackButton, useEscapeKey, useFocusTrap, useScrollLock } from "@/components/ui/_dialog-primitives";
 import { Icon } from "@/components/ui/icon";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
@@ -69,6 +69,7 @@ export function PhotoLightbox({
   const [interacting, setInteracting] = useState(false);
 
   const stageRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const pointers = useRef<Map<number, { x: number; y: number }>>(new Map());
   const gesture = useRef<
     | { kind: "swipe"; startX: number }
@@ -100,6 +101,7 @@ export function PhotoLightbox({
   useEscapeKey(onClose, true);
   useBackButton(onClose, true);
   useScrollLock(true);
+  useFocusTrap(dialogRef, true);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -226,6 +228,7 @@ export function PhotoLightbox({
   return (
     <Portal>
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Photo ${index + 1} of ${count}`}

@@ -9,15 +9,16 @@ place-rating privacy paths, server-side plan locking, stale form saves, review/l
 races, and the identified countdown/reminder/local-day calculations. Currency totals are grouped
 and date expense writes enforce a common currency. A second migration adds plan versions and
 initial SQL constraints; it was applied only to an isolated local test database. The real
-PostgreSQL suite now passes 75 cases; 212 unit tests pass. A CI workflow and `docs/testing.md` now
+PostgreSQL suite now passes 82 cases; 234 unit tests pass. A CI workflow and `docs/testing.md` now
 cover repeatable verification. A second remediation pass adds durable per-browser delivery,
 multiple subscriptions, orphan/deletion cleanup with a seven-day retention window, media access
 revalidation, and correct long-history/photo pagination. The findings below describe the original
 audit state. A third remediation pass adds bounded active-content media archives, dual-approval
 restore into an empty space, revocable per-device sessions, password changes and atomic account
 closure. See `docs/archive-restore.md` and `docs/account-sessions.md` for the new controls and
-`docs/testing.md` for current verification totals. No live application database migration or
-deployment has been performed.
+`docs/testing.md` for current verification totals. Database tests use isolated local PostgreSQL.
+Authorized Git pushes now deploy through Vercel; production migration readiness and configured
+provider delivery still need verification with the intended environment.
 
 MONO has the main features of a useful private app for two people: planning, a shared calendar,
 date-day tools, independent reviews, spending, photos, memories, and recommendations. The next

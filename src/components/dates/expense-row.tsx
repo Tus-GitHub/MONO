@@ -27,6 +27,7 @@ export interface ExpenseView {
   category: ExpenseCategory;
   note: string | null;
   spentAt: string;
+  spentAtLocal: string;
   payer: PayerFacing;
   mineShareCents: number;
   partnerShareCents: number;
@@ -52,7 +53,7 @@ function toDefaults(expense: ExpenseView): ExpenseDefaults {
     payer: expense.payer,
     mySharePct: Math.min(100, Math.max(0, pct)),
     note: expense.note ?? "",
-    spentAtLocal: expense.spentAt.slice(0, 16),
+    spentAtLocal: expense.spentAtLocal,
   };
 }
 

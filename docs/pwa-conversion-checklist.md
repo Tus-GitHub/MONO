@@ -5,7 +5,23 @@ app and installable PWA. Status set by the Phase 0 audit (2026-09-02).
 
 Legend: `[x]` done · `[ ]` remaining · `[~]` partially done / needs verification
 
-**2026-11-05 update:** The authenticated `/api/cron/reminders` endpoint is implemented,
+**Current release status (2026-11-05):** many unchecked entries below originate from September
+and are historical. The app now has unit, PostgreSQL and browser CI. The current pass adds
+timezone-safe expense editing, dialog keyboard focus/scroll restoration, and core-route viewport
+checks from 320 to 1536px plus landscape. See `docs/testing.md` and `memory.md` for measured results.
+
+Remaining release work still requiring external configuration, hardware or live verification:
+
+- Configure and verify SMTP, Google, private storage and Web Push using the user's keys.
+- Activate the scheduler and verify closed-app reminders.
+- Verify production migration, backup and recovery readiness for the intended data.
+- Test actual Safari/Firefox engines, installed iOS/Android PWA behavior, camera/HEIC, keyboard
+  and notification delivery; viewport emulation does not establish these.
+- Complete production Lighthouse/performance and native browser zoom/large-text checks.
+
+Vercel Git deployments remain enabled. Existing UI styling remains the reference.
+
+**Earlier implementation update:** The authenticated `/api/cron/reminders` endpoint is implemented,
 including atomic in-app delivery for overlapping runs and active-membership checks.
 Host scheduler activation and a closed-app production test remain pending; see `DEPLOY.md`.
 Older entries below describing absent S3/Web Push implementations are historical: both

@@ -5,7 +5,8 @@ import { DateStatus, NotificationType } from "@prisma/client";
 import { authorizeExpense, type CoupleContext } from "@/lib/authz";
 import { resolvePayer } from "@/lib/date/expense-split";
 import { prisma } from "@/lib/db/prisma";
-import { ValidationError } from "@/lib/errors";
+import { NotFoundError, ValidationError } from "@/lib/errors";
+import { dateTimeInTimeZone, localDateTimeToUtc } from "@/lib/utils/timezone";
 import type { DateExpenseInput } from "@/lib/validation/date";
 import { notifyPartner } from "@/server/services/notification-service";
 import { withDateWrite } from "@/server/services/date-write";
@@ -17,19 +18,32 @@ const SPENDABLE_STATUSES: DateStatus[] = [
 ];
 
 /** Translate the form's viewer-relative input into stored columns. */
-function resolveExpense(context: CoupleContext, input: DateExpenseInput) {
+function resolveExpense(context: CoupleContext, input: DateExpenseInput, previousTime?: Date) {
+  if (input.spentAt && input.spentAtLocal) throw new ValidationError("Provide either an instant or a local time, not both.");
   const { paidBy, ownerShareCents } = resolvePayer({
     choice: input.payer,
     myRole: context.membership.role,
     amountCents: input.amount,
     mySharePct: input.mySharePct,
   });
+  let spentAt = input.spentAt ?? previousTime ?? new Date();
+  if (input.spentAtLocal) {
+    try {
+      // Leaving the visible minute unchanged must retain the stored seconds and milliseconds.
+      spentAt = previousTime && dateTimeInTimeZone(previousTime, context.couple.timezone) === input.spentAtLocal
+        ? previousTime : localDateTimeToUtc(input.spentAtLocal, context.couple.timezone);
+    } catch {
+      throw new ValidationError("That time does not exist in your space's timezone. Choose another time.", {
+        spentAtLocal: ["Choose a valid local time."],
+      });
+    }
+  }
   return {
     description: input.description,
     amountCents: input.amount,
     category: input.category,
     note: input.note ?? null,
-    spentAt: input.spentAt ?? new Date(),
+    spentAt,
     paidBy,
     ownerShareCents,
   };
@@ -76,10 +90,16 @@ export async function updateDateExpense(expenseId: string, input: DateExpenseInp
   if (resource.dateId) {
     await withDateWrite(resource.dateId, async (tx, date, currentContext) => {
       if (input.currency && input.currency !== date.currency) throw new ValidationError(`Record this date's spending in ${date.currency}.`);
-      await tx.expense.updateMany({
+      const current = await tx.expense.findFirst({
         where: { id: resource.id, coupleId: currentContext.couple.id, deletedAt: null },
-        data: { currency: date.currency, ...resolveExpense(currentContext, input) },
+        select: { spentAt: true },
       });
+      if (!current) throw new NotFoundError();
+      const updated = await tx.expense.updateMany({
+        where: { id: resource.id, coupleId: currentContext.couple.id, deletedAt: null },
+        data: { currency: date.currency, ...resolveExpense(currentContext, input, current.spentAt) },
+      });
+      if (!updated.count) throw new NotFoundError();
     });
     return;
   }
@@ -87,7 +107,7 @@ export async function updateDateExpense(expenseId: string, input: DateExpenseInp
     where: { id: resource.id },
     data: {
       currency: input.currency ?? resource.currency,
-      ...resolveExpense(context, input),
+      ...resolveExpense(context, input, resource.spentAt),
     },
   });
 }

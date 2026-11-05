@@ -11,7 +11,7 @@ import {
 import Link from "next/link";
 
 import { FavoriteHeart } from "@/components/memories/favorite-heart";
-import { Portal, useBackButton, useEscapeKey, useScrollLock } from "@/components/ui/_dialog-primitives";
+import { Portal, useBackButton, useEscapeKey, useFocusTrap, useScrollLock } from "@/components/ui/_dialog-primitives";
 import { Icon } from "@/components/ui/icon";
 import { Photo } from "@/components/ui/photo";
 import type { WallPhoto } from "@/lib/date/photo-view";
@@ -154,6 +154,7 @@ function WallViewer({
 }) {
   const [dx, setDx] = useState(0);
   const startX = useRef<number | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const photo = photos[index];
   const count = photos.length;
 
@@ -168,6 +169,7 @@ function WallViewer({
   useEscapeKey(onClose, true);
   useBackButton(onClose, true);
   useScrollLock(true);
+  useFocusTrap(dialogRef, true);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -198,6 +200,7 @@ function WallViewer({
   return (
     <Portal>
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Photo ${index + 1} of ${count}`}

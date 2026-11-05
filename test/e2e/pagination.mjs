@@ -79,6 +79,16 @@ export async function runPagination({ browser, baseUrl, prisma, runId, artifactD
     await page.screenshot({ path: path.join(artifactDir, "pagination-phone.png") });
     pass("existing photo wall fits the phone viewport");
 
+    await page.locator(selector).click();
+    await page.waitForFunction(() => Boolean(document.activeElement?.closest('[role="dialog"]')));
+    const initialLabel = await page.evaluate(() => document.activeElement?.getAttribute("aria-label"));
+    await page.keyboard.down("Shift"); await page.keyboard.press("Tab"); await page.keyboard.up("Shift");
+    assert.equal(await page.evaluate(() => document.activeElement?.textContent.trim()), "Open date");
+    await page.keyboard.press("Tab");
+    assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("aria-label")), initialLabel);
+    await page.keyboard.press("Escape");
+    await page.waitForSelector('[role="dialog"]', { hidden: true });
+
     const draftDate = await prisma.date.create({ data: {
       title: "Private browser draft fixture", coupleId: couple.id, createdById: user.id,
       status: "COMPLETED", completedAt,

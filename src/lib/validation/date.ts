@@ -9,6 +9,7 @@ import {
 } from "@prisma/client";
 
 import { SCORE_MAX, SCORE_MIN } from "@/lib/review/scale";
+import { isValidLocalDateTime } from "@/lib/utils/timezone";
 
 import {
   amountCentsSchema,
@@ -270,8 +271,14 @@ export const dateExpenseSchema = z.object({
     z.coerce.number().int().min(0).max(100).optional(),
   ),
   note: optionalText(500),
-  spentAt: z.preprocess(blankToUndef, z.coerce.date().optional()),
+  // Explicit instants remain supported for service/API callers; browser wall times are separate.
+  spentAt: z.preprocess(blankToUndef, z.union([
+    z.date(), z.string().datetime({ offset: true }).transform((value) => new Date(value)),
+  ]).optional()),
+  spentAtLocal: z.preprocess(blankToUndef, z.string().refine(isValidLocalDateTime, "Enter a valid date and time.").optional()),
   currency: currencySchema.optional(),
+}).refine((value) => !(value.spentAt && value.spentAtLocal), {
+  path: ["spentAtLocal"], message: "Provide either an instant or a local time, not both.",
 });
 
 export const photoCaptionSchema = z.object({

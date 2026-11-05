@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-05 (36 browser checks green on GitHub; Vercel enabled)
+Last updated: 2026-11-06 (remaining functionality and responsive verification in progress)
 
 ## Project Overview
 
@@ -23,13 +23,18 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
+- **Remaining functionality and responsive checks (2026-11-05)** — user requested continuing
+  the remaining work. Review unchecked release items against verified evidence; address expense
+  time handling and broaden browser layout/keyboard coverage. Preserve the UI, defer keys,
+  keep Vercel on and publish completed fixes under the existing authorization.
+
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification remain. Shared rate limiting, OAuth-token encryption at rest and operator recovery /
   permanent-erasure policy are possible follow-ups. Portable active-content archive/restore,
-  per-device session controls and atomic account closure are implemented. Production activation
-  and migrations on the existing DB remain deferred.
+  per-device session controls and atomic account closure are implemented. Vercel deployments are
+  enabled; provider activation and migration readiness for existing production data need verification.
 
-- **Production activation / real-device QA** — add keys separately when ready, deploy,
+- **Production activation / real-device QA** — Vercel deployments are enabled; add keys when ready,
   verify actual SMTP/Google/Push/storage delivery, and complete device/browser QA.
 
 - **Scheduled reminder activation** — endpoint implemented; production scheduler configuration
@@ -37,8 +42,8 @@ components. Business rules never live only in React components — they live in
 
 
 - **Prod/PWA conversion (prompt 21+)** — Phases 0–8 done; prompts 30 (launch-readiness) + 31
-  (mobile keyboard) done. Published to GitHub on 2026-11-05. Deployment deferred by user; later follow `DEPLOY.md`
-  (needs a host + prod Neon branch + S3 bucket + domain/HTTPS). Outstanding non-blockers in
+  (mobile keyboard) done. Published to GitHub on 2026-11-05. Vercel Git deployments are now
+  authorized and enabled; follow `DEPLOY.md` for provider and production-data activation. Remaining checks in
   `docs/pwa-conversion-checklist.md` (Lighthouse on the live origin, real-device passes, a
   reminder worker activation and SMTP credentials).
 
@@ -912,6 +917,37 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-05 — Remaining functionality and responsive checks
+
+- **IN PROGRESS.** Continuing the user's existing scope after 36 browser checks and GitHub CI
+  passed. Remaining release work includes broader responsive/keyboard checks, real-device QA,
+  configured-provider delivery and operational verification. Keys remain deferred. Investigate
+  expense timestamps because datetime-local values currently depend on the server timezone.
+- Implemented explicit `spentAtLocal` input interpreted in the authenticated couple timezone;
+  explicit Date/offset-bearing ISO instants remain supported. Editors show the space's clock,
+  amount-only/omitted-time edits preserve the existing instant, and unchanged visible minutes
+  retain stored seconds/milliseconds. DST gaps are rejected; new repeated clock times choose
+  the earlier occurrence while unchanged values preserve the existing occurrence. No stored
+  timestamps or database schema were rewritten.
+- Fixed initial dialog focus targeting hidden fields. Modal/sheet focus now selects visible,
+  tabbable controls, wraps keyboard navigation and restores focus. Both photo viewers use it.
+  Reproduced nested scroll teardown leaving `overflow:hidden` in isolated real Chrome; reference-
+  counted locks now restore original styles only after the final overlay exits. The shipped
+  two-user journey verifies nested Escape restores page scrolling.
+- Verified **234 unit tests (36 files)** and **82 real PostgreSQL cases (8 files)**. The expanded
+  browser suite has **40 named checks**: full-suite local run passed before the final scroll fix,
+  followed by a passing real journey and workflow run against the final code. Workflows exercise
+  16 app routes across seven viewports (112 route/viewport combinations), timestamp editing,
+  DST correction and keyboard focus. Inspected 320px and landscape screenshots. Full lint passed;
+  all five changed TSX files retain their className expressions and the global CSS is unchanged.
+- Reconciled release docs so old unchecked September items are distinguished from current
+  evidence. Actual-device/browser-engine checks, provider keys/delivery, scheduler activation,
+  production-data migration/backup verification and performance/zoom checks remain open.
+  Vercel deployments remain enabled. Required production build and publication are next.
+- Required production build passed. Final local verification found zero fixture users, spaces,
+  sessions and cleanup jobs; stopped the isolated PostgreSQL instance. Publishing this milestone
+  for the full GitHub checks and Vercel deployment verification.
 
 ### 2026-11-05 — Continued delivery and Vercel deployment authorization
 

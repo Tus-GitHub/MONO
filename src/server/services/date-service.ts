@@ -22,7 +22,7 @@ import type {
 import { logDateEvent } from "@/server/services/date-event-service";
 import { PHOTO_SELECT, toPhotoView } from "@/server/services/photo-service";
 import { withDateWrite } from "@/server/services/date-write";
-import { planTimeToInstant } from "@/lib/utils/timezone";
+import { dateTimeInTimeZone, planTimeToInstant } from "@/lib/utils/timezone";
 import {
   ensureMemoryReminder,
   ensureRemindersForDate,
@@ -331,6 +331,7 @@ export async function getDateExperience(dateId: string, userId: string) {
       category: e.category,
       note: e.note,
       spentAt: e.spentAt.toISOString(),
+      spentAtLocal: dateTimeInTimeZone(e.spentAt, date.couple.timezone),
       payer: payerFacing(e.paidBy, myRole),
       mineShareCents,
       partnerShareCents: e.amountCents - mineShareCents,

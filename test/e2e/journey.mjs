@@ -195,8 +195,14 @@ export async function runJourney({ browser, baseUrl, prisma, runId, artifactDir 
 
     stage = "photo controls and caption validation";
     await go(owner, baseUrl, `/dates/${dateId}`);
+    const originalOverflow = await owner.evaluate(() => document.body.style.overflow);
     await owner.locator('button[aria-label="Open photo 1"]').click();
     await owner.waitForSelector('[role="dialog"][aria-label="Photo 1 of 2"]');
+    await owner.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Make this the best photo");
+    await owner.keyboard.down("Shift"); await owner.keyboard.press("Tab"); await owner.keyboard.up("Shift");
+    assert.equal(await owner.evaluate(() => document.activeElement?.textContent.trim()), "Add a caption");
+    await owner.keyboard.press("Tab");
+    assert.equal(await owner.evaluate(() => document.activeElement?.getAttribute("aria-label")), "Make this the best photo");
     await owner.goBack();
     await owner.waitForSelector('[role="dialog"][aria-label="Photo 1 of 2"]', { hidden: true });
     assert.equal(new URL(owner.url()).pathname, `/dates/${dateId}`, "Back closes the photo without leaving its date");
@@ -213,6 +219,7 @@ export async function runJourney({ browser, baseUrl, prisma, runId, artifactDir 
     await bodyContains(owner, "Delete this photo?");
     await owner.keyboard.press("Escape");
     await owner.waitForFunction(() => document.querySelectorAll('[role="dialog"]').length === 0 && !history.state?.monoOverlay?.length);
+    await owner.waitForFunction((value) => document.body.style.overflow === value, { timeout: 5000 }, originalOverflow);
     assert.equal(new URL(owner.url()).pathname, `/dates/${dateId}`, "Escape removes both overlays without leaving the date");
     await owner.locator('button[aria-label="Open photo 1"]').click();
     stage = "photo caption editing";

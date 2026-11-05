@@ -5,6 +5,17 @@ import { join } from "node:path";
 import bcrypt from "bcryptjs";
 import { bodyContains, clickText, fill, go, waitFor } from "./journey.mjs";
 
+async function fillLocalTime(page, value) {
+  await page.locator("#ef-when").click();
+  // Puppeteer 23's special-input fill writes through React's value tracker.
+  // Use the native setter so the subsequent input/change events update controlled state.
+  await page.$eval("#ef-when", (input, value) => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, value);
+}
+
 export async function runWorkflows({ browser, baseUrl, prisma, runId, artifactDir }) {
   const contexts = [], pages = [], errors = [];
   let checks = 0, stage = "fixture setup";
@@ -17,7 +28,7 @@ export async function runWorkflows({ browser, baseUrl, prisma, runId, artifactDi
   } })));
   const couple = await prisma.couple.create({ data: {
     name: "Workflow fixture", createdById: users[0].id, inviteCode: randomBytes(12).toString("hex"),
-    timezone: "UTC", currency: "INR", status: "ACTIVE", setupCompletedAt: new Date(),
+    timezone: "Asia/Kolkata", currency: "INR", status: "ACTIVE", setupCompletedAt: new Date(),
     members: { create: users.map((user, i) => ({ userId: user.id, role: i ? "PARTNER" : "OWNER", joinedAt: new Date() })) },
   } });
   const source = await prisma.date.create({ data: {
@@ -33,7 +44,10 @@ export async function runWorkflows({ browser, baseUrl, prisma, runId, artifactDi
   const expense = await prisma.expense.create({ data: {
     coupleId: couple.id, dateId: completed.id, recordedById: users[0].id, category: "FOOD",
     paidBy: "SHARED", ownerShareCents: 40000, amountCents: 80000, currency: "INR",
-    description: "Original dinner", note: "Original note",
+    description: "Original dinner", note: "Original note", spentAt: new Date("2026-11-05T12:15:47.123Z"),
+  } });
+  const layoutPlan = await prisma.date.create({ data: {
+    coupleId: couple.id, createdById: users[0].id, title: "Responsive plan", currency: "INR", status: "DRAFT",
   } });
   async function login(user) {
     const context = await browser.createBrowserContext(); contexts.push(context);
@@ -108,6 +122,7 @@ export async function runWorkflows({ browser, baseUrl, prisma, runId, artifactDi
     stage = "expense validation";
     await go(owner, baseUrl, `/dates/${completed.id}`);
     await owner.locator('button[aria-label="Edit expense"]').click();
+    assert.equal(await owner.$eval('#ef-when', (input) => input.value), "2026-11-05T17:45", "Editor uses the space timezone even while the device uses UTC");
     await fill(owner, '#ef-amount', "-5");
     await fill(owner, '#ef-desc', "Dinner and dessert");
     await fill(owner, '#ef-note', "Keep this correction");
@@ -130,10 +145,41 @@ export async function runWorkflows({ browser, baseUrl, prisma, runId, artifactDi
     const updated = await prisma.expense.findUniqueOrThrow({ where: { id: expense.id } });
     assert.equal(updated.description, "Dinner and dessert"); assert.equal(updated.note, "Keep this correction");
     assert.equal(updated.paidBy, "OWNER"); assert.equal(updated.ownerShareCents, null);
+    assert.equal(updated.spentAt.toISOString(), "2026-11-05T12:15:47.123Z", "Amount-only correction preserves the exact instant");
     await go(partner, baseUrl, `/dates/${completed.id}`);
     await bodyContains(partner, "Dinner and dessert");
     await bodyContains(partner, "Partner paid");
     pass("corrected expense amount, payer and notes persist and are shared");
+
+    stage = "expense local time";
+    await owner.locator('button[aria-label="Edit expense"]').click();
+    await fillLocalTime(owner, "2026-11-06T00:15");
+    await clickText(owner, "Fewer details", "#spending button");
+    await clickText(owner, "Add a note or time", "#spending button");
+    assert.equal(await owner.$eval('#ef-when', (input) => input.value), "2026-11-06T00:15");
+    await clickText(owner, "Save", "#spending button");
+    await waitFor(async () => (await prisma.expense.findUniqueOrThrow({ where: { id: expense.id } })).spentAt.toISOString() === "2026-11-05T18:45:00.000Z", "couple local time converted to UTC");
+    await go(partner, baseUrl, `/dates/${completed.id}`);
+    await partner.locator('button[aria-label="Edit expense"]').click();
+    assert.equal(await partner.$eval('#ef-when', (input) => input.value), "2026-11-06T00:15");
+    await clickText(partner, "Cancel", "#spending button");
+    pass("expense time follows the space timezone across devices and UTC day boundaries");
+
+    stage = "expense DST correction";
+    await prisma.couple.update({ where: { id: couple.id }, data: { timezone: "America/New_York" } });
+    await go(owner, baseUrl, `/dates/${completed.id}`);
+    await owner.locator('button[aria-label="Edit expense"]').click();
+    await fillLocalTime(owner, "2026-03-08T02:30");
+    await clickText(owner, "Save", "#spending button");
+    await bodyContains(owner, "That time does not exist in your space's timezone.");
+    assert.equal(await owner.$eval('#ef-when', (input) => input.value), "2026-03-08T02:30");
+    assert.equal((await prisma.expense.findUniqueOrThrow({ where: { id: expense.id } })).spentAt.toISOString(), "2026-11-05T18:45:00.000Z");
+    await fillLocalTime(owner, "2026-03-08T03:30");
+    await clickText(owner, "Save", "#spending button");
+    await waitFor(async () => (await prisma.expense.findUniqueOrThrow({ where: { id: expense.id } })).spentAt.toISOString() === "2026-03-08T07:30:00.000Z", "DST gap corrected");
+    await prisma.couple.update({ where: { id: couple.id }, data: { timezone: "Asia/Kolkata" } });
+    await go(owner, baseUrl, `/dates/${completed.id}`);
+    pass("nonexistent DST clock times show an error and remain correctable");
 
     stage = "expense removal";
     await owner.waitForSelector('button[aria-label="Remove expense"]');
@@ -145,8 +191,52 @@ export async function runWorkflows({ browser, baseUrl, prisma, runId, artifactDi
     await clickText(owner, "Remove", '[role="dialog"] button');
     await waitFor(async () => Boolean((await prisma.expense.findUniqueOrThrow({ where: { id: expense.id } })).deletedAt), "expense removed");
     await owner.waitForSelector('button[aria-label="Remove expense"]', { hidden: true });
-    assert.deepEqual(errors, [], "Workflow browser runtime errors");
     pass("expense removal honours confirmation and updates the existing page");
+
+    stage = "keyboard expense dialog";
+    await owner.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+    await go(owner, baseUrl, `/dates/${completed.id}`);
+    await clickText(owner, "Add expense", "#spending button");
+    await owner.waitForSelector('[role="dialog"]', { visible: true });
+    await owner.waitForFunction(() => document.activeElement?.id === "ef-amount", { timeout: 5000 });
+    await owner.keyboard.down("Shift"); await owner.keyboard.press("Tab"); await owner.keyboard.up("Shift");
+    assert.equal(await owner.evaluate(() => document.activeElement?.textContent.trim()), "Add expense", "Shift+Tab wraps to the dialog submit control");
+    await owner.keyboard.press("Tab");
+    assert.equal(await owner.evaluate(() => document.activeElement?.id), "ef-amount");
+    await owner.keyboard.press("Escape");
+    await owner.waitForSelector('[role="dialog"]', { hidden: true });
+    assert(await owner.evaluate(() => document.activeElement?.textContent.includes("Add expense") && !document.activeElement.closest('[role="dialog"]')));
+    assert.equal(new URL(owner.url()).pathname, `/dates/${completed.id}`);
+    pass("expense dialog focuses its visible input, traps Tab and restores focus on Escape");
+
+    stage = "responsive routes";
+    await prisma.expense.create({ data: {
+      coupleId: couple.id, dateId: completed.id, recordedById: users[0].id, category: "FOOD",
+      paidBy: "SHARED", amountCents: 12550, currency: "INR", description: "Responsive dinner",
+    } });
+    await prisma.memory.create({ data: {
+      coupleId: couple.id, dateId: completed.id, authorId: users[0].id,
+      title: "Responsive memory", body: "A saved memory for the responsive page checks.",
+    } });
+    const sizes = [[320, 800], [414, 896], [768, 1024], [1024, 768], [1280, 900], [1536, 960], [844, 390]];
+    const paths = [
+      "/home", "/settings", "/dates", "/dates/history", "/dates/upcoming", "/memories",
+      "/memories/photos", "/expenses", "/couple", `/dates/${completed.id}`,
+      `/dates/${completed.id}/review`, `/dates/${completed.id}/recap`,
+      ...["basics", "budget", "activities", "review"].map((step) => `/plan/${layoutPlan.id}?step=${step}`),
+    ];
+    for (const [width, height] of sizes) {
+      const mobile = width <= 414 || height === 390;
+      await owner.setViewport({ width, height, isMobile: mobile, hasTouch: mobile });
+      for (const path of paths) {
+        await go(owner, baseUrl, path);
+        const box = await owner.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
+        assert(box.scroll <= box.width + 1, `Horizontal overflow at ${width}×${height}: ${path}`);
+      }
+      if (width === 320 || height === 390) await owner.screenshot({ path: join(artifactDir, `workflows-layout-${width}x${height}.png`), fullPage: true });
+    }
+    assert.deepEqual(errors, [], "Workflow browser runtime errors");
+    pass("core routes fit 320–1536px widths and phone landscape without horizontal overflow");
     return { checks };
   } catch (error) {
     await Promise.allSettled(pages.map(async (page, i) => page.screenshot({ path: join(artifactDir, `workflows-failure-${i}.png`), fullPage: true })));

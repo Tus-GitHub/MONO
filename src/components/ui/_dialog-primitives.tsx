@@ -59,23 +59,34 @@ export function useMountTransition(open: boolean, durationMs = 240) {
   return { mounted, visible };
 }
 
-/** Locks body scroll while `active`, compensating for the scrollbar to avoid layout shift. */
+let bodyLockCount = 0;
+let unlockedBodyStyle: { overflow: string; paddingRight: string } | null = null;
+
+/** Nested overlays share one scroll lock; only the last teardown restores the original styles. */
 export function useScrollLock(active: boolean) {
   useEffect(() => {
     if (!active) return;
-    const { overflow, paddingRight } = document.body.style;
-    const gap = window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.overflow = "hidden";
-    if (gap > 0) document.body.style.paddingRight = `${gap}px`;
+    if (bodyLockCount === 0) {
+      const { overflow, paddingRight } = document.body.style;
+      unlockedBodyStyle = { overflow, paddingRight };
+      const gap = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.overflow = "hidden";
+      if (gap > 0) document.body.style.paddingRight = `${gap}px`;
+    }
+    bodyLockCount++;
     return () => {
-      document.body.style.overflow = overflow;
-      document.body.style.paddingRight = paddingRight;
+      bodyLockCount--;
+      if (bodyLockCount === 0 && unlockedBodyStyle) {
+        document.body.style.overflow = unlockedBodyStyle.overflow;
+        document.body.style.paddingRight = unlockedBodyStyle.paddingRight;
+        unlockedBodyStyle = null;
+      }
     };
   }, [active]);
 }
 
 const FOCUSABLE =
-  'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
+  'a[href],button:not([disabled]),textarea:not([disabled]),input:not([type="hidden"]):not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 /** Traps Tab focus inside `ref` while `active`, and restores focus to the opener on teardown. */
 export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean) {
@@ -85,25 +96,35 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
     if (!node) return;
 
     const previouslyFocused = document.activeElement as HTMLElement | null;
+    let addedTabIndex = false;
+    const targets = () => Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+      (el) => el.tabIndex >= 0 && el.getClientRects().length > 0
+        && getComputedStyle(el).visibility !== "hidden" && !el.closest("[inert]"),
+    );
     const focusFirst = () => {
-      const targets = node.querySelectorAll<HTMLElement>(FOCUSABLE);
-      (targets[0] ?? node).focus();
+      const first = targets()[0];
+      if (first) first.focus();
+      else {
+        if (!node.hasAttribute("tabindex")) { node.tabIndex = -1; addedTabIndex = true; }
+        node.focus();
+      }
     };
     focusFirst();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
-      const targets = Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-        (el) => el.offsetParent !== null,
-      );
-      if (targets.length === 0) {
+      const controls = targets();
+      if (controls.length === 0) {
         event.preventDefault();
         return;
       }
-      const first = targets[0];
-      const last = targets[targets.length - 1];
+      const first = controls[0];
+      const last = controls[controls.length - 1];
       const activeEl = document.activeElement;
-      if (event.shiftKey && activeEl === first) {
+      if (activeEl === node || !node.contains(activeEl)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && activeEl === first) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && activeEl === last) {
@@ -115,6 +136,7 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
     node.addEventListener("keydown", onKeyDown);
     return () => {
       node.removeEventListener("keydown", onKeyDown);
+      if (addedTabIndex) node.removeAttribute("tabindex");
       previouslyFocused?.focus?.();
     };
   }, [ref, active]);

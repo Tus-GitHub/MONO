@@ -180,10 +180,10 @@ export function ExpenseFields({
               maxLength={500}
             />
           </Field>
-          <Field label="When" htmlFor="ef-when" optional>
+          <Field label="When" htmlFor="ef-when" optional errors={fieldErrors?.spentAtLocal}>
             <input
               id="ef-when"
-              name="spentAt"
+              name="spentAtLocal"
               type="datetime-local"
               value={spentAtLocal}
               onChange={(event) => setSpentAtLocal(event.target.value)}
@@ -194,7 +194,7 @@ export function ExpenseFields({
       ) : (
         <>
           <input type="hidden" name="note" value={note} />
-          <input type="hidden" name="spentAt" value={spentAtLocal} />
+          <input type="hidden" name="spentAtLocal" value={spentAtLocal} />
         </>
       )}
     </div>

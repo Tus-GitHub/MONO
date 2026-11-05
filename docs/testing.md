@@ -63,7 +63,7 @@ the intended environment; do not point integration tests at that database.
 
 ## Reliability coverage
 
-The full suite now has 212 unit tests and 75 PostgreSQL integration cases. Additional cases cover
+The full suite now has 234 unit tests and 82 PostgreSQL integration cases. Additional cases cover
 multiple devices, transient push errors, competing workers, crashed leases, exhausted retries,
 same-timestamp key rotation, category/membership changes, snoozed occurrences, old-history filters,
 photo cursor ties, partial uploads, concurrent date deletion, profile image replacement, retained
@@ -126,17 +126,20 @@ providers, and applies checked-in migrations only to the explicit test database.
 a fresh server process, so real rate limits remain enabled without interference between suites.
 It uses temporary browser profiles and separate contexts, never your signed-in browser profile.
 
-The four suites contain 36 named browser checks:
+The four suites contain 40 named browser checks:
 
 - `journey`: three real registrations/profile flows, two-person join and third-person denial,
   plan/calendar/custom place/budget/activity saves, lifecycle/recap, multipart photo uploads and
-  offline retry, photo caption validation/best-photo controls, dialog/nested Back behavior,
+  offline retry, photo caption validation/best-photo controls, dialog/nested Back/Escape behavior,
+  photo-viewer keyboard trapping and scroll restoration,
   expense/memory forms, private reviews and mutual reveal, desktop and phone viewport pages.
 - `account`: real UI login/reset/logout/deletion, stored cookie sessions, individual/other/all
   revocation, CSRF and cross-user denial, media access, archive download/privacy/dual approval/
   restore/replay, and the shipped service worker's offline fallback and private-cache exclusion.
 - `workflows`: existing-plan edits and stale partner conflicts, draft duplication/deletion,
-  cancellation redirects, expense validation with draft preservation, payer updates and removal.
+  cancellation redirects, expense validation with draft preservation, payer updates and removal,
+  timezone/UTC-day-boundary edits and DST-gap correction, visible keyboard focus/Tab trapping,
+  and 16 app routes (including every plan step) at 320/414/768/1024/1280/1536px plus phone landscape.
 - `pagination`: 53 photos sharing a completion timestamp across the 48-item boundary, no skipped
   or repeated photos, phone viewport fit, same-browser account switching with private/legacy
   memory drafts, memory save/remove/reopen.
@@ -156,3 +159,13 @@ It leaves PostgreSQL running for the operator to stop after testing.
 These checks cover Chromium with phone viewport emulation. Real iOS/Android keyboard, installed
 PWA behavior, HEIC decoding and actual SMTP/OAuth/S3/VAPID delivery still need device/provider
 verification. Keys, production database migration and deployment remain deferred.
+
+## Expense clock semantics
+
+Expense records store real UTC instants. Browser `spentAtLocal` values are interpreted in the
+couple timezone, independent of the server or travelling device timezone. The editor uses that
+same timezone. Amount-only edits retain the stored seconds/milliseconds; an omitted time on an
+update preserves the existing instant. Explicit Date or offset-bearing ISO instants remain
+supported for service/API callers. Nonexistent DST-gap times are rejected with correctable
+feedback; newly entered repeated clock times use the earlier occurrence. An unchanged field
+preserves the original occurrence. Existing stored instants are not rewritten.
