@@ -980,6 +980,15 @@ components. Business rules never live only in React components — they live in
   reaches Vercel's sign-in gate, so that optional production browser smoke is not counted as an
   app test. No protection settings, provider keys or deployment configuration were changed.
   Remaining Safari/physical-device/native-zoom/provider acceptance is documented in testing.md.
+- Verification notes published as `59f0d6b`; [GitHub run 42193211135](https://github.com/Tus-GitHub/MONO/actions/runs/42193211135)
+  again passed all three jobs. Its production deployment `dpl_7F3ybjMsfwtgLWD6zawnvFzDHSrm` is READY;
+  the latest health read returns 200/database up and scoped error/fatal log query returned no logs.
+- Vercel deployment details also list the canonical public production hostname
+  `https://mono-kappa-beryl.vercel.app`. Unlike the team alias, it permits a new unsigned browser.
+  Read-only Chrome 156.0.8078.80 smoke passed `/login`, `/register`, `/forgot-password` and the
+  `/home` → `/login` redirect, each with normal/200% root text at 320px. Anonymous session API
+  access correctly returns 401; no browser errors occurred. No forms were submitted and no
+  production records were created. Result artifact: `.postgres-test/production-browser-smoke-results.json`.
 
 ### 2026-11-06 — Detailed project and database Word report
 

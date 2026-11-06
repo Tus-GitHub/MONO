@@ -181,9 +181,16 @@ Verified on 2026-11-06: implementation `9386ae6` passed
 51 Chromium checks (Chrome 156.0.8078.79), 11 native Firefox checks (Firefox 159.0),
 234 unit tests, 82 PostgreSQL cases, lint, TypeScript and production build. The corresponding
 Vercel production deployment is READY. Authenticated deployment reads of `/login` and
-`/api/health` return 200; health reports database reachable. A new unauthenticated browser
-encounters Vercel's sign-in gate, so no production browser interaction is claimed. These are
-separate from the isolated local/CI browser runs; deployment protection and keys were unchanged.
+`/api/health` return 200; health reports database reachable. The follow-up notes commit `59f0d6b`
+also passed [all three jobs](https://github.com/Tus-GitHub/MONO/actions/runs/42193211135).
+
+The team alias requires Vercel sign-in in a fresh browser. Vercel also lists the canonical public
+production URL [mono-kappa-beryl.vercel.app](https://mono-kappa-beryl.vercel.app). A read-only
+Chrome 156.0.8078.80 smoke on that hostname passed login, registration and password-reset page
+loads, signed-out `/home` redirection, anonymous session API denial (401), normal and 200% root
+text at 320px, and absence of browser errors. No production forms were submitted or records
+created. This public-page smoke is separate from authenticated local/CI feature testing;
+deployment protection and keys were unchanged.
 
 Artifacts are under ignored `.postgres-test/e2e/<run-id>/`: screenshots, structured results and
 local server logs. Logs can contain fixture-only reset URLs; do not publish them as general
