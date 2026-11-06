@@ -41,10 +41,11 @@ Browser
   - `requireUserOrRedirect()` / `redirectIfAuthenticated()` — Server Component guards.
 - **Recovery** — `PasswordResetToken` stores only a SHA-256 of the emailed token, 30-minute
   single-use expiry. Email goes through the `EmailDriver` abstraction (console driver in dev).
-- **Google** — architecture only. `Account` table, `lib/auth/oauth/google.ts` provider config
-  and `upsertUserFromOAuthProfile`, and guarded `api/auth/google/{start,callback}` routes.
-  Returns HTTP 501 until `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` are set — no schema or
-  session change needed to switch it on.
+- **Google** — implemented OAuth start and callback routes verify state, exchange the code,
+  validate the provider's verified email, link the `Account` and create a database-backed
+  session. Returns HTTP 501 while the provider is unconfigured or explicitly disabled.
+  `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` and a correct callback URL are required;
+  real provider sign-in remains an activation check.
 
 ## Authorization / couple isolation (`src/lib/authz`)
 
@@ -72,9 +73,17 @@ its declared type; `src/lib/security/rate-limit.ts` throttles auth / invite / up
 
 ## Data model (`prisma/schema.prisma`)
 
-21 models: `User`, `Account`, `PasswordResetToken`, `Couple`, `CoupleMember`, `Place`,
-`Date`, `DateActivity`, `DatePhoto`, `ReviewCategory`, `DateReview`, `DateReviewRating`,
-`RevisitDecision`, `Expense`, `Memory`, `Notification`.
+26 application models / tables, 319 stored scalar or enum columns, 50 declared foreign-key
+relationships and 17 enums: `User`, `AuthSession`, `Account`, `PasswordResetToken`, `Couple`,
+`ArchiveRestore`, `CoupleInvitation`, `CoupleMember`, `Place`, `Date`, `DateActivity`,
+`DatePhoto`, `ReviewCategory`, `DateReview`, `DateReviewRating`, `RevisitDecision`, `Expense`,
+`Memory`, `Notification`, `DateEvent`, `DateReminder`, `NotificationPreference`,
+`PushSubscription`, `NotificationDelivery`, `StorageCleanup`, `RecommendationFeedback`.
+Prisma's `_prisma_migrations` bookkeeping table and PostgreSQL system tables are excluded.
+
+The detailed [project and database Word report](reports/MONO_Project_Architecture_and_Database_Report_2026-11-06.docx)
+contains every table and column, all relationships and enums, the migration history, source
+tree, completed functionality, test evidence and remaining launch checks as of 2026-11-06.
 
 - Money: integer `*Cents` + ISO-4217 `currency`. No duplicated data beyond what a query needs.
 - Timestamps on every table; `deletedAt` soft-delete on long-lived, user-authored records.

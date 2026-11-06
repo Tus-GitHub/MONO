@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-06 (timezone, keyboard and responsive fixes verified and published)
+Last updated: 2026-11-06 (detailed project and database Word report completed)
 
 ## Project Overview
 
@@ -44,11 +44,19 @@ components. Business rules never live only in React components — they live in
 
 ### Done
 
+- **Detailed project and database Word report (2026-11-06)** — created the 60-page editable
+  report in `docs/reports/MONO_Project_Architecture_and_Database_Report_2026-11-06.docx`.
+  Covers completed functionality, architecture, all 26 application tables / 319 columns,
+  50 foreign keys, 17 enums, 16 SQL CHECK declarations, six migrations, routes/actions/services,
+  the full 494-file audited source hierarchy, verification evidence and remaining launch work.
+  Rendered and visually inspected every page; source completeness checks passed. Corrected
+  outdated table count and Google OAuth wording in `docs/architecture.md`. UI and keys unchanged.
+
 - **Timezone, keyboard and responsive checks (2026-11-06)** — published `5ececd8`; GitHub's
   full run passed 234 unit tests, 82 PostgreSQL cases and 40 browser checks, lint, TypeScript and
   build. Fixed expense clock conversion/preservation, hidden initial focus and nested scroll
   cleanup. Verified 16 routes at seven viewport sizes. UI styling and integration keys unchanged.
-  Vercel remains enabled; the new deployment is queued. Current served login/health return 200
+  Vercel remains enabled; the audited deployment is READY. Current served login/health return 200
   and health reports database reachable. Actual-device, provider and operational checks remain.
 
 - **Continued delivery and browser CI (2026-11-05)** — Vercel Git deployments re-enabled and
@@ -919,6 +927,29 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-06 — Detailed project and database Word report
+
+- **DONE.** Created `docs/reports/MONO_Project_Architecture_and_Database_Report_2026-11-06.docx`:
+  60 pages with numbered contents, completed feature catalogue, layered architecture, all 38 page
+  components, 15 HTTP route handlers, 15 action modules / 67 exports, and 38 service source files.
+- Verified Prisma metadata against source definitions. Documented all 26 application tables,
+  319 physical columns, 50 foreign keys, 17 enums, model indexes/uniqueness, six migrations,
+  14 named plus two inline SQL CHECK constraints, and all 494 tracked source files in the audited
+  `1177d7c` snapshot. Explained `_prisma_migrations` bookkeeping, timestamp semantics,
+  private reviews, shared revisit decisions, archive limits and remaining activation/device work.
+- Used bundled Python/OOXML tooling and the canonical renderer. A temporary official signed,
+  checksum-verified LibreOffice package was extracted only inside ignored report-build files
+  because no native renderer was installed. No system installation or cloud document upload.
+  Visually inspected all 60 pages, repaired the title rule/blank page/orphaned catalogue rows,
+  and rechecked all changed pages. Automated content and full source-tree reconstruction passed.
+- Corrected stale 21-model and Google-placeholder descriptions in `docs/architecture.md`.
+  Latest audited main GitHub run `42088529463` passed for `1177d7c`; its Vercel deployment
+  `dpl_H5NzGtNS3vMwbriCkq27ZPoiWnit` is READY. These are timestamped report evidence,
+  not claims that unconfigured providers or physical-device checks are complete.
+- Existing UI, application behaviour, dependencies, keys and production data were unchanged.
+  Vercel Git deployments remain enabled. The required `npm run build` passed before
+  documentation publication; only this report, architecture notes and task memory are included.
 
 ### 2026-11-05 — Remaining functionality and responsive checks
 
