@@ -176,6 +176,15 @@ verify persisted results. The password-reset capability is seeded instead of sen
 The service worker is explicitly registered for its test because development mode does not
 automatically register it. Production compilation is verified separately with `npm run build`.
 
+Verified on 2026-11-06: implementation `9386ae6` passed
+[GitHub run 42191624217](https://github.com/Tus-GitHub/MONO/actions/runs/42191624217):
+51 Chromium checks (Chrome 156.0.8078.79), 11 native Firefox checks (Firefox 159.0),
+234 unit tests, 82 PostgreSQL cases, lint, TypeScript and production build. The corresponding
+Vercel production deployment is READY. Authenticated deployment reads of `/login` and
+`/api/health` return 200; health reports database reachable. A new unauthenticated browser
+encounters Vercel's sign-in gate, so no production browser interaction is claimed. These are
+separate from the isolated local/CI browser runs; deployment protection and keys were unchanged.
+
 Artifacts are under ignored `.postgres-test/e2e/<run-id>/`: screenshots, structured results and
 local server logs. Logs can contain fixture-only reset URLs; do not publish them as general
 application logs. The runner cleans its precisely scoped fixture users/spaces/cleanup jobs and

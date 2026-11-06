@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-06 (cross-browser regressions fixed and verified locally; publication in progress)
+Last updated: 2026-11-06 (cross-browser regressions published; GitHub checks and Vercel deployment verified)
 
 ## Project Overview
 
@@ -22,11 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Browser publication verification (2026-11-06)** — fixes and local checks are complete;
-  run the required production build, push to GitHub and inspect both engine jobs and the Vercel
-  deployment. Credentials are untouched. Physical iOS/Safari and live-provider acceptance remain
-  separate checks.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification remain. Shared rate limiting, OAuth-token encryption at rest and operator recovery /
@@ -57,7 +52,9 @@ components. Business rules never live only in React components — they live in
   account and pagination checks passed 28 checks. Final native Firefox run passed all 11 checks.
   All 234 unit and 82 PostgreSQL tests, lint and TypeScript passed. Normal phone reference matches
   except hover/dev-tool pixels; the landscape screenshot is pixel-identical. Existing design,
-  colors, copy and keys preserved. GitHub matrix now runs Chromium and Firefox independently.
+  colors, copy and keys preserved. Published `9386ae6`; GitHub run `42191624217` passed all 51
+  Chromium and 11 Firefox checks plus code/database checks and build. Vercel production deployment
+  is READY; authenticated login/health reads return 200 and health reports the database up.
 
 - **Detailed project and database Word report (2026-11-06)** — created the 60-page editable
   report in `docs/reports/MONO_Project_Architecture_and_Database_Report_2026-11-06.docx`.
@@ -945,7 +942,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-06 — Remaining browser verification and fixes
 
-- **IMPLEMENTED; publication verification in progress.** User explicitly requests the remaining browser checks and functionality fixes,
+- **DONE.** User explicitly requests the remaining browser checks and functionality fixes,
   with the existing UI preserved, credentials deferred, continued GitHub pushes and Vercel on.
   Working tree starts clean at `7e8b55a`. Existing baseline: 234 unit / 82 PostgreSQL / 40 Chromium
   browser checks. Firefox is installed locally, so actual second-engine verification is feasible
@@ -972,7 +969,17 @@ components. Business rules never live only in React components — they live in
   passed all 11 compatibility checks after the final app changes. Guarded test polling against a
   temporarily absent document body during streamed redirects. All 234 unit and 82 PostgreSQL
   cases, lint and TypeScript passed. Required `npm run build` passed (Next.js 16.3.4, all routes
-  generated). The isolated PostgreSQL test server was stopped. GitHub/Vercel publication follows.
+  generated). The isolated PostgreSQL test server was stopped.
+- Published implementation `9386ae619527b64662a07ec57633dade5b22cfb5` to `origin main`.
+  [GitHub run 42191624217](https://github.com/Tus-GitHub/MONO/actions/runs/42191624217) passed all
+  three jobs: code/database (234 unit, 82 PostgreSQL, lint, TypeScript, build), Chromium 51 checks
+  (Chrome 156.0.8078.79) and Firefox 11 checks (Firefox 159.0). Artifacts are separated by engine.
+- Vercel deployment `dpl_69rwpTTeov3KgMx2QqWmkF3LzGqC` for the same SHA is READY, production
+  target. Authenticated connector checks of the production alias return HTTP 200 for `/login`
+  (real app email/password form) and `/api/health` (database up). A fresh unauthenticated browser
+  reaches Vercel's sign-in gate, so that optional production browser smoke is not counted as an
+  app test. No protection settings, provider keys or deployment configuration were changed.
+  Remaining Safari/physical-device/native-zoom/provider acceptance is documented in testing.md.
 
 ### 2026-11-06 — Detailed project and database Word report
 
