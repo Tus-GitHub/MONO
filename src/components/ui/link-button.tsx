@@ -43,7 +43,7 @@ export function LinkButton({
       )}
       {...props}
     >
-      <span className={cn("inline-flex items-center", variant === "link" ? "gap-1" : "gap-2")}>
+      <span className={cn("inline-flex min-w-0 max-w-full items-center", variant === "link" ? "gap-1" : "gap-2")}>
         {leadingIcon}
         {children}
         {trailingIcon}

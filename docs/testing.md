@@ -39,8 +39,8 @@ and serialization failures may appear in Prisma's test log even when the asserti
 
 The checked-in GitHub Actions workflow supplies a disposable PostgreSQL 17 container with test-only
 credentials and runs lint, type checks, unit tests, database tests and the build. The workflow has
-read-only repository permissions. A separate browser job runs all registered E2E suites against its
-own disposable database and retains only fixture screenshots/results for seven days; server
+read-only repository permissions. A browser matrix runs Chromium and Firefox against separate
+disposable databases and retains only fixture screenshots/results for seven days; server
 logs and storage files are excluded. The independent Vercel Git integration remains enabled. It will run after these changes are published.
 
 ## Schema changes in this pass
@@ -107,7 +107,9 @@ are described in [archive/restore](archive-restore.md) and [account sessions](ac
 ## Browser E2E
 
 `npm run test:e2e` runs the actual app in installed headless Chrome/Chromium using the existing
-`puppeteer-core` dependency. It starts its own loopback Next.js development server and requires
+`puppeteer-core` dependency. `MONO_E2E_BROWSER=firefox` selects installed Firefox and its native
+WebDriver BiDi compatibility suite. No new browser or application dependency is required.
+The runner starts its own loopback Next.js development server and requires
 a separate PostgreSQL database whose name starts with `mono_test_e2e_`. It refuses remote URLs,
 other names, and an occupied app port. It never connects using the normal application DATABASE_URL.
 
@@ -117,16 +119,23 @@ npm run test:e2e
 # Optional individual suites:
 npm run test:e2e -- journey
 npm run test:e2e -- account pagination
+# Actual Firefox engine, with a new temporary profile:
+$env:MONO_E2E_BROWSER = 'firefox'
+npm run test:e2e -- compatibility
+$env:MONO_E2E_BROWSER = 'chrome'
 ```
 
 Create the isolated database and start local PostgreSQL first, as described above. Set CHROME_PATH
-if Chromium is not in a recognized system location; MONO_E2E_PORT overrides the default 3217.
+or FIREFOX_PATH if the selected browser is not in a recognized system location; MONO_E2E_PORT
+overrides the default 3217.
 The runner generates ephemeral authentication configuration, uses local storage, disables external
 providers, and applies checked-in migrations only to the explicit test database. Each suite gets
 a fresh server process, so real rate limits remain enabled without interference between suites.
 It uses temporary browser profiles and separate contexts, never your signed-in browser profile.
 
-The four suites contain 40 named browser checks:
+Chromium runs five suites containing 51 named browser checks. Firefox runs the 11-check
+compatibility suite; the other four require Chromium-specific offline/timezone emulation and
+are explicitly refused for Firefox rather than silently skipping those assertions.
 
 - `journey`: three real registrations/profile flows, two-person join and third-person denial,
   plan/calendar/custom place/budget/activity saves, lifecycle/recap, multipart photo uploads and
@@ -142,7 +151,24 @@ The four suites contain 40 named browser checks:
   and 16 app routes (including every plan step) at 320/414/768/1024/1280/1536px plus phone landscape.
 - `pagination`: 53 photos sharing a completion timestamp across the 48-item boundary, no skipped
   or repeated photos, phone viewport fit, same-browser account switching with private/legacy
-  memory drafts, memory save/remove/reopen.
+  memory drafts, memory save/remove/reopen. A viewer must finish its synthetic history traversal
+  before it disappears, so immediately following navigation cannot be cancelled by a late Back.
+- `compatibility`: native keyboard login, individually named notification checkboxes and persisted
+  preferences, plan date shortcuts/native time fields, review rating keys, blind submission/reveal,
+  streamed locked-review redirects, multipart photo upload, viewer focus/history closure, private
+  media, calendar keyboard links, manifest/icons/service-worker cache isolation, and five core
+  routes at 320px with normal and 200% root text. Bounds and navigation-overlap assertions catch
+  clipped controls that `document.scrollWidth` alone would miss.
+
+All shared route checks reject HTTP 4xx/5xx. Spending is tested through the actual date's spending
+section; `/expenses` is not an application page. Firefox BiDi may return no navigation response;
+in that case the same browser session rechecks the final GET status. Each tab is activated before
+interaction so native Firefox keyboard events reach the intended document.
+
+GitHub runs each engine on Ubuntu 24.04 with its installed browsers and records actual versions
+in results.json. Browser artifacts have distinct engine names. The explicit image avoids changes
+to browser packaging during the `ubuntu-latest` image transition; see the
+[GitHub runner software inventory](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md).
 
 Journey fixtures are created through the UI. Account/pagination/workflow fixtures use the database for
 setup; their authentication, forms and controls cross real browser HTTP. PostgreSQL assertions
@@ -156,9 +182,11 @@ application logs. The runner cleans its precisely scoped fixture users/spaces/cl
 temporary media, stops the server/browser, and restores Next-generated configuration files.
 It leaves PostgreSQL running for the operator to stop after testing.
 
-These checks cover Chromium with phone viewport emulation. Real iOS/Android keyboard, installed
-PWA behavior, HEIC decoding and actual SMTP/OAuth/S3/VAPID delivery still need device/provider
-verification. Keys, production database migration and deployment remain deferred.
+These checks exercise actual desktop Chromium and Firefox engines with phone viewport and root
+text-size changes. They do not establish Safari behaviour, native browser zoom, physical
+iOS/Android keyboard or installed-device PWA behaviour, camera/HEIC decoding, or actual
+SMTP/OAuth/S3/VAPID delivery. Those device/provider checks and production-data migration readiness
+remain separate. Integration keys are deferred; Vercel Git deployments remain enabled.
 
 ## Expense clock semantics
 

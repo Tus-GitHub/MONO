@@ -59,6 +59,11 @@
   --bottomnav-h: 4rem;
   --sidebar-w: 15.5rem;
   --appheader-h: 3.5rem;
+  /* Keep icon targets and header gutters stable when a user enlarges root text.
+     Text controls can grow vertically; navigation must still fit a narrow screen. */
+  --touch-target: 44px;
+  --appheader-gutter: 16px;
+  --appheader-gap: 8px;
   /* px the on-screen keyboard covers at the bottom edge — set by <ViewportManager> from
      `visualViewport`; 0 when there is no keyboard (or no `visualViewport`). Never hardcode a
      keyboard height anywhere; read this token instead. */
@@ -361,8 +366,8 @@ html[data-kb="open"] .mono-modal-wrap {
 
   /* Minimum comfortable touch target. */
   .tap {
-    min-height: 2.75rem;
-    min-width: 2.75rem;
+    min-height: var(--touch-target);
+    min-width: var(--touch-target);
   }
 
   /* Skip layout/paint for off-screen tiles in long galleries. `contain-intrinsic-size`

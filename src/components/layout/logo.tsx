@@ -40,14 +40,14 @@ export function Logo({ href = "/", variant = "lockup", size = "md", className }:
   const content = (
     <span
       className={cn(
-        "inline-flex items-center gap-2 text-ink",
+        "inline-flex min-w-0 max-w-full items-center gap-2 text-ink",
         SIZE[size],
         className,
       )}
     >
       {variant !== "wordmark" ? <MonoMark /> : null}
       {variant !== "mark" ? (
-        <span className="font-display font-medium uppercase leading-none tracking-[0.34em]">
+        <span className="truncate font-display font-medium uppercase leading-none tracking-[0.34em]">
           MONO
         </span>
       ) : null}
@@ -60,7 +60,7 @@ export function Logo({ href = "/", variant = "lockup", size = "md", className }:
   return (
     <Link
       href={href}
-      className="inline-flex rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
+      className="inline-flex min-w-0 max-w-full rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
     >
       {content}
     </Link>

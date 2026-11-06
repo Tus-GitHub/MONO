@@ -12,7 +12,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
-import { Portal, useBackButton, useEscapeKey, useFocusTrap, useScrollLock } from "@/components/ui/_dialog-primitives";
+import { Portal, useHistoryClose, useEscapeKey, useFocusTrap, useScrollLock } from "@/components/ui/_dialog-primitives";
 import { Icon } from "@/components/ui/icon";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
@@ -98,8 +98,8 @@ export function PhotoLightbox({
     [count, index, onIndex, reset],
   );
 
-  useEscapeKey(onClose, true);
-  useBackButton(onClose, true);
+  const close = useHistoryClose(onClose);
+  useEscapeKey(close, true);
   useScrollLock(true);
   useFocusTrap(dialogRef, true);
 
@@ -215,7 +215,7 @@ export function PhotoLightbox({
       if (result.status === "error") toast({ title: result.message, variant: "error" });
       return;
     }
-    if (count <= 1) onClose();
+    if (count <= 1) close();
     else {
       onIndex(Math.min(index, count - 2));
       reset();
@@ -264,7 +264,7 @@ export function PhotoLightbox({
                 <Icon name="trash" size={16} />
               </ChromeButton>
             ) : null}
-            <ChromeButton label="Close" onClick={onClose}>
+            <ChromeButton label="Close" onClick={close}>
               <Icon name="x" size={18} />
             </ChromeButton>
           </div>

@@ -56,7 +56,7 @@ export function Button({
         loading ? <Spinner size="sm" /> : children
       ) : (
         <span
-          className={cn("inline-flex items-center", variant === "link" ? "gap-1" : "gap-2")}
+          className={cn("inline-flex min-w-0 max-w-full items-center", variant === "link" ? "gap-1" : "gap-2")}
         >
           {loading ? <Spinner size="sm" /> : leadingIcon}
           {children}

@@ -27,11 +27,11 @@ export function AppHeader({ user, unreadCount }: AppHeaderProps) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-20 flex h-(--appheader-h) items-center gap-2 border-b border-line bg-paper/85 pt-safe backdrop-blur-md",
-        "px-4 sm:px-6 lg:justify-end lg:border-b-0 lg:bg-transparent lg:px-8 lg:backdrop-blur-none",
+        "sticky top-0 z-20 flex h-(--appheader-h) items-center gap-(--appheader-gap) border-b border-line bg-paper/85 pt-safe backdrop-blur-md",
+        "px-(--appheader-gutter) sm:px-6 lg:justify-end lg:border-b-0 lg:bg-transparent lg:px-8 lg:backdrop-blur-none",
       )}
     >
-      <div className="mr-auto lg:hidden">
+      <div className="mr-auto min-w-0 lg:hidden">
         <Logo href="/home" size="sm" />
       </div>
 
@@ -112,7 +112,7 @@ function AccountMenu({ user }: { user: { name: string; avatarUrl?: string | null
   }, open);
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative shrink-0">
       <button
         ref={triggerRef}
         type="button"

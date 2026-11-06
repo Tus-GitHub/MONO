@@ -11,7 +11,7 @@ import {
 import Link from "next/link";
 
 import { FavoriteHeart } from "@/components/memories/favorite-heart";
-import { Portal, useBackButton, useEscapeKey, useFocusTrap, useScrollLock } from "@/components/ui/_dialog-primitives";
+import { Portal, useHistoryClose, useEscapeKey, useFocusTrap, useScrollLock } from "@/components/ui/_dialog-primitives";
 import { Icon } from "@/components/ui/icon";
 import { Photo } from "@/components/ui/photo";
 import type { WallPhoto } from "@/lib/date/photo-view";
@@ -166,8 +166,8 @@ function WallViewer({
     [count, index, onIndex],
   );
 
-  useEscapeKey(onClose, true);
-  useBackButton(onClose, true);
+  const close = useHistoryClose(onClose);
+  useEscapeKey(close, true);
   useScrollLock(true);
   useFocusTrap(dialogRef, true);
 
@@ -225,7 +225,7 @@ function WallViewer({
             <button
               type="button"
               aria-label="Close"
-              onClick={onClose}
+              onClick={close}
               className="grid size-9 place-items-center rounded-lg text-white/85 hover:bg-white/12 hover:text-white"
             >
               <Icon name="x" size={18} />

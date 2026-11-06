@@ -221,7 +221,7 @@ export async function runWorkflows({ browser, baseUrl, prisma, runId, artifactDi
     const sizes = [[320, 800], [414, 896], [768, 1024], [1024, 768], [1280, 900], [1536, 960], [844, 390]];
     const paths = [
       "/home", "/settings", "/dates", "/dates/history", "/dates/upcoming", "/memories",
-      "/memories/photos", "/expenses", "/couple", `/dates/${completed.id}`,
+      "/memories/photos", "/settings/notifications", "/couple", `/dates/${completed.id}`,
       `/dates/${completed.id}/review`, `/dates/${completed.id}/recap`,
       ...["basics", "budget", "activities", "review"].map((step) => `/plan/${layoutPlan.id}?step=${step}`),
     ];

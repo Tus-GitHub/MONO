@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useId } from "react";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
 import { CheckboxField } from "@/components/ui/checkbox";
@@ -12,6 +12,7 @@ import type { NotificationPrefs } from "@/server/services/notification-preferenc
 
 export function NotificationSettingsForm({ initial }: { initial: NotificationPrefs }) {
   const [state, action] = useActionState(updateNotificationPrefsAction, idleState);
+  const groupId = useId();
 
   return (
     <form action={action} className="space-y-4">
@@ -20,13 +21,15 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationPre
         {NOTIFICATION_CATEGORIES.map((key) => (
           <div key={key} className="flex items-center justify-between gap-4 px-4 py-3.5">
             <div>
-              <p className="text-sm font-medium text-ink">{CATEGORY_META[key].label}</p>
-              <p className="text-xs text-muted">{CATEGORY_META[key].hint}</p>
+              <p id={`${groupId}-${key}-label`} className="text-sm font-medium text-ink">{CATEGORY_META[key].label}</p>
+              <p id={`${groupId}-${key}-hint`} className="text-xs text-muted">{CATEGORY_META[key].hint}</p>
             </div>
             <CheckboxField
               name={key}
               defaultChecked={initial[key]}
               label=""
+              aria-labelledby={`${groupId}-${key}-label`}
+              aria-describedby={`${groupId}-${key}-hint`}
               className="shrink-0"
             />
           </div>

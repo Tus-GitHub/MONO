@@ -235,3 +235,15 @@ export function useBackButton(
 export function useBodyRef() {
   return useRef<HTMLDivElement>(null);
 }
+
+/** Keep a viewer mounted until its synthetic Back entry is gone. Otherwise a
+ * new navigation can race the asynchronous traversal after the viewer disappears. */
+export function useHistoryClose(onClose: () => void) {
+  const [closing, setClosing] = useState(false);
+  const close = useCallback(() => {
+    if (typeof window === "undefined" || !window.history) onClose();
+    else setClosing(true);
+  }, [onClose]);
+  useBackButton(close, !closing, onClose);
+  return close;
+}

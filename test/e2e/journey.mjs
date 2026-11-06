@@ -40,13 +40,21 @@ export async function clickText(page, text, selector = "button", prefix = false)
 }
 
 export async function bodyContains(page, text) {
-  await page.waitForFunction((text) => document.body.innerText.includes(text), { timeout: TIMEOUT }, text);
+  await page.waitForFunction((text) => document.body?.innerText.includes(text) ?? false, { timeout: TIMEOUT }, text);
 }
 
 export async function go(page, baseUrl, path) {
+  await page.bringToFront();
   const response = await page.goto(new URL(path, baseUrl).href, { waitUntil: "networkidle2", timeout: TIMEOUT });
-  assert(response && response.status() < 500, `Route failed: ${path}`);
-  await page.waitForFunction(() => document.readyState === "complete");
+  // Current Firefox BiDi can finish a navigation without returning its response.
+  // Recheck the same GET through that browser's session rather than treating a
+  // rendered page as failed or silently accepting an unobserved HTTP status.
+  let status = response?.status();
+  if (status === undefined && (await page.browser().version()).startsWith("firefox/")) {
+    status = await page.evaluate(async () => (await fetch(location.href, { cache: "no-store" })).status);
+  }
+  assert(status && status < 400, `Route failed: ${path} (HTTP ${status ?? "unknown"})`);
+  await page.waitForFunction(() => document.readyState === "complete" && Boolean(document.body));
 }
 
 async function api(page, path) {
@@ -287,7 +295,7 @@ export async function runJourney({ browser, baseUrl, prisma, runId, artifactDir 
     pass("drafts and one-sided submissions stay private, then reveal after both submit");
 
     stage = "mobile and final views";
-    for (const path of ["/home", "/dates/history", "/memories", "/memories/photos", "/expenses", "/couple", "/settings"]) {
+    for (const path of ["/home", "/dates/history", "/memories", "/memories/photos", `/dates/${dateId}#spending`, "/couple", "/settings"]) {
       await go(partner, baseUrl, path);
       const dimensions = await partner.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
       assert(dimensions.scroll <= dimensions.width + 1, `Mobile overflow: ${path}`);

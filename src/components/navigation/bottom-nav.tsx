@@ -26,13 +26,13 @@ export function BottomNav() {
           <Tab key={item.key} item={item} active={isActive(item, pathname)} />
         ))}
 
-        <div className="flex justify-center">
+        <div className="flex min-w-0 justify-center">
           <Link
             href={PLAN_HREF}
             aria-label="Plan a date"
             aria-current={planActive ? "page" : undefined}
             className={cn(
-              "grid size-14 -translate-y-4 place-items-center rounded-full bg-primary text-primary-fg shadow-lg ring-4 ring-elevated transition-transform duration-fast ease-out active:-translate-y-3.5 active:scale-95",
+              "grid aspect-square w-full max-w-14 -translate-y-4 place-items-center rounded-full bg-primary text-primary-fg shadow-lg ring-4 ring-elevated transition-transform duration-fast ease-out active:-translate-y-3.5 active:scale-95",
               focusRing,
             )}
           >
@@ -73,7 +73,7 @@ function Tab({
         )}
       />
       <Icon name={item.icon} size="md" className={active ? "text-primary" : "text-faint"} />
-      <span>{item.short}</span>
+      <span className="max-w-full text-center [overflow-wrap:anywhere]">{item.short}</span>
     </Link>
   );
 }

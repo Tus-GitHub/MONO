@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-06 (detailed project and database Word report completed)
+Last updated: 2026-11-06 (cross-browser regressions fixed and verified locally; publication in progress)
 
 ## Project Overview
 
@@ -23,6 +23,11 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
+- **Browser publication verification (2026-11-06)** — fixes and local checks are complete;
+  run the required production build, push to GitHub and inspect both engine jobs and the Vercel
+  deployment. Credentials are untouched. Physical iOS/Safari and live-provider acceptance remain
+  separate checks.
+
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification remain. Shared rate limiting, OAuth-token encryption at rest and operator recovery /
   permanent-erasure policy are possible follow-ups. Portable active-content archive/restore,
@@ -43,6 +48,16 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and SMTP credentials).
 
 ### Done
+
+- **Cross-browser regression fixes (2026-11-06)** — native Firefox compatibility coverage added
+  with 11 checks; Chromium now runs 51 checks across five suites. Fixed unnamed notification
+  toggles, asynchronous photo-viewer history closure and clipped controls at enlarged root text.
+  Strict route assertions now reject 404 pages. Latest local Chromium compatibility/workflows
+  passed 23 checks, including 112 responsive route/viewport combinations; the earlier journey,
+  account and pagination checks passed 28 checks. Final native Firefox run passed all 11 checks.
+  All 234 unit and 82 PostgreSQL tests, lint and TypeScript passed. Normal phone reference matches
+  except hover/dev-tool pixels; the landscape screenshot is pixel-identical. Existing design,
+  colors, copy and keys preserved. GitHub matrix now runs Chromium and Firefox independently.
 
 - **Detailed project and database Word report (2026-11-06)** — created the 60-page editable
   report in `docs/reports/MONO_Project_Architecture_and_Database_Report_2026-11-06.docx`.
@@ -927,6 +942,37 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-06 — Remaining browser verification and fixes
+
+- **IMPLEMENTED; publication verification in progress.** User explicitly requests the remaining browser checks and functionality fixes,
+  with the existing UI preserved, credentials deferred, continued GitHub pushes and Vercel on.
+  Working tree starts clean at `7e8b55a`. Existing baseline: 234 unit / 82 PostgreSQL / 40 Chromium
+  browser checks. Firefox is installed locally, so actual second-engine verification is feasible
+  without adding a runtime application dependency or using personal browser profiles.
+- Added a native Firefox/Chromium compatibility suite and browser selection to the existing
+  Puppeteer runner. Firefox 159.0.1 completed 11 checks, including keyboard preferences/planning/
+  rating/reveal, streamed redirects, multipart media, private reads, calendar links and PWA caches.
+  The new suite uses foreground tabs and native BiDi operations; CDP-only offline/timezone suites
+  remain Chromium-specific. CI now runs both engines independently on Ubuntu 24.04.
+- Reproduced and fixed six unnamed notification checkboxes by linking existing label/hint text
+  with ARIA. Found the previous push's browser failure in GitHub run `42184150869`: photo-wall
+  dismissal raced asynchronous history Back with the next navigation. Viewers now finish their
+  history close before unmounting, with a regression assertion. The code/database CI job passed.
+- Strengthened route checks to reject HTTP 4xx. Both old `/expenses` test visits were nonexistent
+  routes; replaced them with the actual date spending section and notification settings.
+- Enlarged-text screenshots exposed clipped header/nav targets and a submit button despite no
+  document-width overflow. Added bounds/overlap assertions and responsive constraints that retain
+  normal token dimensions. Existing colors, copy and screens preserved. Compared original and
+  updated workflow screenshots: normal phone differs only in hover/dev-tool pixels, and the
+  landscape screenshot is pixel-identical. Strong enlarged-text bounds/overlap assertions pass.
+- Local evidence: Chromium `ed2a8ca367deaf31` passed compatibility (11) and workflows (12),
+  including 16 routes at seven sizes. Earlier Chromium `9eaba8e2d60c52f0` passed journey (10),
+  account (12) and pagination (6) after the history fix. Native Firefox `0cb1d74fa95ba090`
+  passed all 11 compatibility checks after the final app changes. Guarded test polling against a
+  temporarily absent document body during streamed redirects. All 234 unit and 82 PostgreSQL
+  cases, lint and TypeScript passed. Required `npm run build` passed (Next.js 16.3.4, all routes
+  generated). The isolated PostgreSQL test server was stopped. GitHub/Vercel publication follows.
 
 ### 2026-11-06 — Detailed project and database Word report
 

@@ -5,17 +5,25 @@ app and installable PWA. Status set by the Phase 0 audit (2026-09-02).
 
 Legend: `[x]` done · `[ ]` remaining · `[~]` partially done / needs verification
 
-**Current release status (2026-11-05):** many unchecked entries below originate from September
+**Current release status (2026-11-06):** many unchecked entries below originate from September
 and are historical. The app now has unit, PostgreSQL and browser CI. The current pass adds
 timezone-safe expense editing, dialog keyboard focus/scroll restoration, and core-route viewport
 checks from 320 to 1536px plus landscape. See `docs/testing.md` and `memory.md` for measured results.
+
+The browser follow-up adds an actual Firefox compatibility suite alongside Chromium, including
+keyboard forms/ratings/calendar, blind reviews, media and PWA cache isolation. Viewer closure now
+waits for its history traversal, notification checkboxes reference their visible labels, and
+200% root-text checks include control bounds and navigation overlap. The normal design tokens,
+screens and copy are preserved; oversized text can wrap instead of clipping. Route checks now
+reject 404s and test actual notification settings/date spending rather than the nonexistent
+`/expenses` page. See `docs/testing.md` for engine limits and commands.
 
 Remaining release work still requiring external configuration, hardware or live verification:
 
 - Configure and verify SMTP, Google, private storage and Web Push using the user's keys.
 - Activate the scheduler and verify closed-app reminders.
 - Verify production migration, backup and recovery readiness for the intended data.
-- Test actual Safari/Firefox engines, installed iOS/Android PWA behavior, camera/HEIC, keyboard
+- Complete Safari coverage and physical iOS/Android PWA behavior, camera/HEIC, keyboard
   and notification delivery; viewport emulation does not establish these.
 - Complete production Lighthouse/performance and native browser zoom/large-text checks.
 

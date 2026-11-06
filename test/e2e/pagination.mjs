@@ -88,6 +88,7 @@ export async function runPagination({ browser, baseUrl, prisma, runId, artifactD
     assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("aria-label")), initialLabel);
     await page.keyboard.press("Escape");
     await page.waitForSelector('[role="dialog"]', { hidden: true });
+    assert.equal(await page.evaluate(() => history.state?.monoOverlay?.length ?? 0), 0, "Photo viewer dismissal finishes its Back traversal before the next navigation");
 
     const draftDate = await prisma.date.create({ data: {
       title: "Private browser draft fixture", coupleId: couple.id, createdById: user.id,
