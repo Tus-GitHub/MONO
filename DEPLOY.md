@@ -68,6 +68,14 @@ in the local `.env` are for development only.
 
 ### SMTP email (implemented; configure when ready)
 
+MONO uses its own warm, clay-accented HTML password-recovery template with a plain-text
+alternative. Production email is being activated on Brevo's SMTP relay, using the existing
+verified sender address with the display name `MONO`. The credentials are production-scoped
+Vercel secrets; they are not stored in this repository. Set `APP_URL` to the public production
+origin so reset links point to the deployed app. The existing local console driver remains
+available for development. Successful sends log only a generic SMTP acceptance marker, never
+recipient details or reset links. SMTP acceptance does not establish inbox placement.
+
 Set `EMAIL_DRIVER=smtp`, `EMAIL_FROM` to your verified sender, and `SMTP_HOST`, `SMTP_USER`,
 `SMTP_PASSWORD`. Use `SMTP_PORT=587` with `SMTP_SECURE=false` for mandatory STARTTLS, or
 `SMTP_PORT=465` with `SMTP_SECURE=true` for implicit TLS. Certificate verification stays enabled.

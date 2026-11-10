@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-10 (settings screens published as 6c026f7; integration keys unchanged)
+Last updated: 2026-11-10 (MONO branded email prepared; production SMTP configured, deployment pending)
 
 ## Project Overview
 
@@ -22,6 +22,11 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Live branded email on Vercel (2026-11-10)** — user requested working email like QuestMart
+  and Travel Agent. MONO HTML/text recovery template, 240 unit tests, compiler/lint checks and
+  desktop/mobile previews pass. Brevo SMTP TLS/auth verified; eight production-only email/URL
+  settings configured on Vercel. Production build and live delivery verification are pending.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification remain. Shared rate limiting, OAuth-token encryption at rest and operator recovery /
@@ -969,6 +974,24 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-10 — Live branded email on Vercel
+
+**IN PROGRESS.** User authorizes activating email and deploying it, superseding the earlier
+deferral of integration keys for this email work. QuestMart and Travel Agent use Nodemailer
+SMTP; Travel Agent has a Brevo relay configuration available locally. MONO production currently
+has no email or APP_URL configuration. Preparing a MONO template and scoped production email
+configuration without exposing credentials or changing the other applications.
+
+Prepared a MONO-specific warm HTML/text password-reset email, escaped all dynamic HTML and
+refused unsafe/non-local HTTP links. Kept the existing recovery workflow and added a generic
+SMTP acceptance marker without addresses or tokens. All 240 unit tests, TypeScript and email
+lint pass. Desktop and 320px previews render without overflow. Verified Brevo STARTTLS and
+authentication without sending mail. Configured production-only EMAIL_DRIVER/FROM, SMTP host,
+port, TLS mode and sensitive user/password plus APP_URL on the existing MONO Vercel project;
+other projects, local .env files, other integrations and database settings are unchanged.
+Waiting for the release build before committing/deploying, followed by a real public-origin
+password-recovery request to the verified sender mailbox and a production SMTP acceptance check.
 
 ### 2026-11-10 — Publish settings screens
 

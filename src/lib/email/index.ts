@@ -33,4 +33,5 @@ export async function sendPasswordResetEmail(args: {
   expiresInMinutes: number;
 }): Promise<void> {
   await mailer.send(passwordResetEmail(args));
+  if (mailer.name === "smtp") console.info("[email] Password reset accepted by SMTP.");
 }

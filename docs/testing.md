@@ -63,7 +63,7 @@ the intended environment; do not point integration tests at that database.
 
 ## Reliability coverage
 
-The full suite now has 237 unit tests and 82 PostgreSQL integration cases. Additional cases cover
+The full suite now has 240 unit tests and 82 PostgreSQL integration cases. Additional cases cover
 multiple devices, transient push errors, competing workers, crashed leases, exhausted retries,
 same-timestamp key rotation, category/membership changes, snoozed occurrences, old-history filters,
 photo cursor ties, partial uploads, concurrent date deletion, profile image replacement, retained
