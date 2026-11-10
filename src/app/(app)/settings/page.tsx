@@ -48,6 +48,9 @@ export default async function SettingsPage() {
       <section className="space-y-3">
         <h2 className="font-display text-lg font-medium text-ink">Data</h2>
         <DataExportCard />
+        <div className="overflow-hidden rounded-xl border border-line bg-surface">
+          <Row href="/settings/archive" label="Archive & restore" hint="Save a portable archive or restore your shared history" />
+        </div>
       </section>
 
       {/* Renders only when MONO is installable and not already installed. */}
@@ -55,6 +58,10 @@ export default async function SettingsPage() {
 
       <section className="space-y-3">
         <h2 className="font-display text-lg font-medium text-ink">Session</h2>
+        <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
+          <Row href="/settings/password" label="Change password" hint="Update your password and sign out all devices" />
+          <Row href="/settings/sessions" label="Devices & sessions" hint="See and manage where you're signed in" />
+        </div>
         <form
           action={logoutAction}
           className="rounded-xl border border-line bg-surface p-5"

@@ -10,9 +10,9 @@ export const metadata: Metadata = { title: "Sign in" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ reset?: string; invite?: string; error?: string }>;
+  searchParams: Promise<{ reset?: string; invite?: string; error?: string; signedOut?: string }>;
 }) {
-  const { reset, invite, error } = await searchParams;
+  const { reset, invite, error, signedOut } = await searchParams;
   const suffix = invite ? `?invite=${encodeURIComponent(invite)}` : "";
 
   return (
@@ -24,6 +24,10 @@ export default async function LoginPage({
         <div className="mt-4">
           <Alert tone="success">Your password was updated. Sign in with your new password.</Alert>
         </div>
+      ) : null}
+
+      {signedOut === "1" ? (
+        <Alert tone="success" className="mt-4">You&apos;ve been signed out. Sign in whenever you&apos;re ready.</Alert>
       ) : null}
 
       <div className="mt-6 space-y-4">

@@ -1,19 +1,11 @@
 import bcrypt from "bcryptjs";
-import { z } from "zod";
+
+export { passwordSchema } from "@/lib/validation/password";
 
 /**
  * Password hashing and strength rules. Plaintext passwords are never stored or logged.
  */
 const BCRYPT_COST = 12;
-
-export const passwordSchema = z
-  .string()
-  .min(10, "Use at least 10 characters.")
-  .max(200, "That password is too long.")
-  .regex(/[a-z]/, "Include a lowercase letter.")
-  .regex(/[A-Z]/, "Include an uppercase letter.")
-  .regex(/[0-9]/, "Include a number.")
-  .refine((value) => new TextEncoder().encode(value).byteLength <= 72, "Use at most 72 bytes for your password.");
 
 export async function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, BCRYPT_COST);

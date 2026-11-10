@@ -1,9 +1,8 @@
 import { z } from "zod";
 import { DateActivityKind, DateEventKind, DateStatus, ExpenseCategory, ExpensePayer, PlaceCategory, RecommendationSignal, RecommendationTargetType, ReminderKind, ReviewRevisit, RevisitChoice } from "@prisma/client";
 
-export const ARCHIVE_MAX_BYTES = 64 * 1024 * 1024;
-export const ARCHIVE_MAX_MEDIA_BYTES = 32 * 1024 * 1024;
-export const ARCHIVE_MAX_ROWS = 10_000;
+import { ARCHIVE_MAX_ROWS } from "@/lib/archive/limits";
+export { ARCHIVE_MAX_BYTES, ARCHIVE_MAX_MEDIA_BYTES, ARCHIVE_MAX_ROWS } from "@/lib/archive/limits";
 const id = z.string().min(1).max(128).regex(/^[a-zA-Z0-9_-]+$/);
 const text = z.string().max(30_000);
 const nullableText = text.nullable();

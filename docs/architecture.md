@@ -329,7 +329,7 @@ every card/hero. The client renders through `<Photo>` (aspect-ratio box, blur-up
 
 ## Tests (`npm test` → Vitest)
 
-234 unit tests over business rules, integrations and action boundaries, including `lib/review/scale` + `comparison`,
+237 unit tests over business rules, integrations, archive previews and action boundaries, including `lib/review/scale` + `comparison`,
 `lib/date/review-reveal` + `lifecycle`, `lib/date/expense-split` + `expense-breakdown`,
 `lib/explore/compatibility`, `lib/utils/timezone` — plus `lib/authz/couple` (couple isolation,
 with `prisma` + the session mocked). Node environment, no DB, no DOM. `vitest.config.ts` maps

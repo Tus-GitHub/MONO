@@ -137,7 +137,9 @@ the intended email. No support reactivation endpoint is exposed by this change.
 
 Portable archive restore uses a separate protected API with both members' approvals and an empty
 destination. See [archive/restore](archive-restore.md) for limits, data inclusion and steps. The
-existing settings screens are unchanged; backend session/restore controls have no new visible UI.
+settings screens expose confirmed device revocation, password changes and archive restore through
+these same protected APIs. Passwords, archive files and approval codes are never saved to browser
+draft storage. The server independently enforces ownership, live sessions and both restore approvals.
 
 ## 6. Privacy posture
 

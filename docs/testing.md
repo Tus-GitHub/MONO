@@ -63,7 +63,7 @@ the intended environment; do not point integration tests at that database.
 
 ## Reliability coverage
 
-The full suite now has 234 unit tests and 82 PostgreSQL integration cases. Additional cases cover
+The full suite now has 237 unit tests and 82 PostgreSQL integration cases. Additional cases cover
 multiple devices, transient push errors, competing workers, crashed leases, exhausted retries,
 same-timestamp key rotation, category/membership changes, snoozed occurrences, old-history filters,
 photo cursor ties, partial uploads, concurrent date deletion, profile image replacement, retained
@@ -101,8 +101,8 @@ Nine session cases verify real JWT authorization, individual/other/all-device re
 push cleanup, expiry and device limits, password change, reset and deleted-account rejection.
 Additional units cover claim shape, revoked-cookie login routing and bcrypt UTF-8 byte bounds.
 
-Those service tests do not exercise browser E2E or provider HTTP. The UI is unchanged; backend workflows
-are described in [archive/restore](archive-restore.md) and [account sessions](account-sessions.md).
+Those service tests do not exercise browser E2E or provider HTTP. Settings interfaces and API
+workflows are described in [archive/restore](archive-restore.md) and [account sessions](account-sessions.md).
 
 ## Browser E2E
 
@@ -119,6 +119,7 @@ npm run test:e2e
 # Optional individual suites:
 npm run test:e2e -- journey
 npm run test:e2e -- account pagination
+npm run test:e2e -- settings
 # Actual Firefox engine, with a new temporary profile:
 $env:MONO_E2E_BROWSER = 'firefox'
 npm run test:e2e -- compatibility
@@ -133,7 +134,8 @@ providers, and applies checked-in migrations only to the explicit test database.
 a fresh server process, so real rate limits remain enabled without interference between suites.
 It uses temporary browser profiles and separate contexts, never your signed-in browser profile.
 
-Chromium runs five suites containing 51 named browser checks. Firefox runs the 11-check
+Chromium runs six suites containing 64 named browser checks, including the 13 settings checks
+described below. Firefox runs the 11-check
 compatibility suite; the other four require Chromium-specific offline/timezone emulation and
 are explicitly refused for Firefox rather than silently skipping those assertions.
 
@@ -145,6 +147,10 @@ are explicitly refused for Firefox rather than silently skipping those assertion
 - `account`: real UI login/reset/logout/deletion, stored cookie sessions, individual/other/all
   revocation, CSRF and cross-user denial, media access, archive download/privacy/dual approval/
   restore/replay, and the shipped service worker's offline fallback and private-cache exclusion.
+- `settings`: password changes and all-device revocation, Google-only messaging, device list
+  refresh, confirmed current/individual/other/all-device sign-out, portable archive download,
+  invalid files and tampering, independent partner consent, cancelled and successful restores,
+  restored media, repeated-restore blocking, offline recovery, and responsive settings pages.
 - `workflows`: existing-plan edits and stale partner conflicts, draft duplication/deletion,
   cancellation redirects, expense validation with draft preservation, payer updates and removal,
   timezone/UTC-day-boundary edits and DST-gap correction, visible keyboard focus/Tab trapping,

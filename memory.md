@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-06 (cross-browser regressions published; GitHub checks and Vercel deployment verified)
+Last updated: 2026-11-10 (publishing verified settings screens; integration keys unchanged)
 
 ## Project Overview
 
@@ -23,6 +23,9 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
+- **Publish settings screens (2026-11-10)** — user authorized publication; running the required
+  production build passed. Staging, committing and pushing to `origin main`.
+
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification remain. Shared rate limiting, OAuth-token encryption at rest and operator recovery /
   permanent-erasure policy are possible follow-ups. Portable active-content archive/restore,
@@ -43,6 +46,30 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and SMTP credentials).
 
 ### Done
+
+- **Remaining settings screens (2026-11-10)** — added `/settings/password`, `/settings/sessions`
+  and `/settings/archive`, linked from Settings and styled with existing primitives/tokens.
+  Includes shared password validation and all-device sign-out; confirmed current/individual/
+  other/all-device revocation; portable download, file preview, independent partner approvals,
+  expiry/renewal, confirmation and restore feedback. Existing backend privacy and empty-space
+  rules remain authoritative. Verified 237 unit tests, 82 PostgreSQL cases, 13 new Chromium
+  browser checks, TypeScript, full lint and final production build. Reviewed phone/desktop
+  screenshots and 320px enlarged archive text. Integration keys, live data and deployment are
+  unchanged. Test fixtures cleaned and the local test PostgreSQL server stopped.
+
+- **Codebase completion assessment (2026-11-10)** — reviewed architecture, features, schema,
+  CI and remaining launch work. Reverified all 234 unit tests, TypeScript, lint and production
+  build successfully. Core scope is substantially implemented; provider activation, physical
+  device QA, production recovery verification and settings UI for backend-only archive/session/
+  password controls remain. PostgreSQL/browser suites and live deployment were not rerun.
+  Application code, UI and keys unchanged; pre-existing memory edits preserved.
+
+- **Email sending status audit (2026-11-06)** — SMTP transport and password-reset integration
+  are implemented; eight targeted transport/auth tests pass with mocked mail. Local `.env`
+  selects `EMAIL_DRIVER=console` and has no SMTP credentials. Vercel metadata lists no EMAIL_*
+  or SMTP_* variables (zero hidden production variables), so the app defaults to console there
+  too. Real inbox delivery is not configured or verified. No mail was sent and no credentials,
+  environment settings, UI or application code were changed.
 
 - **Cross-browser regression fixes (2026-11-06)** — native Firefox compatibility coverage added
   with 11 checks; Chromium now runs 51 checks across five suites. Fixed unnamed notification
@@ -939,6 +966,73 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-10 — Publish settings screens
+
+**IN PROGRESS.** User requested publication of the completed password, session and archive
+settings screens. Updated this log and ran a fresh `npm run build` successfully, including
+TypeScript and all 40 static outputs. Confirmed local `main` matches `origin/main` at `3fce5ad`.
+Proceeding to stage the requested changes, commit with the required trailer and push to
+`origin main`. Integration keys remain unchanged.
+
+### 2026-11-10 — Remaining settings screens
+
+**DONE.** Added three protected settings pages using the existing PageHeader, cards, fields,
+buttons, alerts, badges and confirmation dialogs. Password changes validate the same strength
+rules in client/server and reload sign-in after revoking every device. Google-only accounts
+receive recovery guidance. Device management shows only the caller's sessions, identifies this
+device, formats timestamps in the couple timezone, refreshes and confirms revocations.
+
+Archive settings downloads the actual portable file with media, blocks unavailable destinations,
+previews files locally, obtains independent session-bound approvals and supports copy/paste of
+the partner's short-lived code. Changing files clears local consent/codes; expiry allows renewal.
+Only the exporter can confirm restore. Server checks, atomic writes, privacy and one-restore/
+empty-space restrictions are preserved. Passwords, archives and codes never use draft storage.
+Updated account/archive/security/architecture/testing docs and README.
+
+Validation: 237 unit tests (including three archive-preview cases), all 82 real PostgreSQL
+cases, TypeScript, full ESLint and final `npm run build` passed. The new `settings` browser
+suite passed 13 checks in Chrome/156.0.8078.80; final results and screenshots are in ignored
+`.postgres-test/e2e/6ea17f0eba2b2074`. Coverage includes invalid credentials, real device
+revocation, download bytes, invalid/tampered files, missing partner consent, cancellation,
+restored content/media, repeated restore, offline retry and 320/768/1280px layouts, plus 200%
+root text in archive approval. Visually reviewed new screens. The five existing browser suites
+were not rerun; they remain registered alongside the new suite. Initial fixture/automation
+issues were corrected (completed onboarding, scoped dialog clicks, incognito download policy).
+The isolated test database used all six migrations; fixture accounts/spaces/media were cleaned.
+The previously stopped local PostgreSQL test server was started for verification and stopped
+afterward. No integration keys, application database, live deployment, commit or push changed.
+
+### 2026-11-10 — Codebase completion assessment
+
+**DONE.** Reviewed routes, services, schema, deployment/testing docs, CI, integration
+adapters, private-review rules, write conflict protection and offline behavior. Confirmed 26
+models, 38 services and six migrations. All 234 unit tests pass on this checkout. Archive restore,
+device management and password changes have backend APIs without dedicated settings UI.
+Local configuration uses console email and local storage, with no SMTP, Google sign-in or
+reminder cron secret configured; Places/push key presence does not verify delivery. No secrets
+were printed, providers contacted, or application behavior changed. TypeScript, lint and production
+build also passed. Recorded prior evidence covers 82 PostgreSQL cases, 51 Chromium checks and
+11 Firefox checks; these and the live deployment were not reverified during this assessment.
+The completion estimate is qualitative against the current scope, not a measured acceptance
+percentage. Older PWA unchecked entries include already-completed work and should be reconciled
+before being used as a current tracker. Existing local memory edits are preserved.
+
+### 2026-11-06 — Email sending status audit
+
+- **DONE.** User asks whether the email sending service works. Inspected the actual transport
+  code, local environment presence and Vercel configuration metadata without displaying secrets.
+- Local effective environment loads `.env` with `EMAIL_DRIVER=console`; SMTP host/user/password
+  are absent. Vercel project metadata lists only DATABASE_URL and AUTH_SECRET, with no EMAIL_*
+  or SMTP_* variables and zero hidden production variables. The deployed code therefore uses
+  the console default, which writes messages to logs and does not deliver to an inbox.
+- SMTP implementation supports authenticated TLS and rejects incomplete configuration or a
+  rejected recipient. Password recovery calls the reset template/driver. Targeted Vitest run
+  passed 8 tests across SMTP transport and auth service; these mock mail and do not establish
+  provider delivery. Configure EMAIL_DRIVER=smtp, a verified EMAIL_FROM, SMTP_HOST, SMTP_USER,
+  SMTP_PASSWORD, and provider port/TLS settings, then verify connectivity and actual receipt.
+- No test message was sent, no credentials/settings or app/UI code changed, and no deployment
+  was triggered for this read-only status inquiry.
 
 ### 2026-11-06 — Remaining browser verification and fixes
 

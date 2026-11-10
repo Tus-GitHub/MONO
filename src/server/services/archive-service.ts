@@ -183,6 +183,20 @@ async function imageContentType(bytes: Buffer): Promise<ArchivePayload["media"][
 }
 
 type Destination = Awaited<ReturnType<typeof destination>>;
+async function restoreBlocker(couple: { id: string; photoKey: string | null; archiveRestore: unknown }, tx: Prisma.TransactionClient = prisma) {
+  if (couple.archiveRestore) return "This space has already received an archive.";
+  const count = await Promise.all([tx.date.count({ where: { coupleId: couple.id } }), tx.place.count({ where: { coupleId: couple.id } }), tx.expense.count({ where: { coupleId: couple.id } }), tx.memory.count({ where: { coupleId: couple.id } }), tx.recommendationFeedback.count({ where: { coupleId: couple.id } })]);
+  return count.some(Boolean) || couple.photoKey ? "Restore requires an empty space with no existing couple cover." : null;
+}
+
+export async function getArchiveRestoreSettings() {
+  const { couple: contextCouple, user } = await requireCoupleContext();
+  const couple = await prisma.couple.findUniqueOrThrow({
+    where: { id: contextCouple.id }, select: { id: true, name: true, photoKey: true, archiveRestore: { select: { id: true } } },
+  });
+  return { spaceName: couple.name, userEmail: user.email, blockedReason: await restoreBlocker(couple) };
+}
+
 async function destination(archive: CoupleArchive, tx: Prisma.TransactionClient = prisma) {
   const context = await requireCoupleContext();
   const couple = await tx.couple.findFirst({ where: { id: context.couple.id, deletedAt: null, status: { in: ["ACTIVE", "PENDING"] } }, include: { members: { where: { status: "ACTIVE", user: { deletedAt: null } }, include: { user: { select: { id: true, email: true, tokenVersion: true } } } }, archiveRestore: true } });
@@ -193,9 +207,8 @@ async function destination(archive: CoupleArchive, tx: Prisma.TransactionClient 
     if (!target) throw new AuthorizationError("Restore requires the same people and owner/partner roles.");
     mapping.set(member.id, target.userId);
   }
-  if (couple.archiveRestore) throw new ConflictError("This space has already received an archive.");
-  const count = await Promise.all([tx.date.count({ where: { coupleId: couple.id } }), tx.place.count({ where: { coupleId: couple.id } }), tx.expense.count({ where: { coupleId: couple.id } }), tx.memory.count({ where: { coupleId: couple.id } }), tx.recommendationFeedback.count({ where: { coupleId: couple.id } })]);
-  if (count.some(Boolean) || couple.photoKey) throw new ConflictError("Restore requires an empty space with no existing couple cover.");
+  const blockedReason = await restoreBlocker(couple, tx);
+  if (blockedReason) throw new ConflictError(blockedReason);
   return { context, couple, mapping };
 }
 

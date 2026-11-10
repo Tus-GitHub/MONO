@@ -1,8 +1,8 @@
 # Portable archive and restore
 
-The existing settings screen and `/api/export` JSON download are unchanged. A separate,
-authenticated backend API at `/api/archive` adds a portable active-content archive without
-adding a screen or new integration keys. It uses the configured database/storage drivers.
+The existing `/api/export` JSON download remains available. **Settings → Archive & restore**
+(`/settings/archive`) adds portable active-content download and restore using the authenticated
+`/api/archive` API and configured database/storage drivers. No integration keys are added.
 
 ## What the archive contains
 
@@ -66,10 +66,32 @@ plus private-object-storage backup remains necessary for operator disaster recov
   tasks. Account/session/membership revocation and newly added target content are rechecked
   under ordered user/couple locks before committing.
 
+## Settings workflow
+
+1. Open **Settings → Archive & restore → Download archive** in the source space. Store this
+   private file safely. The regular data export lacks embedded media and cannot be restored.
+2. Prepare a new empty space with the same people in the same owner/partner roles. Populated
+   spaces, spaces with a cover, and previously restored spaces explain why restore is blocked.
+   Do not disconnect a real space merely to try restore; use test fixtures for experimentation.
+3. Each partner chooses the same portable archive on this page, reviews its name, people,
+   date and content counts, checks consent, and selects **Approve this archive**. The server
+   validates file integrity and destination permissions before issuing an approval.
+4. The partner copies their approval code to the person who downloaded the archive. Only
+   the downloader can finish. Both must stay signed in; approvals expire after 15 minutes.
+   The downloader enters the partner's code, selects **Restore archive**, and confirms.
+5. A successful restore shows content counts and a link to the restored dates. Changing the
+   selected file clears all local approvals and consent. Expired approvals can be renewed.
+
+File previews are local and are not authoritative validation. The server rechecks every
+permission, approval, digest, relationship and destination condition at restore time. Files
+and approval codes stay in page memory, not localStorage or draft recovery. Sharing the file
+also shares the downloader's own private drafts included in it; review it before sharing.
+The archive limits and recovery limitations above still apply.
+
 ## Authenticated API workflow
 
-The API is ready for a future UI. No UI was added in this pass. An operator can exercise it
-from the browser's developer console while signed in on the existing app. Normal app origin
+The API also remains available for operator workflows. It can be exercised
+from the browser's developer console while signed in. Normal app origin
 checks and httpOnly session cookies apply; no cookies or bearer session tokens are copied.
 
 1. In the source space, visit `/api/archive` to download the file. Keep an untouched copy.
@@ -143,3 +165,8 @@ cookies, requests and local media storage are real. The development-mode server 
 provider keys. The same suite explicitly activates the shipped service worker in a separate
 temporary browser context to check offline fallback and exclusion of private HTML/API/media
 from CacheStorage. See [browser E2E testing](testing.md#browser-e2e) for exact scope and commands.
+
+`test/e2e/settings.mjs` additionally exercises portable download, file validation, integrity
+rejection, two independent approvals, rejection of repeated self-approval, confirmation
+cancellation, restored media access, replay blocking and responsive settings screens through
+the new UI. The existing integration suite retains revoked/expired approval and race coverage.

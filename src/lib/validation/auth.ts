@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { passwordSchema } from "@/lib/auth/password";
+import { passwordSchema } from "@/lib/validation/password";
 import { emailSchema, requiredText } from "@/lib/validation/common";
 
 export const registerSchema = z

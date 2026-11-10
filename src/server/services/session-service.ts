@@ -36,6 +36,14 @@ export async function listAuthSessions() {
   return rows.map((row) => ({ ...row, current: row.id === payload.sessionId }));
 }
 
+export async function getPasswordSettings(): Promise<{ hasPassword: boolean }> {
+  const payload = await requireAuthSession();
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: payload.userId }, select: { passwordHash: true },
+  });
+  return { hasPassword: Boolean(user.passwordHash) };
+}
+
 export type RevokeSessionsInput = { action: "revoke"; sessionId: string } | { action: "revoke-others" | "revoke-all" };
 
 export async function revokeAuthSessions(input: RevokeSessionsInput): Promise<{ clearCookie: boolean }> {

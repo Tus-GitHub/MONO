@@ -64,7 +64,8 @@ prisma/
 
 Portable media archives and protected restore are documented in [archive/restore](docs/archive-restore.md).
 Per-device session revocation and password changes are documented in [account/session controls](docs/account-sessions.md).
-These backend controls preserve the current UI. Apply pending migrations before running this
+Settings includes password changes, device/session management and portable archive restore,
+using the existing UI style. Apply pending migrations before running this
 version against an existing database; existing cookies will require a fresh login.
 
 ## Setup

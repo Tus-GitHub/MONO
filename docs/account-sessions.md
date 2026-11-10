@@ -1,10 +1,19 @@
 # Account and session controls
 
-These backend controls preserve the existing settings screens and styling. No provider keys
+Settings now includes **Change password** (`/settings/password`) and **Devices & sessions**
+(`/settings/sessions`), using the existing form, card and confirmation styles. No provider keys
 are needed. Apply the pending migrations before running the updated application against a
 database. Existing stateless cookies require sign-in again; legacy push capabilities without
 a device-session binding are retired. The existing notification settings re-register that
 browser when opened; no subscription is silently shared with a different account.
+
+The password form validates the same strength rules as the server, explains all-device sign-out,
+and returns to sign-in after success. Google-only accounts see a recovery explanation instead
+of an unusable current-password form. Passwords are never persisted in browser drafts.
+The device screen identifies the current session, shows creation/activity/expiry times in the
+couple timezone, and offers confirmed individual, other-device and all-device sign-out. It
+supports refresh, pending states and retryable request errors. Current/all-device sign-out
+reloads the login page to discard cached authenticated views.
 
 ## Sessions
 
@@ -72,3 +81,7 @@ while cookies, authentication, forms and controls use real HTTP. The suite runs 
 mode with email, Google, storage-provider and push integrations disabled; it does not claim live
 provider delivery or physical-device verification. See [browser E2E testing](testing.md#browser-e2e)
 for setup, coverage and retained diagnostic artifacts.
+
+`test/e2e/settings.mjs` exercises the new settings interfaces with real HTTP and PostgreSQL,
+including incorrect passwords, independent device revocation, cancellation, all-device sign-out,
+Google-only messaging, responsive layouts and recoverable offline requests.
