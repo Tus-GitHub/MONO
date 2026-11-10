@@ -61,6 +61,7 @@ export default async function SettingsPage() {
         <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
           <Row href="/settings/password" label="Change password" hint="Update your password and sign out all devices" />
           <Row href="/settings/sessions" label="Devices & sessions" hint="See and manage where you're signed in" />
+          <Row href="/verify-email" label="Email verification" hint={user.emailVerified ? "Your email address is confirmed" : "Confirm your email address or request a new link"} />
         </div>
         <form
           action={logoutAction}

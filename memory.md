@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-10 (MONO branded email live; requested account registered and SMTP send verified)
+Last updated: 2026-11-10 (registration email/verification implemented and tested; release pending)
 
 ## Project Overview
 
@@ -22,6 +22,13 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Registration welcome and verification emails (2026-11-10)** — user requests MONO-branded
+  welcome and verification mail after registration, with a complete verification/resend flow
+  and production deployment. Implemented with hashed 24-hour tokens, explicit confirmation,
+  resends and optional onboarding/settings notices. 251 unit, 92 PostgreSQL and 17 browser
+  checks pass, as do lint/TypeScript, email previews and the final production build. Publishing
+  the feature and its additive migration before live SMTP verification.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification remain. Shared rate limiting, OAuth-token encryption at rest and operator recovery /
@@ -979,6 +986,40 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-10 — Registration welcome and verification emails
+
+**IN PROGRESS.** Adding welcome plus verification email delivery to credential registration,
+hashed expiring verification tokens, safe confirmation and resend UI, and regression coverage.
+Existing SMTP configuration is live on Vercel; user authorizes this feature's migration and
+release. Existing users and onboarding access will remain compatible.
+
+Implemented two MONO HTML/text templates on the shared layout, after-response registration
+dispatch, one-minute database resend cooldown, five-outstanding-link bound, replay/expiry/
+deleted-user/mailbox-change checks, user-serialized token consumption and account-closure
+cleanup. Verification never logs in a user or gates existing account access. `/verify-email`
+removes capability fragments from the URL and requires an explicit POST, so scans/prefetches
+do not consume a link. Resend feedback is generic. Onboarding and Settings expose the new flow.
+
+Added append-only migration `20261110000000_email_verification`: one token table (current
+schema: 27 models, 326 scalar/enum columns, 51 FKs, 17 enums), with no user-row rewrite.
+Seven migrations apply from scratch locally. All 251 unit tests, 92 real PostgreSQL cases,
+TypeScript and full lint pass. Chromium 157.0.8103.40 passed seven registration checks and ten
+existing journey checks; fixtures cleaned. Results/screenshots are in ignored
+`.postgres-test/e2e/9d75a3b73a340e90`. Welcome/verification previews fit desktop and 320px.
+The local PostgreSQL test server was stopped after verification.
+
+Also tested the exact checked-in migration SQL on an isolated Neon child branch of production:
+`br-fancy-shape-b3ox2t8v` / `codex-registration-email-20261110`, with four indexes verified.
+Local TCP access to that endpoint failed, so the authenticated Neon connection ran the same
+checked-in statements transactionally on the child only. No production rows were queried or
+modified in this preflight. The child compute is suspended and the branch expires automatically
+at 2026-11-10 14:45 UTC. The Vercel build now uses a migration-only direct Neon connection
+(or explicit DIRECT_DATABASE_URL) while preserving the app's runtime URL and credentials;
+the existing pooled advisory-lock issue is not bypassed by disabling locks. The final production
+build passed (41 static outputs including the dynamic verification route). Publishing the
+feature/migration next, followed by production registration SMTP checks and a verification
+request for the user's already-registered mailbox.
 
 ### 2026-11-10 — Live branded email on Vercel
 

@@ -125,6 +125,10 @@ Production password-recovery email is configured through Brevo SMTP with MONO's 
 template and public reset links. The live Vercel send path was verified on 2026-11-10; other
 integration activation remains separate. SMTP secrets are stored only in Vercel production.
 
+New credential registrations also receive welcome and email-verification messages. Confirmation
+uses a 24-hour single-use link and an explicit confirmation page; resends are available during
+onboarding and from Settings. Existing account access is preserved. See [account email](docs/account-email.md).
+
 ## Database regression checks
 
 The audit remediation adds private-review filtering, transactional plan/review writes, stale

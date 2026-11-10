@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { cookies } from "next/headers";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { prisma } from "@/lib/db/prisma";
@@ -23,6 +24,7 @@ import {
 } from "@/server/services/auth-service";
 import { formValues, toActionError } from "@/server/actions/_helpers";
 import { revokeCurrentAuthSession } from "@/server/services/session-service";
+import { sendRegistrationEmails } from "@/server/services/email-verification-service";
 
 const GENERIC_RESET_MESSAGE = "If that email has an account, a reset link is on its way.";
 
@@ -50,6 +52,10 @@ export async function registerAction(
   try {
     const user = await registerUser(parsed.data);
     await writeSessionCookie({ userId: user.id, tokenVersion: user.tokenVersion });
+    after(async () => {
+      try { await sendRegistrationEmails(user.id); }
+      catch { console.error("[email] Registration email delivery failed; account remains available."); }
+    });
   } catch (error) {
     return toActionError(error);
   }

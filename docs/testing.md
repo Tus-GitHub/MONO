@@ -63,7 +63,7 @@ the intended environment; do not point integration tests at that database.
 
 ## Reliability coverage
 
-The full suite now has 240 unit tests and 82 PostgreSQL integration cases. Additional cases cover
+The full suite now has 251 unit tests and 92 PostgreSQL integration cases. Additional cases cover
 multiple devices, transient push errors, competing workers, crashed leases, exhausted retries,
 same-timestamp key rotation, category/membership changes, snoozed occurrences, old-history filters,
 photo cursor ties, partial uploads, concurrent date deletion, profile image replacement, retained
@@ -134,7 +134,7 @@ providers, and applies checked-in migrations only to the explicit test database.
 a fresh server process, so real rate limits remain enabled without interference between suites.
 It uses temporary browser profiles and separate contexts, never your signed-in browser profile.
 
-Chromium runs six suites containing 64 named browser checks, including the 13 settings checks
+Chromium runs seven suites containing 71 named browser checks, including the 13 settings checks
 described below. Firefox runs the 11-check
 compatibility suite; the other four require Chromium-specific offline/timezone emulation and
 are explicitly refused for Firefox rather than silently skipping those assertions.
@@ -151,6 +151,9 @@ are explicitly refused for Firefox rather than silently skipping those assertion
   refresh, confirmed current/individual/other/all-device sign-out, portable archive download,
   invalid files and tampering, independent partner consent, cancelled and successful restores,
   restored media, repeated-restore blocking, offline recovery, and responsive settings pages.
+- `registration`: real signup and post-response welcome/verification dispatch, private token
+  fragments, explicit confirmation, generic resend responses and cooldowns, older-link validity,
+  used/expired links, signed-out confirmation, legacy account access and responsive layouts.
 - `workflows`: existing-plan edits and stale partner conflicts, draft duplication/deletion,
   cancellation redirects, expense validation with draft preservation, payer updates and removal,
   timezone/UTC-day-boundary edits and DST-gap correction, visible keyboard focus/Tab trapping,

@@ -1,7 +1,7 @@
 import { env, isProduction } from "@/config/env";
 import { ConsoleEmailDriver } from "@/lib/email/console";
 import { SmtpEmailDriver } from "@/lib/email/smtp";
-import { passwordResetEmail } from "@/lib/email/templates";
+import { passwordResetEmail, verificationEmail, welcomeEmail } from "@/lib/email/templates";
 import type { EmailDriver, EmailMessage } from "@/lib/email/types";
 
 export type { EmailDriver, EmailMessage } from "@/lib/email/types";
@@ -34,4 +34,14 @@ export async function sendPasswordResetEmail(args: {
 }): Promise<void> {
   await mailer.send(passwordResetEmail(args));
   if (mailer.name === "smtp") console.info("[email] Password reset accepted by SMTP.");
+}
+
+export async function sendWelcomeEmail(args: { to: string; name: string; appUrl: string }): Promise<void> {
+  await mailer.send(welcomeEmail(args));
+  if (mailer.name === "smtp") console.info("[email] Welcome accepted by SMTP.");
+}
+
+export async function sendVerificationEmail(args: { to: string; name: string; verifyUrl: string }): Promise<void> {
+  await mailer.send(verificationEmail(args));
+  if (mailer.name === "smtp") console.info("[email] Verification accepted by SMTP.");
 }

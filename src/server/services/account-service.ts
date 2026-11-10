@@ -175,6 +175,7 @@ export async function deleteAccount(userId: string): Promise<void> {
     await tx.authSession.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } });
     await tx.account.deleteMany({ where: { userId } });
     await tx.passwordResetToken.deleteMany({ where: { userId } });
+    await tx.emailVerificationToken.deleteMany({ where: { userId } });
     await tx.pushSubscription.deleteMany({ where: { userId } });
     await tx.notificationPreference.updateMany({
       where: { userId }, data: { pushEnabled: false, pushSubscription: Prisma.DbNull },

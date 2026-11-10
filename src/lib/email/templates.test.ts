@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { passwordResetEmail } from "./templates";
+import { passwordResetEmail, welcomeEmail, verificationEmail } from "./templates";
 
 const args = { to: "person@example.test", name: "Alex", resetUrl: "https://mono.example/reset-password?token=private-token&source=email", expiresInMinutes: 30 };
 
@@ -28,5 +28,28 @@ describe("MONO password recovery email", () => {
       expect(() => passwordResetEmail({ ...args, resetUrl })).toThrow("HTTPS link");
     }
     expect(passwordResetEmail({ ...args, resetUrl: "http://localhost:3000/reset-password?token=test" }).html).toContain("localhost:3000");
+  });
+});
+
+describe("registration emails", () => {
+  it("welcomes new accounts with an onboarding link and a distinct MONO message", () => {
+    const message = welcomeEmail({ to: args.to, name: "Alex", appUrl: "https://mono.example/onboarding" });
+    expect(message.subject).toBe("Welcome to MONO");
+    expect(message.html).toContain("Make time.<br>Keep the memory.");
+    expect(message.text).toContain("separate email to confirm");
+    expect(message.text).toContain("https://mono.example/onboarding");
+  });
+  it("includes a private fragment link, 24-hour expiry and explicit confirmation instructions", () => {
+    const message = verificationEmail({ to: args.to, name: "<Alex>", verifyUrl: "https://mono.example/verify-email#token=test&other=value" });
+    expect(message.subject).toBe("Verify your MONO email");
+    expect(message.html).toContain("&lt;Alex&gt;");
+    expect(message.html).toContain("#token=test&amp;other=value");
+    expect(message.text).toContain("24 hours");
+    expect(message.text).toContain("does not sign anyone in");
+    expect(message.text).toContain("confirmation page");
+  });
+  it("applies the same URL safety rules to welcome and verification messages", () => {
+    expect(() => welcomeEmail({ ...args, appUrl: "javascript:alert(1)" })).toThrow("HTTPS link");
+    expect(() => verificationEmail({ ...args, verifyUrl: "http://untrusted.example/verify" })).toThrow("HTTPS link");
   });
 });

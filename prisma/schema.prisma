@@ -213,6 +213,7 @@ model User {
   accounts            Account[]
   sessions            AuthSession[]
   passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
   memberships         CoupleMember[]
   notifications       Notification[]
   sentInvitations     CoupleInvitation[]   @relation("InvitationCreatedBy")
@@ -294,6 +295,23 @@ model PasswordResetToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("password_reset_tokens")
+}
+
+/// Mailbox confirmation only: hashed single-use tokens never authenticate a session.
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  email     String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
 }
 
 // ---------------------------------------------------------------------------

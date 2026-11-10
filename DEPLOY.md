@@ -177,7 +177,7 @@ wiped each deploy.
 2. **Build command:** leave the default — Vercel runs the repo's **`vercel-build`** script
    automatically:
    ```
-   prisma generate && prisma migrate deploy && next build
+   prisma generate && node scripts/migrate-deploy.mjs && next build
    ```
    (Local `npm run build` is just `next build` — no DB needed, so `publish` and CI stay fast.)
 3. **Install command:** default (`npm install`; `postinstall` runs `prisma generate`).
@@ -186,6 +186,12 @@ wiped each deploy.
 6. **Production Branch:** `main` (Settings → Git).
 7. **Deploy.** The build applies migrations to the prod DB, then builds. If a migration fails
    the build fails and the previous deployment keeps serving.
+
+`scripts/migrate-deploy.mjs` uses `DIRECT_DATABASE_URL` if provided. Otherwise, for a Neon
+`-pooler` hostname only, it derives the equivalent direct hostname for the migration child.
+The app's runtime `DATABASE_URL`, credentials and other providers are unchanged. This preserves
+Prisma advisory locking while avoiding locks through Neon's transaction pool. Migration
+`20261110000000_email_verification` adds the verification-token table without rewriting users.
 
 On another host (Fly.io, Render, a container): build with `npm run vercel-build` (or
 `prisma migrate deploy` as a release step + `next build`), then `next start`. Provide the same

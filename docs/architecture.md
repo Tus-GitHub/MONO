@@ -73,9 +73,9 @@ its declared type; `src/lib/security/rate-limit.ts` throttles auth / invite / up
 
 ## Data model (`prisma/schema.prisma`)
 
-26 application models / tables, 319 stored scalar or enum columns, 50 declared foreign-key
+27 application models / tables, 326 stored scalar or enum columns, 51 declared foreign-key
 relationships and 17 enums: `User`, `AuthSession`, `Account`, `PasswordResetToken`, `Couple`,
-`ArchiveRestore`, `CoupleInvitation`, `CoupleMember`, `Place`, `Date`, `DateActivity`,
+`ArchiveRestore`, `EmailVerificationToken`, `CoupleInvitation`, `CoupleMember`, `Place`, `Date`, `DateActivity`,
 `DatePhoto`, `ReviewCategory`, `DateReview`, `DateReviewRating`, `RevisitDecision`, `Expense`,
 `Memory`, `Notification`, `DateEvent`, `DateReminder`, `NotificationPreference`,
 `PushSubscription`, `NotificationDelivery`, `StorageCleanup`, `RecommendationFeedback`.
@@ -329,13 +329,13 @@ every card/hero. The client renders through `<Photo>` (aspect-ratio box, blur-up
 
 ## Tests (`npm test` → Vitest)
 
-240 unit tests over business rules, integrations, email templates, archive previews and action boundaries, including `lib/review/scale` + `comparison`,
+251 unit tests over business rules, integrations, email templates, archive previews and action boundaries, including `lib/review/scale` + `comparison`,
 `lib/date/review-reveal` + `lifecycle`, `lib/date/expense-split` + `expense-breakdown`,
 `lib/explore/compatibility`, `lib/utils/timezone` — plus `lib/authz/couple` (couple isolation,
 with `prisma` + the session mocked). Node environment, no DB, no DOM. `vitest.config.ts` maps
 the `@/*` alias and stubs the `server-only` / `client-only` build guards.
 
-`npm run test:integration` applies the migrations and runs 82 regression cases against a real,
+`npm run test:integration` applies the migrations and runs 92 regression cases against a real,
 isolated local PostgreSQL database. The launcher requires `MONO_TEST_DATABASE_URL`, refuses
 non-loopback hosts and database names outside `mono_test_*`, and does not fall back to the
 application DATABASE_URL. Authentication is simulated per async test context; persistence,

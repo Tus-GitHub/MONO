@@ -18,9 +18,9 @@ if (!["postgresql:", "postgres:"].includes(url.protocol)
 if (!url.searchParams.has("connection_limit")) url.searchParams.set("connection_limit", "5");
 const engine = process.env.MONO_E2E_BROWSER ?? "chrome";
 if (!["chrome", "firefox"].includes(engine)) throw new Error("MONO_E2E_BROWSER must be chrome or firefox.");
-const suites = { journey: ["journey.mjs", "runJourney"], account: ["account.mjs", "runAccountControls"], pagination: ["pagination.mjs", "runPagination"], workflows: ["workflows.mjs", "runWorkflows"], compatibility: ["compatibility.mjs", "runCompatibility"], settings: ["settings.mjs", "runSettings"] };
+const suites = { journey: ["journey.mjs", "runJourney"], account: ["account.mjs", "runAccountControls"], pagination: ["pagination.mjs", "runPagination"], workflows: ["workflows.mjs", "runWorkflows"], compatibility: ["compatibility.mjs", "runCompatibility"], settings: ["settings.mjs", "runSettings"], registration: ["registration.mjs", "runRegistration"] };
 const selected = process.argv.slice(2).length ? process.argv.slice(2) : engine === "firefox" ? ["compatibility"] : Object.keys(suites);
-if (selected.some((name) => !suites[name])) throw new Error("Choose journey, account, pagination, workflows, compatibility, or settings.");
+if (selected.some((name) => !suites[name])) throw new Error("Choose journey, account, pagination, workflows, compatibility, settings, or registration.");
 // The original suites use CDP-only timezone/offline emulation. Never count a skipped
 // emulation check as Firefox coverage; its separate suite uses native BiDi operations.
 if (engine === "firefox" && selected.some((name) => name !== "compatibility")) throw new Error("Firefox runs compatibility; the other suites require Chromium CDP emulation.");
