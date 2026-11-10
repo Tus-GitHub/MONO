@@ -213,6 +213,20 @@ iOS/Android keyboard or installed-device PWA behaviour, camera/HEIC decoding, or
 SMTP/OAuth/S3/VAPID delivery. Those device/provider checks and production-data migration readiness
 remain separate. Integration keys are deferred; Vercel Git deployments remain enabled.
 
+## Production auth first visits
+
+`npm run test:first-visit -- https://mono-kappa-beryl.vercel.app` runs three read-only Chromium
+checks against a production build. It delays the first real service-worker registration until
+the registration draft or verification form is ready, then verifies that initial activation
+preserves the input/token without reloading. A real replacement worker must still reload an
+already controlled page exactly once. It creates no accounts, sends no email and never submits
+the fake verification capability. Screenshots/results stay under ignored `.postgres-test/first-visit`.
+
+The account browser suite also exercises recovery while signed in: `/forgot-password` must
+remain reachable, a reset on a second authenticated device clears that cookie and invalidates
+the other device, and the new password permits a fresh login. Recovery shares the existing auth
+visual shell but has its own public route group; login/registration keep their signed-in guard.
+
 ## Expense clock semantics
 
 Expense records store real UTC instants. Browser `spentAtLocal` values are interpreted in the

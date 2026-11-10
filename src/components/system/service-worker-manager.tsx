@@ -20,12 +20,18 @@ export function ServiceWorkerManager() {
     if (process.env.NODE_ENV !== "production") return;
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
 
+    // A first install claims this already-current page. Reload only when replacing an
+    // existing controller, or signup drafts and scrubbed email-link tokens disappear.
+    let controlled = Boolean(navigator.serviceWorker.controller);
     let reloading = false;
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (reloading) return;
+    const onControllerChange = () => {
+      const replacing = controlled;
+      controlled = Boolean(navigator.serviceWorker.controller);
+      if (!replacing || !controlled || reloading) return;
       reloading = true;
       window.location.reload();
-    });
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
 
     let registration: ServiceWorkerRegistration | undefined;
 
@@ -54,7 +60,10 @@ export function ServiceWorkerManager() {
       if (document.visibilityState === "visible") registration?.update().catch(() => {});
     };
     document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+    };
   }, []);
 
   if (!waiting) return null;

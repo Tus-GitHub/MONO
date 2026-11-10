@@ -193,7 +193,10 @@ export async function runAccountControls({ browser, baseUrl, prisma, runId, arti
     await login(owner, users[0], changedPassword);
     pass("password change revokes cookies and the new password signs in through UI");
 
-    // Seed only the emailed capability; submit the real reset form and invalidate the active cookie.
+    await goto(owner, "/forgot-password");
+    assert.equal(new URL(owner.url()).pathname, "/forgot-password", "Signed-in users must be able to request mailbox recovery");
+    // Seed only the emailed capability; submit it while signed in on a second device.
+    await login(second, users[0], changedPassword);
     const resetToken = randomBytes(32).toString("base64url");
     await prisma.passwordResetToken.create({ data: { userId: users[0].id, tokenHash: createHash("sha256").update(resetToken).digest("hex"), expiresAt: new Date(Date.now() + 60_000) } });
     await goto(second, `/reset-password?token=${resetToken}`);
@@ -202,8 +205,9 @@ export async function runAccountControls({ browser, baseUrl, prisma, runId, arti
     await clickText(second, "Update password");
     await second.waitForFunction(() => location.pathname === "/login" && new URLSearchParams(location.search).get("reset") === "1", { timeout: 90_000 });
     assert.equal((await api(owner, "/api/account/sessions")).status, 401);
+    assert.equal((await second.browserContext().cookies()).some((cookie) => cookie.name === "mono_e2e_session"), false);
     await login(owner, users[0], resetPassword);
-    pass("real reset form consumes the token, revokes existing sessions, and permits fresh login");
+    pass("signed-in recovery consumes the token, clears its cookie, revokes other sessions and permits fresh login");
 
     await goto(owner, "/settings");
     await clickText(owner, "Delete account…");

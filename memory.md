@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-10 (welcome and verification emails live; production SMTP acceptance confirmed)
+Last updated: 2026-11-11 (complete live authentication/email flow verification in progress)
 
 ## Project Overview
 
@@ -22,6 +22,12 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Complete live authentication flow (2026-11-11)** — user requests real registration,
+  verification, login and password reset testing on production, with fixes for any failures.
+  Use an isolated test inbox/account, real email links and database/log evidence; preserve the
+  real user's password and data. Inspect first-visit service-worker reload behavior as part of
+  registration. Deploy any necessary fixes and recheck the complete flow.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification remain. Shared rate limiting, OAuth-token encryption at rest and operator recovery /
@@ -990,6 +996,42 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-11 — Complete live authentication flow
+
+**IN PROGRESS.** Testing the deployed registration → welcome/verification inbox delivery →
+explicit confirmation → login/logout → recovery email → password reset → new-password login
+story, including one-use links and session invalidation. The previous task verified provider
+acceptance but did not open actual inbox links. Preparing an isolated mailbox and fixture;
+existing real accounts and credentials must remain unchanged. Use Vercel verification guidance
+and read-only Neon evidence; any code fixes will preserve the existing UI.
+
+Read-only live reproduction confirmed first service-worker activation reloads both registration
+and verification: an entered name became empty; a scrubbed fragment token vanished from the
+confirmation form. Fix captures whether a controller existed when the effect mounted, skips
+reload for initial claims and removes its controllerchange listener on cleanup. Added real
+browser checks for registration draft/token preservation and exactly one reload on an actual
+replacement controller; these run against a production build without database writes.
+
+The isolated Mail.tm inbox received both real welcome and verification emails. A signed-in
+production browser requesting `/forgot-password` was redirected to `/onboarding/profile`,
+confirming the shared auth guard also blocks the Settings reset link. Recovery now has a public
+route group with the unchanged shared AuthShell; login/registration retain their inverse guard.
+Successful reset clears the current cookie only after the service succeeds. Expanded browser
+account coverage for signed-in recovery and added action success/failure cookie checks.
+First-visit checks passed all three cases against a local production build; full live flow
+will resume with the isolated fixture after release. Real user credentials remain untouched.
+
+All 253 unit tests and full lint passed. The expanded account browser suite passed 12 checks
+including signed-in recovery, actual cookie clearing, other-device invalidation and new-password
+login; four local fixture accounts/three spaces were cleaned. Results are in ignored
+`.postgres-test/e2e/7e6c4a86191e25f4`. A build initially encountered stale generated dev route types
+after moving recovery pages; starting the current local app regenerated the correct route paths.
+The fresh final production build and TypeScript checks pass (41 static outputs); the three
+first-visit browser checks also pass against this final build, including an update on the same
+page after its initial worker claim. The local PostgreSQL server and production test servers
+are stopped. Publishing the fixes before resuming the real mailbox flow. No schema migration
+or credential change is needed for these fixes.
 
 ### 2026-11-10 — Registration welcome and verification emails
 

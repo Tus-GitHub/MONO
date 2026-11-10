@@ -5,7 +5,7 @@ import { ResetPasswordForm } from "@/components/forms/reset-password-form";
 import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 
-export const metadata: Metadata = { title: "Choose a new password" };
+export const metadata: Metadata = { title: "Choose a new password", referrer: "no-referrer" };
 
 export default async function ResetPasswordPage({
   searchParams,

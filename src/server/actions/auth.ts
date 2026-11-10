@@ -145,5 +145,6 @@ export async function resetPasswordAction(
     return toActionError(error);
   }
 
+  await clearSessionCookie();
   redirect("/login?reset=1");
 }
