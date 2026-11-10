@@ -227,6 +227,30 @@ remain reachable, a reset on a second authenticated device clears that cookie an
 the other device, and the new password permits a fresh login. Recovery shares the existing auth
 visual shell but has its own public route group; login/registration keep their signed-in guard.
 
+Live verification on 2026-11-11 (Asia/Calcutta), implementation `fc0ea27`: a new isolated test
+account received the actual MONO welcome and verification emails in a temporary
+[Mail.tm inbox](https://mail.tm). The real link confirmed the address in a fresh browser without
+signing it in; its replay failed and the onboarding notice disappeared after reload. Login,
+logout, duplicate/incorrect credentials, persistent secure HttpOnly SameSite cookies and
+remember-me-off cookies were checked through the live UI.
+
+Actual recovery emails were received and used from signed-in and signed-out browsers. Opening
+the link did not consume it, mismatched confirmation preserved the current session, successful
+reset cleared its cookie and invalidated both test devices, and replay failed. New-password
+login completed its redirect and survived reload. Final database evidence showed the verified
+address, two consumed reset links, no couple and zero active test sessions. These checks use a
+separate fixture, preserving all real user accounts. They establish receipt in that test inbox;
+they do not establish Gmail inbox placement or physical-device/Safari behavior.
+
+The first long live runner timed out at its final redirect; independent fresh-browser login and
+a focused reset-to-login repeat passed. The repeat resumed after a temporary inbox API error.
+The initial failure artifact remains in ignored local output instead of being counted as a
+fully passing runner. All 253 unit tests, full lint, TypeScript, production build, 12 local
+account browser checks and three first-visit checks against both the local production build and
+the live origin passed. No migration or production credential change was needed.
+The exact synthetic account and temporary inbox were deleted with explicit user approval;
+cascaded token/session counts were verified as zero and the private local test state was removed.
+
 ## Expense clock semantics
 
 Expense records store real UTC instants. Browser `spentAtLocal` values are interpreted in the

@@ -47,3 +47,11 @@ additive migration applied. A live registration reached onboarding; production S
 the welcome and verification messages at 14:21:41 and 14:21:45 UTC. A subsequent verification
 resend was accepted at 14:22:27 UTC. Health returned HTTP 200 with the database up. These checks
 confirm provider acceptance; inbox placement was not observed.
+
+On 2026-11-11, the full deployed flow was checked with an isolated temporary inbox: welcome,
+verification and reset messages actually arrived, and their real links completed confirmation
+and recovery. Initial service-worker activation now preserves registration drafts and scrubbed
+verification capabilities. Password recovery uses the same visual shell in a public route group
+so signed-in users can request/use links; successful recovery clears the current cookie and
+revokes other sessions. Link replay, validation feedback and subsequent new-password login
+were checked on the live origin. See `docs/testing.md` for the evidence and scope.

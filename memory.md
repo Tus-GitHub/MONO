@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-11 (complete live authentication/email flow verification in progress)
+Last updated: 2026-11-11 (complete live authentication flow verified; fixes live on Vercel)
 
 ## Project Overview
 
@@ -23,20 +23,16 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Complete live authentication flow (2026-11-11)** — user requests real registration,
-  verification, login and password reset testing on production, with fixes for any failures.
-  Use an isolated test inbox/account, real email links and database/log evidence; preserve the
-  real user's password and data. Inspect first-visit service-worker reload behavior as part of
-  registration. Deploy any necessary fixes and recheck the complete flow.
-
 - **Remaining verification / optional hardening** — real-device QA and live provider
-  verification remain. Shared rate limiting, OAuth-token encryption at rest and operator recovery /
+  verification for Google/Push/storage remain; credential registration/email/recovery is verified.
+  Shared rate limiting, OAuth-token encryption at rest and operator recovery /
   permanent-erasure policy are possible follow-ups. Portable active-content archive/restore,
   per-device session controls and atomic account closure are implemented. Vercel deployments are
   enabled; provider activation and migration readiness for existing production data need verification.
 
 - **Production activation / real-device QA** — Vercel deployments are enabled; add keys when ready,
-  verify actual SMTP/Google/Push/storage delivery, and complete device/browser QA.
+  verify Google/Push/storage delivery, and complete device/browser QA. SMTP and the complete
+  credential authentication/recovery flow are live and verified.
 
 - **Scheduled reminder activation** — endpoint implemented; production scheduler configuration
   and a closed-app live test remain pending (see DEPLOY.md).
@@ -46,9 +42,24 @@ components. Business rules never live only in React components — they live in
   (mobile keyboard) done. Published to GitHub on 2026-11-05. Vercel Git deployments are now
   authorized and enabled; follow `DEPLOY.md` for provider and production-data activation. Remaining checks in
   `docs/pwa-conversion-checklist.md` (Lighthouse on the live origin, real-device passes, a
-  reminder worker activation and SMTP credentials).
+  reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Complete live authentication flow (2026-11-11)** — fixed initial service-worker claims
+  clearing registration drafts/verification tokens and the shared guard blocking signed-in
+  recovery. Recovery retains the existing visual shell; successful reset clears its cookie.
+  Implementation `fc0ea27` is READY on Vercel (`dpl_Bsrig1sNRGLAYJo86TPE8FSSKBHq`). Actual
+  welcome, verification and reset messages arrived in an isolated Mail.tm inbox; their real
+  links completed verification and signed-in/signed-out recovery. Checked wrong/duplicate
+  credentials, cookie flags/remember-me, replay denial, mismatched confirmation, two-device
+  revocation, new-password login/reload and final sign-out. Database confirms verified address,
+  two consumed reset links, no couple and zero active sessions. 253 unit tests, full lint,
+  TypeScript, final build, 12 account browser checks and three first-visit checks on the local
+  production build and live origin passed. The real user's account and credentials were untouched.
+  After explicit user approval, the exact test account, cascaded auth rows, temporary inbox
+  and ignored private test state were removed. The working fixture identity/results remain
+  as nonsecret audit artifacts.
 
 - **Registration welcome and verification emails (2026-11-10)** — MONO HTML/text welcome and
   verification emails now follow registration, with hashed 24-hour single-use tokens, explicit
@@ -999,7 +1010,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-11 — Complete live authentication flow
 
-**IN PROGRESS.** Testing the deployed registration → welcome/verification inbox delivery →
+**DONE.** Tested the deployed registration → welcome/verification inbox delivery →
 explicit confirmation → login/logout → recovery email → password reset → new-password login
 story, including one-use links and session invalidation. The previous task verified provider
 acceptance but did not open actual inbox links. Preparing an isolated mailbox and fixture;
@@ -1032,6 +1043,42 @@ first-visit browser checks also pass against this final build, including an upda
 page after its initial worker claim. The local PostgreSQL server and production test servers
 are stopped. Publishing the fixes before resuming the real mailbox flow. No schema migration
 or credential change is needed for these fixes.
+
+Published `fc0ea279782c4ffd892f6d387ad51c7e18cd56e8` to `origin main`.
+Production deployment `dpl_Bsrig1sNRGLAYJo86TPE8FSSKBHq` is READY; canonical live health returns
+HTTP 200 / database up. All three first-visit checks pass against the public production origin.
+Using the actual inbox email link in a fresh browser confirmed the address, scrubbed the
+fragment, left the visitor signed out and removed the notice for the existing fixture session.
+Reusing the verification link failed. Real UI logout, duplicate registration rejection,
+incorrect-password feedback, persistent secure/HttpOnly/SameSite cookies and remember-me-off
+cookies passed. Signed-in recovery produced a real reset email; an unknown address got the same
+generic response. Opening the real reset link signed out changed no sessions, mismatch validation
+preserved access, and signed-in submission cleared its cookie and revoked both devices. A
+previously opened copy of the consumed reset link was rejected.
+
+The first long browser run timed out at its final onboarding redirect. Independent fresh-browser
+login completed the redirect without reload; a focused repeat using a second received recovery
+email also completed immediate same-browser new-password login, reload and sign-out. The repeat
+first encountered a transient Mail.tm API read failure, then resumed the already-sent email
+with bounded retry/token-refresh handling. No additional application defect was reproduced.
+Keep the initial failure artifact for an honest audit; do not describe that first runner as
+fully green. Final follow-up evidence is in ignored `.postgres-test/live-auth-final-reset-results.json`,
+with `passed: true`; first-visit artifacts are in `.postgres-test/first-visit/2026-11-10T19-34-03-866Z`.
+
+Production POST `/forgot-password` SMTP acceptance is logged at 2026-11-10 19:36:11.908 UTC
+and 19:43:55.687 UTC; both emails actually arrived in the isolated inbox and were consumed.
+Read-only database proof after final sign-out: verified=true, consumed_reset_links=2,
+active_test_sessions=0, couple_memberships=0. No real user password, email verification status,
+session or data was changed. Requested explicit approval before permanently removing this exact
+task-owned test account and its temporary inbox; no destructive SQL was attempted without it.
+
+User approved deletion of the exact isolated test account/inbox. A constrained DELETE matched
+its ID, unique test email/name, creation within one hour, no couple and no active sessions and
+returned only its fixture ID. Follow-up counts for that ID are zero users, sessions, verification
+tokens and reset tokens. Mail.tm accepted removal of the matching inbox, and the ignored private
+state file (random passwords, bearer token and email links) was unlinked. Nonsecret identity,
+cleanup receipt and test evidence remain under `.postgres-test`; none are committed. No real
+account or unrelated resource was removed. Publishing final verification notes.
 
 ### 2026-11-10 — Registration welcome and verification emails
 
