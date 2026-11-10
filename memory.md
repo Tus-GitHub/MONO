@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-10 (publishing verified settings screens; integration keys unchanged)
+Last updated: 2026-11-10 (settings screens published as 6c026f7; integration keys unchanged)
 
 ## Project Overview
 
@@ -23,9 +23,6 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Publish settings screens (2026-11-10)** — user authorized publication; running the required
-  production build passed. Staging, committing and pushing to `origin main`.
-
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification remain. Shared rate limiting, OAuth-token encryption at rest and operator recovery /
   permanent-erasure policy are possible follow-ups. Portable active-content archive/restore,
@@ -46,6 +43,12 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and SMTP credentials).
 
 ### Done
+
+- **Publish settings screens (2026-11-10)** — fresh required production build passed;
+  implementation commit `6c026f7` successfully pushed to `origin main` (`Tus-GitHub/MONO`).
+  Includes all three settings screens, regression tests, documentation and project notes.
+  Integration keys unchanged. The enabled Git integration can deploy this push; hosted CI
+  and deployment completion were not verified during publication.
 
 - **Remaining settings screens (2026-11-10)** — added `/settings/password`, `/settings/sessions`
   and `/settings/archive`, linked from Settings and styled with existing primitives/tokens.
@@ -969,11 +972,13 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-10 — Publish settings screens
 
-**IN PROGRESS.** User requested publication of the completed password, session and archive
-settings screens. Updated this log and ran a fresh `npm run build` successfully, including
-TypeScript and all 40 static outputs. Confirmed local `main` matches `origin/main` at `3fce5ad`.
-Proceeding to stage the requested changes, commit with the required trailer and push to
-`origin main`. Integration keys remain unchanged.
+**DONE.** User requested publication of the completed password, session and archive settings
+screens. Updated this log and ran a fresh `npm run build` successfully, including TypeScript
+and all 40 static outputs. Confirmed local `main` matched `origin/main` at `3fce5ad`, staged
+the requested changes, committed `6c026f7` with the required co-author trailer and successfully
+pushed to `origin main`. Git confirmed `3fce5ad..6c026f7 main -> main`. Integration keys remain
+unchanged. This notes-only follow-up records the successful push. Hosted CI and automatic
+deployment completion were not verified during publication.
 
 ### 2026-11-10 — Remaining settings screens
 
