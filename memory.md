@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-10 (registration email/verification implemented and tested; release pending)
+Last updated: 2026-11-10 (welcome and verification emails live; production SMTP acceptance confirmed)
 
 ## Project Overview
 
@@ -23,13 +23,6 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Registration welcome and verification emails (2026-11-10)** — user requests MONO-branded
-  welcome and verification mail after registration, with a complete verification/resend flow
-  and production deployment. Implemented with hashed 24-hour tokens, explicit confirmation,
-  resends and optional onboarding/settings notices. 251 unit, 92 PostgreSQL and 17 browser
-  checks pass, as do lint/TypeScript, email previews and the final production build. Publishing
-  the feature and its additive migration before live SMTP verification.
-
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification remain. Shared rate limiting, OAuth-token encryption at rest and operator recovery /
   permanent-erasure policy are possible follow-ups. Portable active-content archive/restore,
@@ -50,6 +43,17 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and SMTP credentials).
 
 ### Done
+
+- **Registration welcome and verification emails (2026-11-10)** — MONO HTML/text welcome and
+  verification emails now follow registration, with hashed 24-hour single-use tokens, explicit
+  confirmation, safe resends and optional onboarding/settings notices. Implementation `7596136`
+  is READY on Vercel (`dpl_2qLDfkfqwVsHs15Fbq6c9M2S5mjq`); its additive migration applied and
+  live health reports database up. Production registration logs confirm welcome SMTP acceptance
+  at 14:21:41 UTC and verification at 14:21:45 UTC. Verification for the user's existing mailbox
+  was accepted at 14:22:27 UTC. Inbox placement is not observed; passwords/account access are
+  unchanged. 251 unit, 92 PostgreSQL and 17 browser checks, lint, TypeScript, template previews
+  and production build passed. After explicit user approval, the exact synthetic account and
+  cascaded tokens/session were removed; the real user's account remains unchanged.
 
 - **Live branded email on Vercel (2026-11-10)** — released MONO HTML/text password recovery
   through Brevo SMTP, with production-only secrets and the correct public APP_URL. Implementation
@@ -989,7 +993,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-10 — Registration welcome and verification emails
 
-**IN PROGRESS.** Adding welcome plus verification email delivery to credential registration,
+**DONE.** Added welcome plus verification email delivery to credential registration,
 hashed expiring verification tokens, safe confirmation and resend UI, and regression coverage.
 Existing SMTP configuration is live on Vercel; user authorizes this feature's migration and
 release. Existing users and onboarding access will remain compatible.
@@ -1017,9 +1021,27 @@ modified in this preflight. The child compute is suspended and the branch expire
 at 2026-11-10 14:45 UTC. The Vercel build now uses a migration-only direct Neon connection
 (or explicit DIRECT_DATABASE_URL) while preserving the app's runtime URL and credentials;
 the existing pooled advisory-lock issue is not bypassed by disabling locks. The final production
-build passed (41 static outputs including the dynamic verification route). Publishing the
-feature/migration next, followed by production registration SMTP checks and a verification
-request for the user's already-registered mailbox.
+build passed (41 static outputs including the dynamic verification route).
+
+Published implementation `75961369cfd75bea10178df9fe247a94043f5acf` to `origin main`.
+Vercel production deployment `dpl_2qLDfkfqwVsHs15Fbq6c9M2S5mjq` is READY at
+`https://mono-kappa-beryl.vercel.app`; build logs confirm the seventh migration applied.
+Live health returned HTTP 200 / database up. The live browser test needed to wait for the
+first-visit service worker reload before filling the form; earlier attempts did not register.
+A successful new registration redirected to onboarding, sent both messages and had its
+temporary session revoked. Production logs show POST `/register` welcome accepted by SMTP
+at 2026-11-10 14:21:41.572 UTC, verification at 14:21:45.855 UTC. POST `/verify-email`
+accepted verification for the existing user-requested mailbox at 14:22:27.046 UTC. No password
+was changed and no real address was automatically verified. Inbox placement is unobserved.
+
+Automatic approval review rejected permanent removal of the task-owned synthetic fixture
+because deletion was not explicitly authorized, despite exact ID/plus-alias/name/time,
+no-couple and revoked-session predicates. No deletion occurred and no workaround was used.
+The user then explicitly approved deletion of that synthetic account. The same constrained
+statement returned its exact fixture ID, confirming removal; tokens/session cascade. The real
+user's account was not targeted. The nonsecret fixture identity remains in ignored
+`.postgres-test/live-registration-fixture.json` for the audit. SMTP secrets and unrelated
+integrations remain unchanged.
 
 ### 2026-11-10 — Live branded email on Vercel
 

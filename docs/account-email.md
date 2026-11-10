@@ -41,3 +41,9 @@ provider failures and real browser registration, confirmation/resend, legacy acc
 SMTP acceptance is distinct from inbox placement; provider delivery is checked separately on
 the deployed origin. Tokens and email bodies from the console driver are fixture-only artifacts
 in local browser testing and must not be published as logs.
+
+Production verification on 2026-11-10: implementation `7596136` is READY on Vercel after the
+additive migration applied. A live registration reached onboarding; production SMTP accepted
+the welcome and verification messages at 14:21:41 and 14:21:45 UTC. A subsequent verification
+resend was accepted at 14:22:27 UTC. Health returned HTTP 200 with the database up. These checks
+confirm provider acceptance; inbox placement was not observed.
