@@ -121,6 +121,10 @@ SMTP protocol/TLS and MIME formatting rather than adding a custom mail protocol 
 
 Credentials are intentionally left for deployment: see `.env.example` and `DEPLOY.md`.
 
+Production password-recovery email is configured through Brevo SMTP with MONO's own HTML/text
+template and public reset links. The live Vercel send path was verified on 2026-11-10; other
+integration activation remains separate. SMTP secrets are stored only in Vercel production.
+
 ## Database regression checks
 
 The audit remediation adds private-review filtering, transactional plan/review writes, stale

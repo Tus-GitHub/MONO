@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-10 (MONO branded email prepared; production SMTP configured, deployment pending)
+Last updated: 2026-11-10 (MONO branded email live; requested account registered and SMTP send verified)
 
 ## Project Overview
 
@@ -23,11 +23,6 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Live branded email on Vercel (2026-11-10)** — user requested working email like QuestMart
-  and Travel Agent. MONO HTML/text recovery template, 240 unit tests, compiler/lint checks and
-  desktop/mobile previews pass. Brevo SMTP TLS/auth verified; eight production-only email/URL
-  settings configured on Vercel. Production build and live delivery verification are pending.
-
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification remain. Shared rate limiting, OAuth-token encryption at rest and operator recovery /
   permanent-erasure policy are possible follow-ups. Portable active-content archive/restore,
@@ -48,6 +43,16 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and SMTP credentials).
 
 ### Done
+
+- **Live branded email on Vercel (2026-11-10)** — released MONO HTML/text password recovery
+  through Brevo SMTP, with production-only secrets and the correct public APP_URL. Implementation
+  `a7407ea` is READY on Vercel; health reports database up. Registered the user-requested mailbox
+  through the live UI using an undisplayed random temporary password, revoked the temporary
+  session, then requested recovery. Production POST `/forgot-password` logs confirm SMTP
+  acceptance at 2026-11-10 13:15:21 UTC. The user can choose their password using the emailed
+  30-minute single-use link. Inbox placement is not observed. All 240 unit tests, TypeScript,
+  email lint, production build and desktop/mobile template previews passed. Other integration
+  settings and the reference applications are unchanged.
 
 - **Publish settings screens (2026-11-10)** — fresh required production build passed;
   implementation commit `6c026f7` successfully pushed to `origin main` (`Tus-GitHub/MONO`).
@@ -977,7 +982,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-10 — Live branded email on Vercel
 
-**IN PROGRESS.** User authorizes activating email and deploying it, superseding the earlier
+**DONE.** User authorizes activating email and deploying it, superseding the earlier
 deferral of integration keys for this email work. QuestMart and Travel Agent use Nodemailer
 SMTP; Travel Agent has a Brevo relay configuration available locally. MONO production currently
 has no email or APP_URL configuration. Preparing a MONO template and scoped production email
@@ -992,6 +997,28 @@ port, TLS mode and sensitive user/password plus APP_URL on the existing MONO Ver
 other projects, local .env files, other integrations and database settings are unchanged.
 Waiting for the release build before committing/deploying, followed by a real public-origin
 password-recovery request to the verified sender mailbox and a production SMTP acceptance check.
+
+Release build passed and `a7407ea` was committed/pushed to `origin main`. Vercel deployment
+`dpl_7WxD8YLEHcc81tPECkDbxQB6S8n6` is READY and serves the canonical public origin
+`https://mono-kappa-beryl.vercel.app`. Live health returns 200/database up. A real Chrome
+password-reset request to the verified sender mailbox returned 200 with no browser errors;
+neither an SMTP acceptance nor delivery-failure marker appeared in production logs, so this
+does not establish a send for that mailbox (the anti-enumeration response is intentionally
+generic). Requested a registered MONO email for the live delivery test. No password was changed.
+
+The user then explicitly requested registration of their supplied Gmail mailbox. Created that
+account through the production registration UI as Tushar with a random temporary password
+held only in process memory, then revoked its temporary session via the existing sessions API.
+Did not choose a lasting user password or complete profile/couple onboarding. The subsequent
+live recovery request returned 200 with no browser errors, and Vercel's production logs show
+`[email] Password reset accepted by SMTP.` on POST `/forgot-password` at
+2026-11-10 13:15:21.605 UTC, deployment `dpl_7WxD8YLEHcc81tPECkDbxQB6S8n6`.
+This proves the actual Vercel app/template/provider send path; mailbox placement is not observed.
+The account is retained as requested and the temporary browser session is revoked. No test
+password, reset token or SMTP credential was printed, written to project files or committed.
+The recovery link lets the user select their password within 30 minutes. Local SMTP checks
+and template previews passed, as did all 240 unit tests, TypeScript, email lint and release build.
+No schema change, other integration activation, or change to QuestMart/Travel Agent was made.
 
 ### 2026-11-10 — Publish settings screens
 
