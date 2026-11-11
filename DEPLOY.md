@@ -100,6 +100,51 @@ For Places, set `PLACE_PROVIDER=google` and `GOOGLE_PLACES_API_KEY`; enable Plac
 The key stays server-side, including photo resolution. Saved/custom place flows work without
 it. Do not put these secrets in client-prefixed environment variables.
 
+### Free venue search (no account, key or billing)
+
+Set `PLACE_PROVIDER=photon` in Vercel Production and redeploy. Photon uses OpenStreetMap data;
+no API key, Google billing account, card or autopay mandate is needed. Search for a venue name
+with its city (for example, `Starbucks Delhi`) or a category and area (`cafes in New Delhi`,
+`restaurants in Mumbai`). Results include mapped names, addresses and coordinates; Google
+ratings, reviews and photos are not supplied. Existing Maps links still open by coordinates
+without a paid Maps API.
+
+The [public Photon service](https://github.com/komoot/photon#demo-server) permits reasonable
+project usage and provides no availability guarantee. This is suitable for MONO's small private
+workload, not an unlimited public search service. Requests are user-triggered, debounced,
+deduplicated, cached briefly and paced conservatively per warm instance. This in-process pacing
+is not a global distributed quota. Failures fall back to saved/custom places without switching
+to a paid provider. Attribution is shown beside results and saved venue details. Do not replace
+it with public Nominatim autocomplete or public Overpass as an app backend.
+
+Selected venues are fetched server-side through Photon reverse lookup and must match the
+selected OSM object type, ID and category; a different nearby venue is never silently saved.
+Coordinates in the selection identifier are validated. No schema migration is required.
+`npm run check:places` uses the configured provider; with `PLACE_PROVIDER=photon`, it checks
+real venue search and exact selection lookup and makes no Google request. Standalone:
+`node node_modules/tsx/dist/cli.mjs scripts/check-photon.ts "cafes in New Delhi"`.
+
+### Optional Google Places setup
+
+To activate Google restaurant/cafe search:
+
+1. Select the intended Google Cloud project and link an active billing account.
+2. Enable **Places API (New)** (`places.googleapis.com`) for that project.
+3. Create a dedicated MONO server API key, restricting its allowed APIs to **Places API (New)**.
+   Do not use a Websites/HTTP-referrer application restriction for MONO's server-side calls.
+   If an IP restriction is configured, it must match the deployed server's actual outbound IPs.
+4. In MONO's Vercel project environment settings, add `GOOGLE_PLACES_API_KEY` to **Production**
+   as a **Secret**. Set `PLACE_PROVIDER=google` in Production. Never paste the key in chat or
+   commit it; these variables do not use the `NEXT_PUBLIC_` prefix.
+5. Redeploy production after saving both variables. Verify real search, selected-place details
+   and saving the chosen venue from the live authenticated picker.
+
+For an existing local key, `node --env-file=.env scripts/check-places.mjs "cafes in New Delhi"`
+checks Google directly while hiding/redacting the key. A 403 requires checking Google project
+billing, API enablement and key restrictions; MONO's saved-place fallback can otherwise conceal
+that configuration failure. See Google's
+[Places setup guide](https://developers.google.com/maps/documentation/places/web-service/get-api-key).
+
 ### Optional — Web Push (browser/PWA reminders)
 
 Generate a pair with `npm run vapid`. Without them, push is off and in-app notifications carry

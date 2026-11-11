@@ -57,7 +57,7 @@ const schema = z.object({
 
   // Place discovery — an external provider is optional; MONO falls back to the couple's
   // own saved places + custom entries when none is configured.
-  PLACE_PROVIDER: z.enum(["none", "google"]).default("none"),
+  PLACE_PROVIDER: z.enum(["none", "google", "photon"]).default("none"),
   GOOGLE_PLACES_API_KEY: z.string().optional().default(""),
 
   // Web Push (VAPID). Optional — with none set, `getPushChannel()` returns the no-op channel
@@ -135,4 +135,4 @@ export const googleOAuthConfigured = env.GOOGLE_OAUTH_ENABLED !== false &&
 
 /** Whether an external place provider is configured. */
 export const placeProviderConfigured =
-  env.PLACE_PROVIDER === "google" && Boolean(env.GOOGLE_PLACES_API_KEY);
+  env.PLACE_PROVIDER === "photon" || (env.PLACE_PROVIDER === "google" && Boolean(env.GOOGLE_PLACES_API_KEY));

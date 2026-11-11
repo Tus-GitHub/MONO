@@ -20,7 +20,7 @@ export function ExploreSearch({ initialQuery }: { initialQuery: string }) {
       if (next.toString() !== params.toString()) {
         router.replace(`${pathname}?${next.toString()}`, { scroll: false });
       }
-    }, 300);
+    }, 500);
     return () => clearTimeout(timer);
   }, [value, params, pathname, router]);
 
@@ -28,7 +28,7 @@ export function ExploreSearch({ initialQuery }: { initialQuery: string }) {
     <SearchInput
       value={value}
       onValueChange={setValue}
-      placeholder="Search places, areas, or activities"
+      placeholder="Venue name, or cafés in your city"
     />
   );
 }

@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { SubmitButton } from "@/components/ui/submit-button";
+import { FormFeedback } from "@/components/forms/form-feedback";
 import { idleState } from "@/lib/utils/result";
 import { selectPlaceForDateAction } from "@/server/actions/place";
 import type { ButtonSize, ButtonVariant } from "@/components/ui/_shared";
@@ -32,10 +33,11 @@ export function SelectPlaceButton({
   label?: string;
   redirectTo?: string;
 }) {
-  const [, action] = useActionState(selectPlaceForDateAction, idleState);
+  const [state, action] = useActionState(selectPlaceForDateAction, idleState);
 
   return (
     <form action={action}>
+      <FormFeedback state={state} />
       <input type="hidden" name="dateId" value={dateId} />
       {redirectTo ? <input type="hidden" name="redirectTo" value={redirectTo} /> : null}
       {place.savedPlaceId ? (

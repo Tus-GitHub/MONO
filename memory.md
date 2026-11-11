@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-11 (complete live authentication flow verified; fixes live on Vercel)
+Last updated: 2026-11-11 (preparing a free Geoapify alternative without billing/autopay)
 
 ## Project Overview
 
@@ -22,6 +22,22 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Activate real venue search (2026-11-11)** — user requests free search without billing/
+  autopay and asks the agent to do all setup. Geoapify Free was researched, but registration
+  requires a CAPTCHA and there is no authenticated browser profile. Read-only live tests of
+  public Photon (OpenStreetMap) confirm real Delhi cafe results and exact venue reverse lookup
+  with no account/key. Implement this keyless provider with caching, conservative pacing,
+  validation and attribution, then deploy/test. Photon permits reasonable project usage with
+  best-effort availability; saved/custom fallback remains available. Do not use public Nominatim
+  autocomplete or public Overpass as an app backend.
+
+- **Earlier Google activation context** — user originally authorized real restaurant/cafe search and
+  selection on Vercel and asks what key/setup is required. Existing Google Places API (New)
+  integration is implemented; production key is absent. Preparing PLACE_PROVIDER=google,
+  validating the existing provider and documenting secure user entry of the production key.
+  Google Cloud billing/API/key setup must be supplied by the user; never request the secret
+  in chat or place it in client-prefixed variables. Redeploy and verify after it is supplied.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Google/Push/storage remain; credential registration/email/recovery is verified.
@@ -45,6 +61,13 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Google Maps/Places status audit (2026-11-11)** — Google Places API (New) provider,
+  search endpoint, date place picker/provider selection and Maps links are implemented.
+  Current Vercel production metadata has neither PLACE_PROVIDER nor GOOGLE_PLACES_API_KEY;
+  the runtime defaults to saved/custom places. Real Google restaurant search is not activated.
+  Activation requires the Google Places configuration documented in DEPLOY.md. No keys,
+  application code or deployment settings were changed for this read-only question.
 
 - **Complete live authentication flow (2026-11-11)** — fixed initial service-worker claims
   clearing registration drafts/verification tokens and the shared guard blocking signed-in
@@ -1007,6 +1030,107 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-11 — Free venue-search alternative
+
+**IN PROGRESS.** User asks to use a real restaurant/cafe search provider without billing or
+autopay. Official Geoapify pricing/docs confirm Free supports production with 3,000 credits/day,
+5 requests/second, required attribution and no credit card. Its Places API uses OpenStreetMap;
+coverage differs and Google ratings/reviews/photos are unavailable. Preparing the adapter and
+existing selection flow with attribution, while asking user to add GEOAPIFY_API_KEY directly
+to Vercel as a Production Secret. No Google billing mandate or paid subscription is authorized.
+User then explicitly said "You can do it all yourself", authorizing the free Geoapify account,
+project and key setup as well. Use the browser's existing sign-in context where possible, keep
+the key secret and configure only the Free plan; do not enroll in paid billing/autopay.
+
+Browser access failed twice with "failed to write kernel assets ... path specified (os error 3)"
+even after reset; native node_repl has the same initialization failure. Read the computer-use
+skill/guidance/confirmation docs before attempted access; no UI input occurred. A read-only
+TinyFish browser inspection confirmed Geoapify registration has email/password, ToS and
+reCAPTCHA; no account was created and email verification after signup remains unknown.
+No Geoapify sign-in is recorded in available browser profiles. Rather than requiring user
+registration, checked the documented keyless Photon service: official policy permits reasonable
+project use but provides no availability guarantees. Actual calls returned Starbucks cafes in
+Delhi and reverse lookup returned the exact selected OSM node. Switching the implementation
+plan to Photon avoids both signup and billing. Public Overpass policy discourages app backends,
+so do not use it; public Nominatim autocomplete is prohibited. No new account or paid service
+was created and the Google key remains unused in production.
+
+Implemented keyless Photon provider with named venue searches, category+city reverse queries,
+exact OSM object validation on selection, bounded public-result cache and one-second warm-
+instance request pacing. No distributed quota guarantee is claimed. Added OSM/Photon attribution
+to results, picker and saved details in the existing style, and 500ms search debounce. Google
+photo requests are disabled when Photon is selected. Existing saved/custom fallback and Maps
+coordinate links remain. Actual provider calls returned Starbucks Delhi, selected its exact
+OSM node, and returned Cafe Museo/Cafe Coffee Day for cafes in New Delhi. Corrected category
+OR semantics based on Photon docs (comma separated, not repeated include parameters). Sixteen
+provider tests plus five photo-route cases pass; preparing complete checks and deployment.
+
+All 270 unit tests and full lint pass. Actual keyless restaurant search returned Mysore Cafe,
+Sorento and Baba Ka Dhaba in New Delhi, and exact selection lookup matched the chosen OSM
+object. Added a keyless diagnostic and switched the generic Places check to it when Photon is
+selected, preventing accidental Google checks. Local .env now changes only PLACE_PROVIDER to
+photon; existing credentials are retained but unused. Production PLACE_PROVIDER was updated
+from google to photon for the upcoming deployment. No secret, paid service or account is needed.
+Added place-selection error feedback using the existing FormFeedback component. Preparing an
+isolated live test couple/draft to verify real selection/persistence; actual user data is untouched.
+
+### 2026-11-11 — Activate Google Places
+
+**IN PROGRESS.** User requests activation and live deployment, superseding the earlier
+credential deferral for this integration. Vercel environment metadata confirms production
+has no GOOGLE_PLACES_API_KEY. Reviewing official Google setup/restriction guidance and
+preparing the nonsecret production provider flag. The user needs a billing-enabled Google
+Cloud project, Places API (New) enabled, and a dedicated server key restricted to that API.
+Ask them to enter the secret directly in MONO's Vercel production environment; do not expose,
+copy from another project, or request it in chat. No Google billing/resource purchase is made.
+
+Production PLACE_PROVIDER=google was added as a nonsecret flag. Checking MONO's own local .env
+with Node's env-file parser revealed an existing nonempty, Google-key-shaped Places key and
+PLACE_PROVIDER=google. No key value was printed. Test that existing MONO key before asking the
+user for a new one. Removed partial key logging and redacted echoed key values from the Places
+diagnostic script before calling the Google endpoint.
+
+The existing MONO key was sent only to Google's intended Places endpoint; Google returned
+HTTP 403 PERMISSION_DENIED, "The caller does not have permission." Do not infer a specific
+billing/API/restriction cause from that generic response. Production provider flag is prepared,
+but no secret has been copied to Vercel and live Google search is not yet activated. User
+selected "I need setup help" rather than confirming a working key was added. Provide the exact
+Google Cloud billing → Places API (New) → dedicated API-restricted server key → Vercel Production
+Secret steps, and continue deployment/verification when the user confirms setup. Updated
+DEPLOY.md and the diagnostic (hidden key, redaction, bounded request, structured error reasons).
+Seven focused provider/photo tests and diagnostic syntax validation pass. No source release
+or redeployment has been made while a working production key is missing. User-facing setup
+help covers choosing/creating the Cloud project, linking billing, enabling Places API (New),
+creating a dedicated API-restricted server key and saving it as the MONO Production Secret.
+Activation remains in progress pending user confirmation; never claim live Google search works
+from the prepared provider flag or mocked tests alone.
+
+User reports Google billing setup requests an INR 15,000 autopay mandate. Consulted official
+Google Pay India/Cloud Billing guidance: an e-mandate authorizes automatic usage-based charges
+up to a limit/frequency; it is not itself a fixed INR 15,000 monthly subscription. Do not assume
+the user's unseen screen is not an immediate debit. Asked whether it says maximum/up to versus
+pay now, requesting only the non-sensitive label. No mandate, payment, billing upgrade or new
+Google request was approved/performed. Google Places activation remains pending user setup;
+budget alerts, if discussed, are notifications rather than hard spending caps.
+
+User clarified the UPI app says an automatic payment request "up to 15000", deductions
+"anytime", and start/end dates. This identifies a recurring UPI mandate limit/validity window,
+not evidence of an immediate INR 15,000 debit or fixed monthly plan. Explain that accepting
+permits future automatic usage-related deductions under the mandate and is not a monthly/total
+spending cap. User has not authorized the agent to approve the mandate or a payment. Keep
+Places activation pending their decision and a working production key; do not treat this
+clarification as billing approval.
+
+### 2026-11-11 — Google Maps/Places status audit
+
+**DONE.** User asks whether real restaurant/location selection from Google Maps is integrated.
+Reviewed Google Places provider, search service/API, picker and Maps-link UI. The implementation
+supports Google listing searches and selection but only instantiates the external provider with
+PLACE_PROVIDER=google and a nonempty GOOGLE_PLACES_API_KEY. Authenticated Vercel production
+environment metadata (decrypt=false; values not exposed) confirms both keys are absent, so live
+search currently uses MONO's saved/custom places. Answer distinguishes implementation from live
+activation; no external Google requests, key configuration or production changes were made.
 
 ### 2026-11-11 — Complete live authentication flow
 

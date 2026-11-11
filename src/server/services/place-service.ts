@@ -206,6 +206,7 @@ export async function setActivityPlace(
 
 export interface PlaceDetailView {
   id: string;
+  provider: string | null;
   name: string;
   category: PlaceCategory;
   address: string | null;
@@ -313,6 +314,7 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
 
   return {
     id: resource.id,
+    provider: resource.provider,
     name: resource.name,
     category: resource.category,
     address: resource.address,

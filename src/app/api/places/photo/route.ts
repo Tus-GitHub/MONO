@@ -1,4 +1,4 @@
-import { env, placeProviderConfigured } from "@/config/env";
+import { env } from "@/config/env";
 import { requireCoupleContext } from "@/lib/authz";
 import { isAppError } from "@/lib/errors";
 import { rateLimit } from "@/lib/security/rate-limit";
@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   const headers = { "Cache-Control": "private, no-store" };
   try {
     const { user } = await requireCoupleContext();
-    if (!placeProviderConfigured) return new Response(null, { status: 503, headers });
+    if (env.PLACE_PROVIDER !== "google" || !env.GOOGLE_PLACES_API_KEY) return new Response(null, { status: 503, headers });
     const id = new URL(request.url).searchParams.get("placeId");
     if (!id || !/^[A-Za-z0-9_-]{1,200}$/.test(id)) {
       return new Response(null, { status: 400, headers });

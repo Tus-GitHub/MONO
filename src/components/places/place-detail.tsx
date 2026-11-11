@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PlaceAttribution } from "@/components/places/place-attribution";
 import { RevisitChoice } from "@prisma/client";
 
 import { CoupleScore, PublicRating } from "@/components/explore/rating-badges";
@@ -68,6 +69,7 @@ export function PlaceDetail({ place, forDate }: { place: PlaceDetailView; forDat
         </div>
       </div>
 
+      <PlaceAttribution provider={place.provider} />
       {place.description ? (
         <p className="text-sm leading-relaxed text-muted">{place.description}</p>
       ) : null}

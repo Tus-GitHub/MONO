@@ -10,6 +10,7 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { spawn } from "node:child_process";
 
 try {
   const raw = readFileSync(join(process.cwd(), ".env"), "utf8");
@@ -35,6 +36,13 @@ const KEY = process.env.GOOGLE_PLACES_API_KEY;
 const PROVIDER = process.env.PLACE_PROVIDER;
 const query = process.argv[2] || "coffee near London";
 
+if (PROVIDER === "photon") {
+  const args = ["node_modules/tsx/dist/cli.mjs", "scripts/check-photon.ts", process.argv[2] || "Starbucks Delhi"];
+  const child = spawn(process.execPath, args, { stdio: "inherit", windowsHide: true });
+  const code = await new Promise((resolve, reject) => { child.once("error", reject); child.once("exit", resolve); });
+  process.exit(typeof code === "number" ? code : 1);
+}
+
 if (!KEY) {
   console.error("\nGOOGLE_PLACES_API_KEY is not set in .env — add it, then re-run.\n");
   process.exit(1);
@@ -42,7 +50,7 @@ if (!KEY) {
 if (PROVIDER !== "google") {
   console.log(`note: PLACE_PROVIDER is "${PROVIDER ?? "unset"}" — set it to "google" for MONO to actually use the key. This check runs regardless.\n`);
 }
-console.log(`Key    ${KEY.slice(0, 6)}…${KEY.slice(-4)}`);
+console.log("Key    configured (hidden)");
 console.log(`Query  "${query}"\n`);
 
 const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
@@ -53,9 +61,10 @@ const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
     "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.types,places.rating",
   },
   body: JSON.stringify({ textQuery: query, maxResultCount: 5 }),
+  signal: AbortSignal.timeout(10_000),
 });
 
-const text = await res.text();
+const text = (await res.text()).split(KEY).join("[redacted]");
 let data;
 try {
   data = JSON.parse(text);
@@ -68,16 +77,20 @@ if (!res.ok || data.error) {
   const e = data.error ?? {};
   console.log(`FAIL  HTTP ${res.status}  ${e.status ?? ""}`);
   console.log(`      ${e.message ?? text.slice(0, 300)}`);
+  const reasons = (e.details ?? []).map((detail) => detail.reason).filter((reason) => typeof reason === "string");
+  if (reasons.length) console.log(`      Reason: ${reasons.join(", ")}`);
   const hint =
     /API .* not enabled|SERVICE_DISABLED/i.test(e.message ?? "")
       ? 'Enable "Places API (New)" in APIs & Services → Library.'
       : /billing/i.test(e.message ?? "")
         ? "Link a billing account to the Cloud project."
         : /referer|referrer|API_KEY_HTTP_REFERRER|blocked|restrict/i.test(e.message ?? "")
-          ? "Key restrictions: set Application restrictions = None, API restrictions = Places API (New)."
+          ? "Use a server key restricted to Places API (New). Website/referrer keys cannot authenticate server calls; IP restrictions must match the server's outbound IPs."
           : /API key not valid|API_KEY_INVALID/i.test(e.message ?? "")
             ? "The key string is wrong or was deleted/regenerated."
-            : "";
+            : res.status === 403
+              ? "Check billing, Places API (New) enablement, and the server key's API/application restrictions in Google Cloud."
+              : "";
   if (hint) console.log(`\n      → ${hint}`);
   console.log();
   process.exit(1);

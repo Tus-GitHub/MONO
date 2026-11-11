@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlaceCategory } from "@prisma/client";
+import { PlaceAttribution } from "@/components/places/place-attribution";
 
 import { CoupleScore, PublicRating } from "@/components/explore/rating-badges";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
@@ -66,7 +67,7 @@ export function PlacePickerSheet({
       } finally {
         setLoading(false);
       }
-    }, 250);
+    }, 500);
     return () => {
       clearTimeout(timer);
       controller.abort();
@@ -107,7 +108,7 @@ export function PlacePickerSheet({
         </TabsList>
 
         <TabsContent value="find" className="space-y-3">
-          <SearchInput value={q} onValueChange={setQ} placeholder="Name, area, or activity" />
+          <SearchInput value={q} onValueChange={setQ} placeholder="Venue name, or cafés in your city" />
           <div className="scroll-x no-scrollbar -mx-1 flex gap-2 px-1">
             {BROWSE.map((category) => (
               <Chip
@@ -189,6 +190,7 @@ export function PlacePickerSheet({
               })}
             </ul>
           )}
+          <PlaceAttribution provider={results.some((place) => place.external?.provider === "photon") ? "photon" : null} />
         </TabsContent>
 
         <TabsContent value="custom" className="space-y-3">

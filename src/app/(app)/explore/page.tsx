@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PlaceAttribution } from "@/components/places/place-attribution";
 
 import { CategoryRail } from "@/components/explore/category-rail";
 import { CustomPlaceForm } from "@/components/explore/custom-place-form";
@@ -119,7 +120,8 @@ async function BrowseResults({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       {results.map((place) => (
         <PlaceCard
           key={place.savedPlaceId ?? place.external?.providerPlaceId ?? place.name}
@@ -132,6 +134,8 @@ async function BrowseResults({
           }
         />
       ))}
+    </div>
+      <PlaceAttribution provider={results.some((place) => place.external?.provider === "photon") ? "photon" : null} />
     </div>
   );
 }
