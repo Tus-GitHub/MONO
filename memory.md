@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-11 (preparing a free Geoapify alternative without billing/autopay)
+Last updated: 2026-11-11 (keyless real venue search live on Vercel; selection verified locally)
 
 ## Project Overview
 
@@ -23,31 +23,15 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Activate real venue search (2026-11-11)** — user requests free search without billing/
-  autopay and asks the agent to do all setup. Geoapify Free was researched, but registration
-  requires a CAPTCHA and there is no authenticated browser profile. Read-only live tests of
-  public Photon (OpenStreetMap) confirm real Delhi cafe results and exact venue reverse lookup
-  with no account/key. Implement this keyless provider with caching, conservative pacing,
-  validation and attribution, then deploy/test. Photon permits reasonable project usage with
-  best-effort availability; saved/custom fallback remains available. Do not use public Nominatim
-  autocomplete or public Overpass as an app backend.
-
-- **Earlier Google activation context** — user originally authorized real restaurant/cafe search and
-  selection on Vercel and asks what key/setup is required. Existing Google Places API (New)
-  integration is implemented; production key is absent. Preparing PLACE_PROVIDER=google,
-  validating the existing provider and documenting secure user entry of the production key.
-  Google Cloud billing/API/key setup must be supplied by the user; never request the secret
-  in chat or place it in client-prefixed variables. Redeploy and verify after it is supplied.
-
 - **Remaining verification / optional hardening** — real-device QA and live provider
-  verification for Google/Push/storage remain; credential registration/email/recovery is verified.
+  verification for Push/storage remain; credential registration/email/recovery is verified.
   Shared rate limiting, OAuth-token encryption at rest and operator recovery /
   permanent-erasure policy are possible follow-ups. Portable active-content archive/restore,
   per-device session controls and atomic account closure are implemented. Vercel deployments are
-  enabled; provider activation and migration readiness for existing production data need verification.
+  enabled; remaining provider activation and production-data migration readiness need verification.
 
 - **Production activation / real-device QA** — Vercel deployments are enabled; add keys when ready,
-  verify Google/Push/storage delivery, and complete device/browser QA. SMTP and the complete
+  verify Push/storage delivery, and complete device/browser QA. Keyless venue search, SMTP and the complete
   credential authentication/recovery flow are live and verified.
 
 - **Scheduled reminder activation** — endpoint implemented; production scheduler configuration
@@ -61,6 +45,19 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Free real venue search (2026-11-11)** — Photon/OpenStreetMap is implemented and live at
+  mono-kappa-beryl.vercel.app in c85c51b (READY deployment dpl_5aSrQLGDagg9qb6WVZb5XHjmaVyw),
+  with Production PLACE_PROVIDER=photon. No signup, key, card, billing or autopay is required.
+  Real named cafe, city/category and exact venue lookups pass; 270 unit tests, full lint,
+  TypeScript and production build pass. Seven authenticated local Chromium checks verify real
+  cafe results, exact selection/save/reload, restaurant search, disabled Google photos, venue
+  details/Maps links and session revocation. Database read confirms exact OSM ID and coordinates.
+  Phone screenshots reviewed; no browser errors. Local test database/private credentials removed
+  and server stopped. Production fixture creation was rejected by automatic approval review;
+  optional live write-test permission was requested, but no production fixture or user data was
+  changed. Public Photon is best effort, OSM coverage differs, and Google photos/reviews/ratings
+  are unavailable. Saved/custom fallback and the existing UI are preserved.
 
 - **Google Maps/Places status audit (2026-11-11)** — Google Places API (New) provider,
   search endpoint, date place picker/provider selection and Maps links are implemented.
@@ -1033,7 +1030,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-11 — Free venue-search alternative
 
-**IN PROGRESS.** User asks to use a real restaurant/cafe search provider without billing or
+**DONE.** User asks to use a real restaurant/cafe search provider without billing or
 autopay. Official Geoapify pricing/docs confirm Free supports production with 3,000 credits/day,
 5 requests/second, required attribution and no credit card. Its Places API uses OpenStreetMap;
 coverage differs and Google ratings/reviews/photos are unavailable. Preparing the adapter and
@@ -1075,9 +1072,27 @@ from google to photon for the upcoming deployment. No secret, paid service or ac
 Added place-selection error feedback using the existing FormFeedback component. Preparing an
 isolated live test couple/draft to verify real selection/persistence; actual user data is untouched.
 
+Fresh final production build and TypeScript passed. Implementation c85c51b was pushed to main;
+Vercel deployment dpl_5aSrQLGDagg9qb6WVZb5XHjmaVyw is READY with the public production alias
+mono-kappa-beryl.vercel.app and PLACE_PROVIDER=photon. The optional production-fixture INSERT
+was rejected by automatic approval review because synthetic production data needs explicit
+permission when isolated local testing is available. No production test rows were created.
+Requested permission to create and remove two generated example.invalid users, one couple and
+one draft, while proceeding with the same browser selection flow against isolated local Postgres.
+
+Completed seven authenticated local Chromium checks using actual public Photon results:
+fixture login, real Starbucks results at 390px with attribution, choose/save/reload, New Delhi
+restaurant search, no Google photo access, saved details with attribution/coordinate Maps link,
+and revoked fixture sessions. No browser errors; reviewed both mobile screenshots. Explicit
+local database read confirms provider=photon, selected OSM node N14046155168, Starbucks/New Delhi,
+latitude 28.5410984 and longitude 77.1550259. The dedicated loopback test database and private
+fixture password/SQL files were removed, and Next/test PostgreSQL servers stopped. Production
+test records were never inserted. Full live authenticated persistence was not run without the
+optional fixture permission; the deployed code/config and public service are verified separately.
+
 ### 2026-11-11 — Activate Google Places
 
-**IN PROGRESS.** User requests activation and live deployment, superseding the earlier
+**SUPERSEDED by the free Photon activation above.** User requests activation and live deployment, superseding the earlier
 credential deferral for this integration. Vercel environment metadata confirms production
 has no GOOGLE_PLACES_API_KEY. Reviewing official Google setup/restriction guidance and
 preparing the nonsecret production provider flag. The user needs a billing-enabled Google
