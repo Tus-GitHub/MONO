@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-13 (validity-gated profile save underway)
+Last updated: 2026-11-13 (validity-gated profile save deployed)
 
 ## Project Overview
 
@@ -22,8 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Validity-gated profile save (2026-11-13)** — disable profile Save changes until name is valid and confirmed available; preserve design and existing self-name handling, verify and deploy in isolated checkout.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -47,6 +45,17 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Validity-gated profile save (2026-11-13)** — published 9696b8d; deployment
+  dpl_5pYYQMm8xoeWJpKGySBfQhktCLFz is READY on MONO's public alias. Profile Save changes
+  requires a valid name and confirmed availability. Invalid/taken/checking/unavailable states
+  disable saving; own unchanged name and available case variants work. Invalid Enter/requestSubmit
+  is blocked, server duplicate rejection stays disabled until correction, stale feedback clears
+  on edits and existing styles/loading/unsaved guard remain. All 317 unit tests, lint,
+  build/TypeScript and nine authenticated local browser checks pass, including a local save/reload
+  and 320px layout. Local synthetic database/private fixture/log removed and server stopped.
+  Live health 200/database up; no deployment error logs found. No production profiles changed.
+  Isolated codex/valid-profile-submit preserves unrelated unfinished workspace changes.
 
 - **Validity-gated password updates (2026-11-13)** — published acf0680; production deployment
   dpl_9xtaqG5TGwDss7AYDEgbYNy4SbVA is READY on MONO's public alias. Reset and settings Update
@@ -1155,7 +1164,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-13 — Disable invalid profile-name saves
 
-**IN PROGRESS.** User requests profile Save changes disabled until the name is valid and available, same design, deployed. Reuse UniqueNameField's validity callback, keep save disabled while checking/taken/unavailable/invalid, prevent invalid Enter/requestSubmit, and dismiss stale form feedback on edits. Existing server uniqueness and authenticated self-exclusion remain. Isolated codex/valid-profile-submit preserves unrelated unfinished workspace changes. No production profile edits or migrations required. All 317 unit tests, lint and nine authenticated local browser checks pass: initial/self availability, whitespace, pending, exact duplicates/case variants, stale replies, unavailable checks, server duplicate rejection with recovery, successful local save/reload and 320px layout. Invalid Enter/requestSubmit and existing pending state verified. Only local synthetic profiles were saved; production data untouched. Local database, private fixtures/log and server cleaned up. Final production build/deployment next.
+**DONE.** User requests profile Save changes disabled until the name is valid and available, same design, deployed. Reuse UniqueNameField's validity callback, keep save disabled while checking/taken/unavailable/invalid, prevent invalid Enter/requestSubmit, and dismiss stale form feedback on edits. Existing server uniqueness and authenticated self-exclusion remain. Isolated codex/valid-profile-submit preserves unrelated unfinished workspace changes. No production profile edits or migrations required. All 317 unit tests, lint and nine authenticated local browser checks pass: initial/self availability, whitespace, pending, exact duplicates/case variants, stale replies, unavailable checks, server duplicate rejection with recovery, successful local save/reload and 320px layout. Invalid Enter/requestSubmit and existing pending state verified. Only local synthetic profiles were saved; production data untouched. Local database, private fixtures/log and server cleaned up. Final production build/TypeScript passed; published 9696b8d52e9d45de693adc3285054a749694a35e to origin main. Vercel deployment dpl_5pYYQMm8xoeWJpKGySBfQhktCLFz is READY on mono-kappa-beryl.vercel.app. Live health 200/database up and no deployment error logs found. Authenticated UI was verified against local synthetic accounts; no production profile or account was modified. Copied checkout env removed; unrelated workspace changes preserved.
 
 ### 2026-11-13 — Disable invalid password updates
 
