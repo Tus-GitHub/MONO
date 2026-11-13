@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "@/components/ui/app-link";
 
 import { AcceptInvitationButton } from "@/components/onboarding/accept-invitation-button";
+import { SpaceVerificationGate } from "@/components/auth/space-verification-gate";
 import { Logo, MonoMark } from "@/components/layout/logo";
 import { Avatar } from "@/components/ui/avatar";
 import { Alert } from "@/components/ui/alert";
@@ -120,7 +121,9 @@ export default async function InvitePage({
             You&apos;re already part of a couple space, so you can&apos;t accept this invitation.
           </Alert>
         ) : (
-          <AcceptInvitationButton token={token} />
+          <SpaceVerificationGate verified={Boolean(user.emailVerified)} email={user.email} invitationToken={token}>
+            <AcceptInvitationButton token={token} />
+          </SpaceVerificationGate>
         )}
       </div>
 

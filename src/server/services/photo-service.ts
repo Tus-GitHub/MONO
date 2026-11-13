@@ -1,4 +1,6 @@
 import "server-only";
+import { toggleCoupleFavorite } from "@/server/services/favorite-service";
+import { dateAllows } from "@/lib/date/permissions";
 
 import { DateStatus, Prisma } from "@prisma/client";
 
@@ -18,11 +20,6 @@ import { logDateEvent } from "@/server/services/date-event-service";
 import { withDateWrite } from "@/server/services/date-write";
 import { queueStorageCleanup, STAGED_UPLOAD_MS } from "@/server/services/storage-cleanup-service";
 
-const PHOTOGRAPHABLE_STATUSES: DateStatus[] = [
-  DateStatus.TODAY,
-  DateStatus.IN_PROGRESS,
-  DateStatus.COMPLETED,
-];
 
 /** Fields needed to render a photo or resolve a cover. */
 export const PHOTO_SELECT = {
@@ -92,7 +89,7 @@ export function resolveDateCover(input: {
  */
 export async function assertDatePhotoUploadable(dateId: string): Promise<void> {
   const { resource } = await authorizeDate(dateId);
-  if (!PHOTOGRAPHABLE_STATUSES.includes(resource.status)) {
+  if (!dateAllows(resource.status, "photo")) {
     throw new ValidationError("Photos can be added once the date is under way.");
   }
 }
@@ -157,7 +154,7 @@ export async function addDatePhoto(
   filename: string,
 ): Promise<PhotoView> {
   const { context, resource } = await authorizeDate(dateId);
-  if (!PHOTOGRAPHABLE_STATUSES.includes(resource.status)) {
+  if (!dateAllows(resource.status, "photo")) {
     throw new ValidationError("Photos can be added once the date is under way.");
   }
 
@@ -165,7 +162,7 @@ export async function addDatePhoto(
   const keys = await storeVariants(baseKey, processed);
 
   const { row, date } = await withDateWrite(dateId, async (tx, current) => {
-    if (!PHOTOGRAPHABLE_STATUSES.includes(current.status)) throw new ValidationError("Photos can be added once the date is under way.");
+    if (!dateAllows(current.status, "photo")) throw new ValidationError("Photos can be added once the date is under way.");
     const max = await tx.datePhoto.aggregate({
       where: { dateId: resource.id },
       _max: { sortOrder: true },
@@ -234,9 +231,9 @@ export async function replaceDatePhoto(
 
 export async function setPhotoCaption(photoId: string, caption: string | undefined) {
   const { resource } = await authorizePhoto(photoId);
-  await prisma.datePhoto.update({
-    where: { id: resource.id },
-    data: { caption: caption ?? null },
+  await withDateWrite(resource.date.id, async (tx, date) => {
+    const result = await tx.datePhoto.updateMany({ where: { id: photoId, dateId: date.id, deletedAt: null }, data: { caption: caption ?? null } });
+    if (!result.count) throw new NotFoundError("That photo is no longer available.");
   });
 }
 
@@ -263,20 +260,23 @@ export async function deleteDatePhoto(photoId: string) {
 
 /** Part 4 — set (or clear, with `null`) the couple's one "most like us" photo for a date. */
 export async function setBestCouplePhoto(dateId: string, photoId: string | null) {
-  const { context, resource } = await authorizeDate(dateId);
+  const { context, resource } = await withDateWrite(dateId, async (tx, resource, context) => {
 
-  if (photoId) {
-    const photo = await prisma.datePhoto.findFirst({
-      where: { id: photoId, dateId: resource.id, deletedAt: null },
-      select: { id: true },
+    if (photoId) {
+      const photo = await tx.datePhoto.findFirst({
+        where: { id: photoId, dateId: resource.id, deletedAt: null },
+        select: { id: true },
+      });
+      if (!photo) throw new NotFoundError("That photo isn't on this date.");
+    }
+
+    await tx.date.update({
+      where: { id: resource.id },
+      data: { bestPhotoId: photoId },
     });
-    if (!photo) throw new NotFoundError("That photo isn't on this date.");
-  }
-
-  await prisma.date.update({
-    where: { id: resource.id },
-    data: { bestPhotoId: photoId },
+    return { context, resource };
   });
+
   await logDateEvent(
     resource.id,
     context.user.id,
@@ -287,10 +287,7 @@ export async function setBestCouplePhoto(dateId: string, photoId: string | null)
 
 /** Heart / un-heart a photo for the couple photo wall. Returns the new state. */
 export async function togglePhotoFavorite(photoId: string): Promise<boolean> {
-  const { resource } = await authorizePhoto(photoId);
-  const next = !resource.isFavorite;
-  await prisma.datePhoto.update({ where: { id: resource.id }, data: { isFavorite: next } });
-  return next;
+  return toggleCoupleFavorite("photo", photoId);
 }
 
 // --- Cross-date collections (the Memories photo wall + Our Favorites) ------

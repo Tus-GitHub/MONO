@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { EmailVerificationForm } from "@/components/forms/email-verification-form";
 import { Logo } from "@/components/layout/logo";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { pendingInvitationPath } from "@/lib/auth/pending-invitation";
 
 export const metadata: Metadata = { title: "Confirm your email", referrer: "no-referrer" };
 
 export default async function VerifyEmailPage() {
   const user = await getCurrentUser();
+  const invitationPath = user ? await pendingInvitationPath(user.id) : null;
   return (
     <main className="flex min-h-dvh flex-col bg-paper px-4 py-12">
       <div className="m-auto w-full max-w-sm space-y-6">
@@ -16,7 +18,7 @@ export default async function VerifyEmailPage() {
             <h1 className="font-display text-2xl font-medium text-ink">Confirm your email</h1>
             <p className="mt-1 text-sm text-muted">One small step to make this space yours.</p>
           </div>
-          <EmailVerificationForm currentEmail={user?.email} alreadyVerified={Boolean(user?.emailVerified)} />
+          <EmailVerificationForm currentEmail={user?.email} alreadyVerified={Boolean(user?.emailVerified)} invitationPath={invitationPath} />
         </div>
       </div>
     </main>

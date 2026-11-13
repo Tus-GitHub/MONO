@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import {
   startTransition,
   useActionState,
@@ -309,23 +310,25 @@ export function PhotoLightbox({
         <div className="min-h-12 px-4 py-3 text-center text-sm text-white/85">
           {editing ? (
             <form action={runCaption} className="mx-auto flex max-w-md gap-2">
-              <input type="hidden" name="dateId" value={dateId} />
-              <input type="hidden" name="photoId" value={photo.id} />
-              <input
-                name="caption"
-                value={captionDraft}
-                onChange={(event) => setCaptionDraft(event.target.value)}
-                placeholder="Add a caption"
-                autoFocus
-                className="h-9 flex-1 rounded-lg border border-white/25 bg-white/10 px-3 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/40"
-              />
-              <button
-                type="submit"
-                disabled={captionPending}
-                className="rounded-lg bg-white/15 px-3 text-xs font-medium text-white hover:bg-white/25"
-              >
-                Save
-              </button>
+              <PendingFields>
+                <input type="hidden" name="dateId" value={dateId} />
+                <input type="hidden" name="photoId" value={photo.id} />
+                <input
+                  name="caption"
+                  value={captionDraft}
+                  onChange={(event) => setCaptionDraft(event.target.value)}
+                  placeholder="Add a caption"
+                  autoFocus
+                  className="h-9 flex-1 rounded-lg border border-white/25 bg-white/10 px-3 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/40"
+                />
+                <button
+                  type="submit"
+                  disabled={captionPending}
+                  className="rounded-lg bg-white/15 px-3 text-xs font-medium text-white hover:bg-white/25"
+                >
+                  Save
+                </button>
+              </PendingFields>
             </form>
           ) : photo.caption ? (
             <p>{photo.caption}</p>

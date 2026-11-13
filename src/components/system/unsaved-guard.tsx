@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { ActionState } from "@/lib/utils/result";
+import { dirtyTransition, type DirtyState } from "@/lib/state/dirty";
 
 /**
  * Drop inside a <form> to warn before an accidental reload / tab-close / browser-back throws
@@ -16,39 +17,42 @@ export function UnsavedGuard({ message, state, valueKey }: {
   valueKey?: string;
 }) {
   const anchorRef = useRef<HTMLSpanElement>(null);
-  const dirty = useRef(false);
+  const dirty = useRef<DirtyState>({ revision: 0, saved: 0, submitted: null });
   const previousValue = useRef(valueKey);
 
   useEffect(() => {
-    if (previousValue.current !== valueKey) dirty.current = true;
+    if (previousValue.current !== valueKey) dirty.current = dirtyTransition(dirty.current, "edit");
     previousValue.current = valueKey;
   }, [valueKey]);
 
   useEffect(() => {
-    if (state?.status === "success") dirty.current = false;
-    if (state?.status === "error") dirty.current = true;
+    if (state?.status === "success") dirty.current = dirtyTransition(dirty.current, "success");
+    if (state?.status === "error") dirty.current = dirtyTransition(dirty.current, "failure");
   }, [state]);
 
   useEffect(() => {
     const form = anchorRef.current?.closest("form");
     if (!form) return;
 
-    const markDirty = () => { dirty.current = true; };
-    const markClean = () => { dirty.current = false; };
+    const markDirty = () => { dirty.current = dirtyTransition(dirty.current, "edit"); };
+    const markClean = () => { dirty.current = dirtyTransition(dirty.current, "reset"); };
+    const submit = () => { dirty.current = dirtyTransition(dirty.current, "submit"); };
 
     form.addEventListener("input", markDirty);
     form.addEventListener("change", markDirty);
     form.addEventListener("reset", markClean);
+    form.addEventListener("submit", submit);
     return () => {
       form.removeEventListener("input", markDirty);
       form.removeEventListener("change", markDirty);
       form.removeEventListener("reset", markClean);
+      form.removeEventListener("submit", submit);
     };
   }, []);
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!dirty.current) return;
+      if (dirty.current.revision === dirty.current.saved) return;
       event.preventDefault();
       // Modern browsers show their own generic string; setting returnValue is what arms it.
       event.returnValue = message ?? "";

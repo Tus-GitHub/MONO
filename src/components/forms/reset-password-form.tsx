@@ -1,5 +1,7 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
+
 import { useActionState, useState } from "react";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
@@ -22,14 +24,16 @@ export function ResetPasswordForm({ token }: { token: string }) {
       onInput={validate} onFocus={validate} onChange={() => { setDismissedState(state); validate(); }}
       onSubmit={(event) => { if (!valid) event.preventDefault(); }}
       onReset={(event) => event.preventDefault()} className="space-y-4" noValidate>
-      <FormFeedback state={visibleState} />
-      <input type="hidden" name="token" value={token} />
+      <PendingFields className="space-y-4">
+        <FormFeedback state={visibleState} />
+        <input type="hidden" name="token" value={token} />
 
-      <NewPasswordFields errors={fieldErrors} />
+        <NewPasswordFields errors={fieldErrors} />
 
-      <SubmitButton fullWidth disabled={!valid} pendingText="Updating…">
-        Update password
-      </SubmitButton>
+        <SubmitButton fullWidth disabled={!valid} pendingText="Updating…">
+          Update password
+        </SubmitButton>
+      </PendingFields>
     </form>
   );
 }

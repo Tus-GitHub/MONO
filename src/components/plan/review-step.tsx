@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import { startTransition, useActionState } from "react";
 import { DateStatus } from "@prisma/client";
 
@@ -57,13 +58,13 @@ export function ReviewStep({ plan }: { plan: PlanDateDTO }) {
       action: (fd: FormData) => void,
       opts: { title: string; description: string; confirmLabel: string },
     ) =>
-    async () => {
-      const ok = await confirm({ ...opts, tone: "danger" });
-      if (!ok) return;
-      const fd = new FormData();
-      fd.set("dateId", plan.id);
-      startTransition(() => action(fd));
-    };
+      async () => {
+        const ok = await confirm({ ...opts, tone: "danger" });
+        if (!ok) return;
+        const fd = new FormData();
+        fd.set("dateId", plan.id);
+        startTransition(() => action(fd));
+      };
 
   return (
     <div className="space-y-6">
@@ -103,20 +104,22 @@ export function ReviewStep({ plan }: { plan: PlanDateDTO }) {
       ) : null}
 
       <form action={finalize}>
-        <input type="hidden" name="dateId" value={plan.id} />
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <LinkButton href={planStepHref(plan.id, "activities")} variant="ghost">
-            Back
-          </LinkButton>
-          <div className="flex gap-2">
-            <LinkButton href="/plan" variant="ghost">
-              Save as draft
+        <PendingFields>
+          <input type="hidden" name="dateId" value={plan.id} />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <LinkButton href={planStepHref(plan.id, "activities")} variant="ghost">
+              Back
             </LinkButton>
-            <SubmitButton disabled={!ready} pendingText="Saving…">
-              Save the plan
-            </SubmitButton>
+            <div className="flex gap-2">
+              <LinkButton href="/plan" variant="ghost">
+                Save as draft
+              </LinkButton>
+              <SubmitButton disabled={!ready} pendingText="Saving…">
+                Save the plan
+              </SubmitButton>
+            </div>
           </div>
-        </div>
+        </PendingFields>
       </form>
 
       <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-line pt-4 text-sm">

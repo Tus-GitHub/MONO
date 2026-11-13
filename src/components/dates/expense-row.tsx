@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import { startTransition, useActionState, useState } from "react";
 import { ExpenseCategory } from "@prisma/client";
 
@@ -97,24 +98,26 @@ export function ExpenseRow({
     return (
       <li className="rounded-xl border border-primary/30 bg-surface p-3">
         <form action={editAction} className="space-y-4" noValidate>
-          <input type="hidden" name="dateId" value={dateId} />
-          <input type="hidden" name="expenseId" value={expense.id} />
-          <input type="hidden" name="currency" value={expense.currency} />
-          <FormFeedback state={editState} />
-          <ExpenseFields
-            defaults={toDefaults(expense)}
-            fieldErrors={fieldErrors}
-            partnerName={partnerName}
-            currency={expense.currency}
-          />
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
-              Cancel
-            </Button>
-            <SubmitButton size="sm" pendingText="Saving…">
-              Save
-            </SubmitButton>
-          </div>
+          <PendingFields className="space-y-4">
+            <input type="hidden" name="dateId" value={dateId} />
+            <input type="hidden" name="expenseId" value={expense.id} />
+            <input type="hidden" name="currency" value={expense.currency} />
+            <FormFeedback state={editState} />
+            <ExpenseFields
+              defaults={toDefaults(expense)}
+              fieldErrors={fieldErrors}
+              partnerName={partnerName}
+              currency={expense.currency}
+            />
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
+                Cancel
+              </Button>
+              <SubmitButton size="sm" pendingText="Saving…">
+                Save
+              </SubmitButton>
+            </div>
+          </PendingFields>
         </form>
       </li>
     );
@@ -123,9 +126,9 @@ export function ExpenseRow({
   const splitHint =
     expense.payer === "custom" || expense.payer === "shared"
       ? `You ${formatMoney(expense.mineShareCents, expense.currency)} · ${partnerName} ${formatMoney(
-          expense.partnerShareCents,
-          expense.currency,
-        )}`
+        expense.partnerShareCents,
+        expense.currency,
+      )}`
       : null;
 
   return (

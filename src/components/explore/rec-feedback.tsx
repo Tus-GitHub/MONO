@@ -1,15 +1,13 @@
 "use client";
 
-import { startTransition, useActionState, useState } from "react";
+import { useOptimisticTask } from "@/lib/hooks/use-optimistic-task";
 import { useRouter } from "next/navigation";
 import type { RecommendationSignal } from "@prisma/client";
 
 import { Icon } from "@/components/ui/icon";
-import { idleState, type ActionState } from "@/lib/utils/result";
 import { cn } from "@/lib/utils/cn";
 import { recommendationFeedbackAction } from "@/server/actions/explore";
 
-type Data = { signal: RecommendationSignal | null };
 type Choice = "INTERESTED" | "NOT_FOR_US" | "SAVED";
 
 const META: Record<Choice, { label: string; icon: "heart" | "x" | "star" }> = {
@@ -36,31 +34,17 @@ export function RecFeedback({
   className?: string;
 }) {
   const router = useRouter();
-  const [state, dispatch] = useActionState<ActionState<Data>, FormData>(
-    recommendationFeedbackAction,
-    idleState,
-  );
-  const [current, setCurrent] = useState<RecommendationSignal | null>(initial);
-  const [seen, setSeen] = useState<ActionState<Data>>(idleState);
-
-  if (state !== seen) {
-    setSeen(state);
-    if (state.status === "success" && state.data) {
-      setCurrent(state.data.signal);
-      router.refresh();
-    } else if (state.status === "error") {
-      setCurrent(initial);
-    }
-  }
-
-  const send = (choice: Choice) => {
+  const task = useOptimisticTask<RecommendationSignal | null>(initial);
+  const current = task.value;
+  const send = async (choice: Choice) => {
     const next = current === choice ? null : choice;
-    setCurrent(next as RecommendationSignal | null);
-    const fd = new FormData();
-    fd.set("targetType", targetType);
-    fd.set("targetKey", targetKey);
-    fd.set("signal", next ?? "clear");
-    startTransition(() => dispatch(fd));
+    const outcome = await task.run(next, async () => {
+      const fd = new FormData(); fd.set("targetType", targetType); fd.set("targetKey", targetKey); fd.set("signal", next ?? "clear");
+      const result = await recommendationFeedbackAction({ status: "idle" }, fd);
+      if (result.status !== "success" || !result.data) throw new Error(result.status === "error" ? result.message : "Couldn't save feedback.");
+      return result.data.signal;
+    });
+    if (outcome) router.refresh();
   };
 
   return (
@@ -73,6 +57,8 @@ export function RecFeedback({
             type="button"
             aria-pressed={active}
             onClick={() => send(choice)}
+            disabled={task.pending}
+            aria-busy={task.pending}
             className={cn(
               "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-2xs font-medium transition-colors",
               active

@@ -4,9 +4,11 @@ import { CoupleMemberRole, CoupleMemberStatus, CoupleStatus, NotificationType, P
 
 import { ConflictError, NotFoundError } from "@/lib/errors";
 import { serializable } from "@/lib/db/serializable";
-import { lockLivingUser, requireSelf } from "@/lib/authz/user-write";
+import { lockLivingUser, lockVerifiedUser, requireSelf } from "@/lib/authz/user-write";
+import { CONNECTION_TRANSACTION } from "@/lib/db/connection-transaction";
 import { requireCoupleMembership } from "@/lib/authz";
 import { archiveCoupleInTransaction } from "@/server/services/couple-archive";
+import { coupleState } from "@/lib/state/access";
 import { prisma } from "@/lib/db/prisma";
 import { generateInviteCode } from "@/lib/utils/crypto";
 import type {
@@ -48,7 +50,7 @@ async function generateUniqueInviteCode(tx: Prisma.TransactionClient): Promise<s
 export async function createCoupleForUser(userId: string, input: CreateCoupleInput) {
   await requireSelf(userId);
   return serializable(async (tx) => {
-    await lockLivingUser(tx, userId);
+    await lockVerifiedUser(tx, userId);
     await assertUserHasNoActiveCouple(tx, userId);
 
     const couple = await tx.couple.create({
@@ -73,13 +75,13 @@ export async function createCoupleForUser(userId: string, input: CreateCoupleInp
 
     await ensureDefaultReviewCategories(tx, couple.id);
     return couple;
-  });
+  }, CONNECTION_TRANSACTION);
 }
 
 export async function joinCoupleByInviteCode(userId: string, input: JoinCoupleInput) {
   await requireSelf(userId);
   return serializable(async (tx) => {
-    await lockLivingUser(tx, userId);
+    await lockVerifiedUser(tx, userId);
     await assertUserHasNoActiveCouple(tx, userId);
 
     await tx.$queryRaw`SELECT id FROM couples WHERE "inviteCode" = ${input.inviteCode} FOR UPDATE`;
@@ -88,7 +90,7 @@ export async function joinCoupleByInviteCode(userId: string, input: JoinCoupleIn
       include: { members: { where: { status: CoupleMemberStatus.ACTIVE } } },
     });
     if (!couple) throw new NotFoundError("That invite code doesn't match a couple space.");
-    if (couple.status === CoupleStatus.ARCHIVED) {
+    if (coupleState(couple) === "archived") {
       throw new ConflictError("That couple space is no longer active.");
     }
     if (couple.inviteCodeExpiresAt && couple.inviteCodeExpiresAt <= new Date()) {
@@ -111,7 +113,7 @@ export async function joinCoupleByInviteCode(userId: string, input: JoinCoupleIn
       },
     });
 
-    await tx.couple.update({
+    const connectedCouple = await tx.couple.update({
       where: { id: couple.id },
       data: { status: CoupleStatus.ACTIVE },
     });
@@ -126,8 +128,8 @@ export async function joinCoupleByInviteCode(userId: string, input: JoinCoupleIn
       },
     });
 
-    return tx.couple.findUniqueOrThrow({ where: { id: couple.id } });
-  });
+    return connectedCouple;
+  }, CONNECTION_TRANSACTION);
 }
 
 /** Couple-setup step: save name, description, relationship date (photo handled by its route). */

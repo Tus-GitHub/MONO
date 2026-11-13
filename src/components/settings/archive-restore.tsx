@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,11 @@ import { Input, Textarea } from "@/components/ui/input";
 import { LinkButton } from "@/components/ui/link-button";
 import { ARCHIVE_MAX_BYTES } from "@/lib/archive/limits";
 import { readArchivePreview, type ArchiveSelection } from "@/lib/archive/preview";
-import { settingsErrorMessage, settingsRequest } from "@/lib/settings/request";
+import { useAsyncTask } from "@/lib/hooks/use-async-task";
+import { useExpired } from "@/lib/hooks/use-expired";
+import { canRestoreArchive, restoreStage, type RestoreApproval } from "@/lib/archive/restore-state";
+import { settingsRequest } from "@/lib/settings/request";
 
-interface Approval { code: string; expiresAt: number }
 interface RestoreResult { restored: boolean; dates: number; photos: number; memories: number }
 
 function countLabel(count: number, singular: string, plural = `${singular}s`) {
@@ -25,13 +27,13 @@ export function ArchiveRestore({ spaceName, userEmail, blockedReason }: {
 }) {
   const [selection, setSelection] = useState<ArchiveSelection | null>(null);
   const [filename, setFilename] = useState("");
-  const [approval, setApproval] = useState<Approval | null>(null);
-  const [expired, setExpired] = useState(false);
+  const [approval, setApproval] = useState<RestoreApproval | null>(null);
   const [consented, setConsented] = useState(false);
   const [partnerCode, setPartnerCode] = useState("");
-  const [pending, setPending] = useState<string | null>(null);
-  const busy = useRef(false);
-  const [error, setError] = useState<string | null>(null);
+  const task = useAsyncTask<unknown, "reading" | "approve" | "confirm" | "restore">();
+  const pending = task.state.status === "pending" ? task.state.phase : null;
+  const error = task.state.status === "error" ? task.state.message : null;
+  const expired = useExpired(approval?.expiresAt ?? null);
   const [message, setMessage] = useState<string | null>(null);
   const [result, setResult] = useState<RestoreResult | null>(null);
   const confirm = useConfirm();
@@ -39,38 +41,37 @@ export function ArchiveRestore({ spaceName, userEmail, blockedReason }: {
   const isExporter = selection?.summary.exporterEmail.toLowerCase() === userEmail.toLowerCase();
   const hasPartner = (selection?.summary.members.length ?? 0) > 1;
 
-  useEffect(() => {
-    if (!approval) return;
-    const timeout = window.setTimeout(() => setExpired(true), Math.max(0, approval.expiresAt - Date.now()));
-    return () => window.clearTimeout(timeout);
-  }, [approval]);
+  const stage = restoreStage({ selectedDigest: selection?.summary.digest ?? null, approval, blocked: Boolean(blockedReason), restored: result !== null });
+  const readyToRestore = canRestoreArchive({ stage, isExporter, hasPartner, partnerCode, consented });
 
   async function chooseFile(event: ChangeEvent<HTMLInputElement>) {
-    if (busy.current) return;
+    if (pending) return;
     const file = event.currentTarget.files?.[0];
     setSelection(null); setApproval(null); setPartnerCode(""); setConsented(false);
-    setExpired(false); setError(null); setMessage(null); setFilename(file?.name ?? "");
+    setMessage(null); setFilename(file?.name ?? "");
+    task.reset();
     if (!file) return;
-    busy.current = true; setPending("reading");
-    try {
+    const outcome = await task.run("reading", async () => {
       if (file.size > ARCHIVE_MAX_BYTES) throw new Error("Choose an archive smaller than 64 MiB.");
-      setSelection(readArchivePreview(await file.text()));
-    } catch (failure) { setError(settingsErrorMessage(failure)); }
-    finally { busy.current = false; setPending(null); }
+      return readArchivePreview(await file.text());
+    });
+    if (outcome) setSelection(outcome.data);
   }
 
   async function approve() {
-    if (!selection || !consented || busy.current) return;
-    busy.current = true; setPending("approve"); setError(null); setMessage(null);
-    try {
+    if (!selection || !consented || blockedReason || pending) return;
+    setMessage(null);
+    const outcome = await task.run("approve", async (signal) => {
       const response = await settingsRequest<{ approval: string; digest: string; expiresInSeconds: number }>("/api/archive", {
         action: "approve", archive: selection.archive,
-      });
+      }, signal);
       if (response.digest !== selection.summary.digest) throw new Error("The archive changed. Choose the file again.");
-      setApproval({ code: response.approval, expiresAt: Date.now() + response.expiresInSeconds * 1000 });
-      setExpired(false); setMessage("Your approval is ready. It is valid for 15 minutes while you stay signed in.");
-    } catch (failure) { setError(settingsErrorMessage(failure)); }
-    finally { busy.current = false; setPending(null); }
+      return { code: response.approval, digest: response.digest, expiresAt: Date.now() + response.expiresInSeconds * 1000 };
+    });
+    if (outcome) {
+      setApproval(outcome.data);
+      setMessage("Your approval is ready. It is valid for 15 minutes while you stay signed in.");
+    }
   }
 
   async function copyApproval() {
@@ -80,27 +81,26 @@ export function ArchiveRestore({ spaceName, userEmail, blockedReason }: {
   }
 
   async function restore() {
-    if (!selection || !approval || expired || !isExporter || busy.current) return;
-    busy.current = true; setPending("confirm"); setError(null); setMessage(null);
-    try {
-      const accepted = await confirm({
-        title: "Restore this archive?", confirmLabel: "Restore history",
-        description: `Restore ${countLabel(selection.summary.dates, "date")}, ${countLabel(selection.summary.photos, "photo")} and ${countLabel(selection.summary.memories, "memory", "memories")} into ${spaceName || "your current shared space"}? This space can receive an archive only once.`,
-      });
-      if (!accepted) return;
-      if (Date.now() >= approval.expiresAt) {
-        setExpired(true);
+    if (!selection || !approval || !readyToRestore || pending) return;
+    setMessage(null);
+    const confirmed = await task.run("confirm", async () => confirm({
+      title: "Restore this archive?", confirmLabel: "Restore history",
+      description: `Restore ${countLabel(selection.summary.dates, "date")}, ${countLabel(selection.summary.photos, "photo")} and ${countLabel(selection.summary.memories, "memory", "memories")} into ${spaceName || "your current shared space"}? This space can receive an archive only once.`,
+    }));
+    if (!confirmed?.data) return;
+    const outcome = await task.run("restore", async (signal) => {
+      if (restoreStage({ selectedDigest: selection.summary.digest, approval, blocked: Boolean(blockedReason), restored: false }) !== "approved") {
         throw new Error("Your approval expired. Approve again before restoring.");
       }
-      setPending("restore");
-      const response = await settingsRequest<RestoreResult>("/api/archive", {
+      return settingsRequest<RestoreResult>("/api/archive", {
         action: "restore", archive: selection.archive,
         approvals: hasPartner ? [approval.code, partnerCode.trim()] : [approval.code],
-      });
-      setResult(response); setApproval(null); setPartnerCode(""); setSelection(null);
+      }, signal);
+    });
+    if (outcome) {
+      setResult(outcome.data); setApproval(null); setPartnerCode(""); setSelection(null);
       router.refresh();
-    } catch (failure) { setError(settingsErrorMessage(failure)); }
-    finally { busy.current = false; setPending(null); }
+    }
   }
 
   if (result) return (
@@ -180,7 +180,7 @@ export function ArchiveRestore({ spaceName, userEmail, blockedReason }: {
                 </Field>
               ) : null}
               <Button loading={pending === "restore"} onClick={restore}
-                disabled={!approval || expired || pending !== null || (hasPartner && !partnerCode.trim())}>
+                disabled={!readyToRestore || pending !== null}>
                 {pending === "restore" ? "Restoring history…" : "Restore archive"}
               </Button>
               <p className="text-xs text-muted">Keep this page open until the restore finishes. Old reminders are restored as dismissed.</p>

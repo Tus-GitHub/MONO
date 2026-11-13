@@ -25,6 +25,7 @@ import {
 import { formValues, toActionError } from "@/server/actions/_helpers";
 import { revokeCurrentAuthSession } from "@/server/services/session-service";
 import { sendRegistrationEmails } from "@/server/services/email-verification-service";
+import { rememberInvitation, clearPendingInvitation, validInvitationToken } from "@/lib/auth/pending-invitation";
 
 const GENERIC_RESET_MESSAGE = "If that email has an account, a reset link is on its way.";
 
@@ -52,6 +53,8 @@ export async function registerAction(
   try {
     const user = await registerUser(parsed.data);
     await writeSessionCookie({ userId: user.id, tokenVersion: user.tokenVersion });
+    const invite = formData.get("invite");
+    if (validInvitationToken(invite)) await rememberInvitation(user.id, invite);
     after(async () => {
       try { await sendRegistrationEmails(user.id); }
       catch { console.error("[email] Registration email delivery failed; account remains available."); }
@@ -80,6 +83,8 @@ export async function loginAction(
   try {
     const user = await authenticate(parsed.data);
     await writeSessionCookie({ userId: user.id, tokenVersion: user.tokenVersion }, remember);
+    const invite = formData.get("invite");
+    if (validInvitationToken(invite)) await rememberInvitation(user.id, invite);
   } catch (error) {
     return toActionError(error);
   }
@@ -101,6 +106,7 @@ export async function logoutAction(_formData?: FormData): Promise<void> {
     } });
   } catch { console.error("[logout] push device unlink unavailable"); }
   cookieStore.delete("mono_push_device");
+  await clearPendingInvitation();
   await clearSessionCookie();
   redirect("/login");
 }

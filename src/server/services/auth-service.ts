@@ -9,6 +9,7 @@ import { serializable } from "@/lib/db/serializable";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { AuthenticationError, ValidationError } from "@/lib/errors";
 import { randomToken, sha256 } from "@/lib/utils/crypto";
+import { capabilityState } from "@/lib/state/access";
 import { assertNameAvailable, isNameConstraint, nameTakenError } from "@/server/services/name-service";
 import { emailRegisteredError } from "@/server/services/email-availability-service";
 import type {
@@ -108,7 +109,7 @@ export async function completePasswordReset(input: ResetPasswordInput): Promise<
     include: { user: { select: { id: true, deletedAt: true } } },
   });
 
-  if (!record || record.usedAt || record.expiresAt < new Date() || record.user.deletedAt) {
+  if (!record || capabilityState(record) !== "available" || record.user.deletedAt) {
     throw new ValidationError("This reset link is invalid or has expired.");
   }
 

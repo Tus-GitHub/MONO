@@ -9,6 +9,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { overlayHistoryAction, overlayTransition, type OverlayPhase } from "@/lib/state/overlay";
 import { createPortal } from "react-dom";
 
 /** Renders children into a detached node on <body>. SSR-safe (renders nothing on the server). */
@@ -34,29 +35,23 @@ export function Portal({ children }: { children: ReactNode }) {
  * CSS transition can run; on close, `mounted` stays true for `durationMs` so the exit plays.
  */
 export function useMountTransition(open: boolean, durationMs = 240) {
-  const [mounted, setMounted] = useState(open);
-  const [visible, setVisible] = useState(open);
+  const [phase, setPhase] = useState<OverlayPhase>(open ? "open" : "unmounted");
   const [lastOpen, setLastOpen] = useState(open);
-
-  // React-recommended pattern: adjust state during render when the prop changes.
   if (open !== lastOpen) {
     setLastOpen(open);
-    if (open) setMounted(true);
-    else setVisible(false);
+    setPhase((current) => overlayTransition(current, open ? "show" : "hide"));
   }
-
   useEffect(() => {
-    if (open && !visible) {
-      const raf = requestAnimationFrame(() => setVisible(true));
-      return () => cancelAnimationFrame(raf);
+    if (phase === "entering") {
+      const frame = requestAnimationFrame(() => setPhase((current) => overlayTransition(current, "entered")));
+      return () => cancelAnimationFrame(frame);
     }
-    if (!open && mounted) {
-      const timer = setTimeout(() => setMounted(false), durationMs);
+    if (phase === "exiting") {
+      const timer = setTimeout(() => setPhase((current) => overlayTransition(current, "exited")), durationMs);
       return () => clearTimeout(timer);
     }
-  }, [open, visible, mounted, durationMs]);
-
-  return { mounted, visible };
+  }, [phase, durationMs]);
+  return { mounted: phase !== "unmounted", visible: phase === "open" };
 }
 
 let bodyLockCount = 0;
@@ -214,10 +209,11 @@ export function useBackButton(
         };
         const removeEntry = () => {
           const stack = entries();
-          if (window.location.href !== entryUrl || !stack.includes(entryId)) {
+          const action = overlayHistoryAction(stack, entryId, window.location.href === entryUrl, traversalRequested);
+          if (action === "complete") {
             cancel();
             onHistoryClosedRef.current?.(window.location.href === entryUrl);
-          } else if (stack.at(-1) === entryId && !traversalRequested) {
+          } else if (action === "back") {
             traversalRequested = true;
             window.history.back();
           }

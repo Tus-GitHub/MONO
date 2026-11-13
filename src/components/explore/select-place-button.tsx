@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import { useActionState } from "react";
 
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -37,32 +38,34 @@ export function SelectPlaceButton({
 
   return (
     <form action={action}>
-      <FormFeedback state={state} />
-      <input type="hidden" name="dateId" value={dateId} />
-      {redirectTo ? <input type="hidden" name="redirectTo" value={redirectTo} /> : null}
-      {place.savedPlaceId ? (
-        <>
-          <input type="hidden" name="mode" value="saved" />
-          <input type="hidden" name="savedPlaceId" value={place.savedPlaceId} />
-        </>
-      ) : place.external ? (
-        <>
-          <input type="hidden" name="mode" value="external" />
-          <input type="hidden" name="provider" value={place.external.provider} />
-          <input type="hidden" name="providerPlaceId" value={place.external.providerPlaceId} />
-        </>
-      ) : (
-        <>
-          <input type="hidden" name="mode" value="custom" />
-          <input type="hidden" name="name" value={place.name} />
-          <input type="hidden" name="category" value={place.category} />
-          {place.address ? <input type="hidden" name="address" value={place.address} /> : null}
-          {place.city ? <input type="hidden" name="city" value={place.city} /> : null}
-        </>
-      )}
-      <SubmitButton size={size} variant={variant} pendingText="Choosing…">
-        {label}
-      </SubmitButton>
+      <PendingFields>
+        <FormFeedback state={state} />
+        <input type="hidden" name="dateId" value={dateId} />
+        {redirectTo ? <input type="hidden" name="redirectTo" value={redirectTo} /> : null}
+        {place.savedPlaceId ? (
+          <>
+            <input type="hidden" name="mode" value="saved" />
+            <input type="hidden" name="savedPlaceId" value={place.savedPlaceId} />
+          </>
+        ) : place.external ? (
+          <>
+            <input type="hidden" name="mode" value="external" />
+            <input type="hidden" name="provider" value={place.external.provider} />
+            <input type="hidden" name="providerPlaceId" value={place.external.providerPlaceId} />
+          </>
+        ) : (
+          <>
+            <input type="hidden" name="mode" value="custom" />
+            <input type="hidden" name="name" value={place.name} />
+            <input type="hidden" name="category" value={place.category} />
+            {place.address ? <input type="hidden" name="address" value={place.address} /> : null}
+            {place.city ? <input type="hidden" name="city" value={place.city} /> : null}
+          </>
+        )}
+        <SubmitButton size={size} variant={variant} pendingText="Choosing…">
+          {label}
+        </SubmitButton>
+      </PendingFields>
     </form>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import { useActionState, useState } from "react";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
@@ -28,60 +29,62 @@ export function CoupleProfileForm({ initial }: Props) {
 
   return (
     <form action={action} className="space-y-5" noValidate>
-      <UnsavedGuard state={state} />
-      <FormFeedback state={state} />
+      <PendingFields className="space-y-5">
+        <UnsavedGuard state={state} />
+        <FormFeedback state={state} />
 
-      <ImageUpload
-        endpoint="/api/uploads/couple-cover"
-        value={photoUrl}
-        onChange={setPhotoUrl}
-        shape="cover"
-        label="Couple photo"
-        hint="Optional — a photo of the two of you."
-      />
-
-      <Field label="Couple name" htmlFor="name" optional errors={fieldErrors?.name}>
-        <Input id="name" name="name" defaultValue={initial.name ?? ""} placeholder="Us" maxLength={80} />
-      </Field>
-
-      <Field label="About" htmlFor="description" optional errors={fieldErrors?.description}>
-        <Textarea
-          id="description"
-          name="description"
-          defaultValue={initial.description ?? ""}
-          rows={3}
-          maxLength={500}
-          placeholder="A line about the two of you."
+        <ImageUpload
+          endpoint="/api/uploads/couple-cover"
+          value={photoUrl}
+          onChange={setPhotoUrl}
+          shape="cover"
+          label="Couple photo"
+          hint="Optional — a photo of the two of you."
         />
-      </Field>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          label="Relationship date"
-          htmlFor="anniversaryAt"
-          optional
-          errors={fieldErrors?.anniversaryAt}
-        >
-          <Input
-            id="anniversaryAt"
-            name="anniversaryAt"
-            type="date"
-            defaultValue={initial.anniversaryAt ?? ""}
+        <Field label="Couple name" htmlFor="name" optional errors={fieldErrors?.name}>
+          <Input id="name" name="name" defaultValue={initial.name ?? ""} placeholder="Us" maxLength={80} />
+        </Field>
+
+        <Field label="About" htmlFor="description" optional errors={fieldErrors?.description}>
+          <Textarea
+            id="description"
+            name="description"
+            defaultValue={initial.description ?? ""}
+            rows={3}
+            maxLength={500}
+            placeholder="A line about the two of you."
           />
         </Field>
-        <Field label="Currency" htmlFor="currency" errors={fieldErrors?.currency}>
-          <Input
-            id="currency"
-            name="currency"
-            defaultValue={initial.currency}
-            maxLength={3}
-            className="uppercase"
-            placeholder="USD"
-          />
-        </Field>
-      </div>
 
-      <SubmitButton pendingText="Saving…">Save changes</SubmitButton>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label="Relationship date"
+            htmlFor="anniversaryAt"
+            optional
+            errors={fieldErrors?.anniversaryAt}
+          >
+            <Input
+              id="anniversaryAt"
+              name="anniversaryAt"
+              type="date"
+              defaultValue={initial.anniversaryAt ?? ""}
+            />
+          </Field>
+          <Field label="Currency" htmlFor="currency" errors={fieldErrors?.currency}>
+            <Input
+              id="currency"
+              name="currency"
+              defaultValue={initial.currency}
+              maxLength={3}
+              className="uppercase"
+              placeholder="USD"
+            />
+          </Field>
+        </div>
+
+        <SubmitButton pendingText="Saving…">Save changes</SubmitButton>
+      </PendingFields>
     </form>
   );
 }

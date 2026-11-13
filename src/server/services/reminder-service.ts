@@ -2,6 +2,7 @@ import "server-only";
 
 import { DateStatus, NotificationType, ReminderKind } from "@prisma/client";
 
+import { reminderAllowed, reminderSchedulePatch, reminderStage } from "@/lib/notifications/reminder-state";
 import { prisma } from "@/lib/db/prisma";
 import { enqueueNotification, processNotificationDeliveries } from "@/server/services/notification-delivery-service";
 import {
@@ -14,8 +15,6 @@ import { planTimeToInstant, zonedTimeToUtc } from "@/lib/utils/timezone";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
-/** A reminder more than this far past its time is treated as expired. */
-const STALE_MS = 2 * DAY;
 
 const LIVE_STATUSES: DateStatus[] = [
   DateStatus.PLANNED,
@@ -55,14 +54,9 @@ async function upsertReminder(
     await prisma.dateReminder.create({ data: { dateId, userId, kind, scheduledFor } });
     return;
   }
-  const moved = Math.abs(existing.scheduledFor.getTime() - scheduledFor.getTime()) > HOUR;
   await prisma.dateReminder.update({
     where: { dateId_userId_kind: { dateId, userId, kind } },
-    data: {
-      scheduledFor,
-      sentAt: moved ? null : existing.sentAt,
-      dismissedAt: moved ? null : existing.dismissedAt,
-    },
+    data: reminderSchedulePatch(existing, scheduledFor),
   });
 }
 
@@ -303,16 +297,6 @@ function categoryAllowed(kind: ReminderKind, pref: PrefRow | null): boolean {
   return (pref ?? DEFAULT_CATEGORY_PREFS)[category] !== false;
 }
 
-/** A kind can only fire while its date is in a state that still makes sense. */
-function stateAllows(kind: ReminderKind, status: DateStatus): boolean {
-  if (status === DateStatus.CANCELLED) return false;
-  if (kind === ReminderKind.REVIEW || kind === ReminderKind.MEMORY) {
-    return status === DateStatus.COMPLETED;
-  }
-  if (kind === ReminderKind.UNFINISHED_PLAN) return status === DateStatus.DRAFT;
-  return LIVE_STATUSES.includes(status);
-}
-
 /** Reminders due for a user, pref-filtered and state-checked; expired ones are retired. */
 export async function getDueReminders(userId: string, now: Date = new Date()) {
   const [rows, pref] = await Promise.all([
@@ -337,21 +321,29 @@ export async function getDueReminders(userId: string, now: Date = new Date()) {
       take: 25,
       include: {
         date: {
-          select: { id: true, coupleId: true, title: true, status: true, scheduledFor: true, plannedStartAt: true },
+          select: {
+            id: true, coupleId: true, title: true, status: true, scheduledFor: true, plannedStartAt: true,
+            reviews: { where: { authorId: userId, submittedAt: { not: null } }, select: { id: true } },
+            memory: { select: { deletedAt: true } },
+          },
         },
       },
     }),
     prisma.notificationPreference.findUnique({ where: { userId } }),
   ]);
 
-  const stale = now.getTime() - STALE_MS;
   const expiredIds: string[] = [];
   const live = rows.filter((row) => {
-    if (row.scheduledFor.getTime() < stale) {
+    if (reminderStage(row, now) === "expired") {
       expiredIds.push(row.id);
       return false;
     }
-    if (!stateAllows(row.kind, row.date.status)) {
+    if (!reminderAllowed(row.kind, row.date.status)) {
+      expiredIds.push(row.id);
+      return false;
+    }
+    if ((row.kind === ReminderKind.REVIEW && row.date.reviews?.length > 0)
+      || (row.kind === ReminderKind.MEMORY && row.date.memory && !row.date.memory.deletedAt)) {
       expiredIds.push(row.id);
       return false;
     }
@@ -405,8 +397,17 @@ export async function dispatchDueRemindersDetailed(userId: string) {
       const written = await prisma.$transaction(async (tx) => {
         const claim = await tx.dateReminder.updateMany({
           where: {
-            id: reminder.id, sentAt: null, dismissedAt: null,
+            id: reminder.id, userId, sentAt: null, dismissedAt: null,
             scheduledFor: reminder.scheduledFor,
+            user: { deletedAt: null },
+            date: {
+              deletedAt: null,
+              status: reminder.kind === "REVIEW" || reminder.kind === "MEMORY" ? "COMPLETED"
+                : reminder.kind === "UNFINISHED_PLAN" ? "DRAFT" : { in: LIVE_STATUSES },
+              couple: { deletedAt: null, status: { in: ["PENDING", "ACTIVE"] }, members: { some: { userId, status: "ACTIVE" } } },
+              ...(reminder.kind === "REVIEW" ? { reviews: { none: { authorId: userId, submittedAt: { not: null } } } } : {}),
+              ...(reminder.kind === "MEMORY" ? { OR: [{ memory: { is: null } }, { memory: { is: { deletedAt: { not: null } } } }] } : {}),
+            },
           },
           data: { sentAt: new Date() },
         });

@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import { useActionState, useState } from "react";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
@@ -26,56 +27,58 @@ export function CoupleSetupForm({ initial }: Props) {
 
   return (
     <form action={action} className="space-y-5" noValidate>
-      <FormFeedback state={state} />
+      <PendingFields className="space-y-5">
+        <FormFeedback state={state} />
 
-      <ImageUpload
-        endpoint="/api/uploads/couple-cover"
-        value={photoUrl}
-        onChange={setPhotoUrl}
-        shape="cover"
-        label="Space photo"
-        hint="Optional — a photo of the two of you works well."
-      />
-
-      <Field label="Space name" htmlFor="name" optional errors={fieldErrors?.name}>
-        <Input
-          id="name"
-          name="name"
-          defaultValue={initial.name ?? ""}
-          placeholder="Us"
-          maxLength={80}
+        <ImageUpload
+          endpoint="/api/uploads/couple-cover"
+          value={photoUrl}
+          onChange={setPhotoUrl}
+          shape="cover"
+          label="Space photo"
+          hint="Optional — a photo of the two of you works well."
         />
-      </Field>
 
-      <Field
-        label="Relationship date"
-        htmlFor="anniversaryAt"
-        optional
-        hint="When it began — an anniversary, a first date."
-        errors={fieldErrors?.anniversaryAt}
-      >
-        <Input
-          id="anniversaryAt"
-          name="anniversaryAt"
-          type="date"
-          defaultValue={initial.anniversaryAt ?? ""}
-        />
-      </Field>
+        <Field label="Space name" htmlFor="name" optional errors={fieldErrors?.name}>
+          <Input
+            id="name"
+            name="name"
+            defaultValue={initial.name ?? ""}
+            placeholder="Us"
+            maxLength={80}
+          />
+        </Field>
 
-      <Field label="Description" htmlFor="description" optional errors={fieldErrors?.description}>
-        <Textarea
-          id="description"
-          name="description"
-          defaultValue={initial.description ?? ""}
-          rows={3}
-          maxLength={500}
-          placeholder="A line about the two of you."
-        />
-      </Field>
+        <Field
+          label="Relationship date"
+          htmlFor="anniversaryAt"
+          optional
+          hint="When it began — an anniversary, a first date."
+          errors={fieldErrors?.anniversaryAt}
+        >
+          <Input
+            id="anniversaryAt"
+            name="anniversaryAt"
+            type="date"
+            defaultValue={initial.anniversaryAt ?? ""}
+          />
+        </Field>
 
-      <SubmitButton fullWidth pendingText="Saving…">
-        Finish setup
-      </SubmitButton>
+        <Field label="Description" htmlFor="description" optional errors={fieldErrors?.description}>
+          <Textarea
+            id="description"
+            name="description"
+            defaultValue={initial.description ?? ""}
+            rows={3}
+            maxLength={500}
+            placeholder="A line about the two of you."
+          />
+        </Field>
+
+        <SubmitButton fullWidth pendingText="Saving…">
+          Finish setup
+        </SubmitButton>
+      </PendingFields>
     </form>
   );
 }

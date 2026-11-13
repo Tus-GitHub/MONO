@@ -1,5 +1,7 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
+
 import { useActionState, useState } from "react";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
@@ -26,18 +28,20 @@ export function RegisterForm({ invite }: { invite?: string }) {
       onInput={validate} onFocus={validate} onChange={() => { setDismissedState(state); validate(); }}
       onSubmit={(event) => { if (!canSubmit) event.preventDefault(); }}
       onReset={(event) => event.preventDefault()} className="space-y-4" noValidate>
-      {invite ? <input type="hidden" name="invite" value={invite} /> : null}
+      <PendingFields className="space-y-4">
+        {invite ? <input type="hidden" name="invite" value={invite} /> : null}
 
-      <UniqueNameField errors={fieldErrors?.name} onValidityChange={setNameAvailable} />
+        <UniqueNameField errors={fieldErrors?.name} onValidityChange={setNameAvailable} />
 
-      <RegistrationEmailField errors={fieldErrors?.email} onValidityChange={setEmailAvailable} />
+        <RegistrationEmailField errors={fieldErrors?.email} onValidityChange={setEmailAvailable} />
 
-      <NewPasswordFields errors={fieldErrors} registration />
+        <NewPasswordFields errors={fieldErrors} registration />
 
-      <FormFeedback state={dismissedState === state ? idleState : state} />
-      <SubmitButton fullWidth disabled={!canSubmit} pendingText="Creating account…">
-        Create account
-      </SubmitButton>
+        <FormFeedback state={dismissedState === state ? idleState : state} />
+        <SubmitButton fullWidth disabled={!canSubmit} pendingText="Creating account…">
+          Create account
+        </SubmitButton>
+      </PendingFields>
     </form>
   );
 }

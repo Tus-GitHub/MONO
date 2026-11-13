@@ -27,7 +27,11 @@ interface PhotoProps {
  * lazy loading, and a `srcset` that lets the browser pick the smallest variant that fits.
  * No `next/image` — these sources are behind per-request authorization.
  */
-export function Photo({
+export function Photo(props: PhotoProps) {
+  return <PhotoContent key={`${props.thumbUrl}:${props.displayUrl}`} {...props} />;
+}
+
+function PhotoContent({
   thumbUrl,
   displayUrl,
   blurDataUrl,

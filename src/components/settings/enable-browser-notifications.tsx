@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { useToast } from "@/components/ui/toast";
 import { savePushSubscriptionAction } from "@/server/actions/reminders";
+import { TaskScope } from "@/lib/state/task";
+import { waitFor } from "@/lib/state/wait-for";
 import { idleState } from "@/lib/utils/result";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
@@ -17,7 +19,9 @@ type State =
   | "ios-needs-install" // iOS Safari, not yet added to the home screen
   | "denied"
   | "off" // supported + permitted-or-undecided, not subscribed
-  | "on"; // subscribed
+  | "on"
+  | "enabling"
+  | "disabling";
 
 function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
   const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
@@ -48,63 +52,70 @@ function isStandalone(): boolean {
 export function EnableBrowserNotifications() {
   const { toast } = useToast();
   const [state, setState] = useState<State>("loading");
-  const [busy, setBusy] = useState(false);
+  const scope = useRef(new TaskScope());
+  const busy = state === "enabling" || state === "disabling";
+  const displayState = state === "enabling" ? "off" : state === "disabling" ? "on" : state;
 
   useEffect(() => {
-    let cancelled = false;
+    const owner = scope.current;
+    const signal = owner.begin(true)!;
     void (async () => {
       const supported =
         "Notification" in window &&
         "serviceWorker" in navigator &&
         "PushManager" in window;
       if (!supported) {
-        if (!cancelled) setState(isIOS() && !isStandalone() ? "ios-needs-install" : "unsupported");
+        if (!signal.aborted) setState(isIOS() && !isStandalone() ? "ios-needs-install" : "unsupported");
         return;
       }
       if (!VAPID_PUBLIC_KEY) {
-        if (!cancelled) setState("not-configured");
+        if (!signal.aborted) setState("not-configured");
         return;
       }
       if (Notification.permission === "denied") {
-        if (!cancelled) setState("denied");
+        if (!signal.aborted) setState("denied");
         return;
       }
-      const reg = await navigator.serviceWorker.ready.catch(() => null);
+      const reg = await waitFor(navigator.serviceWorker.ready, signal).catch(() => null);
       const sub = reg ? await reg.pushManager.getSubscription() : null;
-      if (sub && !cancelled) {
+      if (signal.aborted) return;
+      if (sub && !signal.aborted) {
         const fd = new FormData();
         fd.set("subscription", JSON.stringify(sub.toJSON()));
         const result = await savePushSubscriptionAction(idleState, fd).catch(() => null);
         if (result?.status !== "success") {
-          if (!cancelled) setState("off");
+          if (!signal.aborted) setState("off");
           return;
         }
       }
-      if (!cancelled) setState(sub ? "on" : "off");
-    })();
-    return () => {
-      cancelled = true;
-    };
+      if (!signal.aborted) setState(sub ? "on" : "off");
+    })().catch(() => { if (!signal.aborted) setState("off"); }).finally(() => { owner.finish(signal); });
+    return () => owner.cancel();
   }, []);
 
   const enable = async () => {
-    setBusy(true);
+    const signal = scope.current.begin();
+    if (!signal || state !== "off") { if (signal) scope.current.finish(signal); return; }
+    setState("enabling");
     try {
-      const permission = await Notification.requestPermission();
+      const permission = await waitFor(Notification.requestPermission(), signal, 60_000);
+      signal.throwIfAborted();
       if (permission !== "granted") {
         setState(permission === "denied" ? "denied" : "off");
         return;
       }
-      const reg = await navigator.serviceWorker.ready;
+      const reg = await waitFor(navigator.serviceWorker.ready, signal);
       const sub =
         (await reg.pushManager.getSubscription()) ??
         (await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
         }));
+      signal.throwIfAborted();
       const fd = new FormData();
       fd.set("subscription", JSON.stringify(sub.toJSON()));
       const result = await savePushSubscriptionAction(idleState, fd);
+      if (signal.aborted) return;
       if (result.status === "error") {
         await sub.unsubscribe().catch(() => undefined);
         toast({ title: result.message ?? "Couldn't turn on reminders.", variant: "error" });
@@ -114,37 +125,46 @@ export function EnableBrowserNotifications() {
       setState("on");
       toast({ title: "Reminders on — even when MONO is closed.", variant: "success" });
     } catch {
+      if (signal.aborted) return;
       toast({ title: "Couldn't turn on reminders. Try again.", variant: "error" });
       setState("off");
     } finally {
-      setBusy(false);
+      scope.current.finish(signal);
     }
   };
 
   const disable = async () => {
-    setBusy(true);
+    const signal = scope.current.begin();
+    if (!signal || state !== "on") { if (signal) scope.current.finish(signal); return; }
+    setState("disabling");
     try {
-      const reg = await navigator.serviceWorker.ready;
+      const reg = await waitFor(navigator.serviceWorker.ready, signal);
       const sub = await reg.pushManager.getSubscription();
+      signal.throwIfAborted();
       const fd = new FormData();
       fd.set("subscription", "null");
       if (sub) fd.set("endpoint", sub.endpoint);
       const result = await savePushSubscriptionAction(idleState, fd);
+      if (signal.aborted) return;
       if (result.status === "error") {
         toast({ title: result.message, variant: "error" });
+        setState("on");
         return;
       }
       await sub?.unsubscribe().catch(() => undefined);
+      if (signal.aborted) return;
       setState("off");
       toast({ title: "Browser reminders off." });
     } catch {
+      if (signal.aborted) return;
+      setState("on");
       toast({ title: "Couldn't turn off reminders. Try again.", variant: "error" });
     } finally {
-      setBusy(false);
+      scope.current.finish(signal);
     }
   };
 
-  const message: Record<State, string> = {
+  const message: Record<Exclude<State, "enabling" | "disabling">, string> = {
     loading: "…",
     unsupported: "This browser can't show reminders — you'll still see everything inside MONO.",
     "not-configured": "Browser reminders aren't set up for this install. In-app notifications still work.",
@@ -163,13 +183,13 @@ export function EnableBrowserNotifications() {
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-ink">Reminders when MONO is closed</p>
-          <p className="mt-0.5 text-sm text-muted">{message[state]}</p>
-          {state === "off" ? (
+          <p className="mt-0.5 text-sm text-muted">{message[displayState]}</p>
+          {displayState === "off" ? (
             <Button size="sm" variant="secondary" className="mt-3" loading={busy} onClick={enable}>
               Turn on reminders
             </Button>
           ) : null}
-          {state === "on" ? (
+          {displayState === "on" ? (
             <Button size="sm" variant="ghost" className="mt-3" loading={busy} onClick={disable}>
               Turn off
             </Button>

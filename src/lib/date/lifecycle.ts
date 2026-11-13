@@ -15,7 +15,7 @@ import { InvalidTransitionError } from "@/lib/errors";
  * reused by services, jobs, and UI badges alike.
  */
 export const DATE_STATUS_TRANSITIONS: Record<DateStatus, readonly DateStatus[]> = {
-  [DateStatus.DRAFT]: [DateStatus.PLANNED, DateStatus.CANCELLED],
+  [DateStatus.DRAFT]: [DateStatus.PLANNED, DateStatus.TODAY, DateStatus.CANCELLED],
   [DateStatus.PLANNED]: [
     DateStatus.TODAY,
     DateStatus.IN_PROGRESS,
@@ -85,4 +85,20 @@ export function lifecycleTimestampsFor(to: DateStatus, now = new Date()): Lifecy
     default:
       return {};
   }
+}
+
+/** Historical first-start time survives reopening; current completion/cancellation do not. */
+export function lifecyclePatch(
+  from: { status: DateStatus; plannedAt: Date | null; startedAt: Date | null },
+  to: DateStatus,
+  now = new Date(),
+) {
+  assertTransition(from.status, to);
+  if (from.status === to) return {};
+  return {
+    ...lifecycleTimestampsFor(to, now),
+    ...(to === DateStatus.TODAY && !from.plannedAt ? { plannedAt: now } : {}),
+    ...(to === DateStatus.IN_PROGRESS ? { startedAt: from.startedAt ?? now, completedAt: null } : {}),
+    ...(to !== DateStatus.CANCELLED ? { cancelledAt: null } : {}),
+  };
 }

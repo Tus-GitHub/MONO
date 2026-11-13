@@ -4,7 +4,8 @@ import { DateStatus, Prisma } from "@prisma/client";
 
 import { authorizeDate, requireCoupleContext } from "@/lib/authz/couple";
 import { buildComparison } from "@/lib/date/comparison";
-import { assertTransition, lifecycleTimestampsFor } from "@/lib/date/lifecycle";
+import { assertTransition, lifecyclePatch } from "@/lib/date/lifecycle";
+import { dateAllows } from "@/lib/date/permissions";
 import { buildPipeline } from "@/lib/date/pipeline";
 import { budgetDelta, categoryBreakdown } from "@/lib/date/expense-breakdown";
 import { contributionsOf, ownerShareOf, payerFacing } from "@/lib/date/expense-split";
@@ -37,11 +38,7 @@ function wallRange(start: string | null, end: string | null): string | null {
   return s || e || null;
 }
 
-const RECORDABLE_STATUSES: DateStatus[] = [
-  DateStatus.TODAY,
-  DateStatus.IN_PROGRESS,
-  DateStatus.COMPLETED,
-];
+
 
 const STATUS_VERB: Record<DateStatus, string> = {
   DRAFT: "moved it back to a draft",
@@ -137,24 +134,26 @@ export async function getDateDetail(dateId: string) {
 
 export async function transitionDate(dateId: string, input: TransitionDateInput) {
   const { context, resource, updated } = await withDateWrite(dateId, async (tx, resource, context) => {
-  assertTransition(resource.status, input.to); // backend enforces the lifecycle
+    assertTransition(resource.status, input.to); // backend enforces the lifecycle
 
-  const updated = await tx.date.update({
-    where: { id: resource.id },
-    data: {
-      status: input.to,
-      cancelReason:
-        input.to === DateStatus.CANCELLED ? (input.cancelReason ?? null) : null,
-      // Record who first got the date under way; a later reopen doesn't overwrite it.
-      startedById:
-        input.to === DateStatus.IN_PROGRESS
-          ? (resource.startedById ?? context.user.id)
-          : undefined,
-      ...lifecycleTimestampsFor(input.to),
-    },
-  });
+    const updated = await tx.date.update({
+      where: { id: resource.id },
+      data: {
+        status: input.to,
+        cancelReason:
+          input.to === DateStatus.CANCELLED ? (input.cancelReason ?? null) : null,
+        // Record who first got the date under way; a later reopen doesn't overwrite it.
+        startedById:
+          input.to === DateStatus.IN_PROGRESS
+            ? (resource.startedById ?? context.user.id)
+            : undefined,
+        ...lifecyclePatch(resource, input.to),
+      },
+    });
     return { context, resource, updated };
   });
+
+  if (resource.status === input.to) return updated;
 
   await logDateEvent(
     resource.id,
@@ -177,34 +176,38 @@ export async function transitionDate(dateId: string, input: TransitionDateInput)
  * still allowed after it's COMPLETED — a completed date is never locked.
  */
 export async function recordActuals(dateId: string, input: DateActualsInput) {
-  const { context, resource } = await authorizeDate(dateId);
-  if (!RECORDABLE_STATUSES.includes(resource.status)) {
-    throw new ValidationError("You can record what happened once the date is under way.");
-  }
+  const { context, resource } = await withDateWrite(dateId, async (tx, resource, context) => {
+    if (!dateAllows(resource.status, "actuals")) {
+      throw new ValidationError("You can record what happened once the date is under way.");
+    }
 
-  let actualPlaceId: string | null = null;
-  if (input.actualSavedPlaceId) {
-    await assertPlaceInCouple(context.couple.id, input.actualSavedPlaceId);
-    actualPlaceId = input.actualSavedPlaceId;
-  }
+    let actualPlaceId: string | null = null;
+    if (input.actualSavedPlaceId) {
+      const place = await tx.place.findFirst({ where: { id: input.actualSavedPlaceId, coupleId: context.couple.id, deletedAt: null }, select: { id: true } });
+      if (!place) throw new NotFoundError("That place isn't in your list.");
+      actualPlaceId = input.actualSavedPlaceId;
+    }
 
-  const day =
-    input.actualDate ??
-    (resource.scheduledFor ? resource.scheduledFor.toISOString().slice(0, 10) : null);
-  const combine = (time?: string) =>
-    day && time ? new Date(`${day}T${time}:00.000Z`) : null;
+    const day =
+      input.actualDate ??
+      (resource.scheduledFor ? resource.scheduledFor.toISOString().slice(0, 10) : null);
+    const combine = (time?: string) =>
+      day && time ? new Date(`${day}T${time}:00.000Z`) : null;
 
-  await prisma.date.update({
-    where: { id: resource.id },
-    data: {
-      actualPlaceId,
-      actualLocationText: actualPlaceId ? null : (input.actualLocationText ?? null),
-      actualStartAt: combine(input.actualStartTime),
-      actualEndAt: combine(input.actualEndTime),
-      actualSpendCents: input.actualSpend ?? null,
-      actualNotes: input.actualNotes ?? null,
-      actualsRecordedAt: new Date(),
-    },
+    await tx.date.update({
+      where: { id: resource.id },
+      data: {
+        actualPlaceId,
+        actualLocationText: actualPlaceId ? null : (input.actualLocationText ?? null),
+        actualStartAt: combine(input.actualStartTime),
+        actualEndAt: combine(input.actualEndTime),
+        actualSpendCents: input.actualSpend ?? null,
+        actualNotes: input.actualNotes ?? null,
+        actualsRecordedAt: new Date(),
+      },
+    });
+
+    return { context, resource };
   });
 
   await logDateEvent(
@@ -413,16 +416,16 @@ export async function getDateExperience(dateId: string, userId: string) {
 
   const comparison = hasActualSignal
     ? buildComparison({
-        plannedTime: plan.timeLabel,
-        actualTime: actual.timeLabel,
-        plannedPlace: plan.placeName,
-        actualPlace: actual.label,
-        plannedBudgetCents: plan.budgetCents,
-        actualSpendCents: effectiveSpendCents,
-        plannedActivities: plan.activities.map((a) => a.title),
-        actualActivities: actualCore.map((a) => a.title),
-        extraActivities: extras.map((a) => a.title),
-      })
+      plannedTime: plan.timeLabel,
+      actualTime: actual.timeLabel,
+      plannedPlace: plan.placeName,
+      actualPlace: actual.label,
+      plannedBudgetCents: plan.budgetCents,
+      actualSpendCents: effectiveSpendCents,
+      plannedActivities: plan.activities.map((a) => a.title),
+      actualActivities: actualCore.map((a) => a.title),
+      extraActivities: extras.map((a) => a.title),
+    })
     : null;
 
   const mineRow = date.reviews.find((r) => r.authorId === userId) ?? null;
@@ -440,21 +443,21 @@ export async function getDateExperience(dateId: string, userId: string) {
   const shapeReviewSide = (row: typeof mineRow) =>
     row
       ? {
-          authorName: row.author.name,
-          authorAvatar: row.author.avatarUrl,
-          submitted: row.submittedAt != null,
-          overallRating: row.overallRating,
-          suggestedOverall: row.suggestedOverall,
-          personalRevisit: row.personalRevisit,
-          personalRevisitNote: row.personalRevisitNote,
-          reflections: {
-            loved: row.lovedText,
-            better: row.betterText,
-            remember: row.rememberText,
-            unexpected: row.unexpectedText,
-          },
-          scores: Object.fromEntries(row.ratings.map((rt) => [rt.categoryId, rt.score])),
-        }
+        authorName: row.author.name,
+        authorAvatar: row.author.avatarUrl,
+        submitted: row.submittedAt != null,
+        overallRating: row.overallRating,
+        suggestedOverall: row.suggestedOverall,
+        personalRevisit: row.personalRevisit,
+        personalRevisitNote: row.personalRevisitNote,
+        reflections: {
+          loved: row.lovedText,
+          better: row.betterText,
+          remember: row.rememberText,
+          unexpected: row.unexpectedText,
+        },
+        scores: Object.fromEntries(row.ratings.map((rt) => [rt.categoryId, rt.score])),
+      }
       : null;
 
   const mineSide = shapeReviewSide(mineRow);
@@ -464,13 +467,13 @@ export async function getDateExperience(dateId: string, userId: string) {
   const reviewComparison =
     revealed && mineSide && partnerSide
       ? buildReviewComparison({
-          categories: reviewCategories,
-          youScores: mineSide.scores,
-          partnerScores: partnerSide.scores,
-          youOverall: mineSide.overallRating,
-          partnerOverall: partnerSide.overallRating,
-          partnerName: partnerRow?.author.name ?? "your partner",
-        })
+        categories: reviewCategories,
+        youScores: mineSide.scores,
+        partnerScores: partnerSide.scores,
+        youOverall: mineSide.overallRating,
+        partnerOverall: partnerSide.overallRating,
+        partnerName: partnerRow?.author.name ?? "your partner",
+      })
       : null;
   const revisitCompat =
     revealed && mineSide && partnerSide
@@ -512,11 +515,11 @@ export async function getDateExperience(dateId: string, userId: string) {
       startedAt: iso(date.startedAt),
       startedBy: date.startedBy
         ? {
-            id: date.startedBy.id,
-            name: date.startedBy.name,
-            nickname: date.startedBy.nickname,
-            isMe: date.startedBy.id === userId,
-          }
+          id: date.startedBy.id,
+          name: date.startedBy.name,
+          nickname: date.startedBy.nickname,
+          isMe: date.startedBy.id === userId,
+        }
         : null,
       completedAt: iso(date.completedAt),
       cancelReason: date.cancelReason,
@@ -545,21 +548,21 @@ export async function getDateExperience(dateId: string, userId: string) {
     },
     revisit: date.revisitDecision
       ? {
-          choice: date.revisitDecision.choice,
-          reason: date.revisitDecision.reason,
-          targetTimeframe: date.revisitDecision.targetTimeframe,
-          decidedByName: date.revisitDecision.decidedBy.name,
-        }
+        choice: date.revisitDecision.choice,
+        reason: date.revisitDecision.reason,
+        targetTimeframe: date.revisitDecision.targetTimeframe,
+        decidedByName: date.revisitDecision.decidedBy.name,
+      }
       : null,
     memory: date.memory
       ? {
-          id: date.memory.id,
-          title: date.memory.title,
-          body: date.memory.body,
-          isFavorite: date.memory.isFavorite,
-          coverPhotoId: date.memory.coverPhotoId,
-          coverPhotoUrl: date.memory.coverPhoto?.url ?? null,
-        }
+        id: date.memory.id,
+        title: date.memory.title,
+        body: date.memory.body,
+        isFavorite: date.memory.isFavorite,
+        coverPhotoId: date.memory.coverPhotoId,
+        coverPhotoUrl: date.memory.coverPhoto?.url ?? null,
+      }
       : null,
     expenses: expenseViews,
     spending,

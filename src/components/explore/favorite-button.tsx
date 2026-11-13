@@ -1,9 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useOptimisticTask } from "@/lib/hooks/use-optimistic-task";
 
 import { Icon } from "@/components/ui/icon";
-import { idleState } from "@/lib/utils/result";
 import { toggleFavoriteAction } from "@/server/actions/place";
 import { cn } from "@/lib/utils/cn";
 
@@ -25,34 +24,30 @@ export function FavoriteButton({
   initialFavorite: boolean;
   className?: string;
 }) {
-  const [state, dispatch, pending] = useActionState(toggleFavoriteAction, idleState);
-  const [favorite, setFavorite] = useState(initialFavorite);
-  const [lastSeen, setLastSeen] = useState<typeof state>(idleState);
-
-  // Reconcile with the server result (render-phase adjustment, not an effect).
-  if (state !== lastSeen) {
-    setLastSeen(state);
-    if (state.status === "success" && state.data) setFavorite(state.data.favorite);
-  }
-
-  const submit = () => {
-    setFavorite((current) => !current); // optimistic
-    const fd = new FormData();
-    if (place.savedPlaceId) {
-      fd.set("mode", "saved");
-      fd.set("savedPlaceId", place.savedPlaceId);
-    } else if (place.external) {
-      fd.set("mode", "external");
-      fd.set("provider", place.external.provider);
-      fd.set("providerPlaceId", place.external.providerPlaceId);
-    } else {
-      fd.set("mode", "custom");
-      fd.set("name", place.name);
-      fd.set("category", place.category);
-      if (place.address) fd.set("address", place.address);
-      if (place.city) fd.set("city", place.city);
-    }
-    dispatch(fd);
+  const task = useOptimisticTask(initialFavorite);
+  const favorite = task.value;
+  const pending = task.pending;
+  const submit = async () => {
+    await task.run(!favorite, async () => {
+      const fd = new FormData();
+      if (place.savedPlaceId) {
+        fd.set("mode", "saved");
+        fd.set("savedPlaceId", place.savedPlaceId);
+      } else if (place.external) {
+        fd.set("mode", "external");
+        fd.set("provider", place.external.provider);
+        fd.set("providerPlaceId", place.external.providerPlaceId);
+      } else {
+        fd.set("mode", "custom");
+        fd.set("name", place.name);
+        fd.set("category", place.category);
+        if (place.address) fd.set("address", place.address);
+        if (place.city) fd.set("city", place.city);
+      }
+      const result = await toggleFavoriteAction({ status: "idle" }, fd);
+      if (result.status !== "success" || !result.data) throw new Error(result.status === "error" ? result.message : "Couldn't save favourite.");
+      return result.data.favorite;
+    });
   };
 
   return (

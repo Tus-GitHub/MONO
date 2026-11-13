@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SpaceVerificationGate } from "@/components/auth/space-verification-gate";
 
 import { InvitationManager } from "@/components/onboarding/invitation-manager";
 import { OnboardingStepper } from "@/components/onboarding/onboarding-stepper";
@@ -15,7 +16,7 @@ import { getActiveInvitation } from "@/server/services/invitation-service";
 export const metadata: Metadata = { title: "Connect" };
 
 export default async function ConnectStepPage() {
-  const { status } = await requireOnboardingStep("connect");
+  const { user, status } = await requireOnboardingStep("connect");
 
   // State B — already created a space, waiting for the partner.
   if (status.hasMembership && status.couple) {
@@ -31,11 +32,13 @@ export default async function ConnectStepPage() {
 
         <div className="mt-6 space-y-4">
           <Card>
+            <SpaceVerificationGate verified={Boolean(user.emailVerified)} email={user.email}>
             <InvitationManager
               activeInvitation={
                 active ? { id: active.id, expiresAt: active.expiresAt.toISOString() } : null
               }
             />
+            </SpaceVerificationGate>
           </Card>
 
           <WaitingPoll />
@@ -65,7 +68,9 @@ export default async function ConnectStepPage() {
         One of you creates the space and invites the other. A space holds exactly two people.
       </p>
 
-      <div className="mt-6 space-y-4">
+      <div className="mt-6">
+        <SpaceVerificationGate verified={Boolean(user.emailVerified)} email={user.email}>
+        <div className="space-y-4">
         <Card>
           <CardHeader
             icon={<Icon name="plus" size="sm" />}
@@ -89,6 +94,8 @@ export default async function ConnectStepPage() {
           />
           <JoinCoupleForm />
         </Card>
+        </div>
+        </SpaceVerificationGate>
       </div>
     </div>
   );

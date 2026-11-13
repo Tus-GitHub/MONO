@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import { startTransition, useActionState, useState } from "react";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
@@ -63,19 +64,21 @@ export function DangerZone({
 
         {showDelete ? (
           <form action={delAction} className="mt-4 space-y-3">
-            <FormFeedback state={delState} />
-            <label htmlFor="confirm" className="block text-xs font-medium text-muted">
-              Type <span className="font-semibold text-ink">DELETE</span> to confirm
-            </label>
-            <Input id="confirm" name="confirm" autoComplete="off" placeholder="DELETE" required />
-            <div className="flex gap-2">
-              <SubmitButton variant="danger" size="sm" pendingText="Deleting…">
-                Delete my account
-              </SubmitButton>
-              <Button variant="ghost" size="sm" onClick={() => setShowDelete(false)}>
-                Cancel
-              </Button>
-            </div>
+            <PendingFields className="space-y-3">
+              <FormFeedback state={delState} />
+              <label htmlFor="confirm" className="block text-xs font-medium text-muted">
+                Type <span className="font-semibold text-ink">DELETE</span> to confirm
+              </label>
+              <Input id="confirm" name="confirm" autoComplete="off" placeholder="DELETE" required />
+              <div className="flex gap-2">
+                <SubmitButton variant="danger" size="sm" pendingText="Deleting…">
+                  Delete my account
+                </SubmitButton>
+                <Button variant="ghost" size="sm" onClick={() => setShowDelete(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </PendingFields>
           </form>
         ) : (
           <Button

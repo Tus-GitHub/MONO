@@ -1,31 +1,31 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { LinkButton } from "@/components/ui/link-button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { NewPasswordFields } from "@/components/forms/new-password-fields";
-import { settingsErrorMessage, settingsRequest } from "@/lib/settings/request";
+import { useAsyncTask } from "@/lib/hooks/use-async-task";
+import { settingsRequest } from "@/lib/settings/request";
 import { changePasswordSchema } from "@/lib/validation/password";
 import { useFormValidity } from "@/lib/hooks/use-form-validity";
 
 type PasswordField = "currentPassword" | "password" | "confirmPassword";
 
 export function PasswordSettingsForm({ hasPassword }: { hasPassword: boolean }) {
-  const [pending, setPending] = useState(false);
-  const busy = useRef(false);
-  const [error, setError] = useState<string | null>(null);
+  const task = useAsyncTask<unknown, "password">();
+  const pending = task.state.status === "pending" || task.state.status === "success";
+  const error = task.state.status === "error" ? task.state.message : null;
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<PasswordField, string[]>>>({});
   const { formRef, valid, validate } = useFormValidity(changePasswordSchema);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy.current || !valid) return;
+    if (pending || !valid) return;
     const form = event.currentTarget;
     const input = changePasswordSchema.safeParse(Object.fromEntries(new FormData(form)));
-    setError(null);
     if (!input.success) {
       const errors = input.error.flatten().fieldErrors;
       setFieldErrors(errors);
@@ -34,15 +34,10 @@ export function PasswordSettingsForm({ hasPassword }: { hasPassword: boolean }) 
       return;
     }
     setFieldErrors({});
-    busy.current = true; setPending(true);
-    try {
-      await settingsRequest("/api/account/password", input.data);
+    const outcome = await task.run("password", (signal) => settingsRequest("/api/account/password", input.data, signal));
+    if (outcome) {
       form.reset();
-      // Reload after cookie revocation so cached authenticated pages are discarded.
       window.location.replace("/login?reset=1");
-    } catch (failure) {
-      setError(settingsErrorMessage(failure));
-      busy.current = false; setPending(false);
     }
   }
 
@@ -58,7 +53,7 @@ export function PasswordSettingsForm({ hasPassword }: { hasPassword: boolean }) 
 
   return (
     <form ref={formRef} onSubmit={submit} onInput={validate} onFocus={validate}
-      onChange={() => { validate(); setError(null); setFieldErrors({}); }}
+      onChange={() => { validate(); task.reset(); setFieldErrors({}); }}
       className="space-y-5 rounded-xl border border-line bg-surface p-5" noValidate>
       <p className="text-sm text-muted">
         Changing your password signs you out on every device, including this one.

@@ -2,6 +2,7 @@
 
 import { startTransition, useActionState, useOptimistic, useState } from "react";
 
+import { FormFeedback } from "@/components/forms/form-feedback";
 import { ActivityRow } from "@/components/plan/activity-row";
 import { PlanStepper } from "@/components/plan/plan-stepper";
 import { Timeline } from "@/components/plan/timeline";
@@ -13,7 +14,7 @@ import { LinkButton } from "@/components/ui/link-button";
 import { ACTIVITY_PRESETS } from "@/lib/date/activity-palette";
 import { buildTimeline } from "@/lib/date/timeline";
 import { planStepHref } from "@/lib/date/plan-steps";
-import { idleState } from "@/lib/utils/result";
+import { idleState, type ActionState } from "@/lib/utils/result";
 import { formatWallTime, wallTimeFromIso } from "@/lib/utils/format";
 import { addActivityAction, reorderActivitiesAction } from "@/server/actions/plan";
 import type {
@@ -29,13 +30,20 @@ export function ActivitiesStep({
   plan: PlanDateDTO;
   savedPlaces: SavedPlaceOption[];
 }) {
-  const [, addAction, adding] = useActionState(addActivityAction, idleState);
-  const [, reorderAction] = useActionState(reorderActivitiesAction, idleState);
-  const [order, setOrder] = useOptimistic<PlanActivityDTO[]>(plan.activities);
   const [custom, setCustom] = useState("");
+  const [addState, addAction, adding] = useActionState(async (previous: ActionState, formData: FormData) => {
+    try {
+      const result = await addActivityAction(previous, formData);
+      if (result.status === "success") setCustom((current) => current.trim() === formData.get("title") ? "" : current);
+      return result;
+    } catch { return { status: "error" as const, message: "That didn't save. Please try again." }; }
+  }, idleState);
+  const [reorderState, reorderAction, reordering] = useActionState(reorderActivitiesAction, idleState);
+  const busy = adding || reordering;
+  const [order, setOrder] = useOptimistic<PlanActivityDTO[]>(plan.activities);
 
   const add = (title: string, durationMinutes?: number) => {
-    if (!title.trim()) return;
+    if (busy || !title.trim()) return;
     const fd = new FormData();
     fd.set("dateId", plan.id);
     fd.set("title", title.trim());
@@ -44,6 +52,7 @@ export function ActivitiesStep({
   };
 
   const move = (id: string, direction: -1 | 1) => {
+    if (busy) return;
     const index = order.findIndex((activity) => activity.id === id);
     const target = index + direction;
     if (index < 0 || target < 0 || target >= order.length) return;
@@ -63,7 +72,7 @@ export function ActivitiesStep({
 
   return (
     <div className="space-y-6">
-      <PlanStepper dateId={plan.id} current="activities" />
+      <PlanStepper dateId={plan.id} current="activities" disabled={busy} />
 
       <div className="space-y-1">
         <h1 className="font-display text-2xl font-medium text-ink">Activities</h1>
@@ -72,13 +81,16 @@ export function ActivitiesStep({
         </p>
       </div>
 
+      <FormFeedback state={addState} />
+      <FormFeedback state={reorderState} />
+
       <div className="flex flex-wrap gap-2">
         {ACTIVITY_PRESETS.map((preset) => (
           <Chip
             key={preset.key}
             leadingIcon={<Icon name={preset.icon} size={13} />}
             onClick={() => add(preset.title, preset.durationMinutes)}
-            disabled={adding}
+            disabled={busy}
           >
             {preset.title}
           </Chip>
@@ -93,7 +105,6 @@ export function ActivitiesStep({
             if (event.key === "Enter") {
               event.preventDefault();
               add(custom);
-              setCustom("");
             }
           }}
           placeholder="Something else…"
@@ -104,9 +115,8 @@ export function ActivitiesStep({
           variant="secondary"
           onClick={() => {
             add(custom);
-            setCustom("");
           }}
-          disabled={!custom.trim() || adding}
+          disabled={!custom.trim() || busy}
         >
           Add
         </Button>
@@ -146,14 +156,14 @@ export function ActivitiesStep({
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
-        <LinkButton href={planStepHref(plan.id, "budget")} variant="ghost" size="md">
+        <LinkButton href={planStepHref(plan.id, "budget")} variant="ghost" size="md" disabled={busy}>
           Back
         </LinkButton>
         <div className="flex gap-2">
-          <LinkButton href="/plan" variant="ghost" size="md">
+          <LinkButton href="/plan" variant="ghost" size="md" disabled={busy}>
             Save &amp; exit
           </LinkButton>
-          <LinkButton href={planStepHref(plan.id, "review")} size="md">
+          <LinkButton href={planStepHref(plan.id, "review")} size="md" disabled={busy}>
             Continue
           </LinkButton>
         </div>

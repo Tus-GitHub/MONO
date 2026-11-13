@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import { useActionState } from "react";
 import Link from "@/components/ui/app-link";
 
@@ -65,24 +66,28 @@ export function DateReminderControls({
               <span className="font-medium">{whenLabel(customReminderIso, timeZone)}</span>
             </p>
             <form action={clearAction}>
-              <input type="hidden" name="dateId" value={dateId} />
-              <Button type="submit" variant="ghost" size="sm">
-                Clear
-              </Button>
+              <PendingFields>
+                <input type="hidden" name="dateId" value={dateId} />
+                <Button type="submit" variant="ghost" size="sm">
+                  Clear
+                </Button>
+              </PendingFields>
             </form>
           </div>
         ) : (
           <form action={setAction} className="flex flex-wrap items-end gap-2">
-            <input type="hidden" name="dateId" value={dateId} />
-            <label className="flex-1">
-              <span className="mb-1 block text-xs font-medium text-muted">
-                Add a custom reminder
-              </span>
-              <Input type="datetime-local" name="at" required className="w-full" />
-            </label>
-            <SubmitButton variant="secondary" size="sm" pendingText="Setting…">
-              Set
-            </SubmitButton>
+            <PendingFields>
+              <input type="hidden" name="dateId" value={dateId} />
+              <label className="flex-1">
+                <span className="mb-1 block text-xs font-medium text-muted">
+                  Add a custom reminder
+                </span>
+                <Input type="datetime-local" name="at" required className="w-full" />
+              </label>
+              <SubmitButton variant="secondary" size="sm" pendingText="Setting…">
+                Set
+              </SubmitButton>
+            </PendingFields>
           </form>
         )}
       </div>

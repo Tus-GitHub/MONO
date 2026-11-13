@@ -9,11 +9,13 @@ import {
 
 import { env } from "@/config/env";
 import { serializable } from "@/lib/db/serializable";
-import { lockLivingUser, requireSelf } from "@/lib/authz/user-write";
+import { lockVerifiedUser, requireSelf } from "@/lib/authz/user-write";
+import { CONNECTION_TRANSACTION } from "@/lib/db/connection-transaction";
 import { requireCoupleMembership } from "@/lib/authz";
 import { prisma } from "@/lib/db/prisma";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { randomToken, sha256 } from "@/lib/utils/crypto";
+import { capabilityState } from "@/lib/state/access";
 
 /**
  * Two-person connection via a shareable link.
@@ -32,10 +34,8 @@ export function invitationState(
   invitation: { expiresAt: Date; acceptedAt: Date | null; revokedAt: Date | null },
   now = new Date(),
 ): InvitationState {
-  if (invitation.acceptedAt) return "accepted";
-  if (invitation.revokedAt) return "revoked";
-  if (invitation.expiresAt.getTime() <= now.getTime()) return "expired";
-  return "pending";
+  const state = capabilityState({ ...invitation, usedAt: invitation.acceptedAt }, now);
+  return state === "consumed" ? "accepted" : state === "available" ? "pending" : state;
 }
 
 export function invitationUrl(token: string): string {
@@ -51,7 +51,7 @@ export async function createInvitation(
   const { user } = await requireCoupleMembership(coupleId);
   await requireSelf(createdById);
   return serializable(async (tx) => {
-    await lockLivingUser(tx, user.id);
+    await lockVerifiedUser(tx, user.id);
     await tx.$queryRaw`SELECT id FROM couples WHERE id = ${coupleId} FOR UPDATE`;
     const couple = await tx.couple.findFirst({
       where: { id: coupleId, deletedAt: null, status: { in: ["PENDING", "ACTIVE"] }, members: { some: { userId: user.id, status: "ACTIVE" } } },
@@ -80,7 +80,7 @@ export async function createInvitation(
     });
 
     return { token, invitation, url: invitationUrl(token) };
-  });
+  }, CONNECTION_TRANSACTION);
 }
 
 export async function getInvitationByToken(token: string) {
@@ -109,7 +109,7 @@ export async function getInvitationByToken(token: string) {
 export async function acceptInvitation(token: string, userId: string) {
   await requireSelf(userId);
   return serializable(async (tx) => {
-    await lockLivingUser(tx, userId);
+    await lockVerifiedUser(tx, userId);
     const tokenHash = sha256(token);
     await tx.$queryRaw`SELECT id FROM couples WHERE id = (SELECT "coupleId" FROM couple_invitations WHERE "tokenHash" = ${tokenHash}) FOR UPDATE`;
     const invitation = await tx.coupleInvitation.findUnique({
@@ -167,7 +167,7 @@ export async function acceptInvitation(token: string, userId: string) {
         joinedAt: new Date(),
       },
     });
-    await tx.couple.update({
+    const connectedCouple = await tx.couple.update({
       where: { id: invitation.coupleId },
       data: { status: CoupleStatus.ACTIVE },
     });
@@ -185,8 +185,8 @@ export async function acceptInvitation(token: string, userId: string) {
       },
     });
 
-    return tx.couple.findUniqueOrThrow({ where: { id: invitation.coupleId } });
-  });
+    return connectedCouple;
+  }, CONNECTION_TRANSACTION);
 }
 
 export async function getActiveInvitation(coupleId: string) {

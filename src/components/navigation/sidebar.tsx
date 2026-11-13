@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import Link from "@/components/ui/app-link";
 import { usePathname } from "next/navigation";
 
@@ -78,13 +79,15 @@ export function Sidebar({ coupleName, members }: SidebarProps) {
           <Icon name="chevronRight" size="sm" className="text-faint" />
         </Link>
         <form action={logoutAction}>
-          <button
-            type="submit"
-            className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted transition-colors hover:bg-ink/[0.04] hover:text-ink"
-          >
-            <Icon name="logout" size="sm" className="text-faint" />
-            Sign out
-          </button>
+          <PendingFields>
+            <button
+              type="submit"
+              className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted transition-colors hover:bg-ink/[0.04] hover:text-ink"
+            >
+              <Icon name="logout" size="sm" className="text-faint" />
+              Sign out
+            </button>
+          </PendingFields>
         </form>
       </div>
     </aside>

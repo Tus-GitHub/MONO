@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (mobile responsiveness deployed and verified)
+Last updated: 2026-11-14 (publishing verified email, invitation and workflow fixes)
 
 ## Project Overview
 
@@ -22,6 +22,12 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Publish verified email/invitation and workspace fixes (2026-11-14)** — user explicitly
+  requested publication and deployment. Follow the project publish gate with the supported
+  Webpack compiler (local default Turbopack CSS subprocess is unavailable), commit current
+  workspace changes and push main, then verify the exact Vercel production deployment.
+
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -45,6 +51,37 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Required email verification and invitation recovery (2026-11-14, local)** — service-level
+  locked verification checks for creating spaces, link/code joins and issuing invitations.
+  Invite recipients get a resend/status popup after registration; an account-bound HTTP-only
+  hint restores the original invitation after same-tab confirmation. Existing memberships
+  and profile setup remain accessible. Fixed live P2028 join failures with bounded 30-second
+  connection transactions, reduced round trips, retained atomic membership/link/notification
+  writes and serialization retries. Reset confirmation state when a different email token is
+  opened in the same tab. 346 unit and 113 isolated PostgreSQL tests pass; TypeScript/lint and
+  supported Webpack production build pass. Right-panel registration → popup → resend → email
+  confirmation → same invitation → explicit accept reached connected setup; SQL confirmed two
+  members and one joined notification. Default local Turbopack build still hits a CSS-worker
+  startup/IPC error. No publication, migration, credentials or production-user data changes.
+  Brevo/Gmail audit covered welcome, verification and recovery samples: all pass SPF/DKIM/DMARC
+  via Brevo's replacement sender. No custom authenticated domain exists; the user owns only
+  vercel.app. Exact spam-classification cause is unavailable; inbox placement is not guaranteed.
+  No provider settings or billing changed. Disposable test cluster and private email logs removed.
+
+- **App-wide state-machine remediation (2026-11-13)** — explicit async ownership, upload
+  scheduling/cancellation/retry, confirmation/history transitions, digest-bound restore
+  eligibility, date capabilities under write locks, atomic favorites, reminder retirement and
+  orphaned-job recovery. Pending forms preserve submitted snapshots and layout; activity
+  toolbars retain failed input and wait for saves before planning navigation. Device drafts,
+  image-source resets, timers, browser push and PWA replacement hardened. Full inventory and
+  disposition in `docs/state-machines.md`. All 338 unit tests, 107 isolated PostgreSQL tests,
+  76 functional browser checks and three production-build PWA checks pass; lint, TypeScript
+  and production build pass. Browser screenshots reviewed. Production PWA smoke used an
+  unavailable test database endpoint because production guards refuse loopback databases;
+  real persistence was verified separately against isolated local PostgreSQL. Test database
+  cluster, fixture media/logs and servers cleaned up; screenshots/results retained. Existing
+  design/storage formats preserved; no dependency, migration, credential or deployment change.
 
 - **Mobile browser/PWA responsiveness (2026-11-14)** — published 141ab3c;
   dpl_3rdtCQ19ZMDiN716baxG4ZdzU1JB READY on the canonical production alias. Functions now
@@ -1177,6 +1214,48 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-14 — Publish verified email/invitation and workspace fixes — IN PROGRESS
+
+User explicitly requested “publish these changes and deploy.” Publishing the current verified
+workspace per the project rule. The gate runs npm's build script with Next's supported --webpack
+option; no build check is skipped and no compiler configuration is changed. After a passing
+build, commit with the required trailer, push main and monitor the exact production deployment.
+
+Preflight preserved published auth/profile validation from 807091f alongside pending-field
+guards. The first push was rejected because mobile release c4bef34 arrived during checks;
+rebased without overwriting it. Retained mobile AppLink feedback, worker v3 lifecycle,
+Singapore region and the default bounded transaction settings, with the email connection
+override retained. Updated the service-worker fixture to check both obsolete versions against
+the current v3 caches. The combined production build and lint pass; unit checks rerun before
+the retry. No production data, SMTP credentials, provider settings or schema changed.
+
+### 2026-11-14 — Required verification, invitation recovery and email deliverability audit — DONE locally
+
+Started 2026-11-13 after the user reported confirmation/recovery mail in Spam and failed partner
+connections. Production logs established P2028 transaction expiration for invitation and code joins.
+Implemented locked server enforcement, theme-matched verification popup and explicit status/resend,
+account-bound invitation navigation recovery, and longer bounded atomic connection transactions.
+The full new-account invitation flow was observed in the requested right-panel browser; SQL verified
+the resulting membership and notification counts. Tests: 346 unit, 113 local PostgreSQL, TypeScript,
+lint, and supported Webpack production build pass. Local default Turbopack build has a CSS-worker
+startup failure; do not claim it passed or that this work was deployed. Existing unrelated dirty
+workspace changes were retained. Temporary local database, raw fixture email logs and server cleaned.
+
+Checked all three actual received email types and Brevo sender/domain settings. All three pass
+authentication through Brevo's automatic brevosend.com sender replacement; Brevo has only Gmail
+senders and no authenticated custom domain. The user confirmed no owned domain beyond vercel.app.
+No universal inbox-delivery promise is possible, and failed authentication was not established as
+the reason for reported spam placement. Sender, SMTP credentials, global tracking and billing were
+left unchanged. See docs/account-email.md and docs/testing.md for evidence and limits.
+
+- **2026-11-13 — State-machine audit and remediation — DONE.** Audited and remediated
+  domain, browser and worker workflows; central transition models and guards now own the
+  complex flows, while existing valid explicit models and independent controls are retained.
+  Added regression tests and inventory; verified 338 unit tests, 107 database tests, 79 browser
+  checks, lint, TypeScript and production build. Fixed Windows test-server socket release and
+  cross-suite fixture-name collisions. All changes remain local and uncommitted; no production
+  data or configuration changed. Disposable local database cluster and fixture logs removed.
 
 ### 2026-11-13 — Mobile responsiveness and repeated taps
 

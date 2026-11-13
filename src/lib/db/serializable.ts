@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 /** Retry serialization conflicts; callbacks must only perform database work. */
 export async function serializable<T>(
   work: (tx: Prisma.TransactionClient) => Promise<T>,
-  options: { timeout?: number } = {},
+  options: { timeout?: number; maxWait?: number } = {},
 ): Promise<T> {
   for (let attempt = 0; ; attempt += 1) {
     try {

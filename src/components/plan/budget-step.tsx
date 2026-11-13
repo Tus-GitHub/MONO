@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import { useActionState } from "react";
 import { ExpensePayer } from "@prisma/client";
 
@@ -75,91 +76,93 @@ export function BudgetStep({ plan, userId }: { plan: PlanDateDTO; userId: string
 
   return (
     <form action={action} className="space-y-6" noValidate>
-      <UnsavedGuard state={state} />
-      <input type="hidden" name="dateId" value={plan.id} />
-      <input type="hidden" name="version" value={plan.version} />
-      <input type="hidden" name="step" value="budget" />
+      <PendingFields className="space-y-6">
+        <UnsavedGuard state={state} />
+        <input type="hidden" name="dateId" value={plan.id} />
+        <input type="hidden" name="version" value={plan.version} />
+        <input type="hidden" name="step" value="budget" />
 
-      <PlanStepper dateId={plan.id} current="budget" variant="buttons" />
+        <PlanStepper dateId={plan.id} current="budget" variant="buttons" />
 
-      <div className="space-y-1">
-        <h1 className="font-display text-2xl font-medium text-ink">
-          How much are we planning to spend?
-        </h1>
-        <p className="text-sm text-muted">
-          A rough number is fine — this is just so it&apos;s not a surprise later.
-        </p>
-      </div>
-
-      <FormFeedback state={state} />
-
-      <div className="rounded-xl border border-line bg-surface/70 p-4">
-        <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
-          <Field label="Expected total" htmlFor="expectedTotal" optional errors={fieldErrors?.expectedTotal}>
-            <MoneyInput
-              id="expectedTotal"
-              name="expectedTotal"
-              value={total.value} onChange={total.setValue}
-              placeholder="0"
-            />
-          </Field>
-          <Field label="Currency" htmlFor="currency">
-            <Select id="currency" name="currency" value={currency.value} onChange={(e) => currency.setValue(e.target.value)}>
-              {CURRENCIES.map((code) => (
-                <option key={code}>{code}</option>
-              ))}
-            </Select>
-          </Field>
+        <div className="space-y-1">
+          <h1 className="font-display text-2xl font-medium text-ink">
+            How much are we planning to spend?
+          </h1>
+          <p className="text-sm text-muted">
+            A rough number is fine — this is just so it&apos;s not a surprise later.
+          </p>
         </div>
 
-        <details className="mt-3" open={hasRange}>
-          <summary className="cursor-pointer text-sm font-medium text-muted">
-            Add a range instead
-          </summary>
-          <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <Field label="Low end" htmlFor="budgetMin" optional errors={fieldErrors?.budgetMin}>
+        <FormFeedback state={state} />
+
+        <div className="rounded-xl border border-line bg-surface/70 p-4">
+          <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
+            <Field label="Expected total" htmlFor="expectedTotal" optional errors={fieldErrors?.expectedTotal}>
               <MoneyInput
-                id="budgetMin"
-                name="budgetMin"
-                value={low.value} onChange={low.setValue}
+                id="expectedTotal"
+                name="expectedTotal"
+                value={total.value} onChange={total.setValue}
+                placeholder="0"
               />
             </Field>
-            <Field label="High end" htmlFor="budgetMax" optional errors={fieldErrors?.budgetMax}>
-              <MoneyInput
-                id="budgetMax"
-                name="budgetMax"
-                value={high.value} onChange={high.setValue}
-              />
+            <Field label="Currency" htmlFor="currency">
+              <Select id="currency" name="currency" value={currency.value} onChange={(e) => currency.setValue(e.target.value)}>
+                {CURRENCIES.map((code) => (
+                  <option key={code}>{code}</option>
+                ))}
+              </Select>
             </Field>
           </div>
-        </details>
 
-        <div className="mt-4">
-          <Field label="Who's paying?" htmlFor="split" optional>
-            <Select id="split" name="split" value={split.value} onChange={(e) => split.setValue(e.target.value)}>
-              {(Object.keys(SPLIT_LABEL) as ExpensePayer[]).map((key) => (
-                <option key={key} value={key}>
-                  {SPLIT_LABEL[key]}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-      </div>
+          <details className="mt-3" open={hasRange}>
+            <summary className="cursor-pointer text-sm font-medium text-muted">
+              Add a range instead
+            </summary>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              <Field label="Low end" htmlFor="budgetMin" optional errors={fieldErrors?.budgetMin}>
+                <MoneyInput
+                  id="budgetMin"
+                  name="budgetMin"
+                  value={low.value} onChange={low.setValue}
+                />
+              </Field>
+              <Field label="High end" htmlFor="budgetMax" optional errors={fieldErrors?.budgetMax}>
+                <MoneyInput
+                  id="budgetMax"
+                  name="budgetMax"
+                  value={high.value} onChange={high.setValue}
+                />
+              </Field>
+            </div>
+          </details>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
-        <SubmitButton name="goto" value="basics" variant="ghost" pendingText="Saving…">
-          Back
-        </SubmitButton>
-        <div className="flex gap-2">
-          <SubmitButton name="goto" value="exit" variant="ghost" pendingText="Saving…">
-            Save &amp; exit
-          </SubmitButton>
-          <SubmitButton name="goto" value="activities" pendingText="Saving…">
-            Continue
-          </SubmitButton>
+          <div className="mt-4">
+            <Field label="Who's paying?" htmlFor="split" optional>
+              <Select id="split" name="split" value={split.value} onChange={(e) => split.setValue(e.target.value)}>
+                {(Object.keys(SPLIT_LABEL) as ExpensePayer[]).map((key) => (
+                  <option key={key} value={key}>
+                    {SPLIT_LABEL[key]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
         </div>
-      </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
+          <SubmitButton name="goto" value="basics" variant="ghost" pendingText="Saving…">
+            Back
+          </SubmitButton>
+          <div className="flex gap-2">
+            <SubmitButton name="goto" value="exit" variant="ghost" pendingText="Saving…">
+              Save &amp; exit
+            </SubmitButton>
+            <SubmitButton name="goto" value="activities" pendingText="Saving…">
+              Continue
+            </SubmitButton>
+          </div>
+        </div>
+      </PendingFields>
     </form>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import { useActionState } from "react";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
@@ -13,16 +14,18 @@ export function AcceptInvitationButton({ token }: { token: string }) {
 
   return (
     <form action={action} className="space-y-3">
-      <FormFeedback state={state} />
-      <input type="hidden" name="token" value={token} />
-      <SubmitButton
-        fullWidth
-        size="lg"
-        pendingText="Connecting…"
-        trailingIcon={<Icon name="arrowRight" size="sm" />}
-      >
-        Accept &amp; connect
-      </SubmitButton>
+      <PendingFields className="space-y-3">
+        <FormFeedback state={state} />
+        <input type="hidden" name="token" value={token} />
+        <SubmitButton
+          fullWidth
+          size="lg"
+          pendingText="Connecting…"
+          trailingIcon={<Icon name="arrowRight" size="sm" />}
+        >
+          Accept &amp; connect
+        </SubmitButton>
+      </PendingFields>
     </form>
   );
 }

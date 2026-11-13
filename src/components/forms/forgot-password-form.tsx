@@ -1,5 +1,7 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
+
 import { useActionState, useState } from "react";
 
 import { EmailFormatField } from "@/components/forms/email-format-field";
@@ -23,16 +25,18 @@ export function ForgotPasswordForm() {
       onInput={validate} onFocus={validate} onChange={() => { setDismissedState(state); validate(); }}
       onSubmit={(event) => { if (!valid) event.preventDefault(); }}
       onReset={(event) => event.preventDefault()} className="space-y-4" noValidate>
-      <FormFeedback state={visibleState} />
+      <PendingFields className="space-y-4">
+        <FormFeedback state={visibleState} />
 
-      {!done ? (
-        <>
-          <EmailFormatField errors={fieldErrors?.email} />
-          <SubmitButton className="w-full" disabled={!valid} pendingText="Sending…">
-            Send reset link
-          </SubmitButton>
-        </>
-      ) : null}
+        {!done ? (
+          <>
+            <EmailFormatField errors={fieldErrors?.email} />
+            <SubmitButton className="w-full" disabled={!valid} pendingText="Sending…">
+              Send reset link
+            </SubmitButton>
+          </>
+        ) : null}
+      </PendingFields>
     </form>
   );
 }

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { LEASE_MS, MAX_ATTEMPTS, retryAt } from "@/lib/jobs/retry";
 import { storage } from "@/lib/storage";
 import { isCanonicalStorageKey } from "@/lib/storage/key";
+import { cleanupStage } from "@/lib/jobs/lifecycle";
 
 export const MEDIA_RETENTION_MS = 7 * 86_400_000;
 export const STAGED_UPLOAD_MS = 60 * 60_000;
@@ -47,7 +48,7 @@ export async function processStorageCleanup(options: { now?: Date; limit?: numbe
   const now = options.now ?? new Date();
   const report = { processed: 0, removed: 0, kept: 0, failed: 0 };
   const expired = await prisma.storageCleanup.updateMany({
-    where: { failedAt: null, attempts: { gte: MAX_ATTEMPTS }, leaseUntil: { lte: now } },
+    where: { failedAt: null, attempts: { gte: MAX_ATTEMPTS }, OR: [{ leaseUntil: null }, { leaseUntil: { lte: now } }] },
     data: { failedAt: now, leaseToken: null, leaseUntil: null, lastError: "lease_expired" },
   });
   report.failed += expired.count;
@@ -68,7 +69,7 @@ export async function processStorageCleanup(options: { now?: Date; limit?: numbe
     if (!claim.count) return;
     report.processed++;
     const job = await prisma.storageCleanup.findUnique({ where: { id: candidate.id } });
-    if (!job || job.leaseToken !== token) return;
+    if (!job || job.leaseToken !== token || cleanupStage(job, now) !== "processing") return;
     const owned = { id: job.id, leaseToken: token };
     try {
       if (!isCanonicalStorageKey(job.key)) throw new Error("Invalid key.");
@@ -86,7 +87,7 @@ export async function processStorageCleanup(options: { now?: Date; limit?: numbe
       report.failed++;
     }
   }
-  for (let index = 0;index < jobs.length;index += 4) {
+  for (let index = 0; index < jobs.length; index += 4) {
     await Promise.all(jobs.slice(index, index + 4).map(clean));
   }
   return report;

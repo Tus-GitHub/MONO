@@ -9,9 +9,10 @@ interface PlanStepperProps {
   current: PlanStep;
   /** "buttons" renders submit buttons (name="goto") for use inside a step form. */
   variant?: "links" | "buttons";
+  disabled?: boolean;
 }
 
-export function PlanStepper({ dateId, current, variant = "links" }: PlanStepperProps) {
+export function PlanStepper({ dateId, current, variant = "links", disabled = false }: PlanStepperProps) {
   const currentIndex = PLAN_STEPS.indexOf(current);
 
   return (
@@ -44,11 +45,14 @@ export function PlanStepper({ dateId, current, variant = "links" }: PlanStepperP
                 type="submit"
                 name="goto"
                 value={step}
+                disabled={disabled}
                 className="flex items-center gap-1.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {dot}
                 {label}
               </button>
+            ) : disabled ? (
+              <span role="link" aria-disabled="true" className="flex items-center gap-1.5 rounded-lg opacity-55">{dot}{label}</span>
             ) : (
               <Link
                 href={planStepHref(dateId, step)}

@@ -1,4 +1,5 @@
 import "server-only";
+import { lifecyclePatch } from "@/lib/date/lifecycle";
 
 import { DateActivityKind, DateStatus, ExpensePayer, NotificationType, type Prisma } from "@prisma/client";
 
@@ -454,7 +455,7 @@ export async function finalizePlan(dateId: string): Promise<{ id: string }> {
       where: { id: date.id },
       data: {
         status: isToday ? DateStatus.TODAY : DateStatus.PLANNED,
-        plannedAt: date.status === DateStatus.DRAFT ? new Date() : undefined,
+        ...lifecyclePatch(date, isToday ? DateStatus.TODAY : DateStatus.PLANNED),
       },
     });
     return { context, resource: date, isToday };

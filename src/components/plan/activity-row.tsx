@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -66,57 +67,59 @@ export function ActivityRow({
     return (
       <li className="rounded-xl border border-primary/30 bg-surface p-3">
         <form action={editAction} className="space-y-3" noValidate>
-          <input type="hidden" name="dateId" value={dateId} />
-          <input type="hidden" name="activityId" value={activity.id} />
-          <Input
-            name="title"
-            defaultValue={activity.title}
-            aria-label="Activity name"
-            invalid={Boolean(fieldErrors?.title)}
-            required
-          />
-          <div className="grid grid-cols-2 gap-2">
+          <PendingFields className="space-y-3">
+            <input type="hidden" name="dateId" value={dateId} />
+            <input type="hidden" name="activityId" value={activity.id} />
             <Input
-              name="durationMinutes"
-              type="number"
-              min="5"
-              step="5"
-              defaultValue={activity.durationMinutes ?? ""}
-              placeholder="Minutes"
-              aria-label="Duration in minutes"
+              name="title"
+              defaultValue={activity.title}
+              aria-label="Activity name"
+              invalid={Boolean(fieldErrors?.title)}
+              required
             />
-            <Input
-              name="costCents"
-              type="number"
-              min="0"
-              step="0.01"
-              defaultValue={activity.costCents != null ? activity.costCents / 100 : ""}
-              placeholder="Cost"
-              aria-label="Estimated cost"
-            />
-          </div>
-          {savedPlaces.length > 0 ? (
-            <Select
-              name="savedPlaceId"
-              defaultValue={activity.placeId ?? ""}
-              aria-label="Place for this activity"
-            >
-              <option value="">No specific place</option>
-              {savedPlaces.map((place) => (
-                <option key={place.id} value={place.id}>
-                  {place.name}
-                </option>
-              ))}
-            </Select>
-          ) : null}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" size="sm">
-              Save
-            </Button>
-          </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                name="durationMinutes"
+                type="number"
+                min="5"
+                step="5"
+                defaultValue={activity.durationMinutes ?? ""}
+                placeholder="Minutes"
+                aria-label="Duration in minutes"
+              />
+              <Input
+                name="costCents"
+                type="number"
+                min="0"
+                step="0.01"
+                defaultValue={activity.costCents != null ? activity.costCents / 100 : ""}
+                placeholder="Cost"
+                aria-label="Estimated cost"
+              />
+            </div>
+            {savedPlaces.length > 0 ? (
+              <Select
+                name="savedPlaceId"
+                defaultValue={activity.placeId ?? ""}
+                aria-label="Place for this activity"
+              >
+                <option value="">No specific place</option>
+                {savedPlaces.map((place) => (
+                  <option key={place.id} value={place.id}>
+                    {place.name}
+                  </option>
+                ))}
+              </Select>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm">
+                Save
+              </Button>
+            </div>
+          </PendingFields>
         </form>
       </li>
     );

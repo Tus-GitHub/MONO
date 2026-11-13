@@ -1,32 +1,28 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useAsyncTask } from "@/lib/hooks/use-async-task";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { settingsErrorMessage, settingsRequestError } from "@/lib/settings/request";
+import { settingsRequestError } from "@/lib/settings/request";
 
 export function ArchiveDownload() {
-  const [pending, setPending] = useState(false);
-  const busy = useRef(false);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const task = useAsyncTask<Blob, "download">();
+  const pending = task.state.status === "pending";
+  const error = task.state.status === "error" ? task.state.message : null;
+  const message = task.state.status === "success" ? "Your archive is ready to save. Keep it somewhere private." : null;
 
   async function download() {
-    if (busy.current) return;
-    busy.current = true; setPending(true); setError(null); setMessage(null);
-    try {
-      const response = await fetch("/api/archive", { cache: "no-store", credentials: "same-origin" });
+    const outcome = await task.run("download", async (signal) => {
+      const response = await fetch("/api/archive", { cache: "no-store", credentials: "same-origin", signal });
       if (!response.ok) throw await settingsRequestError(response);
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url; anchor.download = `mono-archive-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.append(anchor); anchor.click(); anchor.remove();
-      // Give browsers time to start saving before releasing the object URL.
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      setMessage("Your archive is ready to save. Keep it somewhere private.");
-    } catch (failure) { setError(settingsErrorMessage(failure)); }
-    finally { busy.current = false; setPending(false); }
+      return response.blob();
+    });
+    if (!outcome) return;
+    const url = URL.createObjectURL(outcome.data);
+    const anchor = document.createElement("a");
+    anchor.href = url; anchor.download = `mono-archive-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.append(anchor); anchor.click(); anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 
   return (

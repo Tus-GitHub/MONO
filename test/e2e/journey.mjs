@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import sharp from "sharp";
 
@@ -93,6 +93,18 @@ export async function runJourney({ browser, baseUrl, prisma, runId, artifactDir 
     await fill(page, 'input[name="nickname"]', person);
     await clickText(page, "Continue");
     await bodyContains(page, "Connect with your partner");
+    let verificationToken;
+    await waitFor(async () => {
+      const log = await readFile(join(artifactDir, "server.log"), "utf8");
+      const block = log.split("──────────── email (console driver) ────────────")
+        .find((message) => message.includes(`to:      ${email(person)}\n`) && message.includes("subject: Verify your MONO email\n"));
+      verificationToken = block?.match(/\/verify-email#token=([A-Za-z0-9_-]{43})/)?.[1];
+      return Boolean(verificationToken);
+    }, "registration verification email");
+    await go(page, baseUrl, `/verify-email#token=${verificationToken}`);
+    await clickText(page, "Verify email address");
+    await bodyContains(page, "Email confirmed");
+    await go(page, baseUrl, "/onboarding/connect");
     return prisma.user.findUniqueOrThrow({ where: { email: email(person) } });
   };
   try {

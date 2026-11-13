@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import { useActionState, useEffect } from "react";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
@@ -83,13 +84,15 @@ export function InvitationManager({ activeInvitation }: Props) {
             Invitation active · expires {formatExpiry(activeInvitation.expiresAt)}
           </span>
           <form action={revoke}>
-            <input type="hidden" name="id" value={activeInvitation.id} />
-            <button
-              type="submit"
-              className="text-xs font-medium text-muted transition-colors hover:text-error"
-            >
-              Cancel
-            </button>
+            <PendingFields>
+              <input type="hidden" name="id" value={activeInvitation.id} />
+              <button
+                type="submit"
+                className="text-xs font-medium text-muted transition-colors hover:text-error"
+              >
+                Cancel
+              </button>
+            </PendingFields>
           </form>
         </div>
       ) : null}
@@ -121,13 +124,15 @@ export function InvitationManager({ activeInvitation }: Props) {
       ) : null}
 
       <form action={generate}>
-        <SubmitButton
-          variant={link || activeInvitation ? "secondary" : "primary"}
-          pendingText="Creating link…"
-          leadingIcon={<Icon name="refresh" size="sm" />}
-        >
-          {link || activeInvitation ? "Generate a fresh link" : "Create an invitation link"}
-        </SubmitButton>
+        <PendingFields>
+          <SubmitButton
+            variant={link || activeInvitation ? "secondary" : "primary"}
+            pendingText="Creating link…"
+            leadingIcon={<Icon name="refresh" size="sm" />}
+          >
+            {link || activeInvitation ? "Generate a fresh link" : "Create an invitation link"}
+          </SubmitButton>
+        </PendingFields>
       </form>
       <p className="text-xs text-muted">
         Links are single-use and expire. Only the person you send it to can join.

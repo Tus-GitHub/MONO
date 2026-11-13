@@ -18,6 +18,7 @@ interface LinkButtonProps extends Omit<ComponentProps<typeof Link>, "className">
   leadingIcon?: ReactNode;
   trailingIcon?: ReactNode;
   className?: string;
+  disabled?: boolean;
 }
 
 /** A link that looks and behaves like a <Button>. Use when navigation, not an action, is intended. */
@@ -29,25 +30,16 @@ export function LinkButton({
   trailingIcon,
   className,
   children,
+  disabled = false,
   ...props
 }: LinkButtonProps) {
-  return (
-    <Link
-      className={cn(
-        buttonBase,
-        focusRing,
-        buttonVariants[variant],
-        variant === "link" ? "h-auto gap-1 p-0" : buttonSizes[size],
-        fullWidth && "w-full",
-        className,
-      )}
-      {...props}
-    >
-      <span className={cn("inline-flex min-w-0 max-w-full items-center", variant === "link" ? "gap-1" : "gap-2")}>
-        {leadingIcon}
-        {children}
-        {trailingIcon}
-      </span>
-    </Link>
+  const classes = cn(buttonBase, focusRing, buttonVariants[variant],
+    variant === "link" ? "h-auto gap-1 p-0" : buttonSizes[size], fullWidth && "w-full", className);
+  const content = (
+    <span className={cn("inline-flex min-w-0 max-w-full items-center", variant === "link" ? "gap-1" : "gap-2")}>
+      {leadingIcon}{children}{trailingIcon}
+    </span>
   );
+  if (disabled) return <span role="link" aria-disabled="true" className={cn(classes, "pointer-events-none opacity-55")}>{content}</span>;
+  return <Link className={classes} {...props}>{content}</Link>;
 }

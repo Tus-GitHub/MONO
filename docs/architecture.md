@@ -2,6 +2,9 @@
 
 ## Principles
 
+The [state-machine inventory and transition ownership](state-machines.md) documents the
+domain, browser and background workflows, shared transition rules and regression coverage.
+
 1. **Not a prototype.** Every feature is backed by real persistence, authentication,
    server-side logic, validation, and real data.
 2. **Layer separation.** UI, database, auth, authorization, business logic, validation,

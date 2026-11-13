@@ -46,7 +46,7 @@ export function OfflineBanner() {
       <Icon name={online ? "checkCircle" : "alertCircle"} size={14} />
       {online
         ? "Back online."
-        : "You're offline. Anything you change won't be saved until you reconnect."}
+        : "You're offline. Reconnect before saving."}
     </div>
   );
 }

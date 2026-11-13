@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import { startTransition, useActionState, useEffect, useState } from "react";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
@@ -74,110 +75,112 @@ export function MemoryForm({
 
   return (
     <form action={action} className="space-y-6" noValidate>
-      <input type="hidden" name="dateId" value={dateId} />
-      <input type="hidden" name="coverPhotoId" value={cover} />
+      <PendingFields className="space-y-6">
+        <input type="hidden" name="dateId" value={dateId} />
+        <input type="hidden" name="coverPhotoId" value={cover} />
 
-      <FormFeedback state={state} />
-      <OfflineNotice />
+        <FormFeedback state={state} />
+        <OfflineNotice />
 
-      {(titleDraft.restored || bodyDraft.restored) && state.status !== "success" ? (
-        <p className="flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-xs text-muted">
-          <Icon name="refresh" size={13} className="shrink-0" />
-          Picked up where you left off — this is an unsaved local draft.
-        </p>
-      ) : null}
+        {(titleDraft.restored || bodyDraft.restored) && state.status !== "success" ? (
+          <p className="flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-xs text-muted">
+            <Icon name="refresh" size={13} className="shrink-0" />
+            Picked up where you left off — this is an unsaved local draft.
+          </p>
+        ) : null}
 
-      <Field label="Title" htmlFor="memory-title" errors={fieldErrors?.title}>
-        <Input
-          id="memory-title"
-          name="title"
-          value={titleDraft.value}
-          onChange={(e) => titleDraft.setValue(e.target.value)}
-          placeholder="Name this memory"
-          maxLength={160}
-          required
-        />
-      </Field>
+        <Field label="Title" htmlFor="memory-title" errors={fieldErrors?.title}>
+          <Input
+            id="memory-title"
+            name="title"
+            value={titleDraft.value}
+            onChange={(e) => titleDraft.setValue(e.target.value)}
+            placeholder="Name this memory"
+            maxLength={160}
+            required
+          />
+        </Field>
 
-      <Field label="The story" htmlFor="memory-body" errors={fieldErrors?.body}>
-        <Textarea
-          id="memory-body"
-          name="body"
-          rows={6}
-          value={bodyDraft.value}
-          onChange={(e) => bodyDraft.setValue(e.target.value)}
-          placeholder="Tell it like you'd tell a friend. What happened, what you felt, the bit you'll both bring up years from now."
-          required
-        />
-      </Field>
+        <Field label="The story" htmlFor="memory-body" errors={fieldErrors?.body}>
+          <Textarea
+            id="memory-body"
+            name="body"
+            rows={6}
+            value={bodyDraft.value}
+            onChange={(e) => bodyDraft.setValue(e.target.value)}
+            placeholder="Tell it like you'd tell a friend. What happened, what you felt, the bit you'll both bring up years from now."
+            required
+          />
+        </Field>
 
-      {photos.length > 0 ? (
-        <div className="space-y-2">
-          <span className="text-sm font-medium text-ink">Cover photo</span>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-            <button
-              type="button"
-              onClick={() => setCover("")}
-              className={cn(
-                "grid aspect-square place-items-center rounded-lg border text-xs",
-                cover === "" ? "border-primary bg-primary-tint text-primary" : "border-line text-muted",
-              )}
-            >
-              None
-            </button>
-            {photos.map((photo) => (
+        {photos.length > 0 ? (
+          <div className="space-y-2">
+            <span className="text-sm font-medium text-ink">Cover photo</span>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               <button
-                key={photo.id}
                 type="button"
-                onClick={() => setCover(photo.id)}
+                onClick={() => setCover("")}
                 className={cn(
-                  "relative aspect-square overflow-hidden rounded-lg border",
-                  cover === photo.id ? "border-primary ring-2 ring-ring/40" : "border-line",
+                  "grid aspect-square place-items-center rounded-lg border text-xs",
+                  cover === "" ? "border-primary bg-primary-tint text-primary" : "border-line text-muted",
                 )}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photo.thumbUrl}
-                  alt={photo.caption ?? ""}
-                  loading="lazy"
-                  className="size-full object-cover"
-                />
-                {cover === photo.id ? (
-                  <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-primary text-primary-fg">
-                    <Icon name="check" size={12} />
-                  </span>
-                ) : null}
+                None
               </button>
-            ))}
+              {photos.map((photo) => (
+                <button
+                  key={photo.id}
+                  type="button"
+                  onClick={() => setCover(photo.id)}
+                  className={cn(
+                    "relative aspect-square overflow-hidden rounded-lg border",
+                    cover === photo.id ? "border-primary ring-2 ring-ring/40" : "border-line",
+                  )}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photo.thumbUrl}
+                    alt={photo.caption ?? ""}
+                    loading="lazy"
+                    className="size-full object-cover"
+                  />
+                  {cover === photo.id ? (
+                    <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-primary text-primary-fg">
+                      <Icon name="check" size={12} />
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
           </div>
+        ) : null}
+
+        <CheckboxField
+          label="Mark as a favourite memory"
+          name="isFavorite"
+          defaultChecked={memory?.isFavorite ?? false}
+        />
+
+        <div className="flex items-center justify-between gap-2 border-t border-line pt-5">
+          {memory ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              loading={deleting}
+              disabled={deleting}
+              onClick={removeMemory}
+            >
+              Remove memory
+            </Button>
+          ) : (
+            <span />
+          )}
+          <SubmitButton pendingText="Saving…">
+            {memory ? "Update memory" : "Keep this memory"}
+          </SubmitButton>
         </div>
-      ) : null}
-
-      <CheckboxField
-        label="Mark as a favourite memory"
-        name="isFavorite"
-        defaultChecked={memory?.isFavorite ?? false}
-      />
-
-      <div className="flex items-center justify-between gap-2 border-t border-line pt-5">
-        {memory ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            loading={deleting}
-            disabled={deleting}
-            onClick={removeMemory}
-          >
-            Remove memory
-          </Button>
-        ) : (
-          <span />
-        )}
-        <SubmitButton pendingText="Saving…">
-          {memory ? "Update memory" : "Keep this memory"}
-        </SubmitButton>
-      </div>
+      </PendingFields>
     </form>
   );
 }

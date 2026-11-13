@@ -27,6 +27,7 @@ import {
   revokeInvitation,
 } from "@/server/services/invitation-service";
 import { formValues, toActionError } from "@/server/actions/_helpers";
+import { clearPendingInvitation } from "@/lib/auth/pending-invitation";
 
 export async function createCoupleAction(
   _prev: ActionState,
@@ -42,6 +43,7 @@ export async function createCoupleAction(
   } catch (error) {
     return toActionError(error);
   }
+  await clearPendingInvitation();
   revalidatePath("/", "layout");
   redirect("/onboarding");
 }
@@ -63,6 +65,7 @@ export async function joinCoupleAction(
   } catch (error) {
     return toActionError(error);
   }
+  await clearPendingInvitation();
   revalidatePath("/", "layout");
   redirect("/onboarding");
 }
@@ -144,6 +147,7 @@ export async function acceptInvitationAction(
   } catch (error) {
     return toActionError(error);
   }
+  await clearPendingInvitation();
   revalidatePath("/", "layout");
   redirect("/onboarding");
 }

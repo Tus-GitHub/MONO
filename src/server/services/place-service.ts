@@ -1,4 +1,5 @@
 import "server-only";
+import { toggleCoupleFavorite } from "@/server/services/favorite-service";
 
 import { placeImageUrl } from "@/lib/places/image-url";
 import { lookupVenuePhotos } from "@/lib/places/venue-photos";
@@ -131,10 +132,7 @@ export async function createCustomPlace(input: CustomPlaceInput): Promise<PlaceS
 }
 
 export async function toggleFavorite(placeId: string): Promise<boolean> {
-  const { resource } = await authorizePlace(placeId);
-  const next = !resource.isFavorite;
-  await prisma.place.update({ where: { id: resource.id }, data: { isFavorite: next } });
-  return next;
+  return toggleCoupleFavorite("place", placeId);
 }
 
 /** Save an external/custom result, then mark it a favourite (used from Explore's heart). */
@@ -188,19 +186,19 @@ export async function setActivityPlace(
   savedPlaceId: string | null,
 ): Promise<void> {
   await withDateWrite(dateId, async (tx, resource, context) => {
-  assertPlanEditable(resource);
-  if (savedPlaceId) {
-    const place = await tx.place.findFirst({
-      where: { id: savedPlaceId, coupleId: context.couple.id, deletedAt: null },
-      select: { id: true },
+    assertPlanEditable(resource);
+    if (savedPlaceId) {
+      const place = await tx.place.findFirst({
+        where: { id: savedPlaceId, coupleId: context.couple.id, deletedAt: null },
+        select: { id: true },
+      });
+      if (!place) throw new NotFoundError("That place isn't in your list.");
+    }
+    const result = await tx.dateActivity.updateMany({
+      where: { id: activityId, dateId: resource.id, kind: "PLANNED" },
+      data: { placeId: savedPlaceId },
     });
-    if (!place) throw new NotFoundError("That place isn't in your list.");
-  }
-  const result = await tx.dateActivity.updateMany({
-    where: { id: activityId, dateId: resource.id, kind: "PLANNED" },
-    data: { placeId: savedPlaceId },
-  });
-  if (result.count === 0) throw new NotFoundError("That activity isn't on this date.");
+    if (result.count === 0) throw new NotFoundError("That activity isn't on this date.");
   });
 }
 

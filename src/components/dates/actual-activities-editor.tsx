@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import { startTransition, useActionState, useOptimistic, useState } from "react";
 
 import { MoneyInput } from "@/components/dates/money-input";
@@ -33,15 +34,21 @@ export function ActualActivitiesEditor({
   hasPlan: boolean;
   currency: string;
 }) {
-  const [addState, addAction, adding] = useActionState(addActualActivityAction, idleState);
+  const [custom, setCustom] = useState("");
+  const [addState, addAction, adding] = useActionState(async (previous: ActionState, formData: FormData) => {
+    try {
+      const result = await addActualActivityAction(previous, formData);
+      if (result.status === "success") setCustom((current) => current.trim() === formData.get("title") ? "" : current);
+      return result;
+    } catch { return { status: "error" as const, message: "That didn't save. Please try again." }; }
+  }, idleState);
   const [seedState, seedAction, seeding] = useActionState(seedActualsFromPlanAction, idleState);
   const [, reorderAction] = useActionState(reorderActualActivitiesAction, idleState);
   const [order, setOrder] = useOptimistic<ActualActivityDTO[]>(activities);
-  const [custom, setCustom] = useState("");
   const [customUnplanned, setCustomUnplanned] = useState(false);
 
   const add = (title: string, unplanned: boolean) => {
-    if (!title.trim()) return;
+    if (adding || !title.trim()) return;
     const fd = new FormData();
     fd.set("dateId", dateId);
     fd.set("title", title.trim());
@@ -78,11 +85,13 @@ export function ActualActivitiesEditor({
 
       {order.length === 0 && hasPlan ? (
         <form action={seedAction}>
-          <input type="hidden" name="dateId" value={dateId} />
-          <Button type="submit" variant="secondary" size="sm" loading={seeding}>
-            Start from the plan
-          </Button>
-          <span className="ml-2 text-xs text-muted">then change whatever went differently</span>
+          <PendingFields>
+            <input type="hidden" name="dateId" value={dateId} />
+            <Button type="submit" variant="secondary" size="sm" loading={seeding}>
+              Start from the plan
+            </Button>
+            <span className="ml-2 text-xs text-muted">then change whatever went differently</span>
+          </PendingFields>
         </form>
       ) : null}
 
@@ -108,8 +117,7 @@ export function ActualActivitiesEditor({
               if (event.key === "Enter") {
                 event.preventDefault();
                 add(custom, customUnplanned);
-                setCustom("");
-              }
+                }
             }}
             placeholder="Something you did…"
             aria-label="Activity name"
@@ -119,7 +127,6 @@ export function ActualActivitiesEditor({
             variant="secondary"
             onClick={() => {
               add(custom, customUnplanned);
-              setCustom("");
             }}
             disabled={!custom.trim() || adding}
           >
@@ -201,41 +208,43 @@ function ActualRow({
     return (
       <li className="rounded-xl border border-primary/30 bg-surface p-3">
         <form action={editAction} className="space-y-3" noValidate>
-          <input type="hidden" name="dateId" value={dateId} />
-          <input type="hidden" name="activityId" value={activity.id} />
-          <Input
-            name="title"
-            defaultValue={activity.title}
-            aria-label="Activity name"
-            invalid={Boolean(fieldErrors?.title)}
-            required
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <MoneyInput
-              id={`cost-${activity.id}`}
-              name="costCents"
-              defaultValue={activity.costCents != null ? String(activity.costCents / 100) : ""}
-            />
+          <PendingFields className="space-y-3">
+            <input type="hidden" name="dateId" value={dateId} />
+            <input type="hidden" name="activityId" value={activity.id} />
             <Input
-              name="note"
-              defaultValue={activity.note ?? ""}
-              placeholder="Note (optional)"
-              aria-label="Note"
+              name="title"
+              defaultValue={activity.title}
+              aria-label="Activity name"
+              invalid={Boolean(fieldErrors?.title)}
+              required
             />
-          </div>
-          <CheckboxField
-            label="Wasn't in the plan"
-            name="unplanned"
-            defaultChecked={activity.unplanned}
-          />
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" size="sm">
-              Save
-            </Button>
-          </div>
+            <div className="grid grid-cols-2 gap-2">
+              <MoneyInput
+                id={`cost-${activity.id}`}
+                name="costCents"
+                defaultValue={activity.costCents != null ? String(activity.costCents / 100) : ""}
+              />
+              <Input
+                name="note"
+                defaultValue={activity.note ?? ""}
+                placeholder="Note (optional)"
+                aria-label="Note"
+              />
+            </div>
+            <CheckboxField
+              label="Wasn't in the plan"
+              name="unplanned"
+              defaultChecked={activity.unplanned}
+            />
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm">
+                Save
+              </Button>
+            </div>
+          </PendingFields>
         </form>
       </li>
     );

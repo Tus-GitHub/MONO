@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ user: vi.fn(), remove: vi.fn(), clear: vi.fn(), deleteCookie: vi.fn(), getCookie: vi.fn(), register: vi.fn(), write: vi.fn(), after: vi.fn(), registrationEmails: vi.fn(), completeReset: vi.fn() }));
+const mocks = vi.hoisted(() => ({ user: vi.fn(), remove: vi.fn(), clear: vi.fn(), deleteCookie: vi.fn(), getCookie: vi.fn(), register: vi.fn(), write: vi.fn(), after: vi.fn(), registrationEmails: vi.fn(), completeReset: vi.fn(), remember: vi.fn() }));
+vi.mock("@/lib/auth/pending-invitation", () => ({ rememberInvitation: mocks.remember, clearPendingInvitation: vi.fn(), validInvitationToken: (value: unknown) => typeof value === "string" && /^[A-Za-z0-9_-]{10,200}$/.test(value) }));
 vi.mock("next/server", () => ({ after: mocks.after }));
 vi.mock("next/navigation", () => ({ redirect: (href: string) => { throw new Error(`redirect:${href}`); } }));
 vi.mock("next/headers", () => ({ cookies: async () => ({ get: mocks.getCookie, delete: mocks.deleteCookie }) }));
@@ -61,6 +62,14 @@ it("does not schedule mail when registration fails", async () => {
   expect(result.status).toBe("error");
   expect(mocks.after).not.toHaveBeenCalled();
   log.mockRestore();
+});
+
+it("keeps the original invitation bound to the registered account for email confirmation", async () => {
+  mocks.register.mockResolvedValue({ id: "new-user", tokenVersion: 0 });
+  const form = new FormData();
+  for (const [key, value] of Object.entries({ name: "Alex", email: "alex@example.test", password: "NewPassword123!", confirmPassword: "NewPassword123!", invite: "original_invitation_token" })) form.set(key, value);
+  await expect(registerAction(idleState, form)).rejects.toThrow("redirect:/invite/original_invitation_token");
+  expect(mocks.remember).toHaveBeenCalledWith("new-user", "original_invitation_token");
 });
 
 it("unlinks a migrated legacy browser without removing newly registered devices", async () => {

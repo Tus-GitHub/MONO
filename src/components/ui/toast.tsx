@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -49,13 +50,22 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
+  useEffect(() => {
+    const active = timers.current;
+    return () => { for (const timer of active.values()) clearTimeout(timer); active.clear(); };
+  }, []);
+
   const remove = useCallback((id: string) => {
+    for (const key of [id, `${id}:exit`]) {
+      clearTimeout(timers.current.get(key)); timers.current.delete(key);
+    }
     setItems((list) => list.filter((item) => item.id !== id));
-    timers.current.delete(id);
   }, []);
 
   const dismiss = useCallback(
     (id: string) => {
+      clearTimeout(timers.current.get(id)); timers.current.delete(id);
+      if (timers.current.has(`${id}:exit`)) return;
       setItems((list) => list.map((item) => (item.id === id ? { ...item, open: false } : item)));
       const timer = setTimeout(() => remove(id), 200);
       timers.current.set(`${id}:exit`, timer);

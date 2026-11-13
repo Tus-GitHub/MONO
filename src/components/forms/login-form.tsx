@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import Link from "@/components/ui/app-link";
 import { useActionState, useState } from "react";
 
@@ -29,35 +30,37 @@ export function LoginForm({ invite, oauthFailed }: { invite?: string; oauthFaile
       onInput={validate} onFocus={validate} onChange={() => { setDismissedState(state); validate(); }}
       onSubmit={(event) => { if (!valid) event.preventDefault(); }}
       onReset={(event) => event.preventDefault()} className="space-y-4" noValidate>
-      {invite ? <input type="hidden" name="invite" value={invite} /> : null}
+      <PendingFields className="space-y-4">
+        {invite ? <input type="hidden" name="invite" value={invite} /> : null}
 
-      <EmailFormatField errors={fieldErrors?.email} incorrect={incorrect} feedbackId="login-feedback" />
+        <EmailFormatField errors={fieldErrors?.email} incorrect={incorrect} feedbackId="login-feedback" />
 
-      <Field label="Password" htmlFor="password" errors={fieldErrors?.password}>
-        <PasswordInput
-          id="password"
-          name="password"
-          autoComplete="current-password"
-          required
-          invalid={incorrect || Boolean(fieldErrors?.password?.length)}
-          aria-describedby={fieldErrors?.password?.length ? "password-error" : incorrect ? "login-feedback" : undefined}
-        />
-      </Field>
+        <Field label="Password" htmlFor="password" errors={fieldErrors?.password}>
+          <PasswordInput
+            id="password"
+            name="password"
+            autoComplete="current-password"
+            required
+            invalid={incorrect || Boolean(fieldErrors?.password?.length)}
+            aria-describedby={fieldErrors?.password?.length ? "password-error" : incorrect ? "login-feedback" : undefined}
+          />
+        </Field>
 
-      <div className="flex items-center justify-between">
-        <CheckboxField name="remember" value="on" defaultChecked label="Remember me" />
-        <Link
-          href="/forgot-password"
-          className="text-sm font-medium text-primary transition-colors hover:text-primary-hover"
-        >
-          Forgot password?
-        </Link>
-      </div>
+        <div className="flex items-center justify-between">
+          <CheckboxField name="remember" value="on" defaultChecked label="Remember me" />
+          <Link
+            href="/forgot-password"
+            className="text-sm font-medium text-primary transition-colors hover:text-primary-hover"
+          >
+            Forgot password?
+          </Link>
+        </div>
 
-      <div id="login-feedback"><FormFeedback state={visibleState} /></div>
-      <SubmitButton fullWidth disabled={!valid} pendingText="Signing in…">
-        Sign in
-      </SubmitButton>
+        <div id="login-feedback"><FormFeedback state={visibleState} /></div>
+        <SubmitButton fullWidth disabled={!valid} pendingText="Signing in…">
+          Sign in
+        </SubmitButton>
+      </PendingFields>
     </form>
   );
 }

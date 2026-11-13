@@ -7,6 +7,28 @@ import { MINUTE, checkRateLimit } from "@/lib/security/rate-limit";
 import { errorState, successState, type ActionState } from "@/lib/utils/result";
 import { beginEmailVerification, completeEmailVerification } from "@/server/services/email-verification-service";
 import { toActionError } from "./_helpers";
+import { requireUser } from "@/lib/auth/current-user";
+import { rememberInvitation } from "@/lib/auth/pending-invitation";
+
+export async function rememberOwnInvitationAction(token: string): Promise<void> {
+  const user = await requireUser();
+  await rememberInvitation(user.id, token);
+}
+
+/** Only the signed-in account can be checked; never accept a client user/email ID. */
+export async function checkOwnVerificationAction(_previous: ActionState): Promise<ActionState> {
+  const user = await requireUser();
+  if (!user.emailVerified) return errorState("Your email is not verified yet. Open the email, confirm your address, then check again here.");
+  revalidatePath("/", "layout");
+  return successState(undefined, "Email verified. You can continue.");
+}
+
+export async function resendOwnVerificationAction(_previous: ActionState): Promise<ActionState> {
+  const user = await requireUser();
+  const form = new FormData();
+  form.set("email", user.email);
+  return requestVerificationAction(_previous, form);
+}
 
 export async function requestVerificationAction(_previous: ActionState, form: FormData): Promise<ActionState> {
   const limited = await checkRateLimit("email-verification-request", 4, 60 * MINUTE);

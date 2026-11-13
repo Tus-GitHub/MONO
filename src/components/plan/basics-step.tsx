@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import { useActionState } from "react";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
@@ -29,85 +30,87 @@ export function BasicsStep({ plan, userId }: { plan: PlanDateDTO; userId: string
 
   return (
     <form action={action} className="space-y-6" noValidate>
-      <UnsavedGuard state={state} valueKey={JSON.stringify([date, startTime, endTime])} />
-      <input type="hidden" name="dateId" value={plan.id} />
-      <input type="hidden" name="version" value={plan.version} />
-      <input type="hidden" name="step" value="basics" />
-      <input type="hidden" name="date" value={date ?? ""} />
-      <input type="hidden" name="startTime" value={date ? startTime : ""} />
-      <input type="hidden" name="endTime" value={date ? endTime : ""} />
+      <PendingFields className="space-y-6">
+        <UnsavedGuard state={state} valueKey={JSON.stringify([date, startTime, endTime])} />
+        <input type="hidden" name="dateId" value={plan.id} />
+        <input type="hidden" name="version" value={plan.version} />
+        <input type="hidden" name="step" value="basics" />
+        <input type="hidden" name="date" value={date ?? ""} />
+        <input type="hidden" name="startTime" value={date ? startTime : ""} />
+        <input type="hidden" name="endTime" value={date ? endTime : ""} />
 
-      <PlanStepper dateId={plan.id} current="basics" variant="buttons" />
+        <PlanStepper dateId={plan.id} current="basics" variant="buttons" />
 
-      <div className="space-y-1">
-        <h1 className="font-display text-2xl font-medium text-ink">The basics</h1>
-        <p className="text-sm text-muted">
-          Everything here saves as you go — you won&apos;t lose it moving between steps.
-        </p>
-      </div>
+        <div className="space-y-1">
+          <h1 className="font-display text-2xl font-medium text-ink">The basics</h1>
+          <p className="text-sm text-muted">
+            Everything here saves as you go — you won&apos;t lose it moving between steps.
+          </p>
+        </div>
 
-      <FormFeedback state={state} />
+        <FormFeedback state={state} />
 
-      <Field label="What's the plan?" htmlFor="title" errors={fieldErrors?.title}>
-        <Input
-          id="title"
-          name="title"
-          value={title.value}
-          onChange={(e) => title.setValue(e.target.value)}
-          placeholder="Friday night out"
-          maxLength={160}
-        />
-      </Field>
+        <Field label="What's the plan?" htmlFor="title" errors={fieldErrors?.title}>
+          <Input
+            id="title"
+            name="title"
+            value={title.value}
+            onChange={(e) => title.setValue(e.target.value)}
+            placeholder="Friday night out"
+            maxLength={160}
+          />
+        </Field>
 
-      <PlaceField dateId={plan.id} place={plan.place} />
+        <PlaceField dateId={plan.id} place={plan.place} />
 
-      <div>
-        <p className="mb-2 text-sm font-medium text-ink">When?</p>
-        <DatePicker value={date} onChange={(value) => setDate(value ?? "")} timezone={plan.timezone} />
-        {fieldErrors?.date ? (
-          <p className="mt-1.5 text-xs text-error">{fieldErrors.date.join(" ")}</p>
+        <div>
+          <p className="mb-2 text-sm font-medium text-ink">When?</p>
+          <DatePicker value={date} onChange={(value) => setDate(value ?? "")} timezone={plan.timezone} />
+          {fieldErrors?.date ? (
+            <p className="mt-1.5 text-xs text-error">{fieldErrors.date.join(" ")}</p>
+          ) : null}
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <TimeField
+            label="Start time"
+            value={startTime}
+            onChange={setStartTime}
+            disabled={!date}
+            optional
+          />
+          <TimeField
+            label="End time"
+            value={endTime}
+            onChange={setEndTime}
+            disabled={!date}
+            optional
+          />
+        </div>
+        {fieldErrors?.endTime ? (
+          <p className="-mt-3 text-xs text-error">{fieldErrors.endTime.join(" ")}</p>
         ) : null}
-      </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <TimeField
-          label="Start time"
-          value={startTime}
-          onChange={setStartTime}
-          disabled={!date}
-          optional
-        />
-        <TimeField
-          label="End time"
-          value={endTime}
-          onChange={setEndTime}
-          disabled={!date}
-          optional
-        />
-      </div>
-      {fieldErrors?.endTime ? (
-        <p className="-mt-3 text-xs text-error">{fieldErrors.endTime.join(" ")}</p>
-      ) : null}
+        <Field label="Notes" htmlFor="notes" optional errors={fieldErrors?.notes}>
+          <Textarea
+            id="notes"
+            name="notes"
+            value={notes.value}
+            onChange={(e) => notes.setValue(e.target.value)}
+            rows={3}
+            placeholder="Anything to remember while planning."
+          />
+        </Field>
 
-      <Field label="Notes" htmlFor="notes" optional errors={fieldErrors?.notes}>
-        <Textarea
-          id="notes"
-          name="notes"
-          value={notes.value}
-          onChange={(e) => notes.setValue(e.target.value)}
-          rows={3}
-          placeholder="Anything to remember while planning."
-        />
-      </Field>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
-        <SubmitButton name="goto" value="exit" variant="ghost" pendingText="Saving…">
-          Save draft &amp; exit
-        </SubmitButton>
-        <SubmitButton name="goto" value="budget" pendingText="Saving…">
-          Save &amp; continue
-        </SubmitButton>
-      </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
+          <SubmitButton name="goto" value="exit" variant="ghost" pendingText="Saving…">
+            Save draft &amp; exit
+          </SubmitButton>
+          <SubmitButton name="goto" value="budget" pendingText="Saving…">
+            Save &amp; continue
+          </SubmitButton>
+        </div>
+      </PendingFields>
     </form>
   );
 }

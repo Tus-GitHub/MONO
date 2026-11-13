@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import Link from "@/components/ui/app-link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
@@ -162,17 +163,19 @@ function AccountMenu({ user }: { user: { name: string; avatarUrl?: string | null
           ))}
           <div className="my-1 h-px bg-line" />
           <form action={logoutAction} onSubmit={close}>
-            <button
-              type="submit"
-              role="menuitem"
-              className={cn(
-                "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink transition-colors hover:bg-ink/[0.06]",
-                focusRing,
-              )}
-            >
-              <Icon name="logout" size="sm" className="text-faint" />
-              Sign out
-            </button>
+            <PendingFields>
+              <button
+                type="submit"
+                role="menuitem"
+                className={cn(
+                  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink transition-colors hover:bg-ink/[0.06]",
+                  focusRing,
+                )}
+              >
+                <Icon name="logout" size="sm" className="text-faint" />
+                Sign out
+              </button>
+            </PendingFields>
           </form>
         </div>
       ) : null}

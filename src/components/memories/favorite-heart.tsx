@@ -1,14 +1,13 @@
 "use client";
 
-import { startTransition, useActionState, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { idleState, type ActionState } from "@/lib/utils/result";
+import { useOptimisticTask } from "@/lib/hooks/use-optimistic-task";
 import { toggleMemoryFavoriteAction } from "@/server/actions/memories";
 import { togglePhotoFavoriteAction } from "@/server/actions/photos";
 import { cn } from "@/lib/utils/cn";
 
-type Data = { favorite: boolean };
 
 /** A heart toggle for a memory or a photo. Optimistic; reconciles with the server result. */
 export function FavoriteHeart({
@@ -33,50 +32,47 @@ export function FavoriteHeart({
 }) {
   const router = useRouter();
   const action = kind === "memory" ? toggleMemoryFavoriteAction : togglePhotoFavoriteAction;
-  const [state, dispatch] = useActionState<ActionState<Data>, FormData>(action, idleState);
-  const [optimistic, setOptimistic] = useState(isFavorite);
-  const [seen, setSeen] = useState<ActionState<Data>>(idleState);
+  const task = useOptimisticTask(isFavorite);
+  const optimistic = task.value;
   const [pop, setPop] = useState(false);
+  const popTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (popTimer.current) clearTimeout(popTimer.current); }, []);
 
-  if (state !== seen) {
-    setSeen(state);
-    if (state.status === "success" && state.data) {
-      setOptimistic(state.data.favorite);
-      router.refresh();
-    } else if (state.status === "error") {
-      setOptimistic(isFavorite);
-    }
-  }
-
-  const toggle = () => {
-    setOptimistic((value) => {
-      if (!value) {
-        setPop(true);
-        window.setTimeout(() => setPop(false), 280);
-      }
-      return !value;
+  const toggle = async () => {
+    const outcome = await task.run(!optimistic, async () => {
+      const fd = new FormData(); fd.set(kind === "memory" ? "memoryId" : "photoId", id);
+      if (dateId) fd.set("dateId", dateId);
+      const result = await action({ status: "idle" }, fd);
+      if (result.status !== "success" || !result.data) throw new Error(result.status === "error" ? result.message : "Couldn't save favourite.");
+      return result.data.favorite;
     });
-    const fd = new FormData();
-    fd.set(kind === "memory" ? "memoryId" : "photoId", id);
-    if (dateId) fd.set("dateId", dateId);
-    startTransition(() => dispatch(fd));
+    if (outcome) {
+      if (outcome.data) {
+        setPop(true);
+        if (popTimer.current) clearTimeout(popTimer.current);
+        popTimer.current = setTimeout(() => setPop(false), 280);
+      }
+      router.refresh();
+    }
   };
 
   return (
     <button
       type="button"
       onClick={toggle}
+      disabled={task.pending}
+      aria-busy={task.pending}
       aria-pressed={optimistic}
       aria-label={label ?? (optimistic ? "Remove from favourites" : "Add to favourites")}
       className={cn(
         "inline-flex items-center justify-center rounded-full transition-colors",
         variant === "overlay"
           ? cn(
-              "backdrop-blur-sm",
-              optimistic
-                ? "bg-ink/45 text-primary"
-                : "bg-ink/45 text-white/85 hover:bg-ink/60 hover:text-white",
-            )
+            "backdrop-blur-sm",
+            optimistic
+              ? "bg-ink/45 text-primary"
+              : "bg-ink/45 text-white/85 hover:bg-ink/60 hover:text-white",
+          )
           : optimistic
             ? "text-primary"
             : "text-muted hover:text-primary",

@@ -17,6 +17,8 @@ import { SearchInput } from "@/components/ui/search";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAsyncTask } from "@/lib/hooks/use-async-task";
+import type { TaskState } from "@/lib/state/task";
 import { EXPLORE_CATEGORIES } from "@/lib/date/explore-categories";
 import { PLACE_CATEGORY_LABEL } from "@/lib/date/place-category";
 import { selectPlaceForDateAction } from "@/server/actions/place";
@@ -36,18 +38,20 @@ export function PlacePickerSheet({
   const router = useRouter();
   const [q, setQ] = useState("");
   const [categoryKey, setCategoryKey] = useState<string | null>(null);
-  const [results, setResults] = useState<PlaceSearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [choosing, setChoosing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState<TaskState<PlaceSearchResult[]>>({ status: "idle" });
+  const selectionTask = useAsyncTask<void, "choosing">();
+  const { reset: resetSelection } = selectionTask;
+  const results = search.status === "success" ? search.data : [];
+  const loading = search.status === "pending";
+  const choosing = selectionTask.state.status === "pending";
+  const error = selectionTask.state.status === "error" ? selectionTask.state.message : search.status === "error" ? search.message : null;
   const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
     const timer = setTimeout(async () => {
-      setLoading(true);
-      setError(null);
+      setSearch({ status: "pending", phase: "search" });
       try {
         const params = new URLSearchParams();
         if (q.trim()) params.set("q", q.trim());
@@ -57,17 +61,9 @@ export function PlacePickerSheet({
         });
         if (!response.ok) throw new Error(String(response.status));
         const data = (await response.json()) as { results?: PlaceSearchResult[] };
-        setResults(data.results ?? []);
-      } catch (fetchError) {
-        if (!(fetchError instanceof DOMException)) {
-          setError(
-            typeof navigator !== "undefined" && !navigator.onLine
-              ? "You're offline — reconnect to search."
-              : "Couldn't load places just now.",
-          );
-        }
-      } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setSearch({ status: "success", data: data.results ?? [] });
+      } catch {
+        if (!controller.signal.aborted) setSearch({ status: "error", phase: "search", message: !navigator.onLine ? "You're offline — reconnect to search." : "Couldn't load places just now." });
       }
     }, 500);
     return () => {
@@ -76,29 +72,16 @@ export function PlacePickerSheet({
     };
   }, [open, q, categoryKey, retry]);
 
+  useEffect(() => { if (!open) resetSelection(); }, [open, resetSelection]);
+
   const choose = async (body: Record<string, string>) => {
-    setChoosing(true);
-    setError(null);
-    try {
-      const form = new FormData();
-      form.set("dateId", dateId);
+    const outcome = await selectionTask.run("choosing", async () => {
+      const form = new FormData(); form.set("dateId", dateId);
       for (const [key, value] of Object.entries(body)) form.set(key, value);
       const result = await selectPlaceForDateAction({ status: "idle" }, form);
-      if (result.status === "error") {
-        setError(result.message);
-        return;
-      }
-      onClose();
-      router.refresh();
-    } catch {
-      setError(
-        typeof navigator !== "undefined" && !navigator.onLine
-          ? "You're offline — this didn't save. Try again when you reconnect."
-          : "That didn't save. Please try again.",
-      );
-    } finally {
-      setChoosing(false);
-    }
+      if (result.status === "error") throw new Error(result.message);
+    });
+    if (outcome) { onClose(); router.refresh(); }
   };
 
   return (
@@ -180,10 +163,10 @@ export function PlacePickerSheet({
                           place.savedPlaceId
                             ? { mode: "saved", savedPlaceId: place.savedPlaceId }
                             : {
-                                mode: "external",
-                                provider: place.external!.provider,
-                                providerPlaceId: place.external!.providerPlaceId,
-                              },
+                              mode: "external",
+                              provider: place.external!.provider,
+                              providerPlaceId: place.external!.providerPlaceId,
+                            },
                         )
                       }
                     >

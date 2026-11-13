@@ -1,4 +1,5 @@
 import "server-only";
+import { dateAllows } from "@/lib/date/permissions";
 
 import { DateStatus, NotificationType, Prisma, type ReviewRevisit } from "@prisma/client";
 
@@ -17,7 +18,6 @@ import { ensureReviewReminders } from "@/server/services/reminder-service";
 
 import { withDateWrite } from "@/server/services/date-write";
 
-const REVIEWABLE_STATUSES: DateStatus[] = [DateStatus.IN_PROGRESS, DateStatus.COMPLETED];
 
 const REVIEW_SELECT = {
   authorId: true,
@@ -147,7 +147,7 @@ export async function getReviewContext(dateId: string, userId: string): Promise<
       firstPhoto: date.photos[0] ?? null,
     }),
     status: date.status,
-    reviewable: REVIEWABLE_STATUSES.includes(date.status),
+    reviewable: dateAllows(date.status, "review"),
     stage,
     editable: isReviewEditable(stage),
     hasPartner,
@@ -172,7 +172,7 @@ async function writeReview(
   opts: { submit: boolean },
 ): Promise<WriteResult> {
   const { context, resource, submittedAt, isNew, nowRevealed } = await withDateWrite(dateId, async (tx, resource, context) => {
-    if (!REVIEWABLE_STATUSES.includes(resource.status)) {
+    if (!dateAllows(resource.status, "review")) {
       throw new ValidationError("Reviews open once the date has happened.");
     }
 

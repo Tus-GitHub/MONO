@@ -1,5 +1,28 @@
 # MONO regression testing
 
+## Required email verification and invitation recovery (2026-11-14)
+
+- 346 unit tests and 113 isolated PostgreSQL tests pass, including account-bound invitation
+  return hints, unverified create/link/code rejection, unchanged invitation usability after real
+  email confirmation, replay rejection, and joins delayed beyond the previous five-second limit.
+- The right-panel browser exercised real registration, optional profile setup, blocked unverified
+  creation, the verification popup and a fresh status check, verified creation and link generation.
+  A second account registered directly from that invitation, saw the automatic popup, requested
+  a resend, confirmed its original email link and returned to the same invitation in the same tab.
+  Explicit acceptance reached “You're connected” with both names. PostgreSQL confirmed ACTIVE,
+  exactly two members and one PARTNER_JOINED notification. All accounts were disposable local
+  fixtures; no production account or space was changed.
+- Received production welcome, verification and password-reset samples were inspected in Gmail:
+  all passed SPF/DKIM/DMARC through Brevo's replacement sender, and arrived after two seconds.
+  These observations confirm delivery/authentication, not original inbox placement or future
+  placement. Brevo warns about Gmail senders and has no custom authenticated domain. The user
+  owns only the Vercel app subdomain. No sender, credential, global tracking or billing changes
+  were made, and universal inbox placement cannot be guaranteed.
+- TypeScript and lint pass. The default local Turbopack production build fails starting its CSS
+  worker (process exits before IPC connection); the supported Webpack production build succeeds.
+  This environment limitation is separate from the application tests and must not be described
+  as a passing default build or a verified production deployment.
+
 Run the fast suite with `npm test`. It checks pure rules, adapters, authorization/action boundaries
 with mocks, and does not connect to PostgreSQL. Use `npm run typecheck`, `npm run lint`, and
 `npm run build` for compiler, code-quality and production-build checks.
@@ -218,8 +241,8 @@ remain separate. Integration keys are deferred; Vercel Git deployments remain en
 `npm run test:first-visit -- https://mono-kappa-beryl.vercel.app` runs three read-only Chromium
 checks against a production build. It delays the first real service-worker registration until
 the registration draft or verification form is ready, then verifies that initial activation
-preserves the input/token without reloading. A real replacement worker must still reload an
-already controlled page exactly once. It creates no accounts, sends no email and never submits
+preserves the input/token without reloading. A real replacement worker waits for the Refresh
+control, then reloads an already controlled page exactly once. It creates no accounts, sends no email and never submits
 the fake verification capability. Screenshots/results stay under ignored `.postgres-test/first-visit`.
 
 The account browser suite also exercises recovery while signed in: `/forgot-password` must

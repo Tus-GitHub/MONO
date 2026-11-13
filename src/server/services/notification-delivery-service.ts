@@ -9,6 +9,8 @@ import { pushSubscriptionSchema } from "@/lib/notifications/subscription";
 import { NOTIFICATION_CATEGORY_OF, notificationHref } from "@/lib/notifications/types";
 import { PushSubscriptionGoneError } from "@/lib/notifications/web-push";
 import type { DeliverablePayload } from "@/lib/notifications/channels";
+import { sessionState } from "@/lib/state/access";
+import { DELIVERY_TRANSITIONS, deliveryOutcome } from "@/lib/jobs/lifecycle";
 
 export async function enqueueNotification(
   tx: Prisma.TransactionClient,
@@ -73,7 +75,7 @@ export async function processNotificationDeliveries(options: { userId?: string; 
   const report = { processed: 0, delivered: 0, failed: 0, cancelled: 0 };
   if (!getPushChannel().configured) return report;
   const expired = await prisma.notificationDelivery.updateMany({
-    where: { userId: options.userId, status: "PROCESSING", leaseUntil: { lte: now }, attempts: { gte: MAX_ATTEMPTS } },
+    where: { userId: options.userId, status: "PROCESSING", OR: [{ leaseUntil: null }, { leaseUntil: { lte: now } }], attempts: { gte: MAX_ATTEMPTS } },
     data: { status: "FAILED", leaseToken: null, leaseUntil: null, lastError: "lease_expired" },
   });
   report.failed += expired.count;
@@ -81,7 +83,7 @@ export async function processNotificationDeliveries(options: { userId?: string; 
     attempts: { lt: MAX_ATTEMPTS },
     OR: [
       { status: "PENDING" as const, nextAttemptAt: { lte: now } },
-      { status: "PROCESSING" as const, leaseUntil: { lte: now } },
+      { status: "PROCESSING" as const, OR: [{ leaseUntil: null }, { leaseUntil: { lte: now } }] },
     ],
   };
   const candidates = await prisma.notificationDelivery.findMany({
@@ -98,15 +100,17 @@ export async function processNotificationDeliveries(options: { userId?: string; 
     report.processed++;
     const job = await prisma.notificationDelivery.findUniqueOrThrow({ where: { id }, include: { notification: true, subscription: { include: { authSession: { include: { user: { select: { tokenVersion: true } } } } } } } });
     if (job.leaseToken !== token) return;
-    const finish = (data: Prisma.NotificationDeliveryUpdateManyMutationInput) => prisma.notificationDelivery.updateMany({
-      where: { id, status: "PROCESSING", leaseToken: token }, data: { ...data, leaseToken: null, leaseUntil: null },
-    });
+    const finish = (data: Prisma.NotificationDeliveryUpdateManyMutationInput) => {
+      if (typeof data.status === "string" && !DELIVERY_TRANSITIONS.PROCESSING.includes(data.status)) throw new Error("Invalid delivery transition.");
+      return prisma.notificationDelivery.updateMany({
+        where: { id, status: "PROCESSING", leaseToken: token }, data: { ...data, leaseToken: null, leaseUntil: null },
+      });
+    };
     try {
       const parsed = pushSubscriptionSchema.safeParse(job.subscription?.data);
       const deviceSession = job.subscription?.authSession;
       if (!job.subscription || job.subscription.userId !== job.userId || !parsed.success
-        || (job.subscription.authSessionId && (!deviceSession || deviceSession.userId !== job.userId || deviceSession.revokedAt
-          || deviceSession.expiresAt <= now || deviceSession.tokenVersion !== deviceSession.user.tokenVersion))
+        || (job.subscription.authSessionId && (!deviceSession || deviceSession.userId !== job.userId || sessionState(deviceSession, now) !== "active"))
         || job.notification.createdAt.getTime() < now.getTime() - 2 * 86_400_000
         || !await stillEligible(job.notification, job.userId)) {
         await finish({ status: "CANCELLED", lastError: "no_longer_eligible" });
@@ -136,12 +140,12 @@ export async function processNotificationDeliveries(options: { userId?: string; 
       await finish({ status: "DELIVERED", deliveredAt: new Date(), lastError: null });
       report.delivered++;
     } catch {
-      await finish({ status: job.attempts >= MAX_ATTEMPTS ? "FAILED" : "PENDING", nextAttemptAt: retryAt(job.attempts, now), lastError: "delivery_failed" });
+      await finish({ status: deliveryOutcome(job.attempts), nextAttemptAt: retryAt(job.attempts, now), lastError: "delivery_failed" });
       report.failed++;
     }
   }
   // Four bounded network requests at a time; never hold a DB transaction during HTTP.
-  for (let index = 0;index < candidates.length;index += 4) {
+  for (let index = 0; index < candidates.length; index += 4) {
     await Promise.all(candidates.slice(index, index + 4).map((candidate) => deliver(candidate.id)));
   }
   return report;

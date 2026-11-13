@@ -1,3 +1,4 @@
+import { PendingFields } from "@/components/forms/pending-fields";
 import type { Metadata } from "next";
 
 import { PageContainer } from "@/components/layout/page-container";
@@ -44,9 +45,11 @@ export default async function NotificationsPage() {
             </LinkButton>
             {hasUnread ? (
               <form action={markAllNotificationsReadAction}>
-                <Button type="submit" variant="secondary" size="sm">
-                  Mark all read
-                </Button>
+                <PendingFields>
+                  <Button type="submit" variant="secondary" size="sm">
+                    Mark all read
+                  </Button>
+                </PendingFields>
               </form>
             ) : null}
           </div>

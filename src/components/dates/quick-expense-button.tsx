@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -60,16 +61,18 @@ export function QuickExpenseButton({
       <BottomSheet open={open} onClose={() => setOpen(false)} title="Add an expense">
         {/* key forces a fresh, empty form each time the sheet opens */}
         <form action={action} className="space-y-4" noValidate key={open ? "open" : "closed"}>
-          <input type="hidden" name="dateId" value={dateId} />
-          <input type="hidden" name="currency" value={currency} />
+          <PendingFields className="space-y-4">
+            <input type="hidden" name="dateId" value={dateId} />
+            <input type="hidden" name="currency" value={currency} />
 
-          <FormFeedback state={state} />
+            <FormFeedback state={state} />
 
-          <ExpenseFields fieldErrors={fieldErrors} partnerName={partnerName} currency={currency} />
+            <ExpenseFields fieldErrors={fieldErrors} partnerName={partnerName} currency={currency} />
 
-          <SubmitButton fullWidth pendingText="Saving…">
-            Add expense
-          </SubmitButton>
+            <SubmitButton fullWidth pendingText="Saving…">
+              Add expense
+            </SubmitButton>
+          </PendingFields>
         </form>
       </BottomSheet>
     </>

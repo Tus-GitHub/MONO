@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  startTransition,
   useCallback,
   useEffect,
   useRef,
@@ -10,6 +9,8 @@ import {
 } from "react";
 import Link from "@/components/ui/app-link";
 
+import { useAsyncTask } from "@/lib/hooks/use-async-task";
+import { useToast } from "@/components/ui/toast";
 import { FavoriteHeart } from "@/components/memories/favorite-heart";
 import { Portal, useHistoryClose, useEscapeKey, useFocusTrap, useScrollLock } from "@/components/ui/_dialog-primitives";
 import { Icon } from "@/components/ui/icon";
@@ -40,7 +41,10 @@ export function PhotoWall({
   const [open, setOpen] = useState<number | null>(null);
   const [photos, setPhotos] = useState(initialPhotos);
   const [cursor, setCursor] = useState(initialCursor);
-  const [loading, setLoading] = useState(false);
+  const task = useAsyncTask<MorePage, "page">();
+  const { run: runTask } = task;
+  const loading = task.state.status === "pending";
+  const { toast } = useToast();
   const sentinel = useRef<HTMLDivElement>(null);
 
   // De-dupe across pages (a photo can only appear once).
@@ -51,23 +55,19 @@ export function PhotoWall({
     });
   }, []);
 
-  const fetchMore = useCallback(() => {
-    if (!loadMore || !cursor || loading) return;
-    setLoading(true);
-    startTransition(async () => {
-      try {
-        const page = await loadMore(cursor);
-        append(page.photos);
-        setCursor(page.nextCursor);
-      } finally {
-        setLoading(false);
-      }
-    });
-  }, [loadMore, cursor, loading, append]);
+  const fetchMore = useCallback(async () => {
+    if (!loadMore || !cursor) return;
+    const outcome = await runTask("page", () => loadMore(cursor));
+    if (outcome) { append(outcome.data.photos); setCursor(outcome.data.nextCursor); }
+  }, [loadMore, cursor, runTask, append]);
+
+  useEffect(() => {
+    if (task.state.status === "error") toast({ title: "Couldn't load more photos. Try again.", variant: "error" });
+  }, [task.state, toast]);
 
   useEffect(() => {
     const node = sentinel.current;
-    if (!node || !cursor || !loadMore) return;
+    if (!node || !cursor || !loadMore || task.state.status === "error") return;
     const io = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) fetchMore();
@@ -76,7 +76,7 @@ export function PhotoWall({
     );
     io.observe(node);
     return () => io.disconnect();
-  }, [cursor, loadMore, fetchMore]);
+  }, [cursor, loadMore, fetchMore, task.state.status]);
 
   if (photos.length === 0) return null;
 

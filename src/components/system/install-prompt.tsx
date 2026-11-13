@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
+import { useAsyncTask } from "@/lib/hooks/use-async-task";
+import { waitFor } from "@/lib/state/wait-for";
 import { focusRing } from "@/components/ui/_shared";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils/cn";
@@ -49,8 +51,10 @@ function readEnv(): Env {
     const raw = localStorage.getItem(DISMISS_KEY);
     if (raw) {
       const d = JSON.parse(raw) as { at: number; count: number };
-      nudges = d.count ?? 0;
-      snoozed = Date.now() - (d.at ?? 0) < SNOOZE_DAYS * 86_400_000;
+      if (Number.isInteger(d.count) && d.count >= 0 && Number.isFinite(d.at) && d.at <= Date.now()) {
+        nudges = d.count;
+        snoozed = Date.now() - d.at < SNOOZE_DAYS * 86_400_000;
+      }
     }
   } catch {
     /* storage unavailable — treat as never nudged */
@@ -72,9 +76,13 @@ function subscribe(onChange: () => void) {
   const mq = window.matchMedia("(display-mode: standalone)");
   mq.addEventListener("change", onChange);
   window.addEventListener("mono:install-state", onChange);
+  window.addEventListener("storage", onChange);
+  window.addEventListener("focus", onChange);
   return () => {
     mq.removeEventListener("change", onChange);
     window.removeEventListener("mono:install-state", onChange);
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener("focus", onChange);
   };
 }
 
@@ -92,6 +100,8 @@ export function InstallPrompt({ variant = "banner" }: { variant?: "banner" | "ca
   const env = useSyncExternalStore(subscribe, readEnv, () => SERVER_ENV);
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissedNow, setDismissedNow] = useState(false);
+  const task = useAsyncTask<void, "install">();
+  const { run: runTask } = task;
 
   useEffect(() => {
     const onBip = (event: Event) => {
@@ -127,14 +137,18 @@ export function InstallPrompt({ variant = "banner" }: { variant?: "banner" | "ca
     } catch {
       /* ignore */
     }
+    window.dispatchEvent(new Event("mono:install-state"));
   }, []);
 
   const install = useCallback(async () => {
     if (!deferred) return;
-    await deferred.prompt();
-    await deferred.userChoice.catch(() => undefined);
-    setDeferred(null);
-  }, [deferred]);
+    await runTask("install", async (signal) => {
+      setDeferred(null);
+      await waitFor(deferred.prompt(), signal, 60_000);
+      const choice = await waitFor(deferred.userChoice, signal, 60_000);
+      if (!signal.aborted && choice.outcome === "dismissed") snooze();
+    });
+  }, [deferred, runTask, snooze]);
 
   const { standalone, ios, installed, snoozed, nudges } = env;
   if (standalone || installed || dismissedNow) return null;
@@ -167,6 +181,7 @@ export function InstallPrompt({ variant = "banner" }: { variant?: "banner" | "ca
               <button
                 type="button"
                 onClick={install}
+                disabled={task.state.status === "pending"}
                 className={cn(
                   "mt-3 inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-fg transition-colors hover:bg-primary-hover",
                   focusRing,
@@ -199,6 +214,7 @@ export function InstallPrompt({ variant = "banner" }: { variant?: "banner" | "ca
         <button
           type="button"
           onClick={install}
+          disabled={task.state.status === "pending"}
           className={cn(
             "h-9 shrink-0 rounded-lg bg-primary px-3 text-sm font-medium text-primary-fg transition-colors hover:bg-primary-hover",
             focusRing,

@@ -1,3 +1,4 @@
+import { PendingFields } from "@/components/forms/pending-fields";
 import Link from "@/components/ui/app-link";
 import { PhotoCredit } from "@/components/places/photo-credit";
 import { PlaceImage } from "@/components/places/place-image";
@@ -198,10 +199,12 @@ export function PlaceDetail({ place, forDate }: { place: PlaceDetailView; forDat
           />
         ) : (
           <form action={startPlanAction}>
-            <input type="hidden" name="place" value={place.id} />
-            <SubmitButton size="lg" fullWidth pendingText="Starting…">
-              Plan a date here
-            </SubmitButton>
+            <PendingFields>
+              <input type="hidden" name="place" value={place.id} />
+              <SubmitButton size="lg" fullWidth pendingText="Starting…">
+                Plan a date here
+              </SubmitButton>
+            </PendingFields>
           </form>
         )}
       </div>

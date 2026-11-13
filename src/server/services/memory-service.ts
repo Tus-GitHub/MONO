@@ -1,4 +1,6 @@
 import "server-only";
+import { toggleCoupleFavorite } from "@/server/services/favorite-service";
+import { dateAllows } from "@/lib/date/permissions";
 
 import { DateStatus, NotificationType, type RevisitChoice } from "@prisma/client";
 
@@ -24,9 +26,9 @@ import {
   PHOTO_SELECT,
   toPhotoView,
 } from "@/server/services/photo-service";
+import { withDateWrite } from "@/server/services/date-write";
 import { ensureMemoryReminder } from "@/server/services/reminder-service";
 
-const MEMORABLE_STATUSES: DateStatus[] = [DateStatus.IN_PROGRESS, DateStatus.COMPLETED];
 
 export interface MemoryContext {
   dateTitle: string;
@@ -58,55 +60,58 @@ export async function getMemoryContext(dateId: string): Promise<MemoryContext> {
   return {
     dateTitle: date.title,
     status: date.status,
-    memorable: MEMORABLE_STATUSES.includes(date.status),
+    memorable: dateAllows(date.status, "memory"),
     photos: date.photos.map((row) => toPhotoView(row, date.bestPhotoId)),
     memory: date.memory,
   };
 }
 
 export async function saveMemory(dateId: string, input: DateMemoryInput) {
-  const { context, resource } = await authorizeDate(dateId);
-  if (!MEMORABLE_STATUSES.includes(resource.status)) {
-    throw new ValidationError("Keep a memory once the date has happened.");
-  }
+  const { context, resource, isNew } = await withDateWrite(dateId, async (tx, resource, context) => {
+    if (!dateAllows(resource.status, "memory")) {
+      throw new ValidationError("Keep a memory once the date has happened.");
+    }
 
-  let coverPhotoId: string | null = null;
-  if (input.coverPhotoId) {
-    const photo = await prisma.datePhoto.findFirst({
-      where: { id: input.coverPhotoId, dateId: resource.id, deletedAt: null },
-      select: { id: true },
+    let coverPhotoId: string | null = null;
+    if (input.coverPhotoId) {
+      const photo = await tx.datePhoto.findFirst({
+        where: { id: input.coverPhotoId, dateId: resource.id, deletedAt: null },
+        select: { id: true },
+      });
+      if (!photo) throw new NotFoundError("That photo isn't on this date.");
+      coverPhotoId = photo.id;
+    }
+
+    const date = await tx.date.findUniqueOrThrow({
+      where: { id: resource.id },
+      select: { actualStartAt: true, scheduledFor: true, memory: { select: { id: true, deletedAt: true } } },
     });
-    if (!photo) throw new NotFoundError("That photo isn't on this date.");
-    coverPhotoId = photo.id;
-  }
+    const isNew = !date.memory || date.memory.deletedAt !== null;
+    const occurredOn = date.actualStartAt ?? date.scheduledFor ?? null;
 
-  const date = await prisma.date.findUniqueOrThrow({
-    where: { id: resource.id },
-    select: { actualStartAt: true, scheduledFor: true, memory: { select: { id: true, deletedAt: true } } },
-  });
-  const isNew = !date.memory || date.memory.deletedAt !== null;
-  const occurredOn = date.actualStartAt ?? date.scheduledFor ?? null;
+    await tx.memory.upsert({
+      where: { dateId: resource.id },
+      create: {
+        coupleId: context.couple.id,
+        dateId: resource.id,
+        authorId: context.user.id,
+        title: input.title,
+        body: input.body,
+        occurredOn,
+        isFavorite: input.isFavorite,
+        coverPhotoId,
+      },
+      update: {
+        title: input.title,
+        body: input.body,
+        isFavorite: input.isFavorite,
+        coverPhotoId,
+        deletedAt: null,
+        ...(isNew ? { authorId: context.user.id, occurredOn } : {}),
+      },
+    });
 
-  await prisma.memory.upsert({
-    where: { dateId: resource.id },
-    create: {
-      coupleId: context.couple.id,
-      dateId: resource.id,
-      authorId: context.user.id,
-      title: input.title,
-      body: input.body,
-      occurredOn,
-      isFavorite: input.isFavorite,
-      coverPhotoId,
-    },
-    update: {
-      title: input.title,
-      body: input.body,
-      isFavorite: input.isFavorite,
-      coverPhotoId,
-      deletedAt: null,
-      ...(isNew ? { authorId: context.user.id, occurredOn } : {}),
-    },
+    return { context, resource, isNew };
   });
 
   await logDateEvent(
@@ -130,21 +135,17 @@ export async function saveMemory(dateId: string, input: DateMemoryInput) {
 }
 
 export async function deleteMemory(dateId: string) {
-  const { resource } = await authorizeDate(dateId);
-  const deleted = await prisma.memory.updateMany({
+  const deleted = await withDateWrite(dateId, (tx, resource) => tx.memory.updateMany({
     where: { dateId: resource.id, deletedAt: null },
     data: { deletedAt: new Date() },
-  });
+  }));
   if (deleted.count === 0) throw new NotFoundError("There's no memory to remove.");
-  await ensureMemoryReminder(resource.id); // removed again — re-arm if still completed
+  await ensureMemoryReminder(dateId); // removed again — re-arm if still completed
 }
 
 /** Heart / un-heart a memory. Returns the new state. */
 export async function toggleMemoryFavorite(memoryId: string): Promise<boolean> {
-  const { resource } = await authorizeMemory(memoryId);
-  const next = !resource.isFavorite;
-  await prisma.memory.update({ where: { id: resource.id }, data: { isFavorite: next } });
-  return next;
+  return toggleCoupleFavorite("memory", memoryId);
 }
 
 // ===========================================================================
@@ -384,21 +385,21 @@ export async function getMemoryDetail(
   const comparison = exp.review.comparison;
   const topCategories = comparison
     ? [...comparison.categories]
-        .filter((c) => c.combined != null)
-        .sort((a, b) => (b.combined as number) - (a.combined as number))
-        .slice(0, 3)
-        .map((c) => ({ label: c.label, score: c.combined as number }))
+      .filter((c) => c.combined != null)
+      .sort((a, b) => (b.combined as number) - (a.combined as number))
+      .slice(0, 3)
+      .map((c) => ({ label: c.label, score: c.combined as number }))
     : [];
 
   const spend = exp.spending.effectiveSpendCents;
   const spendLine =
     spend != null
       ? `You spent ${formatMoney(spend, exp.date.currency)}` +
-        (exp.spending.delta.state === "over" || exp.spending.delta.state === "under"
-          ? ` · ${exp.spending.delta.label}`
-          : exp.spending.delta.state === "on"
-            ? " · right on budget"
-            : "")
+      (exp.spending.delta.state === "over" || exp.spending.delta.state === "under"
+        ? ` · ${exp.spending.delta.label}`
+        : exp.spending.delta.state === "on"
+          ? " · right on budget"
+          : "")
       : null;
 
   return {
@@ -412,13 +413,13 @@ export async function getMemoryDetail(
     placeIsFavorite: place?.isFavorite ?? false,
     hero: heroPhoto
       ? {
-          thumbUrl: heroPhoto.thumbUrl,
-          displayUrl: heroPhoto.displayUrl,
-          fullUrl: heroPhoto.fullUrl,
-          blurDataUrl: heroPhoto.blurDataUrl,
-          width: heroPhoto.width,
-          height: heroPhoto.height,
-        }
+        thumbUrl: heroPhoto.thumbUrl,
+        displayUrl: heroPhoto.displayUrl,
+        fullUrl: heroPhoto.fullUrl,
+        blurDataUrl: heroPhoto.blurDataUrl,
+        width: heroPhoto.width,
+        height: heroPhoto.height,
+      }
       : null,
     ordinal: milestones.ordinals.get(resource.dateId) ?? null,
     milestones: milestones.byId.get(resource.dateId) ?? [],

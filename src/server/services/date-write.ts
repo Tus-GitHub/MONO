@@ -2,12 +2,12 @@ import "server-only";
 
 import type { Date as DateRecord, Prisma } from "@prisma/client";
 import { requireCoupleContext, type CoupleContext } from "@/lib/authz";
-import { isPlanningStatus } from "@/lib/date/lifecycle";
+import { dateAllows } from "@/lib/date/permissions";
 import { serializable } from "@/lib/db/serializable";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 
 export function assertPlanEditable(date: Pick<DateRecord, "status">): void {
-  if (!isPlanningStatus(date.status)) throw new ValidationError("This date can no longer be planned.");
+  if (!dateAllows(date.status, "plan")) throw new ValidationError("This date can no longer be planned.");
 }
 
 /** Serialize related writes on the date, then recheck ownership and current state inside the transaction. */

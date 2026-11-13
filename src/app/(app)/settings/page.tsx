@@ -1,3 +1,4 @@
+import { PendingFields } from "@/components/forms/pending-fields";
 import type { Metadata } from "next";
 import Link from "@/components/ui/app-link";
 
@@ -67,15 +68,17 @@ export default async function SettingsPage() {
           action={logoutAction}
           className="rounded-xl border border-line bg-surface p-5"
         >
-          <p className="text-sm font-medium text-ink">Sign out</p>
-          <p className="mt-1 text-sm text-muted">Sign out on this device.</p>
-          <button
-            type="submit"
-            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-line-strong px-3 py-2 text-sm text-ink transition-colors hover:bg-paper"
-          >
-            <Icon name="logout" size="sm" className="text-muted" />
-            Sign out
-          </button>
+          <PendingFields>
+            <p className="text-sm font-medium text-ink">Sign out</p>
+            <p className="mt-1 text-sm text-muted">Sign out on this device.</p>
+            <button
+              type="submit"
+              className="mt-4 inline-flex items-center gap-2 rounded-lg border border-line-strong px-3 py-2 text-sm text-ink transition-colors hover:bg-paper"
+            >
+              <Icon name="logout" size="sm" className="text-muted" />
+              Sign out
+            </button>
+          </PendingFields>
         </form>
       </section>
 

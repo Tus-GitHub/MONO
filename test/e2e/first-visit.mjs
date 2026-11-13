@@ -55,17 +55,21 @@ export async function runFirstVisit({ browser, baseUrl, artifactDir }) {
       await page.screenshot({ path: path.join(artifactDir, `first-visit-${route.slice(1)}.png`), fullPage: true });
 
       if (route === "/register") {
-        // A genuinely replaced controller must still reload a controlled page onto the
-        // updated build. Changing the script URL installs the same real worker anew.
+        // A replacement waits for consent, preserving entered work until Refresh is clicked.
+        // Changing the script URL installs the same real worker anew.
         const beforeUpdate = documentRequests;
-        const reloaded = page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 60_000 });
         await page.evaluate(() => {
           void navigator.serviceWorker.register(`/sw.js?first-visit-update=${Date.now()}`);
         });
+        await page.waitForFunction(() => [...document.querySelectorAll("button")].some((button) => button.textContent.trim() === "Refresh"));
+        assert.equal(documentRequests, beforeUpdate, "A waiting replacement must not reload the form");
+        assert.equal(await page.$eval('[name="name"]', (input) => input.value), "Unsaved registration draft");
+        const reloaded = page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 60_000 });
+        await page.evaluate(() => [...document.querySelectorAll("button")].find((button) => button.textContent.trim() === "Refresh").click());
         await reloaded;
         await new Promise((resolve) => setTimeout(resolve, 1000));
         assert.equal(documentRequests, beforeUpdate + 1, "Replacing an existing worker should reload once");
-        pass("an existing controller update still reloads exactly once");
+        pass("a replacement waits for Refresh and then reloads exactly once");
       }
     } finally { await context.close(); }
   }

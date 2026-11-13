@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
 import { useActionState } from "react";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
@@ -15,11 +16,13 @@ export function CreateSpaceButton() {
   const [state, action] = useActionState(createCoupleAction, idleState);
   return (
     <form action={action}>
-      <BrowserTimezoneInput />
-      <FormFeedback state={state} />
-      <SubmitButton fullWidth pendingText="Creating…" className="mt-1">
-        Create our space
-      </SubmitButton>
+      <PendingFields>
+        <BrowserTimezoneInput />
+        <FormFeedback state={state} />
+        <SubmitButton fullWidth pendingText="Creating…" className="mt-1">
+          Create our space
+        </SubmitButton>
+      </PendingFields>
     </form>
   );
 }
@@ -30,25 +33,27 @@ export function CreateCoupleForm() {
 
   return (
     <form action={action} className="space-y-4" noValidate>
-      <BrowserTimezoneInput />
-      <FormFeedback state={state} />
+      <PendingFields className="space-y-4">
+        <BrowserTimezoneInput />
+        <FormFeedback state={state} />
 
-      <Field
-        label="Space name"
-        htmlFor="name"
-        hint="Optional — e.g. your names or a nickname."
-        errors={fieldErrors?.name}
-      >
-        <Input id="name" name="name" placeholder="Us" />
-      </Field>
+        <Field
+          label="Space name"
+          htmlFor="name"
+          hint="Optional — e.g. your names or a nickname."
+          errors={fieldErrors?.name}
+        >
+          <Input id="name" name="name" placeholder="Us" />
+        </Field>
 
-      <Field label="Anniversary" htmlFor="anniversaryAt" hint="Optional." errors={fieldErrors?.anniversaryAt}>
-        <Input id="anniversaryAt" name="anniversaryAt" type="date" />
-      </Field>
+        <Field label="Anniversary" htmlFor="anniversaryAt" hint="Optional." errors={fieldErrors?.anniversaryAt}>
+          <Input id="anniversaryAt" name="anniversaryAt" type="date" />
+        </Field>
 
-      <SubmitButton className="w-full" pendingText="Creating…">
-        Create our space
-      </SubmitButton>
+        <SubmitButton className="w-full" pendingText="Creating…">
+          Create our space
+        </SubmitButton>
+      </PendingFields>
     </form>
   );
 }
@@ -59,26 +64,28 @@ export function JoinCoupleForm() {
 
   return (
     <form action={action} className="space-y-4" noValidate>
-      <FormFeedback state={state} />
+      <PendingFields className="space-y-4">
+        <FormFeedback state={state} />
 
-      <Field
-        label="Invite code"
-        htmlFor="inviteCode"
-        hint="The code your partner sees after creating the space."
-        errors={fieldErrors?.inviteCode}
-      >
-        <Input
-          id="inviteCode"
-          name="inviteCode"
-          autoCapitalize="characters"
-          placeholder="ABC-1234"
-          required
-        />
-      </Field>
+        <Field
+          label="Invite code"
+          htmlFor="inviteCode"
+          hint="The code your partner sees after creating the space."
+          errors={fieldErrors?.inviteCode}
+        >
+          <Input
+            id="inviteCode"
+            name="inviteCode"
+            autoCapitalize="characters"
+            placeholder="ABC-1234"
+            required
+          />
+        </Field>
 
-      <SubmitButton className="w-full" pendingText="Joining…">
-        Join with code
-      </SubmitButton>
+        <SubmitButton className="w-full" pendingText="Joining…">
+          Join with code
+        </SubmitButton>
+      </PendingFields>
     </form>
   );
 }

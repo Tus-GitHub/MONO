@@ -18,9 +18,9 @@ if (!["postgresql:", "postgres:"].includes(url.protocol)
 if (!url.searchParams.has("connection_limit")) url.searchParams.set("connection_limit", "5");
 const engine = process.env.MONO_E2E_BROWSER ?? "chrome";
 if (!["chrome", "firefox"].includes(engine)) throw new Error("MONO_E2E_BROWSER must be chrome or firefox.");
-const suites = { journey: ["journey.mjs", "runJourney"], account: ["account.mjs", "runAccountControls"], pagination: ["pagination.mjs", "runPagination"], workflows: ["workflows.mjs", "runWorkflows"], compatibility: ["compatibility.mjs", "runCompatibility"], settings: ["settings.mjs", "runSettings"], registration: ["registration.mjs", "runRegistration"] };
+const suites = { journey: ["journey.mjs", "runJourney"], account: ["account.mjs", "runAccountControls"], pagination: ["pagination.mjs", "runPagination"], workflows: ["workflows.mjs", "runWorkflows"], compatibility: ["compatibility.mjs", "runCompatibility"], settings: ["settings.mjs", "runSettings"], registration: ["registration.mjs", "runRegistration"], states: ["state-machines.mjs", "runStateMachines"] };
 const selected = process.argv.slice(2).length ? process.argv.slice(2) : engine === "firefox" ? ["compatibility"] : Object.keys(suites);
-if (selected.some((name) => !suites[name])) throw new Error("Choose journey, account, pagination, workflows, compatibility, settings, or registration.");
+if (selected.some((name) => !suites[name])) throw new Error("Choose journey, account, pagination, workflows, compatibility, settings, registration, or states.");
 // The original suites use CDP-only timezone/offline emulation. Never count a skipped
 // emulation check as Firefox coverage; its separate suite uses native BiDi operations.
 if (engine === "firefox" && selected.some((name) => name !== "compatibility")) throw new Error("Firefox runs compatibility; the other suites require Chromium CDP emulation.");
@@ -76,9 +76,18 @@ async function stop(child) {
   await Promise.race([child.completion, new Promise((resolve) => setTimeout(resolve, 5_000))]);
 }
 async function assertFreePort() {
-  const probe = createServer();
-  await new Promise((resolve, reject) => { probe.once("error", reject); probe.listen(port, "127.0.0.1", resolve); });
-  await new Promise((resolve) => probe.close(resolve));
+  // Windows may release a killed server's socket just after its process-exit event.
+  for (let attempt = 0; ; attempt++) {
+    const probe = createServer();
+    try {
+      await new Promise((resolve, reject) => { probe.once("error", reject); probe.listen(port, "127.0.0.1", resolve); });
+      await new Promise((resolve) => probe.close(resolve));
+      return;
+    } catch (error) {
+      if (error.code !== "EADDRINUSE" || attempt >= 49) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
 }
 async function ready(child) {
   const deadline = Date.now() + 120_000;
@@ -88,6 +97,18 @@ async function ready(child) {
     await new Promise((resolve) => setTimeout(resolve, 400));
   }
   throw new Error("Local test server did not become ready.");
+}
+
+async function cleanupFixtures() {
+  if (!prisma) return;
+  const users = await prisma.user.findMany({ where: { email: { startsWith: `e2e-${runId}-` } }, select: { id: true } });
+  const ids = users.map((user) => user.id);
+  const couples = await prisma.couple.findMany({ where: { createdById: { in: ids } }, select: { id: true } });
+  const prefixes = [...ids.map((id) => `users/${id}/`), ...couples.map((couple) => `couples/${couple.id}/`)];
+  if (prefixes.length) await prisma.storageCleanup.deleteMany({ where: { OR: prefixes.map((prefix) => ({ key: { startsWith: prefix } })) } });
+  await prisma.couple.deleteMany({ where: { id: { in: couples.map((couple) => couple.id) } } });
+  await prisma.user.deleteMany({ where: { id: { in: ids } } });
+  console.log(`Cleaned ${ids.length} fixture accounts and ${couples.length} fixture spaces.`);
 }
 let server, browser, prisma;
 let failed = false;
@@ -121,6 +142,8 @@ try {
     const result = await suite[entry]({ browser, baseUrl, prisma, runId, artifactDir, storageRoot });
     results.push({ suite: name, ...result, durationMs: Date.now() - startedAt });
     await stop(server); server = null;
+    // Names are unique across active accounts; suites must not retain each other's fixtures.
+    await cleanupFixtures();
     console.log(`PASS ${name}: ${result.checks} checks`);
   }
 } catch (error) {
@@ -132,14 +155,7 @@ try {
   await stop(server);
   if (prisma) {
     try {
-      const users = await prisma.user.findMany({ where: { email: { startsWith: `e2e-${runId}-` } }, select: { id: true } });
-      const ids = users.map((user) => user.id);
-      const couples = await prisma.couple.findMany({ where: { createdById: { in: ids } }, select: { id: true } });
-      const prefixes = [...ids.map((id) => `users/${id}/`), ...couples.map((couple) => `couples/${couple.id}/`)];
-      await prisma.storageCleanup.deleteMany({ where: { OR: prefixes.map((prefix) => ({ key: { startsWith: prefix } })) } });
-      await prisma.couple.deleteMany({ where: { id: { in: couples.map((couple) => couple.id) } } });
-      await prisma.user.deleteMany({ where: { id: { in: ids } } });
-      console.log(`Cleaned ${ids.length} fixture accounts and ${couples.length} fixture spaces.`);
+      await cleanupFixtures();
     } catch { failed = true; console.error("Fixture cleanup failed; inspect the isolated test database."); }
     await prisma.$disconnect();
   }

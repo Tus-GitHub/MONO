@@ -6,11 +6,11 @@ export async function settingsRequestError(response: Response): Promise<Error> {
     : "That request couldn't finish. Please try again.");
 }
 
-export async function settingsRequest<T>(path: string, body?: unknown): Promise<T> {
+export async function settingsRequest<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   let response: Response;
   try {
     response = await fetch(path, {
-      cache: "no-store", credentials: "same-origin",
+      cache: "no-store", credentials: "same-origin", signal,
       ...(body === undefined ? {} : {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
       }),

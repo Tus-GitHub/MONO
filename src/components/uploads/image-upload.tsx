@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Spinner } from "@/components/ui/spinner";
 import { downscaleImage } from "@/lib/images/client-resize";
 import { IMAGE_UPLOAD, validateImageUpload } from "@/lib/storage/image-rules";
+import { useAsyncTask } from "@/lib/hooks/use-async-task";
+import { uploadImageRequest } from "@/lib/images/upload-request";
 import { cn } from "@/lib/utils/cn";
 
 type Shape = "circle" | "cover";
@@ -22,7 +24,6 @@ interface ImageUploadProps {
   className?: string;
 }
 
-type Status = "idle" | "uploading" | "removing" | "error";
 
 export function ImageUpload({
   endpoint,
@@ -34,83 +35,37 @@ export function ImageUpload({
   className,
 }: ImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const xhrRef = useRef<XMLHttpRequest | null>(null);
   const lastFile = useRef<File | null>(null);
 
-  const [status, setStatus] = useState<Status>("idle");
+  const task = useAsyncTask<{ url: string | null }, "uploading" | "removing">();
+  const { run: runTask } = task;
+  const status = task.state.status === "pending" ? task.state.phase : task.state.status;
+  const error = task.state.status === "error" ? task.state.message : null;
+  const canRetry = task.state.status === "error" && task.state.phase === "uploading";
   const [progress, setProgress] = useState(0);
-  const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [canRetry, setCanRetry] = useState(false);
-
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
   const shown = preview ?? value;
   const hasImage = Boolean(value);
 
-  const upload = useCallback(
-    async (input: File) => {
-      // Shrink / transcode on the client first (iPhone HEIC → JPEG, 12 MP → ~2560px).
-      const file = await downscaleImage(input);
-      const check = validateImageUpload({ type: file.type, size: file.size });
-      if (!check.ok) {
-        setStatus("error");
-        setError(check.message);
-        return;
-      }
-
-      lastFile.current = file;
-      setError(null);
-      setCanRetry(false);
-      setStatus("uploading");
+  const upload = useCallback(async (input: File) => {
+    const outcome = await runTask("uploading", async (signal) => {
+      lastFile.current = input;
       setProgress(0);
-      const objectUrl = URL.createObjectURL(file);
-      setPreview(objectUrl);
-
-      const body = new FormData();
-      body.append("file", file);
-
-      const xhr = new XMLHttpRequest();
-      xhrRef.current = xhr;
-      xhr.open("POST", endpoint);
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) setProgress(Math.round((event.loaded / event.total) * 100));
-      };
-      xhr.onload = () => {
-        URL.revokeObjectURL(objectUrl);
-        setPreview(null);
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const data = JSON.parse(xhr.responseText) as { url: string };
-            setStatus("idle");
-            setProgress(100);
-            onChange?.(data.url);
-          } catch {
-            setStatus("error");
-            setError("Upload succeeded but the response was unreadable.");
-          }
-        } else {
-          let message = "Upload failed. Try again.";
-          try {
-            message = (JSON.parse(xhr.responseText) as { error?: string }).error ?? message;
-          } catch {
-            /* keep default */
-          }
-          setStatus("error");
-          setError(message);
-          setCanRetry(true);
-        }
-      };
-      xhr.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        setPreview(null);
-        setStatus("error");
-        setError("Network error during upload.");
-        setCanRetry(true);
-      };
-      xhr.send(body);
-    },
-    [endpoint, onChange],
-  );
+      const file = await downscaleImage(input);
+      signal.throwIfAborted();
+      const check = validateImageUpload({ type: file.type, size: file.size });
+      if (!check.ok) throw new Error(check.message);
+      setPreview(URL.createObjectURL(file));
+      try {
+        const response = await uploadImageRequest<{ url: string }>(endpoint, file, signal, setProgress);
+        if (typeof response?.url !== "string") throw new Error("Upload succeeded but the response was unreadable.");
+        return response;
+      } finally { if (!signal.aborted) setPreview(null); }
+    });
+    if (outcome) onChange?.(outcome.data.url);
+  }, [runTask, endpoint, onChange]);
 
   const onPick = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -126,17 +81,12 @@ export function ImageUpload({
   };
 
   const remove = async () => {
-    setStatus("removing");
-    setError(null);
-    try {
-      const res = await fetch(endpoint, { method: "DELETE" });
-      if (!res.ok) throw new Error();
-      setStatus("idle");
-      onChange?.(null);
-    } catch {
-      setStatus("error");
-      setError("Couldn't remove the photo.");
-    }
+    const outcome = await runTask("removing", async (signal) => {
+      const response = await fetch(endpoint, { method: "DELETE", signal });
+      if (!response.ok) throw new Error("Couldn't remove the photo.");
+      return { url: null };
+    });
+    if (outcome) onChange?.(null);
   };
 
   const frame =

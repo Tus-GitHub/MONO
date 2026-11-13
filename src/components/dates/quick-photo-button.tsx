@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { downscaleImage } from "@/lib/images/client-resize";
 import { IMAGE_UPLOAD, validateImageUpload } from "@/lib/storage/image-rules";
+import { useAsyncTask } from "@/lib/hooks/use-async-task";
+import { uploadImageRequest } from "@/lib/images/upload-request";
 import { cn } from "@/lib/utils/cn";
 
 /**
@@ -30,49 +32,21 @@ export function QuickPhotoButton({
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
+  const task = useAsyncTask<unknown, "uploading">();
+  const busy = task.state.status === "pending";
+  const error = task.state.status === "error" ? task.state.message : null;
   const [progress, setProgress] = useState(0);
-  const [error, setError] = useState<string | null>(null);
 
   const upload = async (input: File) => {
-    setError(null);
-    setBusy(true);
-    setProgress(0);
-    // iPhone camera captures arrive as HEIC / 12 MP — transcode + shrink before the POST.
-    const file = await downscaleImage(input);
-    const check = validateImageUpload({ type: file.type, size: file.size });
-    if (!check.ok) {
-      setBusy(false);
-      setError(check.message);
-      return;
-    }
-
-    const body = new FormData();
-    body.append("file", file);
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", `/api/uploads/date-photo?dateId=${encodeURIComponent(dateId)}`);
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) setProgress(Math.round((event.loaded / event.total) * 100));
-    };
-    xhr.onload = () => {
-      setBusy(false);
-      if (xhr.status >= 200 && xhr.status < 300) {
-        router.refresh();
-      } else {
-        let message = "Upload failed. Try again.";
-        try {
-          message = (JSON.parse(xhr.responseText) as { error?: string }).error ?? message;
-        } catch {
-          /* keep default */
-        }
-        setError(message);
-      }
-    };
-    xhr.onerror = () => {
-      setBusy(false);
-      setError("Network error during upload.");
-    };
-    xhr.send(body);
+    const outcome = await task.run("uploading", async (signal) => {
+      setProgress(0);
+      const file = await downscaleImage(input);
+      signal.throwIfAborted();
+      const check = validateImageUpload({ type: file.type, size: file.size });
+      if (!check.ok) throw new Error(check.message);
+      return uploadImageRequest(`/api/uploads/date-photo?dateId=${encodeURIComponent(dateId)}`, file, signal, setProgress);
+    });
+    if (outcome) router.refresh();
   };
 
   const onPick = (event: ChangeEvent<HTMLInputElement>) => {

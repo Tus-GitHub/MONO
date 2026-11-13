@@ -1,3 +1,4 @@
+import { PendingFields } from "@/components/forms/pending-fields";
 import type { Metadata } from "next";
 import Link from "@/components/ui/app-link";
 
@@ -30,11 +31,13 @@ export default async function PlanPage({
       />
 
       <form action={startPlanAction}>
-        {place ? <input type="hidden" name="place" value={place} /> : null}
-        {idea ? <input type="hidden" name="idea" value={idea} /> : null}
-        <SubmitButton size="lg" fullWidth leadingIcon={<Icon name="plus" size="sm" />}>
-          Start a new plan
-        </SubmitButton>
+        <PendingFields>
+          {place ? <input type="hidden" name="place" value={place} /> : null}
+          {idea ? <input type="hidden" name="idea" value={idea} /> : null}
+          <SubmitButton size="lg" fullWidth leadingIcon={<Icon name="plus" size="sm" />}>
+            Start a new plan
+          </SubmitButton>
+        </PendingFields>
       </form>
 
       <section className="mt-8">

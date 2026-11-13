@@ -1,57 +1,49 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import type { AuthSessionView } from "@/lib/auth/session-view";
-import { settingsErrorMessage, settingsRequest } from "@/lib/settings/request";
+import { useAsyncTask } from "@/lib/hooks/use-async-task";
+import { settingsRequest } from "@/lib/settings/request";
 
 type SessionAction = { action: "revoke"; sessionId: string } | { action: "revoke-others" | "revoke-all" };
 
 export function SessionSettings({ initial, timezone }: { initial: AuthSessionView[]; timezone: string }) {
   const [sessions, setSessions] = useState(initial);
-  const [pending, setPending] = useState<string | null>(null);
-  const busy = useRef(false);
-  const [error, setError] = useState<string | null>(null);
+  const task = useAsyncTask<unknown>();
+  const pending = task.state.status === "pending" ? task.state.phase : null;
+  const error = task.state.status === "error" ? task.state.message : null;
   const [message, setMessage] = useState<string | null>(null);
   const confirm = useConfirm();
   const formatter = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short", timeZone: timezone });
   const otherCount = sessions.filter((session) => !session.current).length;
 
   async function refresh() {
-    if (busy.current) return;
-    busy.current = true; setPending("refresh"); setError(null); setMessage(null);
-    try {
-      const result = await settingsRequest<{ sessions: AuthSessionView[] }>("/api/account/sessions");
-      setSessions(result.sessions); setMessage("Your device list is up to date.");
-    } catch (failure) { setError(settingsErrorMessage(failure)); }
-    finally { busy.current = false; setPending(null); }
+    setMessage(null);
+    const outcome = await task.run("refresh", (signal) => settingsRequest<{ sessions: AuthSessionView[] }>("/api/account/sessions", undefined, signal));
+    if (outcome) { setSessions(outcome.data.sessions); setMessage("Your device list is up to date."); }
   }
 
   async function revoke(input: SessionAction, device?: AuthSessionView) {
-    if (busy.current) return;
-    busy.current = true; setPending(input.action === "revoke" ? input.sessionId : input.action);
-    setError(null); setMessage(null);
-    try {
+    setMessage(null);
+    const outcome = await task.run(input.action === "revoke" ? input.sessionId : input.action, async (signal) => {
       const signedOut = input.action === "revoke-all" || Boolean(device?.current);
       const accepted = await confirm({
-        title: input.action === "revoke-all" ? "Sign out everywhere?"
-          : input.action === "revoke-others" ? "Sign out other devices?"
-          : device?.current ? "Sign out this device?" : "Sign out this session?",
-        description: signedOut ? "You'll need to sign in again on this device."
-          : "These sessions will end and their browser notifications will stop. This device stays signed in.",
+        title: input.action === "revoke-all" ? "Sign out everywhere?" : input.action === "revoke-others" ? "Sign out other devices?" : device?.current ? "Sign out this device?" : "Sign out this session?",
+        description: signedOut ? "You'll need to sign in again on this device." : "These sessions will end and their browser notifications will stop. This device stays signed in.",
         confirmLabel: "Sign out", tone: "danger",
       });
-      if (!accepted) return;
-      const result = await settingsRequest<{ signedOut: boolean }>("/api/account/sessions", input);
-      if (result.signedOut) { window.location.replace("/login?signedOut=1"); return; }
-      setSessions((current) => current.filter((session) => input.action === "revoke"
-        ? session.id !== input.sessionId : session.current));
-      setMessage(input.action === "revoke-others" ? "Other devices have been signed out." : "The session has been signed out.");
-    } catch (failure) { setError(settingsErrorMessage(failure)); }
-    finally { busy.current = false; setPending(null); }
+      if (!accepted) return null;
+      signal.throwIfAborted();
+      return settingsRequest<{ signedOut: boolean }>("/api/account/sessions", input, signal);
+    });
+    if (!outcome?.data) return;
+    if (outcome.data.signedOut) { window.location.replace("/login?signedOut=1"); return; }
+    setSessions((current) => current.filter((session) => input.action === "revoke" ? session.id !== input.sessionId : session.current));
+    setMessage(input.action === "revoke-others" ? "Other devices have been signed out." : "The session has been signed out.");
   }
 
   return (

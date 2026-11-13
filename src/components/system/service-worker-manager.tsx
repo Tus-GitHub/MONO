@@ -24,6 +24,7 @@ export function ServiceWorkerManager() {
     // existing controller, or signup drafts and scrubbed email-link tokens disappear.
     let controlled = Boolean(navigator.serviceWorker.controller);
     let reloading = false;
+    let disposed = false;
     const onControllerChange = () => {
       const replacing = controlled;
       controlled = Boolean(navigator.serviceWorker.controller);
@@ -38,6 +39,7 @@ export function ServiceWorkerManager() {
     navigator.serviceWorker
       .register("/sw.js")
       .then((reg) => {
+        if (disposed) return;
         registration = reg;
         if (reg.waiting && navigator.serviceWorker.controller) setWaiting(reg.waiting);
 
@@ -45,7 +47,7 @@ export function ServiceWorkerManager() {
           const next = reg.installing;
           if (!next) return;
           next.addEventListener("statechange", () => {
-            if (next.state === "installed" && navigator.serviceWorker.controller) {
+            if (!disposed && next.state === "installed" && navigator.serviceWorker.controller) {
               setWaiting(reg.waiting ?? next);
             }
           });
@@ -57,10 +59,11 @@ export function ServiceWorkerManager() {
 
     // Re-check for a new worker whenever the tab comes back to the foreground.
     const onVisible = () => {
-      if (document.visibilityState === "visible") registration?.update().catch(() => {});
+      if (document.visibilityState === "visible") registration?.update().catch(() => { });
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
+      disposed = true;
       document.removeEventListener("visibilitychange", onVisible);
       navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
     };

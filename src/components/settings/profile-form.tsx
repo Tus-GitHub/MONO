@@ -1,5 +1,7 @@
 "use client";
 
+import { PendingFields } from "@/components/forms/pending-fields";
+
 import { useActionState, useState } from "react";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
@@ -33,33 +35,35 @@ export function ProfileForm({ initial }: Props) {
     <form action={action} onChange={() => setDismissedState(state)}
       onSubmit={(event) => { if (!nameValid) event.preventDefault(); }}
       onReset={(event) => event.preventDefault()} className="space-y-5" noValidate>
-      <UnsavedGuard state={state} />
-      <FormFeedback state={dismissedState === state ? idleState : state} />
+      <PendingFields className="space-y-5">
+        <UnsavedGuard state={state} />
+        <FormFeedback state={dismissedState === state ? idleState : state} />
 
-      <ImageUpload
-        endpoint="/api/uploads/avatar"
-        value={avatarUrl}
-        onChange={setAvatarUrl}
-        shape="circle"
-        label="Profile photo"
-      />
+        <ImageUpload
+          endpoint="/api/uploads/avatar"
+          value={avatarUrl}
+          onChange={setAvatarUrl}
+          shape="circle"
+          label="Profile photo"
+        />
 
-      <UniqueNameField initial={initial.name} errors={fieldErrors?.name} onValidityChange={setNameValid} />
+        <UniqueNameField initial={initial.name} errors={fieldErrors?.name} onValidityChange={setNameValid} />
 
-      <Field label="Nickname" htmlFor="nickname" optional errors={fieldErrors?.nickname}>
-        <Input id="nickname" name="nickname" defaultValue={initial.nickname ?? ""} />
-      </Field>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Pronouns" htmlFor="pronouns" optional errors={fieldErrors?.pronouns}>
-          <Input id="pronouns" name="pronouns" defaultValue={initial.pronouns ?? ""} />
+        <Field label="Nickname" htmlFor="nickname" optional errors={fieldErrors?.nickname}>
+          <Input id="nickname" name="nickname" defaultValue={initial.nickname ?? ""} />
         </Field>
-        <Field label="Birthday" htmlFor="birthday" optional errors={fieldErrors?.birthday}>
-          <Input id="birthday" name="birthday" type="date" defaultValue={initial.birthday ?? ""} />
-        </Field>
-      </div>
 
-      <SubmitButton disabled={!nameValid} pendingText="Saving…">Save changes</SubmitButton>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Pronouns" htmlFor="pronouns" optional errors={fieldErrors?.pronouns}>
+            <Input id="pronouns" name="pronouns" defaultValue={initial.pronouns ?? ""} />
+          </Field>
+          <Field label="Birthday" htmlFor="birthday" optional errors={fieldErrors?.birthday}>
+            <Input id="birthday" name="birthday" type="date" defaultValue={initial.birthday ?? ""} />
+          </Field>
+        </div>
+
+        <SubmitButton disabled={!nameValid} pendingText="Saving…">Save changes</SubmitButton>
+      </PendingFields>
     </form>
   );
 }

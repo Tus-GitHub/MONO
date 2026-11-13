@@ -15,3 +15,14 @@ export async function lockLivingUser(tx: Prisma.TransactionClient, userId: strin
   const user = await tx.user.findFirst({ where: { id: userId, deletedAt: null }, select: { id: true } });
   if (!user) throw new AuthenticationError();
 }
+
+/** Check mailbox ownership under the same lock as membership/account writes. */
+export async function lockVerifiedUser(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+  const [user] = await tx.$queryRaw<{ emailVerified: Date | null }[]>`
+    SELECT "emailVerified" FROM users WHERE id = ${userId} AND "deletedAt" IS NULL FOR UPDATE
+  `;
+  if (!user) throw new AuthenticationError();
+  if (!user.emailVerified) {
+    throw new AuthorizationError("Verify your email address before creating or joining a space. Your invitation will stay available while you check your inbox.");
+  }
+}

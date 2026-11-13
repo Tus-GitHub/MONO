@@ -1,3 +1,4 @@
+import { PendingFields } from "@/components/forms/pending-fields";
 import type { ReactNode } from "react";
 
 import { Logo } from "@/components/layout/logo";
@@ -14,13 +15,15 @@ export async function SetupShell({ children }: { children: ReactNode }) {
       <header className="flex h-14 items-center justify-between border-b border-line px-4 pt-safe sm:px-6">
         <Logo href="/onboarding" />
         <form action={logoutAction}>
-          <button
-            type="submit"
-            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted transition-colors hover:bg-ink/[0.06] hover:text-ink"
-          >
-            <Icon name="logout" size="sm" />
-            Sign out
-          </button>
+          <PendingFields>
+            <button
+              type="submit"
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted transition-colors hover:bg-ink/[0.06] hover:text-ink"
+            >
+              <Icon name="logout" size="sm" />
+              Sign out
+            </button>
+          </PendingFields>
         </form>
       </header>
       {/* `m-auto` (not `justify-center`) centres the card when there's room but still lets it
