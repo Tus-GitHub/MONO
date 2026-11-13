@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-13 (live password confirmation and case-sensitive unique names underway)
+Last updated: 2026-11-13 (live password confirmation and exact-name uniqueness deployed)
 
 ## Project Overview
 
@@ -22,13 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Live confirmation and exact-name uniqueness (2026-11-13)** — user clarifies they want
-  immediate password/confirmation validation and globally unique active names by exact case:
-  Tushar, TUshar and tushar can coexist, but the identical name cannot. Release and erase the
-  personal name on account closure. Implement DB-backed race safety, registration/profile/OAuth
-  handling and live availability feedback. Read-only production preflight found zero duplicate
-  active-name groups; no existing names need to change.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -52,6 +45,19 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Live confirmation and exact-name uniqueness (2026-11-13)** — published 48c437e;
+  production deployment dpl_E6FFtc447rRRteTFjYHhuH2bsnrs is READY on MONO's public alias.
+  Password/confirmation validate as either changes, with red errors and a matching status;
+  six-character minimum and strength guidance remain. Names have live availability checks and
+  a race-safe case-sensitive active-user index: Tushar, TUshar and tushar may coexist, exact
+  duplicates cannot. Profile and OAuth paths honor the rule. Account deletion clears name and
+  nickname and releases the exact name. No existing production account was renamed or deleted.
+  All 310 unit tests, 97 PostgreSQL tests, nine local browser checks and three live read-only
+  browser checks pass; lint, TypeScript and final build pass. Phone screenshots reviewed.
+  Production migration/index valid, health 200/database up, no deployment error logs found.
+  Explicitly approved Neon test branch and all local synthetic data/private logs cleaned up;
+  local servers stopped. Live verification created no accounts.
 
 - **Six-character passwords and validation UI (2026-11-13)** — published 31c66ba; Vercel
   deployment dpl_CsWrbaEUPQ2UjEENVGBuYzL7rUVD is READY on the public MONO alias. Registration,
@@ -1099,7 +1105,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-13 — Live confirmation and exact active-name uniqueness
 
-**IN PROGRESS.** User requests live validation as either password field changes, and unique
+**DONE.** User requests live validation as either password field changes, and unique
 case-sensitive names until account deletion, allowing case variants. Add reusable new-password
 fields with immediate mismatch/minimum feedback, a debounced name-availability check backed by
 server validation and a partial unique index over active users. Update profile and OAuth paths,
@@ -1120,8 +1126,14 @@ profile availability, live settings/recovery matching, actual synthetic account 
 name reuse. The browser harness now uses keyboard edits, accepts the existing unsaved-changes
 prompt and scrolls buttons clear of fixed navigation. Lint and TypeScript pass; phone screenshots
 reviewed. Temporary local database, private credentials and email logs removed; servers stopped.
-The approved Neon test branch is also deleted. Final production build and deployment next.
-No production account has been changed.
+The approved Neon test branch is also deleted. Final production build passed; published
+48c437e2dc4008eaca4de0f6472a3600fda21fcb to origin main. Vercel deployment
+dpl_E6FFtc447rRRteTFjYHhuH2bsnrs is READY on mono-kappa-beryl.vercel.app. Read-only production
+inspection confirms the migration applied and the exact-case partial unique index is valid.
+Health returns 200/database up. All three live public-form browser checks pass, with no account
+creation or submission: live name availability, minimum/mismatch/match feedback as either
+password changes and 320px recovery confirmation. No browser errors or deployment error logs
+were found. No production account has been changed.
 
 ### 2026-11-13 — Six-character passwords and inline feedback
 
@@ -2671,4 +2683,3 @@ before being used as a current tracker. Existing local memory edits are preserve
   reflections), `<ReviewStatus>` on `/dates/[id]`. Dropped every `overallRating*2`; aggregates
   now filter `submittedAt: { not: null }`. `tsc`/`eslint`/`next build` (40 routes)/`next dev`
   green; state machine + suggestion logic sanity-checked. Needs DB + login. **DONE**
-
