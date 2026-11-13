@@ -9,6 +9,7 @@ import { serializable } from "@/lib/db/serializable";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { AuthenticationError, ConflictError, ValidationError } from "@/lib/errors";
 import { randomToken, sha256 } from "@/lib/utils/crypto";
+import { assertNameAvailable, isNameConstraint, nameTakenError } from "@/server/services/name-service";
 import type {
   LoginInput,
   RegisterInput,
@@ -25,6 +26,7 @@ export interface AuthedUser {
 }
 
 export async function registerUser(input: RegisterInput): Promise<AuthedUser> {
+  await assertNameAvailable(input.name);
   const passwordHash = await hashPassword(input.password);
 
   try {
@@ -34,6 +36,7 @@ export async function registerUser(input: RegisterInput): Promise<AuthedUser> {
     });
     return user;
   } catch (error) {
+    if (isNameConstraint(error)) throw nameTakenError();
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       throw new ConflictError("An account with that email already exists.");
     }

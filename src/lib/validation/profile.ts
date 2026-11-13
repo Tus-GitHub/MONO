@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { optionalText, requiredText } from "@/lib/validation/common";
+import { optionalText } from "@/lib/validation/common";
+import { nameSchema } from "@/lib/validation/name";
 
 const optionalPastDate = z.preprocess(
   (value) => (value === "" || value == null ? undefined : value),
@@ -11,7 +12,7 @@ const optionalPastDate = z.preprocess(
 );
 
 export const updateProfileSchema = z.object({
-  name: requiredText("Name", 80),
+  name: nameSchema,
   nickname: optionalText(40),
   pronouns: optionalText(40),
   birthday: optionalPastDate,

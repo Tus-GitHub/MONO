@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-13 (six-character passwords, strength and red validation live on Vercel)
+Last updated: 2026-11-13 (live password confirmation and case-sensitive unique names underway)
 
 ## Project Overview
 
@@ -22,6 +22,13 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Live confirmation and exact-name uniqueness (2026-11-13)** — user clarifies they want
+  immediate password/confirmation validation and globally unique active names by exact case:
+  Tushar, TUshar and tushar can coexist, but the identical name cannot. Release and erase the
+  personal name on account closure. Implement DB-backed race safety, registration/profile/OAuth
+  handling and live availability feedback. Read-only production preflight found zero duplicate
+  active-name groups; no existing names need to change.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -1089,6 +1096,32 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-13 — Live confirmation and exact active-name uniqueness
+
+**IN PROGRESS.** User requests live validation as either password field changes, and unique
+case-sensitive names until account deletion, allowing case variants. Add reusable new-password
+fields with immediate mismatch/minimum feedback, a debounced name-availability check backed by
+server validation and a partial unique index over active users. Update profile and OAuth paths,
+and erase name/nickname during the existing soft-delete transaction. Production duplicate count
+is zero (aggregate read only). No existing account names or passwords have been modified.
+
+User explicitly approved a temporary Neon test branch and cleanup. Prepared the unique index
+on br-red-field-b3jyxyu2, verified duplicate rejection, case variants and name reuse after
+deletion on the production clone, then discarded the prepared migration and deleted that exact
+branch. Production schema will be updated by the checked-in Prisma migration at deployment.
+Implemented live shared password/confirmation fields, debounced availability, private boolean-only
+endpoint, registration/profile race-error handling, OAuth collision-safe initial names and name/
+nickname anonymization on account closure. All 310 unit and 97 local PostgreSQL tests pass.
+Adjusted generic test fixture names to respect the new invariant. Browser checks caught automatic
+form resets clearing fields after rejection; prevent those resets on action forms while keeping
+redirects. All nine isolated local browser checks now pass, including case-variant registration,
+profile availability, live settings/recovery matching, actual synthetic account deletion and exact
+name reuse. The browser harness now uses keyboard edits, accepts the existing unsaved-changes
+prompt and scrolls buttons clear of fixed navigation. Lint and TypeScript pass; phone screenshots
+reviewed. Temporary local database, private credentials and email logs removed; servers stopped.
+The approved Neon test branch is also deleted. Final production build and deployment next.
+No production account has been changed.
 
 ### 2026-11-13 — Six-character passwords and inline feedback
 
@@ -2638,3 +2671,4 @@ before being used as a current tracker. Existing local memory edits are preserve
   reflections), `<ReviewStatus>` on `/dates/[id]`. Dropped every `overallRating*2`; aggregates
   now filter `submittedAt: { not: null }`. `tsc`/`eslint`/`next build` (40 routes)/`next dev`
   green; state machine + suggestion logic sanity-checked. Needs DB + login. **DONE**
+

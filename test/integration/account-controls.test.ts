@@ -28,7 +28,7 @@ let invitationToken: string;
 beforeEach(async () => {
   const key = randomUUID();
   users = (await Promise.all([0, 1, 2].map((n) => prisma.user.create({
-    data: { email: `accounts-${key}-${n}@example.invalid`, name: "Account fixture", passwordHash: "fixture-hash" },
+    data: { email: `accounts-${key}-${n}@example.invalid`, name: `Account fixture ${n}`, passwordHash: "fixture-hash" },
   })))).map((user) => user.id);
   couples = [(await prisma.couple.create({ data: {
     createdById: users[0], inviteCode: key, status: "ACTIVE",

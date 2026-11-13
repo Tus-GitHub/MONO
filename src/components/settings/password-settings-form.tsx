@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { LinkButton } from "@/components/ui/link-button";
 import { PasswordInput } from "@/components/ui/password-input";
+import { NewPasswordFields } from "@/components/forms/new-password-fields";
 import { settingsErrorMessage, settingsRequest } from "@/lib/settings/request";
 import { changePasswordSchema } from "@/lib/validation/password";
 
@@ -66,17 +67,7 @@ export function PasswordSettingsForm({ hasPassword }: { hasPassword: boolean }) 
             required maxLength={200} invalid={Boolean(fieldErrors.currentPassword)}
             aria-describedby={fieldErrors.currentPassword ? "currentPassword-error" : undefined} />
         </Field>
-        <Field label="New password" htmlFor="password" errors={fieldErrors.password}>
-          <PasswordInput id="password" name="password" autoComplete="new-password" required
-            minLength={6} showStrength
-            maxLength={200} invalid={Boolean(fieldErrors.password)}
-            aria-describedby={fieldErrors.password ? "password-error" : undefined} />
-        </Field>
-        <Field label="Confirm new password" htmlFor="confirmPassword" errors={fieldErrors.confirmPassword}>
-          <PasswordInput id="confirmPassword" name="confirmPassword" autoComplete="new-password" required
-            maxLength={200} invalid={Boolean(fieldErrors.confirmPassword)}
-            aria-describedby={fieldErrors.confirmPassword ? "confirmPassword-error" : undefined} />
-        </Field>
+        <NewPasswordFields errors={fieldErrors} />
         <Button type="submit" loading={pending}>{pending ? "Updating…" : "Update password"}</Button>
       </fieldset>
     </form>

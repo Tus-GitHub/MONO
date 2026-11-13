@@ -21,7 +21,7 @@ const newPassword = "ChangedPassword123!";
 
 beforeAll(async () => {
   initialHash = await hashPassword(password);
-  users = (await Promise.all([0, 1].map((n) => prisma.user.create({ data: { email: `sessions-${nonce}-${n}@example.invalid`, name: "Session fixture", passwordHash: initialHash } })))).map((user) => user.id);
+  users = (await Promise.all([0, 1].map((n) => prisma.user.create({ data: { email: `sessions-${nonce}-${n}@example.invalid`, name: `Session fixture ${n}`, passwordHash: initialHash } })))).map((user) => user.id);
 });
 beforeEach(async () => {
   context.token = "";

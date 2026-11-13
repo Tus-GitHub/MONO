@@ -189,7 +189,7 @@ export async function deleteAccount(userId: string): Promise<void> {
       where: { createdById: userId, acceptedAt: null, revokedAt: null }, data: { revokedAt: now },
     });
     await tx.user.update({
-      where: { id: userId }, data: { deletedAt: now, passwordHash: null, tokenVersion: { increment: 1 } },
+      where: { id: userId }, data: { deletedAt: now, name: "Deleted account", nickname: null, passwordHash: null, tokenVersion: { increment: 1 } },
     });
   });
 }

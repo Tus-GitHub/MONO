@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { FormFeedback } from "@/components/forms/form-feedback";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { UniqueNameField } from "@/components/forms/unique-name-field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { UnsavedGuard } from "@/components/system/unsaved-guard";
 import { ImageUpload } from "@/components/uploads/image-upload";
@@ -27,7 +28,7 @@ export function ProfileForm({ initial }: Props) {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initial.avatarUrl);
 
   return (
-    <form action={action} className="space-y-5" noValidate>
+    <form action={action} onReset={(event) => event.preventDefault()} className="space-y-5" noValidate>
       <UnsavedGuard state={state} />
       <FormFeedback state={state} />
 
@@ -39,9 +40,7 @@ export function ProfileForm({ initial }: Props) {
         label="Profile photo"
       />
 
-      <Field label="Name" htmlFor="name" errors={fieldErrors?.name}>
-        <Input id="name" name="name" defaultValue={initial.name} autoComplete="name" required />
-      </Field>
+      <UniqueNameField initial={initial.name} errors={fieldErrors?.name} />
 
       <Field label="Nickname" htmlFor="nickname" optional errors={fieldErrors?.nickname}>
         <Input id="nickname" name="nickname" defaultValue={initial.nickname ?? ""} />

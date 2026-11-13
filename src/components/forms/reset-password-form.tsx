@@ -3,8 +3,7 @@
 import { useActionState } from "react";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
-import { Field } from "@/components/ui/field";
-import { PasswordInput } from "@/components/ui/password-input";
+import { NewPasswordFields } from "@/components/forms/new-password-fields";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { idleState } from "@/lib/utils/result";
 import { resetPasswordAction } from "@/server/actions/auth";
@@ -14,38 +13,11 @@ export function ResetPasswordForm({ token }: { token: string }) {
   const fieldErrors = state.status === "error" ? state.fieldErrors : undefined;
 
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form action={action} onReset={(event) => event.preventDefault()} className="space-y-4" noValidate>
       <FormFeedback state={state} />
       <input type="hidden" name="token" value={token} />
 
-      <Field
-        label="New password"
-        htmlFor="password"
-        errors={fieldErrors?.password}
-      >
-        <PasswordInput
-          id="password"
-          name="password"
-          autoComplete="new-password"
-          required
-          minLength={6}
-          maxLength={200}
-          showStrength
-          invalid={Boolean(fieldErrors?.password?.length)}
-          aria-describedby={fieldErrors?.password?.length ? "password-error" : undefined}
-        />
-      </Field>
-
-      <Field label="Confirm new password" htmlFor="confirmPassword" errors={fieldErrors?.confirmPassword}>
-        <PasswordInput
-          id="confirmPassword"
-          name="confirmPassword"
-          autoComplete="new-password"
-          required
-          invalid={Boolean(fieldErrors?.confirmPassword?.length)}
-          aria-describedby={fieldErrors?.confirmPassword?.length ? "confirmPassword-error" : undefined}
-        />
-      </Field>
+      <NewPasswordFields errors={fieldErrors} />
 
       <SubmitButton fullWidth pendingText="Updating…">
         Update password

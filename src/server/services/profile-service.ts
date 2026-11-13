@@ -2,6 +2,8 @@ import "server-only";
 
 import { prisma } from "@/lib/db/prisma";
 import type { UpdateProfileInput } from "@/lib/validation/profile";
+import { assertNameAvailable, isNameConstraint, nameTakenError } from "@/server/services/name-service";
+import { requireSelf } from "@/lib/authz/user-write";
 
 export async function getProfile(userId: string) {
   return prisma.user.findUniqueOrThrow({
@@ -20,8 +22,10 @@ export async function getProfile(userId: string) {
 }
 
 export async function updateProfile(userId: string, input: UpdateProfileInput) {
-  return prisma.user.update({
-    where: { id: userId },
+  await requireSelf(userId);
+  await assertNameAvailable(input.name, userId);
+  try { return await prisma.user.update({
+    where: { id: userId, deletedAt: null },
     data: {
       name: input.name,
       nickname: input.nickname ?? null,
@@ -29,7 +33,10 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
       birthday: input.birthday ?? null,
     },
     select: { id: true },
-  });
+  }); } catch (error) {
+    if (isNameConstraint(error)) throw nameTakenError();
+    throw error;
+  }
 }
 
 /** Idempotent — safe to call again; the onboarding guard only checks it is set. */

@@ -33,7 +33,7 @@ const publicKey = (() => { const key = createECDH("prime256v1"); key.generateKey
 const subscription = (name: string) => ({ endpoint: `https://fcm.googleapis.com/fcm/send/${token}-${name}`, keys: { p256dh: publicKey, auth: randomBytes(16).toString("base64url") } });
 
 beforeAll(async () => {
-  users = (await Promise.all([0, 1].map((n) => prisma.user.create({ data: { email: `reliability-${token}-${n}@example.invalid`, name: "Reliability fixture" } })))).map((user) => user.id);
+  users = (await Promise.all([0, 1].map((n) => prisma.user.create({ data: { email: `reliability-${token}-${n}@example.invalid`, name: `Reliability fixture ${n}` } })))).map((user) => user.id);
   coupleId = (await prisma.couple.create({
     data: {
       createdById: users[0], inviteCode: token, status: "ACTIVE",

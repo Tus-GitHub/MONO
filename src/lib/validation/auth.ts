@@ -1,11 +1,12 @@
 import { z } from "zod";
 
 import { passwordSchema } from "@/lib/validation/password";
-import { emailSchema, requiredText } from "@/lib/validation/common";
+import { emailSchema } from "@/lib/validation/common";
+import { nameSchema } from "@/lib/validation/name";
 
 export const registerSchema = z
   .object({
-    name: requiredText("Name", 80),
+    name: nameSchema,
     email: emailSchema,
     password: passwordSchema,
     confirmPassword: z.string().min(1, "Confirm your password."),

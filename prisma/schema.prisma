@@ -190,7 +190,7 @@ model User {
   email         String    @unique // stored lower-cased by the app layer
   emailVerified DateTime?
   passwordHash  String? // null for OAuth-only accounts
-  name          String
+  name          String // active exact-case uniqueness: users_active_name_key partial index (SQL migration)
   nickname      String? // what their partner calls them
   pronouns      String?
   birthday      DateTime?

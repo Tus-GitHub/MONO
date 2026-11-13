@@ -11,7 +11,7 @@ const users: string[] = [];
 let user: { id: string; email: string };
 beforeEach(async () => {
   vi.resetAllMocks();
-  user = await prisma.user.create({ data: { name: "Email fixture", email: `verify-${randomUUID()}@example.invalid` }, select: { id: true, email: true } });
+  user = await prisma.user.create({ data: { name: `Email fixture ${randomUUID()}`, email: `verify-${randomUUID()}@example.invalid` }, select: { id: true, email: true } });
   users.push(user.id);
 });
 afterAll(async () => { await prisma.user.deleteMany({ where: { id: { in: users } } }); await prisma.$disconnect(); });

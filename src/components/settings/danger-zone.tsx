@@ -58,6 +58,7 @@ export function DangerZone({
         <p className="text-sm font-medium text-ink">Delete account</p>
         <p className="mt-1 text-sm text-muted">
           Closes your account and signs you out everywhere. Your shared space is archived too.
+          {" "}Your name and nickname are cleared, and your exact name becomes available again.
         </p>
 
         {showDelete ? (

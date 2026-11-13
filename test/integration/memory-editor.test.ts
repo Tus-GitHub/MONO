@@ -20,7 +20,7 @@ let coupleId: string;
 let dateId: string;
 beforeAll(async () => {
   const run = randomUUID();
-  users = (await Promise.all([0, 1, 2].map((n) => prisma.user.create({ data: { email: `memory-editor-${run}-${n}@example.invalid`, name: "Memory fixture" } })))).map((row) => row.id);
+  users = (await Promise.all([0, 1, 2].map((n) => prisma.user.create({ data: { email: `memory-editor-${run}-${n}@example.invalid`, name: `Memory fixture ${n}` } })))).map((row) => row.id);
   coupleId = (await prisma.couple.create({ data: {
     createdById: users[0], inviteCode: run, status: "ACTIVE",
     members: { create: [{ userId: users[0], role: "OWNER" }, { userId: users[1], role: "PARTNER" }] },
