@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (mobile responsiveness verification and release)
+Last updated: 2026-11-14 (mobile responsiveness deployed and verified)
 
 ## Project Overview
 
@@ -22,8 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Mobile browser/PWA responsiveness (2026-11-13)** — user reports repeated taps and slow response across the site on phone browser and installed PWA. Trace and fix shared input/navigation/request latency, preserve design and validation, verify and deploy from isolated checkout.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -47,6 +45,22 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Mobile browser/PWA responsiveness (2026-11-14)** — published 141ab3c;
+  dpl_3rdtCQ19ZMDiN716baxG4ZdzU1JB READY on the canonical production alias. Functions now
+  use Singapore beside Neon, confirmed by live bom1::sin1 response headers (previously iad1).
+  Sampled warm public reads improved from 1392–1405ms to 158–426ms; first read 4489ms→1063ms.
+  Fixed PWA-update padding swallowing bottom-navigation taps, closing-overlay interception,
+  stale keyboard scroll, serialized background polling and missing navigation feedback.
+  Bounded transaction timeout is 15s; unknown P2028 outcomes are never retried. Worker v3
+  replaces on explicit Refresh. Existing design and validity gates preserved. 328 unit tests,
+  100 PostgreSQL integration tests, lint and production build pass; nine authenticated
+  mobile journey checks, two closing-overlay checks, eight local and eight live public
+  browser/emulated-PWA checks, and three real worker lifecycle checks pass. Live health is
+  200/database up; no new-deployment error/fatal logs found. No external drains configured.
+  Physical-device QA remains a user-side check. No production accounts/data modified.
+  Local synthetic database/private fixtures/logs/copied env removed and idle test server
+  stopped. Unrelated primary-workspace state-machine changes remain untouched.
 
 - **Validity-gated profile save (2026-11-13)** — published 9696b8d; deployment
   dpl_5pYYQMm8xoeWJpKGySBfQhktCLFz is READY on MONO's public alias. Profile Save changes
@@ -1166,9 +1180,9 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-13 — Mobile responsiveness and repeated taps
 
-**IN PROGRESS.** User reports all-site slow/repeated taps, confirmed in phone browser and installed PWA. Investigate live errors, mobile touch/keyboard handling, navigation feedback, background server-action queue and database round trips. Production shows P2028 transaction failures in invitation/connect actions; background reminder poller invokes a serialized Server Action on every application mount. Current deployment is 807091f. Work in isolated codex/mobile-responsiveness; unrelated state-machine changes in primary workspace remain separate.
+**DONE 2026-11-14.** User reports all-site slow/repeated taps, confirmed in phone browser and installed PWA. Investigated live errors, mobile touch/keyboard handling, navigation feedback, background server-action queue and database round trips. Previous production showed P2028 transaction failures in invitation/connect actions; background reminder poller invoked a serialized Server Action on every application mount. Worked in isolated codex/mobile-responsiveness; unrelated state-machine changes in primary workspace remain separate.
 
-Implemented Singapore function region beside the Singapore database (was iad1; warm public reads ~1.4s, cold health ~4.5s), bounded 15s transactions without retrying unknown P2028 outcomes, request-local onboarding deduplication, authenticated same-origin HTTP reminder/activity polling outside the foreground action queue, navigation progress, touch manipulation and stale keyboard-scroll cancellation. Reproduced and fixed invisible PWA-update-banner padding intercepting bottom navigation; closing overlays become inert immediately. Worker v3 waits for explicit Refresh when replacing an installed worker. Existing visual style, field validity gates and isolation remain. 328 unit tests, full lint, production build/TypeScript, 100 PostgreSQL integration tests (including a successful 5.2s transaction) and nine authenticated mobile-touch journey checks pass. The journey verifies foreground Save while polling is held, all primary tabs, profile save, creation/invitation/acceptance, 320px and no browser errors. Remaining local Home tap issue was Next dev toolbar interception; test-only CSS excludes that development overlay. Two closing-overlay touch checks and eight browser/emulated-PWA public checks pass. Three real service-worker lifecycle checks confirm first claim preserves signup drafts and scrubbed verification tokens, and replacement waits for Refresh and reloads once. Production release and live timing verification remain. User said Continue on 2026-11-14. No production records changed.
+Implemented Singapore function region beside the Singapore database (was iad1; warm public reads ~1.4s, cold health ~4.5s), bounded 15s transactions without retrying unknown P2028 outcomes, request-local onboarding deduplication, authenticated same-origin HTTP reminder/activity polling outside the foreground action queue, navigation progress, touch manipulation and stale keyboard-scroll cancellation. Reproduced and fixed invisible PWA-update-banner padding intercepting bottom navigation; closing overlays become inert immediately. Worker v3 waits for explicit Refresh when replacing an installed worker. Existing visual style, field validity gates and isolation remain. 328 unit tests, full lint, production build/TypeScript, 100 PostgreSQL integration tests (including a successful 5.2s transaction) and nine authenticated mobile-touch journey checks pass. The journey verifies foreground Save while polling is held, all primary tabs, profile save, creation/invitation/acceptance, 320px and no browser errors. Remaining local Home tap issue was Next dev toolbar interception; test-only CSS excludes that development overlay. Two closing-overlay touch checks and eight local plus eight live browser/emulated-PWA public checks pass. Three real service-worker lifecycle checks confirm first claim preserves signup drafts and scrubbed verification tokens, and replacement waits for Refresh and reloads once. User said Continue on 2026-11-14. Published 141ab3ce45898edba6e361c211036e54c0c0ecdc to origin main; Vercel deployment dpl_3rdtCQ19ZMDiN716baxG4ZdzU1JB is READY on mono-kappa-beryl.vercel.app, build about 68s. Live headers confirm sin1; sampled public reads 1063ms first, then 158/426/426ms (warm median 426ms vs baseline 1402ms, about 70% lower in this small sample). Health 200/database up, no new-deployment error/fatal logs found; no external drains configured. Screenshots reviewed. No production records changed. Local test database and private fixture/env/logs cleaned up, idle local cluster stopped. Physical-device confirmation remains distinct from automated touch/standalone emulation.
 
 ### 2026-11-13 — Disable invalid profile-name saves
 
