@@ -7,9 +7,10 @@ import { hashPassword, needsRehash, verifyPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/db/prisma";
 import { serializable } from "@/lib/db/serializable";
 import { sendPasswordResetEmail } from "@/lib/email";
-import { AuthenticationError, ConflictError, ValidationError } from "@/lib/errors";
+import { AuthenticationError, ValidationError } from "@/lib/errors";
 import { randomToken, sha256 } from "@/lib/utils/crypto";
 import { assertNameAvailable, isNameConstraint, nameTakenError } from "@/server/services/name-service";
+import { emailRegisteredError } from "@/server/services/email-availability-service";
 import type {
   LoginInput,
   RegisterInput,
@@ -38,7 +39,7 @@ export async function registerUser(input: RegisterInput): Promise<AuthedUser> {
   } catch (error) {
     if (isNameConstraint(error)) throw nameTakenError();
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      throw new ConflictError("An account with that email already exists.");
+      throw emailRegisteredError();
     }
     throw error;
   }

@@ -12,6 +12,7 @@ import { updateProfile } from "@/server/services/profile-service";
 import { deleteAccount } from "@/server/services/account-service";
 import { isNameAvailable } from "@/server/services/name-service";
 import { upsertUserFromOAuthProfile } from "@/lib/auth/oauth/google";
+import { isRegistrationEmailAvailable } from "@/server/services/email-availability-service";
 
 let run:string;
 const email=(label:string)=>`names-${run}-${label}@example.invalid`;
@@ -19,6 +20,25 @@ const account=(label:string,name:string)=>registerUser({name,email:email(label),
 beforeEach(()=>{run=randomUUID()});
 afterEach(async()=>{await prisma.user.deleteMany({where:{email:{startsWith:`names-${run}-`}}})});
 afterAll(()=>prisma.$disconnect());
+
+it("normalizes registration email checks, reports duplicate field errors and honors reserved closed-account emails", async () => {
+ const first = await account("email", `Email ${run}`);
+ expect(await isRegistrationEmailAvailable(`  ${first.email.toUpperCase()}  `)).toBe(false);
+ expect(await isRegistrationEmailAvailable(email("unused"))).toBe(true);
+ await expect(registerUser({name:`Other email ${run}`,email:first.email,password:"abcdef",confirmPassword:"abcdef"})).rejects.toMatchObject({fieldErrors:{email:expect.any(Array)}});
+ await asUser(first.id,()=>deleteAccount(first.id));
+ expect(await isRegistrationEmailAvailable(first.email)).toBe(false);
+});
+
+it("keeps email duplicate errors field-specific when two registrations race", async () => {
+ const input = { email:email("email-race"),password:"abcdef",confirmPassword:"abcdef" };
+ const results = await Promise.allSettled([
+  registerUser({...input,name:`Email race A ${run}`}), registerUser({...input,name:`Email race B ${run}`}),
+ ]);
+ expect(results.filter(r=>r.status==="fulfilled")).toHaveLength(1);
+ const failed = results.find(r=>r.status==="rejected") as PromiseRejectedResult;
+ expect(failed.reason).toMatchObject({fieldErrors:{email:expect.any(Array)}});
+});
 
 it("rejects an exact active duplicate while allowing Tushar, TUshar and tushar case variants",async()=>{
  const base=`Names ${run}`;

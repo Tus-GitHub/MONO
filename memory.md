@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-13 (live password confirmation and exact-name uniqueness deployed)
+Last updated: 2026-11-13 (live registration email validation underway)
 
 ## Project Overview
 
@@ -22,6 +22,8 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Live registration email validation (2026-11-13)** — add immediate email format and debounced registered-email checks, existing red borders/inline messages, server duplicate field errors; test and deploy without changing the design.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -1102,6 +1104,10 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-13 — Live registration email validation
+
+**IN PROGRESS.** User requests live invalid/registered email feedback in the existing design and deployment. Reuse shared email normalization/schema and form primitives. Add a bounded, same-origin, rate-limited POST availability check returning a private boolean; keep addresses out of URL logs. Preserve server-side database uniqueness and give duplicate submissions a structured email field error. No migrations, credentials, billing or production account mutations required. Implemented live syntax checks, 350ms debounced normalized availability, cancellation/stale-response guards, unavailable-check fallback, structured duplicate email errors and dismissal of old submission feedback on edits. All 317 unit tests, 99 PostgreSQL tests and seven isolated browser checks pass. Lint and TypeScript pass; 320px screenshot reviewed. The exact local test database and fixture/log were removed and servers stopped. Final build and deployment next; live checks will be read-only.
 
 ### 2026-11-13 — Live confirmation and exact active-name uniqueness
 
