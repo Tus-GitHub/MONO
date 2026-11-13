@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-13 (IndiaRestros-first photos live on Vercel with Commons fallback)
+Last updated: 2026-11-13 (six-character password minimum and strength/validation UI underway)
 
 ## Project Overview
 
@@ -22,6 +22,12 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Password minimum and validation UI (2026-11-13)** — user requests a six-character minimum,
+  strength feedback for length/lowercase/uppercase/numbers/symbols, red invalid borders and
+  feedback below the checkbox, preserving the design and deploying quickly. Treat character mix
+  as strength guidance, retain confirmation and bcrypt byte bounds; keep login compatibility.
+  Move login form feedback below Remember me, add Caps Lock indication, verify and deploy.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -1078,6 +1084,29 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-13 — Six-character passwords and inline feedback
+
+**IN PROGRESS.** User requests minimum six characters, password strength/category feedback,
+red validation borders and messages below the checkbox, followed by fast deployment. Existing
+shared validator requires ten plus lowercase/uppercase/number; register/reset controls lack invalid
+border wiring. Login has the Remember me checkbox and top-of-form feedback. Implement consistent
+six-character server rules, strength guidance/new-password fields, accessible invalid indicators,
+Caps Lock warning and bottom login feedback using existing tokens/components. No new checkbox,
+account access, integration configuration or live-data changes are required.
+
+Changed shared policy to six-character minimum with character mix as optional strength guidance;
+retained bcrypt byte/length bounds and confirmation. Added local strength/checklist feedback for
+registration/reset/settings, Caps Lock warnings and accessible invalid-field wiring. Login's
+general feedback is now below Remember me; credential errors mark both fields. Fixed invalid
+border specificity with aria-invalid variants so normal/hover/focus styles cannot override red.
+All 305 unit tests and seven isolated browser checks passed, including actual six-character
+registration, settings change/session revocation, reset/new login, strength/Caps Lock, five-character
+rejection and 320px layout. The specificity correction will also get a final live computed-color
+check. Full lint and TypeScript passed; local DB/private credentials/reset-link logs were removed
+and test servers stopped. Final production build, TypeScript and full/targeted lint passed.
+Publishing now, followed by a live public-form check without account creation or email sending.
+No real accounts were changed.
 
 ### 2026-11-13 — Activate IndiaRestros photos
 

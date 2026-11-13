@@ -9,7 +9,7 @@ export const fieldBase =
   "focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/35 " +
   disabledControl;
 
-const invalidRing = "border-error focus:border-error focus:ring-error/30";
+const invalidRing = "aria-[invalid=true]:border-error aria-[invalid=true]:hover:border-error aria-[invalid=true]:focus:border-error aria-[invalid=true]:focus:ring-error/30";
 
 export interface InputProps extends ComponentPropsWithRef<"input"> {
   uiSize?: ControlSize;

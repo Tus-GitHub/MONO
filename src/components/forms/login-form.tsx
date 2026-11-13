@@ -17,14 +17,14 @@ export function LoginForm({ invite, oauthFailed }: { invite?: string; oauthFaile
     ? errorState("Google sign-in couldn't finish. Please try again or sign in with your email.")
     : idleState);
   const fieldErrors = state.status === "error" ? state.fieldErrors : undefined;
+  const incorrect = state.status === "error" && state.message === "Incorrect email or password.";
 
   return (
     <form action={action} className="space-y-4" noValidate>
-      <FormFeedback state={state} />
       {invite ? <input type="hidden" name="invite" value={invite} /> : null}
 
       <Field label="Email" htmlFor="email" errors={fieldErrors?.email}>
-        <Input id="email" name="email" type="email" autoComplete="email" required />
+        <Input id="email" name="email" type="email" autoComplete="email" required invalid={incorrect || Boolean(fieldErrors?.email?.length)} aria-describedby={fieldErrors?.email?.length ? "email-error" : incorrect ? "login-feedback" : undefined} />
       </Field>
 
       <Field label="Password" htmlFor="password" errors={fieldErrors?.password}>
@@ -33,6 +33,8 @@ export function LoginForm({ invite, oauthFailed }: { invite?: string; oauthFaile
           name="password"
           autoComplete="current-password"
           required
+          invalid={incorrect || Boolean(fieldErrors?.password?.length)}
+          aria-describedby={fieldErrors?.password?.length ? "password-error" : incorrect ? "login-feedback" : undefined}
         />
       </Field>
 
@@ -46,6 +48,7 @@ export function LoginForm({ invite, oauthFailed }: { invite?: string; oauthFaile
         </Link>
       </div>
 
+      <div id="login-feedback"><FormFeedback state={state} /></div>
       <SubmitButton fullWidth pendingText="Signing in…">
         Sign in
       </SubmitButton>

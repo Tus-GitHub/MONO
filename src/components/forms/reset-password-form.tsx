@@ -21,7 +21,6 @@ export function ResetPasswordForm({ token }: { token: string }) {
       <Field
         label="New password"
         htmlFor="password"
-        hint="At least 10 characters, with an uppercase letter and a number."
         errors={fieldErrors?.password}
       >
         <PasswordInput
@@ -29,6 +28,11 @@ export function ResetPasswordForm({ token }: { token: string }) {
           name="password"
           autoComplete="new-password"
           required
+          minLength={6}
+          maxLength={200}
+          showStrength
+          invalid={Boolean(fieldErrors?.password?.length)}
+          aria-describedby={fieldErrors?.password?.length ? "password-error" : undefined}
         />
       </Field>
 
@@ -38,6 +42,8 @@ export function ResetPasswordForm({ token }: { token: string }) {
           name="confirmPassword"
           autoComplete="new-password"
           required
+          invalid={Boolean(fieldErrors?.confirmPassword?.length)}
+          aria-describedby={fieldErrors?.confirmPassword?.length ? "confirmPassword-error" : undefined}
         />
       </Field>
 

@@ -16,21 +16,19 @@ export function RegisterForm({ invite }: { invite?: string }) {
 
   return (
     <form action={action} className="space-y-4" noValidate>
-      <FormFeedback state={state} />
       {invite ? <input type="hidden" name="invite" value={invite} /> : null}
 
       <Field label="Name" htmlFor="name" errors={fieldErrors?.name}>
-        <Input id="name" name="name" autoComplete="name" required />
+        <Input id="name" name="name" autoComplete="name" required invalid={Boolean(fieldErrors?.name?.length)} aria-describedby={fieldErrors?.name?.length ? "name-error" : undefined} />
       </Field>
 
       <Field label="Email" htmlFor="email" errors={fieldErrors?.email}>
-        <Input id="email" name="email" type="email" autoComplete="email" required />
+        <Input id="email" name="email" type="email" autoComplete="email" required invalid={Boolean(fieldErrors?.email?.length)} aria-describedby={fieldErrors?.email?.length ? "email-error" : undefined} />
       </Field>
 
       <Field
         label="Password"
         htmlFor="password"
-        hint="At least 10 characters, with an uppercase letter and a number."
         errors={fieldErrors?.password}
       >
         <PasswordInput
@@ -38,6 +36,11 @@ export function RegisterForm({ invite }: { invite?: string }) {
           name="password"
           autoComplete="new-password"
           required
+          minLength={6}
+          maxLength={200}
+          showStrength
+          invalid={Boolean(fieldErrors?.password?.length)}
+          aria-describedby={fieldErrors?.password?.length ? "password-error" : undefined}
         />
       </Field>
 
@@ -47,9 +50,12 @@ export function RegisterForm({ invite }: { invite?: string }) {
           name="confirmPassword"
           autoComplete="new-password"
           required
+          invalid={Boolean(fieldErrors?.confirmPassword?.length)}
+          aria-describedby={fieldErrors?.confirmPassword?.length ? "confirmPassword-error" : undefined}
         />
       </Field>
 
+      <FormFeedback state={state} />
       <SubmitButton fullWidth pendingText="Creating account…">
         Create account
       </SubmitButton>

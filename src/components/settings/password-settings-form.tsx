@@ -66,11 +66,11 @@ export function PasswordSettingsForm({ hasPassword }: { hasPassword: boolean }) 
             required maxLength={200} invalid={Boolean(fieldErrors.currentPassword)}
             aria-describedby={fieldErrors.currentPassword ? "currentPassword-error" : undefined} />
         </Field>
-        <Field label="New password" htmlFor="password" errors={fieldErrors.password}
-          hint="At least 10 characters, with uppercase, lowercase and a number. Maximum 72 bytes.">
+        <Field label="New password" htmlFor="password" errors={fieldErrors.password}>
           <PasswordInput id="password" name="password" autoComplete="new-password" required
+            minLength={6} showStrength
             maxLength={200} invalid={Boolean(fieldErrors.password)}
-            aria-describedby={fieldErrors.password ? "password-error" : "password-hint"} />
+            aria-describedby={fieldErrors.password ? "password-error" : undefined} />
         </Field>
         <Field label="Confirm new password" htmlFor="confirmPassword" errors={fieldErrors.confirmPassword}>
           <PasswordInput id="confirmPassword" name="confirmPassword" autoComplete="new-password" required
