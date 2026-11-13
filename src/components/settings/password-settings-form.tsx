@@ -9,6 +9,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { NewPasswordFields } from "@/components/forms/new-password-fields";
 import { settingsErrorMessage, settingsRequest } from "@/lib/settings/request";
 import { changePasswordSchema } from "@/lib/validation/password";
+import { useFormValidity } from "@/lib/hooks/use-form-validity";
 
 type PasswordField = "currentPassword" | "password" | "confirmPassword";
 
@@ -17,10 +18,11 @@ export function PasswordSettingsForm({ hasPassword }: { hasPassword: boolean }) 
   const busy = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<PasswordField, string[]>>>({});
+  const { formRef, valid, validate } = useFormValidity(changePasswordSchema);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy.current) return;
+    if (busy.current || !valid) return;
     const form = event.currentTarget;
     const input = changePasswordSchema.safeParse(Object.fromEntries(new FormData(form)));
     setError(null);
@@ -55,7 +57,9 @@ export function PasswordSettingsForm({ hasPassword }: { hasPassword: boolean }) 
   );
 
   return (
-    <form onSubmit={submit} className="space-y-5 rounded-xl border border-line bg-surface p-5" noValidate>
+    <form ref={formRef} onSubmit={submit} onInput={validate} onFocus={validate}
+      onChange={() => { validate(); setError(null); setFieldErrors({}); }}
+      className="space-y-5 rounded-xl border border-line bg-surface p-5" noValidate>
       <p className="text-sm text-muted">
         Changing your password signs you out on every device, including this one.
         You&apos;ll sign in again with your new password.
@@ -68,7 +72,7 @@ export function PasswordSettingsForm({ hasPassword }: { hasPassword: boolean }) 
             aria-describedby={fieldErrors.currentPassword ? "currentPassword-error" : undefined} />
         </Field>
         <NewPasswordFields errors={fieldErrors} />
-        <Button type="submit" loading={pending}>{pending ? "Updating…" : "Update password"}</Button>
+        <Button type="submit" loading={pending} disabled={!valid}>{pending ? "Updating…" : "Update password"}</Button>
       </fieldset>
     </form>
   );

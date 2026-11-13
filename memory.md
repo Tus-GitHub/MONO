@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-13 (validity-gated auth buttons deployed)
+Last updated: 2026-11-13 (validity-gated password updates underway)
 
 ## Project Overview
 
@@ -22,6 +22,8 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Validity-gated password updates (2026-11-13)** — disable reset/settings Update password until existing required-field schemas and password confirmation match; keep current styling, verify and deploy from isolated checkout.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -1139,6 +1141,10 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-13 — Disable invalid password updates
+
+**IN PROGRESS.** User requests disabled Update password on reset and settings until all required fields are valid and passwords match, same design, deployed. Reuse useFormValidity with resetPasswordSchema/changePasswordSchema. Preserve current-password requirement in settings, six-character/72-byte policy, pending controls and server enforcement; block invalid programmatic submission and clear stale feedback on edits. Isolated codex/valid-password-submit branch preserves unrelated unfinished workspace changes. No production account, credential or migration changes required. All 317 unit tests, full lint and ten local browser checks pass, including authenticated settings, current-password requirement, live mismatch/byte-boundary/cleared-field validation, native input events, invalid-submit guards, pending fieldset/button disable and retry after a mocked failure. No password updates were sent to the server. Phone screenshots reviewed. Local server, synthetic database and private fixtures/log cleaned up. Final production build and deployment next.
 
 ### 2026-11-13 — Disable invalid authentication submissions
 
