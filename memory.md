@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-13 (validity-gated password updates underway)
+Last updated: 2026-11-13 (validity-gated password updates deployed)
 
 ## Project Overview
 
@@ -22,8 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Validity-gated password updates (2026-11-13)** — disable reset/settings Update password until existing required-field schemas and password confirmation match; keep current styling, verify and deploy from isolated checkout.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -47,6 +45,17 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Validity-gated password updates (2026-11-13)** — published acf0680; production deployment
+  dpl_9xtaqG5TGwDss7AYDEgbYNy4SbVA is READY on MONO's public alias. Reset and settings Update
+  password stay disabled until their schemas pass, including matching new passwords and the
+  current password in settings. Live edits, six-character/72-byte limits, invalid-submit guards,
+  existing styles and loading controls preserved. Stale feedback clears after edits. All 317
+  unit tests, lint, build/TypeScript, ten local browser checks and five live public reset checks
+  pass. Authenticated settings checked with a synthetic local account and intercepted update
+  request; no real passwords changed. Phone screenshots reviewed, health 200/database up and
+  no deployment error logs found. Local database, fixture secrets/log and copied env removed;
+  local servers stopped. Isolated codex/valid-password-submit preserves unrelated workspace work.
 
 - **Validity-gated auth buttons (2026-11-13)** — published c45875a; deployment
   dpl_DWVT1NgFp4RvYDNCcBuWZNmC3HRX is READY on MONO's public alias. Create account requires
@@ -1144,7 +1153,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-13 — Disable invalid password updates
 
-**IN PROGRESS.** User requests disabled Update password on reset and settings until all required fields are valid and passwords match, same design, deployed. Reuse useFormValidity with resetPasswordSchema/changePasswordSchema. Preserve current-password requirement in settings, six-character/72-byte policy, pending controls and server enforcement; block invalid programmatic submission and clear stale feedback on edits. Isolated codex/valid-password-submit branch preserves unrelated unfinished workspace changes. No production account, credential or migration changes required. All 317 unit tests, full lint and ten local browser checks pass, including authenticated settings, current-password requirement, live mismatch/byte-boundary/cleared-field validation, native input events, invalid-submit guards, pending fieldset/button disable and retry after a mocked failure. No password updates were sent to the server. Phone screenshots reviewed. Local server, synthetic database and private fixtures/log cleaned up. Final production build and deployment next.
+**DONE.** User requests disabled Update password on reset and settings until all required fields are valid and passwords match, same design, deployed. Reuse useFormValidity with resetPasswordSchema/changePasswordSchema. Preserve current-password requirement in settings, six-character/72-byte policy, pending controls and server enforcement; block invalid programmatic submission and clear stale feedback on edits. Isolated codex/valid-password-submit branch preserves unrelated unfinished workspace changes. No production account, credential or migration changes required. All 317 unit tests, full lint and ten local browser checks pass, including authenticated settings, current-password requirement, live mismatch/byte-boundary/cleared-field validation, native input events, invalid-submit guards, pending fieldset/button disable and retry after a mocked failure. No password updates were sent to the server. Phone screenshots reviewed. Local server, synthetic database and private fixtures/log cleaned up. Final production build/TypeScript passed; published acf0680c47ea94938baee3be47da7f533d417a46 to origin main. Vercel deployment dpl_9xtaqG5TGwDss7AYDEgbYNy4SbVA is READY on mono-kappa-beryl.vercel.app. All five live public reset checks pass without submissions or browser errors; authenticated settings verified locally with an intercepted update. Live health 200/database up; no deployment error logs found. Copied checkout env removed. No real password or production account was changed.
 
 ### 2026-11-13 — Disable invalid authentication submissions
 
