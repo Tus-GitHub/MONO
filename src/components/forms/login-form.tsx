@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { useActionState, useState } from "react";
 
 import { EmailFormatField } from "@/components/forms/email-format-field";

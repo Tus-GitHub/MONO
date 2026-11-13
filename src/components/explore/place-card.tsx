@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { PhotoCredit } from "@/components/places/photo-credit";
 import { PlaceImage } from "@/components/places/place-image";
 import { PlaceCategory, type RecommendationSignal } from "@prisma/client";

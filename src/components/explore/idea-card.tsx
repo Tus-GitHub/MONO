@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 
 import { MatchBadge } from "@/components/explore/match-badge";
 import { RecFeedback } from "@/components/explore/rec-feedback";

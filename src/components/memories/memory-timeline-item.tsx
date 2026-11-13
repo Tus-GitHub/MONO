@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 
 import { RevisitTag, ScorePill } from "@/components/dates/cards/_bits";
 import { DateOrdinal, MilestoneBadge } from "@/components/memories/milestone-badge";

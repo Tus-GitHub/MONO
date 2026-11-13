@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 
 import { ScorePill } from "@/components/dates/cards/_bits";
 import { Icon } from "@/components/ui/icon";

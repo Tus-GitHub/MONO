@@ -286,6 +286,11 @@
    too, so this keys off the pointer type, not the viewport width. Left UNLAYERED on purpose:
    an unlayered rule outranks Tailwind's `@layer utilities`, so it also beats `sm:text-sm` on
    a wide (landscape) phone. Pointer-fine devices (desktop) keep the design's denser text. */
+:where(a[href], button, input, select, textarea, summary, [role="button"], [role="tab"]) {
+  /* Immediate taps while preserving scrolling and pinch-to-zoom. */
+  touch-action: manipulation;
+}
+
 @media (pointer: coarse) {
   input:not([type="checkbox" i]):not([type="radio" i]):not([type="range" i]):not(
       [type="color" i]

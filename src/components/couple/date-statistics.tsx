@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 
 import { Icon, type IconName } from "@/components/ui/icon";
 import { formatMoney, formatWallDate } from "@/lib/utils/format";

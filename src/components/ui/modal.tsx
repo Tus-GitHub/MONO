@@ -62,7 +62,7 @@ export function Modal({
 
   return (
     <Portal>
-      <div className="mono-modal-wrap dialog-inset fixed inset-0 z-50 flex items-center justify-center">
+      <div inert={!open} className={cn("mono-modal-wrap dialog-inset fixed inset-0 z-50 flex items-center justify-center", !open && "pointer-events-none")}>
         <div
           className={cn(
             "absolute inset-0 bg-ink/45 backdrop-blur-[2px] transition-opacity duration-fast",

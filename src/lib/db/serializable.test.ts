@@ -11,7 +11,7 @@ it("retries serialization conflicts using serializable isolation", async () => {
   const work = vi.fn();
   expect(await serializable(work)).toBe("ok");
   expect(transaction).toHaveBeenCalledTimes(2);
-  expect(transaction).toHaveBeenCalledWith(work, { isolationLevel: "Serializable" });
+  expect(transaction).toHaveBeenCalledWith(work, { isolationLevel: "Serializable", maxWait: 5000, timeout: 15000 });
 });
 it("bounds retries and surfaces persistent failures", async () => {
   transaction.mockRejectedValue(conflict());
@@ -22,6 +22,14 @@ it("does not retry validation errors", async () => {
   transaction.mockRejectedValue(new Error("space full"));
   await expect(serializable(vi.fn())).rejects.toThrow("space full");
   expect(transaction).toHaveBeenCalledTimes(1);
+});
+it("honors an explicit transaction timeout without retrying expired transactions", async () => {
+  const error = new Prisma.PrismaClientKnownRequestError("expired", { code: "P2028", clientVersion: "test" });
+  transaction.mockRejectedValue(error);
+  const work = vi.fn();
+  await expect(serializable(work, { timeout: 30000 })).rejects.toBe(error);
+  expect(transaction).toHaveBeenCalledTimes(1);
+  expect(transaction).toHaveBeenCalledWith(work, { isolationLevel: "Serializable", maxWait: 5000, timeout: 30000 });
 });
 it.each(["40001", "40P01"])("retries raw PostgreSQL serialization/deadlock errors (%s)", async (code) => {
   transaction.mockRejectedValueOnce(new Prisma.PrismaClientKnownRequestError("retry", {

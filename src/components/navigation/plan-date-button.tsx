@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 
 import { focusRing } from "@/components/ui/_shared";
 import { Icon } from "@/components/ui/icon";

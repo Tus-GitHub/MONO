@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { DateStatus } from "@prisma/client";
 
 import { Icon } from "@/components/ui/icon";

@@ -67,6 +67,7 @@ export function ViewportManager() {
       window.clearTimeout(focusTimer);
       // Wait for the keyboard animation + a viewport update before measuring.
       focusTimer = window.setTimeout(() => {
+        if (!el.isConnected || document.activeElement !== el) return;
         const kb = parseFloat(getComputedStyle(root).getPropertyValue("--kb")) || 0;
         const rect = el.getBoundingClientRect();
         const safeBottom = (window.visualViewport?.height ?? window.innerHeight);
@@ -78,6 +79,12 @@ export function ViewportManager() {
       }, 300);
     };
     document.addEventListener("focusin", onFocusIn);
+    const cancelFocusScroll = () => window.clearTimeout(focusTimer);
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.target !== document.activeElement) cancelFocusScroll();
+    };
+    document.addEventListener("focusout", cancelFocusScroll);
+    document.addEventListener("pointerdown", onPointerDown, { passive: true });
 
     return () => {
       if (frame) cancelAnimationFrame(frame);
@@ -86,6 +93,8 @@ export function ViewportManager() {
       vv.removeEventListener("scroll", schedule);
       window.removeEventListener("orientationchange", schedule);
       document.removeEventListener("focusin", onFocusIn);
+      document.removeEventListener("focusout", cancelFocusScroll);
+      document.removeEventListener("pointerdown", onPointerDown);
       root.style.removeProperty("--kb");
       root.style.removeProperty("--vvh");
       root.removeAttribute("data-kb");

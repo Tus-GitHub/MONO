@@ -8,7 +8,7 @@ import {
   useState,
   type PointerEvent,
 } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 
 import { FavoriteHeart } from "@/components/memories/favorite-heart";
 import { Portal, useHistoryClose, useEscapeKey, useFocusTrap, useScrollLock } from "@/components/ui/_dialog-primitives";

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { DangerZone } from "@/components/settings/danger-zone";

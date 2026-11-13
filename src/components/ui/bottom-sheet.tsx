@@ -71,7 +71,8 @@ export function BottomSheet({
       {/* `bottom` follows the keyboard (`--kb`, set by <ViewportManager>) so the sheet — and
           its footer actions — ride up above it instead of hiding behind it. */}
       <div
-        className="fixed inset-x-0 top-0 z-50 flex items-end justify-center transition-[bottom] duration-base ease-out"
+        inert={!open}
+        className={cn("fixed inset-x-0 top-0 z-50 flex items-end justify-center transition-[bottom] duration-base ease-out", !open && "pointer-events-none")}
         style={{ bottom: "var(--kb, 0px)" }}
       >
         <div

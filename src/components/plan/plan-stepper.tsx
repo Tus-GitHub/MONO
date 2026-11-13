@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 
 import { Icon } from "@/components/ui/icon";
 import { PLAN_STEPS, PLAN_STEP_META, planStepHref, type PlanStep } from "@/lib/date/plan-steps";

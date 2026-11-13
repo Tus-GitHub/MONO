@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 
 import { ResetPasswordForm } from "@/components/forms/reset-password-form";
 import { Alert } from "@/components/ui/alert";

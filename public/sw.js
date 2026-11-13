@@ -14,7 +14,7 @@
  * Updating: bump VERSION. The new worker precaches, `skipWaiting()`s on the page's nudge, and
  * on activate deletes every cache whose name doesn't start with the current VERSION.
  */
-const VERSION = "mono-v2";
+const VERSION = "mono-v3";
 const PRECACHE = VERSION + "-precache";
 const STATIC = VERSION + "-static";
 
@@ -30,7 +30,7 @@ self.addEventListener("install", (event) => {
     caches
       .open(PRECACHE)
       .then((cache) => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting())
+      // Existing clients keep their current version until the user chooses Refresh.
       .catch(() => {
         /* a missing precache URL must not block install */
       }),

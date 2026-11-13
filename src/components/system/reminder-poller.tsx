@@ -2,8 +2,6 @@
 
 import { useEffect, useRef } from "react";
 
-import { dispatchMyRemindersAction } from "@/server/actions/reminders";
-
 const EVERY_MS = 10 * 60_000;
 
 /**
@@ -15,23 +13,34 @@ export function ReminderPoller() {
   const running = useRef(false);
 
   useEffect(() => {
+    let controller: AbortController | undefined;
+    let disposed = false;
+    let lastPoll = 0;
     const tick = () => {
-      if (running.current || document.visibilityState !== "visible") return;
+      if (disposed || running.current || document.visibilityState !== "visible" || Date.now() - lastPoll < 30_000) return;
+      lastPoll = Date.now();
       running.current = true;
-      dispatchMyRemindersAction()
+      controller = new AbortController();
+      fetch("/api/reminders/dispatch", { method: "POST", credentials: "same-origin", cache: "no-store", signal: controller.signal })
+        // The route invalidates data for the next navigation. Refreshing the current
+        // page here can replace controls while the user is touching or editing them.
         .catch(() => undefined)
         .finally(() => {
           running.current = false;
         });
     };
 
-    tick();
+    // Let initial rendering and the user's first interaction finish before background work.
+    const initial = window.setTimeout(tick, 1_000);
     const id = window.setInterval(tick, EVERY_MS);
     const onVisible = () => {
       if (document.visibilityState === "visible") tick();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
+      disposed = true;
+      controller?.abort();
+      window.clearTimeout(initial);
       window.clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
     };

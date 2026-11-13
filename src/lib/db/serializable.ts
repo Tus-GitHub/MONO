@@ -10,7 +10,13 @@ export async function serializable<T>(
 ): Promise<T> {
   for (let attempt = 0; ; attempt += 1) {
     try {
-      return await prisma.$transaction(work, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, ...options });
+      // Keep atomic multi-query operations within a bounded budget even after a cold start.
+      return await prisma.$transaction(work, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        maxWait: 5_000,
+        timeout: 15_000,
+        ...options,
+      });
     } catch (error) {
       const retryable = error instanceof Prisma.PrismaClientKnownRequestError && (
         error.code === "P2034"

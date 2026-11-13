@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 
 import { DateStatusBadge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";

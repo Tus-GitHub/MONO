@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 
 import { AcceptInvitationButton } from "@/components/onboarding/accept-invitation-button";
 import { Logo, MonoMark } from "@/components/layout/logo";

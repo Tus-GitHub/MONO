@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 
 import { Icon } from "@/components/ui/icon";
 import type { Pipeline, PipelineStepKey } from "@/lib/date/pipeline";

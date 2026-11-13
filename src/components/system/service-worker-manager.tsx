@@ -71,7 +71,7 @@ export function ServiceWorkerManager() {
   return (
     <div
       role="status"
-      className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+var(--bottomnav-h)+0.75rem)] lg:pb-4"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+var(--bottomnav-h)+0.75rem)] lg:pb-4"
     >
       <div className="pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-xl border border-line bg-elevated p-3 shadow-lg">
         <p className="min-w-0 flex-1 text-sm text-ink">MONO just updated.</p>

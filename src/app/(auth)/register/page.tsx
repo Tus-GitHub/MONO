@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 
 import { GoogleAuthBlock } from "@/components/auth/google-button";
 import { RegisterForm } from "@/components/forms/register-form";

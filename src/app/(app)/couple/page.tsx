@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { CoupleStatus } from "@prisma/client";
 
 import { CategoryPreferences } from "@/components/couple/category-preferences";

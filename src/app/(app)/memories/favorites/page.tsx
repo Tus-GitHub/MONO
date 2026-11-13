@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 
 import { GridDateCard } from "@/components/dates/cards/grid-date-card";
 import { MemoriesNav } from "@/components/memories/memories-nav";

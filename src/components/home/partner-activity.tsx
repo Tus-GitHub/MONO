@@ -1,7 +1,7 @@
 "use client";
 
 import { startTransition, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 
 import { Icon } from "@/components/ui/icon";
 import { relativeTime } from "@/lib/utils/format";

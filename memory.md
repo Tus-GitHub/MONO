@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-13 (validity-gated profile save deployed)
+Last updated: 2026-11-14 (mobile responsiveness verification and release)
 
 ## Project Overview
 
@@ -22,6 +22,8 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Mobile browser/PWA responsiveness (2026-11-13)** — user reports repeated taps and slow response across the site on phone browser and installed PWA. Trace and fix shared input/navigation/request latency, preserve design and validation, verify and deploy from isolated checkout.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -1161,6 +1163,12 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-13 — Mobile responsiveness and repeated taps
+
+**IN PROGRESS.** User reports all-site slow/repeated taps, confirmed in phone browser and installed PWA. Investigate live errors, mobile touch/keyboard handling, navigation feedback, background server-action queue and database round trips. Production shows P2028 transaction failures in invitation/connect actions; background reminder poller invokes a serialized Server Action on every application mount. Current deployment is 807091f. Work in isolated codex/mobile-responsiveness; unrelated state-machine changes in primary workspace remain separate.
+
+Implemented Singapore function region beside the Singapore database (was iad1; warm public reads ~1.4s, cold health ~4.5s), bounded 15s transactions without retrying unknown P2028 outcomes, request-local onboarding deduplication, authenticated same-origin HTTP reminder/activity polling outside the foreground action queue, navigation progress, touch manipulation and stale keyboard-scroll cancellation. Reproduced and fixed invisible PWA-update-banner padding intercepting bottom navigation; closing overlays become inert immediately. Worker v3 waits for explicit Refresh when replacing an installed worker. Existing visual style, field validity gates and isolation remain. 328 unit tests, full lint, production build/TypeScript, 100 PostgreSQL integration tests (including a successful 5.2s transaction) and nine authenticated mobile-touch journey checks pass. The journey verifies foreground Save while polling is held, all primary tabs, profile save, creation/invitation/acceptance, 320px and no browser errors. Remaining local Home tap issue was Next dev toolbar interception; test-only CSS excludes that development overlay. Two closing-overlay touch checks and eight browser/emulated-PWA public checks pass. Three real service-worker lifecycle checks confirm first claim preserves signup drafts and scrubbed verification tokens, and replacement waits for Refresh and reloads once. Production release and live timing verification remain. User said Continue on 2026-11-14. No production records changed.
 
 ### 2026-11-13 — Disable invalid profile-name saves
 

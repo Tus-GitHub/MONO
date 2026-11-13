@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 
 import { redirect } from "next/navigation";
 
@@ -17,12 +18,12 @@ interface Guarded {
 }
 
 /** Feature-page guard: finished onboarding, or bounce to the current step. */
-export async function requireOnboarded(): Promise<Guarded> {
+export const requireOnboarded = cache(async (): Promise<Guarded> => {
   const user = await requireUserOrRedirect();
   const status = await getOnboardingStatus(user.id);
   if (status.step !== "ready") redirect(onboardingPath(status.step));
   return { user, status };
-}
+});
 
 /** Onboarding step-page guard: this must be the user's current step. */
 export async function requireOnboardingStep(

@@ -1,7 +1,7 @@
 "use client";
 
 import { startTransition } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import type { NotificationType } from "@prisma/client";
 
 import { Icon } from "@/components/ui/icon";

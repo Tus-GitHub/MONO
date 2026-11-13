@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 
 import { DatesNav } from "@/components/dates/dates-nav";
 import { PageContainer } from "@/components/layout/page-container";

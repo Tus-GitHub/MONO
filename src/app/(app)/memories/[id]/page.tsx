@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { PageContainer } from "@/components/layout/page-container";
 import { MemoryDetailView } from "@/components/memories/memory-detail-view";
 import { Icon } from "@/components/ui/icon";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { isAppError } from "@/lib/errors";
 import { requireOnboarded } from "@/lib/onboarding";
 import { getMemoryDetail, type MemoryDetail } from "@/server/services/memory-service";
