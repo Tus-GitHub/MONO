@@ -10,6 +10,8 @@ import { Field } from "@/components/ui/field";
 import { PasswordInput } from "@/components/ui/password-input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { idleState, errorState } from "@/lib/utils/result";
+import { useFormValidity } from "@/lib/hooks/use-form-validity";
+import { loginSchema } from "@/lib/validation/auth";
 import { loginAction } from "@/server/actions/auth";
 
 export function LoginForm({ invite, oauthFailed }: { invite?: string; oauthFailed?: boolean }) {
@@ -20,9 +22,13 @@ export function LoginForm({ invite, oauthFailed }: { invite?: string; oauthFaile
   const visibleState = dismissedState === state ? idleState : state;
   const fieldErrors = visibleState.status === "error" ? visibleState.fieldErrors : undefined;
   const incorrect = visibleState.status === "error" && visibleState.message === "Incorrect email or password.";
+  const { formRef, valid, validate } = useFormValidity(loginSchema);
 
   return (
-    <form action={action} onChange={() => setDismissedState(state)} onReset={(event) => event.preventDefault()} className="space-y-4" noValidate>
+    <form ref={formRef} action={action}
+      onInput={validate} onFocus={validate} onChange={() => { setDismissedState(state); validate(); }}
+      onSubmit={(event) => { if (!valid) event.preventDefault(); }}
+      onReset={(event) => event.preventDefault()} className="space-y-4" noValidate>
       {invite ? <input type="hidden" name="invite" value={invite} /> : null}
 
       <EmailFormatField errors={fieldErrors?.email} incorrect={incorrect} feedbackId="login-feedback" />
@@ -49,7 +55,7 @@ export function LoginForm({ invite, oauthFailed }: { invite?: string; oauthFaile
       </div>
 
       <div id="login-feedback"><FormFeedback state={visibleState} /></div>
-      <SubmitButton fullWidth pendingText="Signing in…">
+      <SubmitButton fullWidth disabled={!valid} pendingText="Signing in…">
         Sign in
       </SubmitButton>
     </form>

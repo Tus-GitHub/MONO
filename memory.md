@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-13 (live login and recovery email validation deployed)
+Last updated: 2026-11-13 (validity-gated auth buttons underway)
 
 ## Project Overview
 
@@ -22,6 +22,8 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Validity-gated auth buttons (2026-11-13)** — disable Create account, Sign in and Send reset link until their required values pass existing schemas; registration also waits for confirmed name/email availability. Keep current styling and publish the isolated change.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -1126,6 +1128,10 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-13 — Disable invalid authentication submissions
+
+**IN PROGRESS.** User requests disabled signup/login/recovery buttons until all required fields are valid, same design, deployed. Use existing server schemas for client form validity, confirm registration name/email availability, invalidate pending checks immediately on edits, and prevent invalid Enter/requestSubmit submissions. Preserve existing pending-button behavior and server validation. Continue in isolated codex/valid-auth-submit checkout; unrelated unfinished primary-workspace changes remain separate. No backend, migration or credential changes. Implemented shared schema-based form validity with hydration/native-input checks, immediate availability invalidation, strict confirmed availability for registration, inline outage retry guidance and invalid-submit guards. All 317 unit tests, lint, production build/TypeScript and ten local browser checks pass. Verified empty/invalid fields, password mismatch and bcrypt bytes, pending/registered/unavailable checks, case-equivalent edits, native input events, Enter/requestSubmit blocking and 320px layouts. Local production server stopped; tests created no accounts and sent no auth requests. Publishing the isolated change next.
 
 ### 2026-11-13 — Login and recovery live email validation
 

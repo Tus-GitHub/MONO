@@ -6,7 +6,10 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { emailSchema } from "@/lib/validation/common";
 
-export function RegistrationEmailField({ errors }: { errors?: string[] }) {
+export function RegistrationEmailField({ errors, onValidityChange }: {
+  errors?: string[];
+  onValidityChange?: (valid: boolean) => void;
+}) {
   const [value, setValue] = useState("");
   const [touched, setTouched] = useState(false);
   const [dismissedErrors, setDismissedErrors] = useState<string[] | undefined>();
@@ -17,6 +20,8 @@ export function RegistrationEmailField({ errors }: { errors?: string[] }) {
   const messages = touched && !valid ? ["Enter a valid email address."]
     : status === "taken" ? ["This email is already registered. Sign in or use another email."]
     : errors !== dismissedErrors ? errors : undefined;
+  const ready = valid && status === "available" && !messages?.length;
+  useEffect(() => { onValidityChange?.(ready); }, [onValidityChange, ready]);
 
   useEffect(() => {
     if (!emailSchema.safeParse(email).success) return;
@@ -40,11 +45,14 @@ export function RegistrationEmailField({ errors }: { errors?: string[] }) {
   }, [email]);
 
   const hint = status === "checking" ? "Checking email…" : status === "available" ? "This email is available."
-    : status === "unavailable" ? "We’ll check this email when you submit." : undefined;
+    : status === "unavailable" ? onValidityChange ? "Email check unavailable. Edit the address to try again." : "We’ll check this email when you submit." : undefined;
 
   return <Field label="Email" htmlFor="email" errors={messages}>
     <Input id="email" name="email" type="email" autoComplete="email" required maxLength={320} value={value}
-      onChange={(event) => { setValue(event.target.value); setTouched(true); setDismissedErrors(errors); }}
+      onChange={(event) => {
+        if (event.target.value.trim().toLowerCase() !== email) onValidityChange?.(false);
+        setValue(event.target.value); setTouched(true); setDismissedErrors(errors);
+      }}
       onBlur={() => setTouched(true)} invalid={Boolean(messages?.length)}
       aria-describedby={messages?.length ? "email-error" : hint ? "email-status" : undefined} />
     {!messages?.length && hint ? <p id="email-status" role="status" className={`text-xs ${status === "available" ? "text-success" : "text-muted"}`}>{hint}</p> : null}
