@@ -10,6 +10,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { idleState } from "@/lib/utils/result";
 import { createCoupleAction, joinCoupleAction } from "@/server/actions/couple";
 import { BrowserTimezoneInput } from "@/components/forms/browser-timezone-input";
+import { ConnectionPendingHelp } from "@/components/forms/connection-pending-help";
 
 /** Minimal "create our space" — no fields; name/date are set in the couple-setup step. */
 export function CreateSpaceButton() {
@@ -23,6 +24,7 @@ export function CreateSpaceButton() {
           Create our space
         </SubmitButton>
       </PendingFields>
+      <ConnectionPendingHelp />
     </form>
   );
 }
@@ -54,6 +56,7 @@ export function CreateCoupleForm() {
           Create our space
         </SubmitButton>
       </PendingFields>
+      <ConnectionPendingHelp />
     </form>
   );
 }
@@ -86,6 +89,7 @@ export function JoinCoupleForm() {
           Join with code
         </SubmitButton>
       </PendingFields>
+      <ConnectionPendingHelp />
     </form>
   );
 }

@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (required verification and workflow fixes deployed and verified)
+Last updated: 2026-11-14 (live signup, actual email verification and invitation join passed)
 
 ## Project Overview
 
@@ -22,6 +22,17 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Verification and space-join latency (2026-11-14)** — tracing database round trips,
+  Server Action refreshes and invitation navigation; fix unnecessary waiting and repeat the
+  actual-email signup/verification/join flow on production in the right panel.
+  Implemented same-origin, no-store JSON confirmation/status/hint requests with a 15-second
+  timeout; removed duplicate root/client refresh and background Server Action queue.
+  Confirmation uses two locked transaction queries instead of six; connection actions
+  target the resolved onboarding step. Slow submissions offer a safe status link after
+  eight seconds. 364 unit + 114 local PostgreSQL tests, TypeScript, targeted lint and
+  Webpack production build pass. Initial sandbox build hit EPERM; retry passed with normal
+  filesystem access. Deployment/live retest pending.
 
 
 
@@ -47,6 +58,19 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Live signup → email verification → invitation join (2026-11-14)** — tested on bc0bc2c,
+  READY deployment dpl_GLtRwnxUBeqizLGJ7ZfsAJ7hpgYD, in the right-panel browser. Two
+  disposable accounts received actual welcome/verification emails. The owner verified and
+  created a space/link; the partner registered from that link, saw the automatic verification
+  popup, was blocked before verification, confirmed the actual inbox link, returned to the same
+  invitation and accepted. Connected setup showed both names. Real PostgreSQL confirmed both
+  verified, two active members, one accepted invitation and one joined notification. No
+  “Something went wrong” appeared and production error/fatal logs were empty during the run.
+  User explicitly approved permanent fixture cleanup: removed exactly two matching test users
+  and their empty test space in a guarded transaction, verified zero remain, deleted both
+  temporary inboxes and removed local private credentials/links. Screenshots and non-secret
+  result JSON retained. No app code or existing real accounts/spaces changed.
 
 - **Email/invitation and workflow publication (2026-11-14)** — published 18ee493 to main;
   dpl_A8292GxEwFs2ebenKgqsipEpDt4d is READY on mono-kappa-beryl.vercel.app, in sin1.
@@ -1219,6 +1243,33 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+- **2026-11-14 — IN PROGRESS: verification/join loading.** User requested faster email
+  confirmation and space joining plus another live test. Investigating redundant root
+  revalidation/client refresh, mount-time invitation actions and sequential database work.
+
+### 2026-11-14 — Live invitation acceptance from new signup — DONE
+
+User explicitly requested live signup → actual verification email → join the invited space,
+checking that no “Something went wrong” occurs. Full flow passed through the requested right
+panel on bc0bc2c. Actual emails arrived in both isolated inboxes; no database shortcuts marked
+accounts verified or joined them. Unverified creation/acceptance and premature status checks
+showed the expected popup/feedback. The same original invitation survived registration and
+same-tab email confirmation; explicit acceptance reached the connected shared-space setup.
+Production PostgreSQL confirmed two verified users, two memberships, one consumed invitation
+and one partner-joined notification. No generic error appeared and no production error/fatal
+logs were found in the test window. Some browser automation waits elapsed while confirmation
+or navigation was still loading; each final outcome was observed rather than counted as failed
+or retried blindly. This is a functional pass, not a latency benchmark or inbox-placement promise.
+
+The Neon tool required explicit approval for destructive SQL. After the user approved deleting
+this exact run's test data, guarded cleanup removed the two matching users and empty space
+atomically; no other member/content/space could pass its guards. Zero test rows remained. Both
+temporary inboxes were deleted, and local credentials/verification links removed. Evidence:
+.screenshots/live-invite-verification-6475e6cd4a.jpg,
+.screenshots/live-invite-connected-6475e6cd4a.jpg and
+.postgres-test/live-invite-results-6475e6cd4a.json. Existing real accounts/spaces and app source
+were untouched. No additional deployment was needed.
 
 ### 2026-11-14 — Publish verified email/invitation and workspace fixes — DONE
 

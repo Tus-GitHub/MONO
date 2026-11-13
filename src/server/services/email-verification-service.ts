@@ -56,20 +56,32 @@ export async function sendRegistrationEmails(userId: string): Promise<void> {
 /** An explicit POST consumes the capability. Merely opening/scanning an email link changes nothing. */
 export async function completeEmailVerification(raw: string): Promise<void> {
   if (!/^[A-Za-z0-9_-]{43}$/.test(raw)) throw new ValidationError(INVALID_LINK);
-  const record = await prisma.emailVerificationToken.findUnique({
-    where: { tokenHash: sha256(raw) }, select: { id: true, userId: true, email: true },
-  });
-  if (!record) throw new ValidationError(INVALID_LINK);
   await serializable(async (tx) => {
-    await tx.$queryRaw`SELECT id FROM users WHERE id = ${record.userId} FOR UPDATE`;
-    const user = await tx.user.findFirst({ where: { id: record.userId, email: record.email, deletedAt: null }, select: { id: true } });
-    if (!user) throw new ValidationError(INVALID_LINK);
+    // Lock the account first, as resend/deletion do. Read the token and mailbox in that same
+    // round trip; the conditional claim below remains authoritative after lock contention.
+    const [record] = await tx.$queryRaw<{ id: string }[]>`
+      SELECT t.id FROM users u JOIN email_verification_tokens t ON t."userId" = u.id
+      WHERE t."tokenHash" = ${sha256(raw)} AND t.email = u.email AND u."deletedAt" IS NULL
+      FOR UPDATE OF u
+    `;
+    if (!record) throw new ValidationError(INVALID_LINK);
     const now = new Date();
-    const claimed = await tx.emailVerificationToken.updateMany({
-      where: { id: record.id, userId: user.id, usedAt: null, expiresAt: { gt: now } }, data: { usedAt: now },
-    });
-    if (claimed.count !== 1) throw new ValidationError(INVALID_LINK);
-    await tx.user.update({ where: { id: user.id }, data: { emailVerified: now } });
-    await tx.emailVerificationToken.updateMany({ where: { userId: user.id, usedAt: null }, data: { usedAt: now } });
+    // Each CTE writes disjoint rows. Claim, confirm and retire sibling links atomically,
+    // rather than paying for a network round trip for each individual write.
+    const confirmed = await tx.$queryRaw<{ id: string }[]>`
+      WITH claimed AS (
+        UPDATE email_verification_tokens SET "usedAt" = ${now}
+        WHERE id = ${record.id} AND "usedAt" IS NULL AND "expiresAt" > ${now}
+        RETURNING id, "userId"
+      ), confirmed AS (
+        UPDATE users u SET "emailVerified" = ${now}, "updatedAt" = ${now}
+        FROM claimed c WHERE u.id = c."userId" RETURNING u.id
+      ), retired AS (
+        UPDATE email_verification_tokens t SET "usedAt" = ${now}
+        FROM claimed c WHERE t."userId" = c."userId" AND t.id <> c.id AND t."usedAt" IS NULL
+        RETURNING t.id
+      ) SELECT id FROM confirmed
+    `;
+    if (confirmed.length !== 1) throw new ValidationError(INVALID_LINK);
   });
 }

@@ -9,7 +9,9 @@ import { Input } from "@/components/ui/input";
 import { LinkButton } from "@/components/ui/link-button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { idleState } from "@/lib/utils/result";
-import { requestVerificationAction, verifyEmailAction } from "@/server/actions/email-verification";
+import { requestVerificationAction } from "@/server/actions/email-verification";
+import { postEmailVerification } from "@/lib/auth/email-verification-client";
+import type { ActionState } from "@/lib/utils/result";
 
 interface VerificationProps { currentEmail?: string; alreadyVerified: boolean; invitationPath?: string | null }
 
@@ -32,7 +34,8 @@ export function EmailVerificationForm(props: VerificationProps) {
 }
 
 function VerificationDetails({ token, currentEmail, alreadyVerified, invitationPath }: VerificationProps & { token: string }) {
-  const [verifyState, verifyAction] = useActionState(verifyEmailAction, idleState);
+  const [verifyState, verifyAction] = useActionState(async (_previous: ActionState, form: FormData) =>
+    postEmailVerification({ action: "confirm", token: String(form.get("token") ?? "") }), idleState);
   const [resendState, resendAction] = useActionState(requestVerificationAction, idleState);
   const confirmed = verifyState.status === "success";
   const continueHref = invitationPath ?? (currentEmail ? "/onboarding" : "/login");

@@ -1,14 +1,14 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useActionState, useEffect, useState, type ReactNode } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { FormFeedback } from "@/components/forms/form-feedback";
 import { idleState } from "@/lib/utils/result";
-import { checkOwnVerificationAction, resendOwnVerificationAction, rememberOwnInvitationAction } from "@/server/actions/email-verification";
+import { resendOwnVerificationAction } from "@/server/actions/email-verification";
+import { postEmailVerification } from "@/lib/auth/email-verification-client";
 
 /** Keep the invite URL and entered code in place while mailbox confirmation happens in another tab. */
 export function SpaceVerificationGate({ verified, email, invitationToken, children }: {
@@ -16,36 +16,30 @@ export function SpaceVerificationGate({ verified, email, invitationToken, childr
 }) {
   const invitation = Boolean(invitationToken);
   const [open, setOpen] = useState(invitation);
-  const [checkState, checkAction] = useActionState(checkOwnVerificationAction, idleState);
+  const [checkState, checkAction] = useActionState(() => postEmailVerification({ action: "check" }), idleState);
   const [resendState, resendAction] = useActionState(resendOwnVerificationAction, idleState);
-  const router = useRouter();
+  const canProceed = verified || checkState.status === "success";
 
   useEffect(() => {
-    if (invitationToken) startTransition(() => {
-      void rememberOwnInvitationAction(invitationToken).catch(() => {});
-    });
-  }, [invitationToken]);
-
-  useEffect(() => {
-    if (checkState.status === "success") router.refresh();
-  }, [checkState, router]);
+    if (!verified && invitationToken) void postEmailVerification({ action: "remember", token: invitationToken });
+  }, [invitationToken, verified]);
 
   return (
     <>
-      {!verified ? (
+      {!canProceed ? (
         <Alert title="Verify your email to connect" className="mb-4">
           Confirm your email before creating or joining a private space.{" "}
           <Button variant="link" onClick={() => setOpen(true)}>Verify email to continue</Button>
         </Alert>
       ) : null}
       <div onSubmitCapture={(event) => {
-        if (!verified) {
+        if (!canProceed) {
           event.preventDefault();
           event.stopPropagation();
           setOpen(true);
         }
       }}>{children}</div>
-      <Modal open={!verified && open} onClose={() => setOpen(false)} size="sm"
+      <Modal open={!canProceed && open} onClose={() => setOpen(false)} size="sm"
         title="Verify your email first"
         description="Confirm your address to keep your shared space private.">
         <div className="space-y-5">

@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/icon";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { idleState } from "@/lib/utils/result";
 import { acceptInvitationAction } from "@/server/actions/couple";
+import { ConnectionPendingHelp } from "@/components/forms/connection-pending-help";
 
 export function AcceptInvitationButton({ token }: { token: string }) {
   const [state, action] = useActionState(acceptInvitationAction, idleState);
@@ -26,6 +27,7 @@ export function AcceptInvitationButton({ token }: { token: string }) {
           Accept &amp; connect
         </SubmitButton>
       </PendingFields>
+      <ConnectionPendingHelp />
     </form>
   );
 }

@@ -28,6 +28,14 @@ import {
 } from "@/server/services/invitation-service";
 import { formValues, toActionError } from "@/server/actions/_helpers";
 import { clearPendingInvitation } from "@/lib/auth/pending-invitation";
+import { getOnboardingStatus, onboardingPath } from "@/server/services/onboarding-service";
+
+/** Cookie deletion invalidates this browser's router cache; render the final step directly. */
+async function continueOnboarding(userId: string): Promise<never> {
+  await clearPendingInvitation();
+  const status = await getOnboardingStatus(userId);
+  redirect(onboardingPath(status.step));
+}
 
 export async function createCoupleAction(
   _prev: ActionState,
@@ -43,9 +51,7 @@ export async function createCoupleAction(
   } catch (error) {
     return toActionError(error);
   }
-  await clearPendingInvitation();
-  revalidatePath("/", "layout");
-  redirect("/onboarding");
+  return continueOnboarding(user.id);
 }
 
 export async function joinCoupleAction(
@@ -65,9 +71,7 @@ export async function joinCoupleAction(
   } catch (error) {
     return toActionError(error);
   }
-  await clearPendingInvitation();
-  revalidatePath("/", "layout");
-  redirect("/onboarding");
+  return continueOnboarding(user.id);
 }
 
 /** Onboarding step 3: save the couple space and mark setup done. */
@@ -147,7 +151,5 @@ export async function acceptInvitationAction(
   } catch (error) {
     return toActionError(error);
   }
-  await clearPendingInvitation();
-  revalidatePath("/", "layout");
-  redirect("/onboarding");
+  return continueOnboarding(user.id);
 }

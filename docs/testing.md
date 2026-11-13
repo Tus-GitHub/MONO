@@ -1,5 +1,27 @@
 # MONO regression testing
 
+## Full live invitation flow (2026-11-14)
+
+Passed on bc0bc2c / production deployment dpl_GLtRwnxUBeqizLGJ7ZfsAJ7hpgYD using two disposable
+accounts and actual inbox delivery. The owner registered, confirmed the received email, created
+a space and generated a link. A new partner opened that link, registered, saw the verification
+popup, remained blocked when attempting acceptance before verification, confirmed their real
+email, returned to the original invitation in the same tab and explicitly accepted it. Connected
+setup displayed both members. Database evidence: both emails verified, ACTIVE space, exactly two
+active members, one accepted invitation and one PARTNER_JOINED notification. No “Something went
+wrong” appeared and no production error/fatal logs were found in the test window.
+
+Confirmation/navigation occasionally remained loading beyond a browser-automation wait; final
+success was observed in both the UI and database. This verifies functionality, not a latency SLA
+or Gmail/Outlook inbox placement. No production fixture was marked verified or joined via SQL.
+After explicit user approval, identity/content/membership-guarded cleanup removed only this
+run's two test accounts and empty space; zero test rows remain. Both disposable inboxes and local
+private state were removed. Existing real accounts/spaces and application code were untouched.
+
+Evidence: `.screenshots/live-invite-verification-6475e6cd4a.jpg`,
+`.screenshots/live-invite-connected-6475e6cd4a.jpg`, and
+`.postgres-test/live-invite-results-6475e6cd4a.json` (no credentials or verification capabilities).
+
 ## Required email verification and invitation recovery (2026-11-14)
 
 - 346 unit tests and 113 isolated PostgreSQL tests pass, including account-bound invitation
@@ -291,3 +313,19 @@ update preserves the existing instant. Explicit Date or offset-bearing ISO insta
 supported for service/API callers. Nonexistent DST-gap times are rejected with correctable
 feedback; newly entered repeated clock times use the earlier occurrence. An unchanged field
 preserves the original occurrence. Existing stored instants are not rewritten.
+
+## Verification and connection latency (2026-11-14)
+
+Mailbox confirmation/status/hint requests now return private JSON rather than an RSC tree
+or a background Server Action. Confirmation has a 15-second client deadline with recoverable
+feedback; a fresh session-bound check unlocks the invitation without two page refreshes.
+The locked verification transaction uses two queries instead of six, preserving mailbox,
+expiry, replay, sibling retirement and account deletion checks. Connection actions resolve
+the destination before redirecting, and an eight-second pending hint offers a fresh status
+navigation without submitting a second join.
+
+364 unit tests and 114 tests against an isolated local PostgreSQL database passed, including
+concurrent confirmation, replay/expiry, account closure races, unverified joins and delayed
+link/code joins. TypeScript, targeted ESLint and the Webpack production build passed. The
+initial sandbox build hit a Windows .next mkdir EPERM; the same build passed with normal
+filesystem access. Live evidence will be recorded after deployment.

@@ -1,12 +1,10 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ begin: vi.fn(), complete: vi.fn(), limit: vi.fn(), revalidate: vi.fn(), user: vi.fn() }));
+const mocks = vi.hoisted(() => ({ begin: vi.fn(), limit: vi.fn(), user: vi.fn() }));
 vi.mock("@/lib/auth/current-user", () => ({ requireUser: mocks.user }));
-vi.mock("@/lib/auth/pending-invitation", () => ({ rememberInvitation: vi.fn() }));
-vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidate }));
 vi.mock("@/lib/security/rate-limit", () => ({ MINUTE: 60_000, checkRateLimit: mocks.limit }));
-vi.mock("@/server/services/email-verification-service", () => ({ beginEmailVerification: mocks.begin, completeEmailVerification: mocks.complete }));
-import { requestVerificationAction, verifyEmailAction, checkOwnVerificationAction, resendOwnVerificationAction } from "./email-verification";
+vi.mock("@/server/services/email-verification-service", () => ({ beginEmailVerification: mocks.begin }));
+import { requestVerificationAction, resendOwnVerificationAction } from "./email-verification";
 import { idleState } from "@/lib/utils/result";
 
 beforeEach(() => { vi.resetAllMocks(); mocks.limit.mockResolvedValue(null); });
@@ -21,31 +19,14 @@ it("preserves the same resend response for missing accounts and provider failure
   expect(JSON.stringify(log.mock.calls)).not.toContain("provider-secret-details");
   log.mockRestore();
 });
-it("rejects malformed email/token fields before invoking business logic", async () => {
+it("rejects malformed email fields before invoking business logic", async () => {
   expect((await requestVerificationAction(idleState, form("email", "bad"))).status).toBe("error");
-  expect((await verifyEmailAction(idleState, form("token", "bad"))).status).toBe("error");
-  expect(mocks.begin).not.toHaveBeenCalled(); expect(mocks.complete).not.toHaveBeenCalled();
+  expect(mocks.begin).not.toHaveBeenCalled();
 });
-it("honors request limits before creating mail or consuming a token", async () => {
+it("honors request limits before creating mail", async () => {
   mocks.limit.mockResolvedValue("Try again later.");
   expect((await requestVerificationAction(idleState, form("email", "person@example.test"))).status).toBe("error");
-  expect((await verifyEmailAction(idleState, form("token", "a".repeat(43)))).status).toBe("error");
-  expect(mocks.begin).not.toHaveBeenCalled(); expect(mocks.complete).not.toHaveBeenCalled();
-});
-it("refreshes verified status after a successful explicit confirmation", async () => {
-  const value = "a".repeat(43);
-  expect((await verifyEmailAction(idleState, form("token", value))).status).toBe("success");
-  expect(mocks.complete).toHaveBeenCalledWith(value);
-  expect(mocks.revalidate).toHaveBeenCalledWith("/", "layout");
-});
-
-it("checks only the signed-in account and refreshes after confirmation in another tab", async () => {
-  mocks.user.mockResolvedValue({ emailVerified: null });
-  expect((await checkOwnVerificationAction(idleState)).status).toBe("error");
-  expect(mocks.revalidate).not.toHaveBeenCalled();
-  mocks.user.mockResolvedValue({ emailVerified: new Date() });
-  expect((await checkOwnVerificationAction(idleState)).status).toBe("success");
-  expect(mocks.revalidate).toHaveBeenCalledWith("/", "layout");
+  expect(mocks.begin).not.toHaveBeenCalled();
 });
 
 it("resends to the current account without accepting an arbitrary recipient", async () => {
