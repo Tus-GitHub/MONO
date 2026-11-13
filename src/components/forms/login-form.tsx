@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
+import { EmailFormatField } from "@/components/forms/email-format-field";
 import { FormFeedback } from "@/components/forms/form-feedback";
 import { CheckboxField } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { idleState, errorState } from "@/lib/utils/result";
@@ -16,16 +16,16 @@ export function LoginForm({ invite, oauthFailed }: { invite?: string; oauthFaile
   const [state, action] = useActionState(loginAction, oauthFailed
     ? errorState("Google sign-in couldn't finish. Please try again or sign in with your email.")
     : idleState);
-  const fieldErrors = state.status === "error" ? state.fieldErrors : undefined;
-  const incorrect = state.status === "error" && state.message === "Incorrect email or password.";
+  const [dismissedState, setDismissedState] = useState<typeof state>();
+  const visibleState = dismissedState === state ? idleState : state;
+  const fieldErrors = visibleState.status === "error" ? visibleState.fieldErrors : undefined;
+  const incorrect = visibleState.status === "error" && visibleState.message === "Incorrect email or password.";
 
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form action={action} onChange={() => setDismissedState(state)} onReset={(event) => event.preventDefault()} className="space-y-4" noValidate>
       {invite ? <input type="hidden" name="invite" value={invite} /> : null}
 
-      <Field label="Email" htmlFor="email" errors={fieldErrors?.email}>
-        <Input id="email" name="email" type="email" autoComplete="email" required invalid={incorrect || Boolean(fieldErrors?.email?.length)} aria-describedby={fieldErrors?.email?.length ? "email-error" : incorrect ? "login-feedback" : undefined} />
-      </Field>
+      <EmailFormatField errors={fieldErrors?.email} incorrect={incorrect} feedbackId="login-feedback" />
 
       <Field label="Password" htmlFor="password" errors={fieldErrors?.password}>
         <PasswordInput
@@ -48,7 +48,7 @@ export function LoginForm({ invite, oauthFailed }: { invite?: string; oauthFaile
         </Link>
       </div>
 
-      <div id="login-feedback"><FormFeedback state={state} /></div>
+      <div id="login-feedback"><FormFeedback state={visibleState} /></div>
       <SubmitButton fullWidth pendingText="Signing in…">
         Sign in
       </SubmitButton>

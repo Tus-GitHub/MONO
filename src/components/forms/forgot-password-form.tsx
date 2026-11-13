@@ -1,28 +1,27 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
+import { EmailFormatField } from "@/components/forms/email-format-field";
 import { FormFeedback } from "@/components/forms/form-feedback";
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { idleState } from "@/lib/utils/result";
 import { requestPasswordResetAction } from "@/server/actions/auth";
 
 export function ForgotPasswordForm() {
   const [state, action] = useActionState(requestPasswordResetAction, idleState);
-  const fieldErrors = state.status === "error" ? state.fieldErrors : undefined;
+  const [dismissedState, setDismissedState] = useState<typeof state>();
+  const visibleState = dismissedState === state ? idleState : state;
+  const fieldErrors = visibleState.status === "error" ? visibleState.fieldErrors : undefined;
   const done = state.status === "success";
 
   return (
-    <form action={action} className="space-y-4" noValidate>
-      <FormFeedback state={state} />
+    <form action={action} onChange={() => setDismissedState(state)} onReset={(event) => event.preventDefault()} className="space-y-4" noValidate>
+      <FormFeedback state={visibleState} />
 
       {!done ? (
         <>
-          <Field label="Email" htmlFor="email" errors={fieldErrors?.email}>
-            <Input id="email" name="email" type="email" autoComplete="email" required />
-          </Field>
+          <EmailFormatField errors={fieldErrors?.email} />
           <SubmitButton className="w-full" pendingText="Sending…">
             Send reset link
           </SubmitButton>
