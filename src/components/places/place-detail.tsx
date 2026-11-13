@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { PhotoCredit } from "@/components/places/photo-credit";
+import { PlaceImage } from "@/components/places/place-image";
 import { PlaceAttribution } from "@/components/places/place-attribution";
 import { RevisitChoice } from "@prisma/client";
 
@@ -26,8 +28,7 @@ export function PlaceDetail({ place, forDate }: { place: PlaceDetailView; forDat
     <div className="space-y-6">
       <div className="relative aspect-video overflow-hidden rounded-2xl bg-line">
         {place.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={place.imageUrl} alt="" className="size-full object-cover" />
+          <PlaceImage src={place.imageUrl} name={place.name} />
         ) : (
           <div className="grid size-full place-items-center bg-linear-to-br from-primary-tint via-surface to-accent-tint">
             <Icon name="mapPin" size={44} className="text-primary/60" />
@@ -35,6 +36,7 @@ export function PlaceDetail({ place, forDate }: { place: PlaceDetailView; forDat
         )}
       </div>
 
+      <PhotoCredit photo={place.photo} />
       {place.gallery.length > 0 ? (
         <div className="scroll-x no-scrollbar -mx-4 flex gap-2 px-4 sm:mx-0 sm:px-0">
           {place.gallery.map((url) => (

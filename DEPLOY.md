@@ -124,6 +124,31 @@ Coordinates in the selection identifier are validated. No schema migration is re
 real venue search and exact selection lookup and makes no Google request. Standalone:
 `node node_modules/tsx/dist/cli.mjs scripts/check-photon.ts "cafes in New Delhi"`.
 
+### Free venue photos (partial coverage)
+
+Photon venues can show Wikimedia Commons photographs without signup, API keys, billing or
+autopay. MONO looks up the venue's exact OpenStreetMap node/way/relation backlink in Wikidata,
+then retrieves its Commons thumbnail and reusable license metadata. It does not match arbitrary
+nearby, chain or stock photos to a venue. Many ordinary restaurants/cafes have no linked photo;
+they retain the existing placeholder. Broken or unavailable images also fall back gracefully.
+
+Photographer/custom attribution, the license link and Commons source link accompany each
+photo, with cropping disclosed. Only supported CC BY, CC BY-SA and public-domain license URLs
+with complete attribution are accepted; restricted or unclear metadata is skipped. Thumbnail
+URLs come from the Commons API rather than being hand-built. CSP permits only Wikimedia's
+`upload.wikimedia.org` and `thumb.wikimedia.org` image hosts; images send no referrer.
+
+Lookups batch at most 24 public venue IDs, retain a bounded warm-instance cache for hits/misses
+(24 hours; one minute for errors), coalesce simultaneous work and honor upstream backoff.
+The public services have no availability guarantee; cold photo lookups may add up to two
+four-second source timeouts. No couple-private data is sent, no schema migration or new
+environment variable is needed, and image/license metadata is resolved rather than permanently
+stored in place records. This is intended for MONO's small private workload.
+
+Sources: [Wikidata data access](https://www.wikidata.org/wiki/Wikidata:Data_access),
+[Commons reuse](https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia),
+[Commons image metadata](https://www.mediawiki.org/wiki/API:Imageinfo).
+
 ### Optional Google Places setup
 
 To activate Google restaurant/cafe search:

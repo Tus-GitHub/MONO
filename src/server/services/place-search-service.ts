@@ -1,6 +1,8 @@
 import "server-only";
 
 import { placeImageUrl } from "@/lib/places/image-url";
+import { venuePhotos } from "@/lib/places/wikimedia-photos";
+import type { VenuePhoto } from "@/lib/places/venue-photo";
 
 import { PlaceCategory, RevisitChoice } from "@prisma/client";
 
@@ -22,6 +24,7 @@ export interface PlaceSearchResult {
   latitude: number | null;
   longitude: number | null;
   imageUrl: string | null;
+  photo?: VenuePhoto | null;
 
   externalRating: number | null;
   externalRatingCount: number | null;
@@ -151,8 +154,10 @@ export async function searchPlaces(options: Options = {}): Promise<PlaceSearchRe
     );
   });
 
-  if (options.curated) {
-    return ranked.filter((r) => r.coupleScore10 != null && !r.isFavorite).slice(0, limit);
-  }
-  return ranked.slice(0, limit);
+  const selected = (options.curated ? ranked.filter((r) => r.coupleScore10 != null && !r.isFavorite) : ranked).slice(0, limit);
+  const photos = await venuePhotos.lookup(selected.filter((place) => !place.imageUrl && place.external?.provider === "photon").map((place) => place.external!.providerPlaceId));
+  return selected.map((place) => {
+    const photo = !place.imageUrl && place.external?.provider === "photon" ? photos.get(place.external.providerPlaceId) : null;
+    return photo ? { ...place, imageUrl: photo.url, photo } : place;
+  });
 }

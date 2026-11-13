@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlaceCategory } from "@prisma/client";
 import { PlaceAttribution } from "@/components/places/place-attribution";
+import { PhotoCredit } from "@/components/places/photo-credit";
+import { PlaceImage } from "@/components/places/place-image";
 
 import { CoupleScore, PublicRating } from "@/components/explore/rating-badges";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
@@ -156,6 +158,7 @@ export function PlacePickerSheet({
                     key={key}
                     className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3"
                   >
+                    {place.imageUrl ? <div className="size-12 shrink-0 overflow-hidden rounded-lg"><PlaceImage src={place.imageUrl} name={place.name} /></div> : null}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-ink">{place.name}</p>
                       <p className="truncate text-xs text-muted">
@@ -166,6 +169,7 @@ export function PlacePickerSheet({
                         <PublicRating rating={place.externalRating} count={place.externalRatingCount} />
                         <CoupleScore score10={place.coupleScore10} />
                       </div>
+                      <PhotoCredit photo={place.photo} />
                     </div>
                     <Button
                       size="sm"

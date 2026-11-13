@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-11 (keyless real venue search live on Vercel; selection verified locally)
+Last updated: 2026-11-13 (adding free, correctly attributed venue photos where available)
 
 ## Project Overview
 
@@ -22,6 +22,17 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Free restaurant/cafe photos (2026-11-13)** — user requests venue photos with no billing or
+  autopay. Investigated primary Wikimedia/OSM docs and confirmed keyless Wikidata can link exact
+  OSM venue IDs to Commons photos. Add bounded cached batch lookups and credits in the current UI;
+  only show photos with exact venue linkage and reusable license metadata. Coverage is partial;
+  retain placeholders when unavailable. No account, payment, Google scraping or generic stock
+  images represented as a particular venue. Preserve the pending live-test memory update.
+  Implementation is complete: real exact venue/Commons thumbnail verified, 284 unit tests and
+  six isolated browser checks pass. Screenshot review covers Explore, saved details and picker
+  at 390/320px. Fixed early image failures before React hydration. Local DB/private fixtures
+  removed; final production build, TypeScript and full lint pass. Publishing to Vercel.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -46,6 +57,17 @@ components. Business rules never live only in React components — they live in
 
 ### Done
 
+- **Live venue selection verification (2026-11-13)** — after explicit create-and-remove approval,
+  all seven Chromium checks passed on https://mono-kappa-beryl.vercel.app at deployed 0dde5b1:
+  fixture login, real cafe search/attribution/390px layout, selection/save/reload, city restaurant
+  search, disabled Google photos, saved details/Maps link and session revocation. No browser
+  errors; phone screenshot reviewed. Production read confirms exact Photon OSM node N14046155168
+  at 28.5410984, 77.1550259 saved to the fixture draft. Deleted only fixture 33e5aff0ba62's two
+  example.invalid users, couple and cascaded test content after revoking its session. Final
+  database counts are zero for fixture users, couple, memberships, dates, places, sessions and
+  notifications. Removed private fixture password/SQL files. Existing user data, application code
+  and deployment settings unchanged; no fix or redeployment was needed.
+
 - **Free real venue search (2026-11-11)** — Photon/OpenStreetMap is implemented and live at
   mono-kappa-beryl.vercel.app in c85c51b (READY deployment dpl_5aSrQLGDagg9qb6WVZb5XHjmaVyw),
   with Production PLACE_PROVIDER=photon. No signup, key, card, billing or autopay is required.
@@ -56,7 +78,8 @@ components. Business rules never live only in React components — they live in
   Phone screenshots reviewed; no browser errors. Local test database/private credentials removed
   and server stopped. Production fixture creation was rejected by automatic approval review;
   optional live write-test permission was requested, but no production fixture or user data was
-  changed. Public Photon is best effort, OSM coverage differs, and Google photos/reviews/ratings
+  changed then. The approved live test and cleanup completed on 2026-11-13 (entry above).
+  Public Photon is best effort, OSM coverage differs, and Google photos/reviews/ratings
   are unavailable. Saved/custom fallback and the existing UI are preserved.
 
 - **Google Maps/Places status audit (2026-11-11)** — Google Places API (New) provider,
@@ -1027,6 +1050,44 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-13 — Free restaurant/cafe photos
+
+**IN PROGRESS.** User asks for a free photo option without billing/autopay. Commons offers
+reusable licensed images with attribution; Wikidata exposes exact OSM node/way/relation links.
+One bounded real read-only query returned three restaurant photos with OSM node IDs. Implement
+exact-ID matching, safe Commons thumbnails/credits, bounded cache/timeouts and graceful fallback.
+Public services are best effort and photo coverage is limited, especially ordinary local venues.
+
+Implemented exact OSM backlink batches with Wikidata P11693/P10689/P402 and Commons metadata.
+Only validated Wikimedia thumbnails with complete supported license/author metadata are shown;
+credit/source/license/cropping accompany photos. No private couple data is sent or photo metadata
+persisted; caches are bounded and errors/backoff are respected. Actual Le Grand Véfour Paris
+lookup returned its specific restaurant photo by Zairon, CC BY-SA 4.0. Accommodated Wikimedia's
+current thumb.wikimedia.org host and license URLs without trailing slash (verified primary docs).
+Added React image fallback; browser caught and fixed pre-hydration errors via a mounted-image
+completion check. All 284 unit tests and six isolated Chromium checks pass, including actual
+photo loading, exact selection/details, license/source links, 320px credits/picker and failed
+image replacement. Reviewed screenshots. Local test DB/private password+SQL removed; production
+data untouched in this task. Final full lint, TypeScript and production build passed. Publishing
+the tested source to the existing MONO Vercel production project; no environment changes needed.
+
+### 2026-11-13 — Authorized live venue-selection test
+
+**DONE.** User approved the pending create-and-remove production fixture request. The
+current production deployment is READY at 0dde5b1. Prepare fresh random fixture identities and
+credentials, execute the real restaurant/cafe browser selection flow and inspect exact persistence.
+Cleanup is explicitly authorized for these temporary records; no existing user data is in scope.
+
+Generated fixture 33e5aff0ba62 with two example.invalid users, one active couple and one draft.
+All seven live Chromium checks passed, including real Starbucks selection, persisted date reload,
+restaurant/city API search, OSM attribution, saved details and Maps link. Browser had no errors.
+Production read confirms exact selected node N14046155168 with coordinates 28.5410984, 77.1550259;
+mobile venue details screenshot reviewed. Revoked the fixture session, checked two memberships,
+one date/one place with no outside memberships, then deleted the exact couple and users in a
+transaction. Final counts for fixture users/couple/memberships/dates/places/sessions/notifications
+are all zero. Removed private generated password and SQL files; retained only nonsecret audit
+identity/results/screenshots in ignored artifacts. No existing user data or code/config changes.
 
 ### 2026-11-11 — Free venue-search alternative
 

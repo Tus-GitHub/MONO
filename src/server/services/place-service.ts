@@ -1,6 +1,8 @@
 import "server-only";
 
 import { placeImageUrl } from "@/lib/places/image-url";
+import { venuePhotos } from "@/lib/places/wikimedia-photos";
+import type { VenuePhoto } from "@/lib/places/venue-photo";
 
 import { DateStatus, PlaceCategory, RevisitChoice } from "@prisma/client";
 
@@ -214,6 +216,7 @@ export interface PlaceDetailView {
   latitude: number | null;
   longitude: number | null;
   imageUrl: string | null;
+  photo?: VenuePhoto | null;
   description: string | null;
   website: string | null;
   phone: string | null;
@@ -243,7 +246,7 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
   const { context, resource } = await authorizePlace(placeId);
   const coupleId = context.couple.id;
 
-  const [datesHere, historyMap, sameCategory, members] = await Promise.all([
+  const [datesHere, historyMap, sameCategory, members, photos] = await Promise.all([
     prisma.date.findMany({
       where: {
         coupleId,
@@ -273,6 +276,7 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
       take: 30,
     }),
     prisma.coupleMember.findMany({ where: { coupleId, status: "ACTIVE" }, select: { userId: true } }),
+    venuePhotos.lookup(resource.provider === "photon" && resource.providerPlaceId && !resource.imageUrl ? [resource.providerPlaceId] : []),
   ]);
 
   const memberIds = members.map((member) => member.userId);
@@ -321,7 +325,8 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
     city: resource.city,
     latitude: resource.latitude,
     longitude: resource.longitude,
-    imageUrl: placeImageUrl(resource),
+    imageUrl: placeImageUrl(resource) ?? photos.get(resource.providerPlaceId ?? "")?.url ?? null,
+    photo: photos.get(resource.providerPlaceId ?? "") ?? null,
     description: resource.description,
     website: resource.website,
     phone: resource.phone,

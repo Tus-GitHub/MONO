@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { PhotoCredit } from "@/components/places/photo-credit";
+import { PlaceImage } from "@/components/places/place-image";
 import { PlaceCategory, type RecommendationSignal } from "@prisma/client";
 
 import { FavoriteButton } from "@/components/explore/favorite-button";
@@ -42,8 +44,7 @@ export function PlaceCard({
     <article className="group overflow-hidden rounded-xl border border-line bg-surface">
       <div className="relative aspect-[4/3] bg-line">
         {place.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={place.imageUrl} alt="" className="size-full object-cover" />
+          <PlaceImage src={place.imageUrl} name={place.name} />
         ) : (
           <div className="grid size-full place-items-center bg-linear-to-br from-primary-tint via-surface to-accent-tint">
             <Icon name={PLACE_CATEGORY_ICON[category]} size={32} className="text-primary/60" />
@@ -62,6 +63,7 @@ export function PlaceCard({
       </div>
 
       <div className="space-y-2 p-3">
+        <PhotoCredit photo={place.photo} />
         <div>
           <p className="truncate text-sm font-medium text-ink">{place.name}</p>
           <p className="truncate text-xs text-muted">
