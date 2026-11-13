@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-13 (validity-gated password updates deployed)
+Last updated: 2026-11-13 (validity-gated profile save underway)
 
 ## Project Overview
 
@@ -22,6 +22,8 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Validity-gated profile save (2026-11-13)** — disable profile Save changes until name is valid and confirmed available; preserve design and existing self-name handling, verify and deploy in isolated checkout.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -1150,6 +1152,10 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-13 — Disable invalid profile-name saves
+
+**IN PROGRESS.** User requests profile Save changes disabled until the name is valid and available, same design, deployed. Reuse UniqueNameField's validity callback, keep save disabled while checking/taken/unavailable/invalid, prevent invalid Enter/requestSubmit, and dismiss stale form feedback on edits. Existing server uniqueness and authenticated self-exclusion remain. Isolated codex/valid-profile-submit preserves unrelated unfinished workspace changes. No production profile edits or migrations required. All 317 unit tests, lint and nine authenticated local browser checks pass: initial/self availability, whitespace, pending, exact duplicates/case variants, stale replies, unavailable checks, server duplicate rejection with recovery, successful local save/reload and 320px layout. Invalid Enter/requestSubmit and existing pending state verified. Only local synthetic profiles were saved; production data untouched. Local database, private fixtures/log and server cleaned up. Final production build/deployment next.
 
 ### 2026-11-13 — Disable invalid password updates
 

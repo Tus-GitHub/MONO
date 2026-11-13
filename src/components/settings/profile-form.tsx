@@ -24,13 +24,17 @@ interface Props {
 
 export function ProfileForm({ initial }: Props) {
   const [state, action] = useActionState(saveProfileAction, idleState);
+  const [dismissedState, setDismissedState] = useState<typeof state>();
+  const [nameValid, setNameValid] = useState(false);
   const fieldErrors = state.status === "error" ? state.fieldErrors : undefined;
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initial.avatarUrl);
 
   return (
-    <form action={action} onReset={(event) => event.preventDefault()} className="space-y-5" noValidate>
+    <form action={action} onChange={() => setDismissedState(state)}
+      onSubmit={(event) => { if (!nameValid) event.preventDefault(); }}
+      onReset={(event) => event.preventDefault()} className="space-y-5" noValidate>
       <UnsavedGuard state={state} />
-      <FormFeedback state={state} />
+      <FormFeedback state={dismissedState === state ? idleState : state} />
 
       <ImageUpload
         endpoint="/api/uploads/avatar"
@@ -40,7 +44,7 @@ export function ProfileForm({ initial }: Props) {
         label="Profile photo"
       />
 
-      <UniqueNameField initial={initial.name} errors={fieldErrors?.name} />
+      <UniqueNameField initial={initial.name} errors={fieldErrors?.name} onValidityChange={setNameValid} />
 
       <Field label="Nickname" htmlFor="nickname" optional errors={fieldErrors?.nickname}>
         <Input id="nickname" name="nickname" defaultValue={initial.nickname ?? ""} />
@@ -55,7 +59,7 @@ export function ProfileForm({ initial }: Props) {
         </Field>
       </div>
 
-      <SubmitButton pendingText="Saving…">Save changes</SubmitButton>
+      <SubmitButton disabled={!nameValid} pendingText="Saving…">Save changes</SubmitButton>
     </form>
   );
 }
