@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-13 (live login and recovery email validation underway)
+Last updated: 2026-11-13 (live login and recovery email validation deployed)
 
 ## Project Overview
 
@@ -22,8 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Login/recovery live email validation (2026-11-13)** — show immediate format errors with existing red borders and inline messages on login and forgot password; verify and deploy from an isolated checkout, preserving unrelated unfinished workspace changes.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -47,6 +45,18 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Login/recovery live email validation (2026-11-13)** — published 37ddd78; production
+  deployment dpl_3otsg6xZ5g9YnCb9g9pRKZQskFFJ is READY on MONO's public alias. Shared email
+  format field gives immediate red borders and an inline message on login/forgot password;
+  correction clears errors, and rejected submissions retain input and dismiss stale feedback
+  on edits. Existing design, login feedback placement and recovery privacy retained. All 317
+  unit tests, lint, build/TypeScript, eight local and six live browser checks pass. Focus/hover
+  computed colors, message placement and 320px screenshots verified; no browser errors or
+  availability queries. Live health 200/database up; no deployment error logs found. Published
+  from codex/live-login-email in the isolated checkout; unrelated unfinished primary-workspace
+  changes preserved. Local server stopped; copied env and test log removed. No account changes,
+  migrations, credentials, billing or emails sent.
 
 - **Live registration email validation (2026-11-13)** — published 1168c23; deployment
   dpl_5Z4SsShFq5YeFy1wJx6XRuLHRJp1 is READY on the public MONO alias. Invalid and already
@@ -1119,7 +1129,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-13 — Login and recovery live email validation
 
-**IN PROGRESS.** User requests live invalid-email feedback on login and forgot password, same design, deployed. Added shared format-only email field using the existing schema/primitives, preserving credential and recovery response privacy. Clear stale submission feedback when edited and retain field values after rejected actions. Existing workspace has unrelated unfinished state-machine changes, so implementation/testing/publication use codex/live-login-email in .postgres-test/login-email-worktree based on the published af806a1. No database, migration, delivery or credential changes needed. All 317 unit tests, full lint, production build/TypeScript and eight local production-browser checks pass. Red borders verified during focus/hover, accessible inline message placement, valid/empty edits, rejected-action retention and correction, 320px layouts, zero account-availability queries and zero browser errors. Phone screenshots reviewed. Local server stopped; no database writes or email sends occurred. Initial dependency-junction build restriction resolved with real dependency directories in the isolated checkout. Deploying the verified change next.
+**DONE.** User requests live invalid-email feedback on login and forgot password, same design, deployed. Added shared format-only email field using the existing schema/primitives, preserving credential and recovery response privacy. Clear stale submission feedback when edited and retain field values after rejected actions. Existing workspace has unrelated unfinished state-machine changes, so implementation/testing/publication use codex/live-login-email in .postgres-test/login-email-worktree based on the published af806a1. No database, migration, delivery or credential changes needed. All 317 unit tests, full lint, production build/TypeScript and eight local production-browser checks pass. Red borders verified during focus/hover, accessible inline message placement, valid/empty edits, rejected-action retention and correction, 320px layouts, zero account-availability queries and zero browser errors. Phone screenshots reviewed. Local server stopped; no database writes or email sends occurred. Initial dependency-junction build restriction resolved with real dependency directories in the isolated checkout. Published 37ddd78587feb52966aae2037ccfb285ca34650b to origin main from the isolated branch. Vercel deployment dpl_3otsg6xZ5g9YnCb9g9pRKZQskFFJ is READY on mono-kappa-beryl.vercel.app. All six live read-only browser checks pass with no submissions, availability queries or browser errors. Health 200/database up and no deployment error logs found. Live 320px screenshots reviewed. Copied checkout env and local test log removed. Unrelated primary-workspace work remains untouched.
 
 ### 2026-11-13 — Live registration email validation
 
