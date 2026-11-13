@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-13 (validity-gated auth buttons underway)
+Last updated: 2026-11-13 (validity-gated auth buttons deployed)
 
 ## Project Overview
 
@@ -22,8 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Validity-gated auth buttons (2026-11-13)** — disable Create account, Sign in and Send reset link until their required values pass existing schemas; registration also waits for confirmed name/email availability. Keep current styling and publish the isolated change.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -47,6 +45,19 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Validity-gated auth buttons (2026-11-13)** — published c45875a; deployment
+  dpl_DWVT1NgFp4RvYDNCcBuWZNmC3HRX is READY on MONO's public alias. Create account requires
+  valid required values, matching passwords and confirmed name/email availability. Sign in
+  follows the existing valid-email/nonempty-password schema; Send reset link requires valid
+  email. Buttons disable immediately after invalid edits, during availability checks and for
+  registered/uncheckable emails. Same button styles/loading behavior, server validation and
+  invalid Enter/requestSubmit guards retained. All 317 unit tests, lint, build/TypeScript,
+  ten local and ten live browser checks pass. Verified 320px layouts, byte limits, case edits,
+  native input events, no auth submissions and no browser errors. Live health 200/database up;
+  no deployment error logs found. Isolated branch codex/valid-auth-submit preserves unrelated
+  unfinished workspace changes. Local server stopped and copied env/test log removed. No
+  accounts, credentials, database migrations or email sends changed.
 
 - **Login/recovery live email validation (2026-11-13)** — published 37ddd78; production
   deployment dpl_3otsg6xZ5g9YnCb9g9pRKZQskFFJ is READY on MONO's public alias. Shared email
@@ -1131,7 +1142,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-13 — Disable invalid authentication submissions
 
-**IN PROGRESS.** User requests disabled signup/login/recovery buttons until all required fields are valid, same design, deployed. Use existing server schemas for client form validity, confirm registration name/email availability, invalidate pending checks immediately on edits, and prevent invalid Enter/requestSubmit submissions. Preserve existing pending-button behavior and server validation. Continue in isolated codex/valid-auth-submit checkout; unrelated unfinished primary-workspace changes remain separate. No backend, migration or credential changes. Implemented shared schema-based form validity with hydration/native-input checks, immediate availability invalidation, strict confirmed availability for registration, inline outage retry guidance and invalid-submit guards. All 317 unit tests, lint, production build/TypeScript and ten local browser checks pass. Verified empty/invalid fields, password mismatch and bcrypt bytes, pending/registered/unavailable checks, case-equivalent edits, native input events, Enter/requestSubmit blocking and 320px layouts. Local production server stopped; tests created no accounts and sent no auth requests. Publishing the isolated change next.
+**DONE.** User requests disabled signup/login/recovery buttons until all required fields are valid, same design, deployed. Use existing server schemas for client form validity, confirm registration name/email availability, invalidate pending checks immediately on edits, and prevent invalid Enter/requestSubmit submissions. Preserve existing pending-button behavior and server validation. Continue in isolated codex/valid-auth-submit checkout; unrelated unfinished primary-workspace changes remain separate. No backend, migration or credential changes. Implemented shared schema-based form validity with hydration/native-input checks, immediate availability invalidation, strict confirmed availability for registration, inline outage retry guidance and invalid-submit guards. All 317 unit tests, lint, production build/TypeScript and ten local browser checks pass. Verified empty/invalid fields, password mismatch and bcrypt bytes, pending/registered/unavailable checks, case-equivalent edits, native input events, Enter/requestSubmit blocking and 320px layouts. Local production server stopped; tests created no accounts and sent no auth requests. Published c45875a4802c0079cb753ee1388085f3cc6f4550 to origin main. Production Vercel deployment dpl_DWVT1NgFp4RvYDNCcBuWZNmC3HRX is READY on mono-kappa-beryl.vercel.app. All ten live read-only browser checks pass, with no authentication submissions, account changes or browser errors. Real registered-email lookup blocks signup as intended; simulated outage and delayed responses also preserve disabled state. Live 320px screenshots reviewed. Health 200/database up; no deployment error logs found. Copied env and local server log removed; unrelated workspace changes remain untouched.
 
 ### 2026-11-13 — Login and recovery live email validation
 
