@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-13 (live registration email validation underway)
+Last updated: 2026-11-13 (live registration email validation deployed)
 
 ## Project Overview
 
@@ -22,8 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Live registration email validation (2026-11-13)** — add immediate email format and debounced registered-email checks, existing red borders/inline messages, server duplicate field errors; test and deploy without changing the design.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -47,6 +45,18 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Live registration email validation (2026-11-13)** — published 1168c23; deployment
+  dpl_5Z4SsShFq5YeFy1wJx6XRuLHRJp1 is READY on the public MONO alias. Invalid and already
+  registered emails show the existing theme red border and inline message before submission;
+  correcting the address clears errors. Debounced normalized POST checks, stale-response
+  cancellation, neutral outage fallback and private boolean responses. Duplicate submissions
+  receive structured email field errors, and old form feedback clears on edits. Existing UI,
+  recovery/login privacy, email delivery and database policy retained. All 317 unit tests,
+  99 PostgreSQL tests, seven local and six live browser checks pass; lint, TypeScript and build
+  pass. Reviewed 320px screenshots; health 200/database up; no deployment error logs found.
+  Local synthetic test database/fixtures/log removed and servers stopped. Live tests created
+  no accounts and sent no emails. No migration, credentials or billing changes.
 
 - **Live confirmation and exact-name uniqueness (2026-11-13)** — published 48c437e;
   production deployment dpl_E6FFtc447rRRteTFjYHhuH2bsnrs is READY on MONO's public alias.
@@ -1107,7 +1117,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-13 — Live registration email validation
 
-**IN PROGRESS.** User requests live invalid/registered email feedback in the existing design and deployment. Reuse shared email normalization/schema and form primitives. Add a bounded, same-origin, rate-limited POST availability check returning a private boolean; keep addresses out of URL logs. Preserve server-side database uniqueness and give duplicate submissions a structured email field error. No migrations, credentials, billing or production account mutations required. Implemented live syntax checks, 350ms debounced normalized availability, cancellation/stale-response guards, unavailable-check fallback, structured duplicate email errors and dismissal of old submission feedback on edits. All 317 unit tests, 99 PostgreSQL tests and seven isolated browser checks pass. Lint and TypeScript pass; 320px screenshot reviewed. The exact local test database and fixture/log were removed and servers stopped. Final build and deployment next; live checks will be read-only.
+**DONE.** User requests live invalid/registered email feedback in the existing design and deployment. Reuse shared email normalization/schema and form primitives. Add a bounded, same-origin, rate-limited POST availability check returning a private boolean; keep addresses out of URL logs. Preserve server-side database uniqueness and give duplicate submissions a structured email field error. No migrations, credentials, billing or production account mutations required. Implemented live syntax checks, 350ms debounced normalized availability, cancellation/stale-response guards, unavailable-check fallback, structured duplicate email errors and dismissal of old submission feedback on edits. All 317 unit tests, 99 PostgreSQL tests and seven isolated browser checks pass. Lint and TypeScript pass; 320px screenshot reviewed. The exact local test database and fixture/log were removed and servers stopped. Final production build passed; pushed 1168c23ffd6420f99ea4506d00097f3aadbda3c5 to origin main. Vercel production deployment dpl_5Z4SsShFq5YeFy1wJx6XRuLHRJp1 is READY at mono-kappa-beryl.vercel.app. All six live read-only browser checks pass, including an existing registered address, case normalization, correction, stale responses, unavailable-check fallback and 320px layout. Health 200/database up; no deployment error logs found. Live checks created no accounts and sent no mail. Completion record updated after verification.
 
 ### 2026-11-13 — Live confirmation and exact active-name uniqueness
 
