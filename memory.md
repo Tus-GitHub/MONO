@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-13 (adding free, correctly attributed venue photos where available)
+Last updated: 2026-11-13 (free attributed venue photos deployed; all test data cleaned)
 
 ## Project Overview
 
@@ -22,17 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Free restaurant/cafe photos (2026-11-13)** — user requests venue photos with no billing or
-  autopay. Investigated primary Wikimedia/OSM docs and confirmed keyless Wikidata can link exact
-  OSM venue IDs to Commons photos. Add bounded cached batch lookups and credits in the current UI;
-  only show photos with exact venue linkage and reusable license metadata. Coverage is partial;
-  retain placeholders when unavailable. No account, payment, Google scraping or generic stock
-  images represented as a particular venue. Preserve the pending live-test memory update.
-  Implementation is complete: real exact venue/Commons thumbnail verified, 284 unit tests and
-  six isolated browser checks pass. Screenshot review covers Explore, saved details and picker
-  at 390/320px. Fixed early image failures before React hydration. Local DB/private fixtures
-  removed; final production build, TypeScript and full lint pass. Publishing to Vercel.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -56,6 +45,18 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Free restaurant/cafe photos (2026-11-13)** — implementation 8c58769 is live on Vercel
+  (READY deployment dpl_4MZLtXrVnbKA87YoCYyEg6Way5KC). Exact OSM-to-Wikidata links resolve
+  licensed Commons thumbnails, with author/custom credit, license/source links and cropping
+  disclosure in Explore, saved details and the picker. No key/account/billing/autopay, migration
+  or environment change. Bounded batches/cache/backoff and safe Wikimedia-only hosts; missing,
+  unclear-license or failed images retain placeholders. Fixed failed SSR images before hydration.
+  Real Le Grand Véfour photo/credit verified, all 284 unit tests and six local Chromium checks
+  pass, screenshots reviewed at 390/320px, full lint/TypeScript/final build pass. Vercel health
+  returns 200 with database up and the required thumbnail CSP. Local test DB/private fixtures
+  removed, servers stopped; no production records changed for this feature. Coverage is partial
+  and many local venues have no linked photo. Public services are best effort.
 
 - **Live venue selection verification (2026-11-13)** — after explicit create-and-remove approval,
   all seven Chromium checks passed on https://mono-kappa-beryl.vercel.app at deployed 0dde5b1:
@@ -1053,7 +1054,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-13 — Free restaurant/cafe photos
 
-**IN PROGRESS.** User asks for a free photo option without billing/autopay. Commons offers
+**DONE.** User asks for a free photo option without billing/autopay. Commons offers
 reusable licensed images with attribution; Wikidata exposes exact OSM node/way/relation links.
 One bounded real read-only query returned three restaurant photos with OSM node IDs. Implement
 exact-ID matching, safe Commons thumbnails/credits, bounded cache/timeouts and graceful fallback.
@@ -1071,6 +1072,12 @@ photo loading, exact selection/details, license/source links, 320px credits/pick
 image replacement. Reviewed screenshots. Local test DB/private password+SQL removed; production
 data untouched in this task. Final full lint, TypeScript and production build passed. Publishing
 the tested source to the existing MONO Vercel production project; no environment changes needed.
+
+Published 8c58769992f0c81a5d801750c0bb05f39a83fcf6 to origin main. Vercel deployment
+dpl_4MZLtXrVnbKA87YoCYyEg6Way5KC is READY on mono-kappa-beryl.vercel.app. Production health
+returns 200/database up, and its CSP permits the current Commons thumbnail host. Authenticated
+photo rendering was verified on isolated local data with actual upstream photos; production
+fixtures were not recreated. Photo coverage remains partial, with honest placeholder fallback.
 
 ### 2026-11-13 — Authorized live venue-selection test
 
