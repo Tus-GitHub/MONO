@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-13 (six-character password minimum and strength/validation UI underway)
+Last updated: 2026-11-13 (six-character passwords, strength and red validation live on Vercel)
 
 ## Project Overview
 
@@ -22,12 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Password minimum and validation UI (2026-11-13)** — user requests a six-character minimum,
-  strength feedback for length/lowercase/uppercase/numbers/symbols, red invalid borders and
-  feedback below the checkbox, preserving the design and deploying quickly. Treat character mix
-  as strength guidance, retain confirmation and bcrypt byte bounds; keep login compatibility.
-  Move login form feedback below Remember me, add Caps Lock indication, verify and deploy.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -51,6 +45,17 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Six-character passwords and validation UI (2026-11-13)** — published 31c66ba; Vercel
+  deployment dpl_CsWrbaEUPQ2UjEENVGBuYzL7rUVD is READY on the public MONO alias. Registration,
+  recovery and settings now accept six-character passwords, with optional length/lowercase/
+  uppercase/number/symbol strength guidance and Caps Lock warnings. Confirmation and bcrypt byte
+  limits remain; existing login compatibility is preserved. Invalid fields use theme red borders
+  with reliable hover/focus specificity and accessible descriptions. Login feedback appears below
+  Remember me. Existing design retained. All 305 unit tests, seven local full-flow browser checks,
+  three live public-form checks, lint, TypeScript and final build pass. Live computed-color test
+  confirms red borders; 320px layout and screenshots reviewed. Local test database/private reset
+  logs and credentials removed, servers stopped; real account passwords unchanged.
 
 - **IndiaRestros-first venue photos (2026-11-13)** — user explicitly selected the source after
   the audit. Published 83ffbc1 to main; READY deployment dpl_7d7eUddDedK77tUucqQLgbBndnJm is live
@@ -1087,7 +1092,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-13 — Six-character passwords and inline feedback
 
-**IN PROGRESS.** User requests minimum six characters, password strength/category feedback,
+**DONE.** User requests minimum six characters, password strength/category feedback,
 red validation borders and messages below the checkbox, followed by fast deployment. Existing
 shared validator requires ten plus lowercase/uppercase/number; register/reset controls lack invalid
 border wiring. Login has the Remember me checkbox and top-of-form feedback. Implement consistent
@@ -1107,6 +1112,13 @@ check. Full lint and TypeScript passed; local DB/private credentials/reset-link 
 and test servers stopped. Final production build, TypeScript and full/targeted lint passed.
 Publishing now, followed by a live public-form check without account creation or email sending.
 No real accounts were changed.
+
+Published implementation 31c66ba02fc0e0e2582927ba1ba40b098a3429a6 to origin main. Vercel
+deployment dpl_CsWrbaEUPQ2UjEENVGBuYzL7rUVD is READY at mono-kappa-beryl.vercel.app. Three
+live public-form checks passed: actual red computed border during hover/focus and feedback below
+Remember me, six-character/strength/Caps Lock UI, 320px layout with no browser errors. Reviewed
+the final live red-border screenshot. No production account creation or email sending occurred;
+the validation probe submitted only malformed empty login fields. Live health is 200/database up.
 
 ### 2026-11-13 — Activate IndiaRestros photos
 
