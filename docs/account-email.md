@@ -82,3 +82,9 @@ not established as the cause of reported spam placement. Current Inbox labels do
 original placement after the user moves a message. No content-only change or Brevo toggle can
 guarantee inbox delivery. A custom authenticated sending domain is the next provider-level
 improvement when available. No credentials, account-wide tracking settings or billing changed.
+
+Published on 2026-11-14 in 18ee493: Vercel deployment dpl_A8292GxEwFs2ebenKgqsipEpDt4d is READY
+on the canonical MONO origin. Hosted Turbopack build passed; no pending migrations were required.
+Live health is 200/database up, and the public verification page renders the required policy.
+No error/fatal logs were found for this deployment. Deployment checks were read-only; no real
+accounts, invitations or email sends were used to repeat the isolated local browser flow.

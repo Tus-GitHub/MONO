@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (publishing verified email, invitation and workflow fixes)
+Last updated: 2026-11-14 (required verification and workflow fixes deployed and verified)
 
 ## Project Overview
 
@@ -23,10 +23,6 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Publish verified email/invitation and workspace fixes (2026-11-14)** — user explicitly
-  requested publication and deployment. Follow the project publish gate with the supported
-  Webpack compiler (local default Turbopack CSS subprocess is unavailable), commit current
-  workspace changes and push main, then verify the exact Vercel production deployment.
 
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
@@ -51,6 +47,15 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Email/invitation and workflow publication (2026-11-14)** — published 18ee493 to main;
+  dpl_A8292GxEwFs2ebenKgqsipEpDt4d is READY on mono-kappa-beryl.vercel.app, in sin1.
+  Preserved the newer auth validation and mobile release while publishing the existing
+  verified workspace changes. Combined 357 unit tests, lint and npm build -- --webpack pass;
+  Vercel's normal Turbopack build also passes, with no pending migrations. Public health is
+  200/database up, live verification page shows the new policy, and no error/fatal logs were
+  found for this deployment. Live checks were read-only and sent no emails. Domain-based
+  deliverability limitations remain; no SMTP credentials, provider settings or billing changed.
 
 - **Required email verification and invitation recovery (2026-11-14, local)** — service-level
   locked verification checks for creating spaces, link/code joins and issuing invitations.
@@ -1215,20 +1220,24 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
-### 2026-11-14 — Publish verified email/invitation and workspace fixes — IN PROGRESS
+### 2026-11-14 — Publish verified email/invitation and workspace fixes — DONE
 
-User explicitly requested “publish these changes and deploy.” Publishing the current verified
-workspace per the project rule. The gate runs npm's build script with Next's supported --webpack
-option; no build check is skipped and no compiler configuration is changed. After a passing
-build, commit with the required trailer, push main and monitor the exact production deployment.
+User explicitly requested “publish these changes and deploy.” Published the verified workspace
+per the project rule. The gate ran npm's build script with Next's supported --webpack option;
+no build check was skipped and no compiler configuration changed. Build, TypeScript, lint and
+all 357 combined unit tests passed before the successful push.
 
 Preflight preserved published auth/profile validation from 807091f alongside pending-field
 guards. The first push was rejected because mobile release c4bef34 arrived during checks;
 rebased without overwriting it. Retained mobile AppLink feedback, worker v3 lifecycle,
 Singapore region and the default bounded transaction settings, with the email connection
 override retained. Updated the service-worker fixture to check both obsolete versions against
-the current v3 caches. The combined production build and lint pass; unit checks rerun before
-the retry. No production data, SMTP credentials, provider settings or schema changed.
+the current v3 caches. Pushed 18ee493bf8490c2eb9b016bdeefb45294cd5474c normally to main;
+Vercel dpl_A8292GxEwFs2ebenKgqsipEpDt4d is READY on the canonical public alias. Normal hosted
+Turbopack compilation passed and reported no pending migrations. HTTP health returned 200 with
+database up and sin1 execution; live email-policy copy and right-panel rendering checked. No
+error/fatal runtime logs found for this deployment. Live checks created no accounts and sent no
+mail. No production data, SMTP credentials, provider settings or schema changed.
 
 ### 2026-11-14 — Required verification, invitation recovery and email deliverability audit — DONE locally
 

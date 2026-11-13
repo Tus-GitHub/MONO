@@ -23,6 +23,14 @@
   This environment limitation is separate from the application tests and must not be described
   as a passing default build or a verified production deployment.
 
+Publication on 2026-11-14 combined this work with the latest published auth-validation and
+mobile-responsiveness releases. All 357 combined unit tests, lint and the npm Webpack build
+pass. Hosted normal Turbopack compilation succeeded for 18ee493; production deployment
+dpl_A8292GxEwFs2ebenKgqsipEpDt4d is READY on the canonical alias. Live health is 200/database up,
+and the required-verification copy and page rendering were checked without authentication
+submissions, production-account changes or email sends. No error/fatal logs found for that
+deployment. The earlier default-build failure remains a local environment limitation.
+
 Run the fast suite with `npm test`. It checks pure rules, adapters, authorization/action boundaries
 with mocks, and does not connect to PostgreSQL. Use `npm run typecheck`, `npm run lint`, and
 `npm run build` for compiler, code-quality and production-build checks.
