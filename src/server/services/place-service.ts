@@ -1,7 +1,7 @@
 import "server-only";
 
 import { placeImageUrl } from "@/lib/places/image-url";
-import { venuePhotos } from "@/lib/places/wikimedia-photos";
+import { lookupVenuePhotos } from "@/lib/places/venue-photos";
 import type { VenuePhoto } from "@/lib/places/venue-photo";
 
 import { DateStatus, PlaceCategory, RevisitChoice } from "@prisma/client";
@@ -276,7 +276,7 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
       take: 30,
     }),
     prisma.coupleMember.findMany({ where: { coupleId, status: "ACTIVE" }, select: { userId: true } }),
-    venuePhotos.lookup(resource.provider === "photon" && resource.providerPlaceId && !resource.imageUrl ? [resource.providerPlaceId] : []),
+    lookupVenuePhotos(resource.provider === "photon" && resource.providerPlaceId && !resource.imageUrl ? [{ ...resource, providerPlaceId: resource.providerPlaceId }] : []),
   ]);
 
   const memberIds = members.map((member) => member.userId);

@@ -1,4 +1,4 @@
-import type { VenuePhoto } from "./venue-photo";
+import type { CommonsVenuePhoto as VenuePhoto } from "./venue-photo";
 
 const USER_AGENT = "MONO/1.0 (+https://mono-kappa-beryl.vercel.app)";
 const PROPERTIES = { N: "P11693", W: "P10689", R: "P402" } as const;

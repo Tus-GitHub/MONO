@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-13 (free attributed venue photos deployed; all test data cleaned)
+Last updated: 2026-11-13 (implementing user-authorized IndiaRestros photos with Commons fallback)
 
 ## Project Overview
 
@@ -22,6 +22,12 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **IndiaRestros photo integration (2026-11-13)** — user explicitly selects IndiaRestros despite
+  the preceding provenance audit, requests Commons fallback and live Vercel deployment without
+  billing/autopay. Implement keyless read-only matching for Indian restaurants/cafes, keep source
+  credit without inventing a photographer/license, preserve fallback/placeholder behavior, verify
+  and publish. No account, secret, payment or billing enrollment is needed.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -45,6 +51,18 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Broader free India photo-source audit (2026-11-13)** — tested IndiaRestros' keyless API;
+  Delhi Starbucks results do include photos and exact coordinates matching a known Photon venue.
+  Its detail response identifies sampled photos as Swiggy, Magicpin and Zomato (including shared
+  chain images), with no author/reusable license fields. This conflicts with its sources page's
+  statement that other platforms' photos are not republished. Its API terms permit general use
+  but did not resolve photo redistribution permission, so no automatic source integration was
+  shipped. Mapillary/KartaView are free street imagery, not confirmed branch galleries; India
+  venue coverage was not established. Foursquare photos are paid Premium; TomTom POI Photos
+  exclude free/PAYG; requesting a new Flickr key requires Pro. No verified replacement meets
+  broad authentic Indian venue-photo coverage plus no billing and clear reuse terms. Existing
+  Commons provider, application code, credentials, live data and deployment are unchanged.
 
 - **Free restaurant/cafe photos (2026-11-13)** — implementation 8c58769 is live on Vercel
   (READY deployment dpl_4MZLtXrVnbKA87YoCYyEg6Way5KC). Exact OSM-to-Wikidata links resolve
@@ -1051,6 +1069,57 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-13 — Activate IndiaRestros photos
+
+**IN PROGRESS.** User explicitly requests IndiaRestros first for Indian restaurant/cafe photos,
+Commons as fallback and live Vercel deployment, after the provenance limitation was explained.
+Proceed under that authorization without asking again. Match public venue name and coordinates
+conservatively, label images as IndiaRestros listing photos, retain source links, reject unsafe
+URLs/representative placeholders, cache/bound requests and honor upstream limits. No API keys,
+account creation, billing or autopay. Existing UI and credentials remain the reference.
+
+Implemented a keyless IndiaRestros adapter and India-first/Commons-miss coordinator. Restricts
+categories/region, matches normalized names within 120m with a 50m ambiguity margin, validates
+same-listing image URLs and human source links, skips labelled representative images and retains
+Cache-Control/backoff in a bounded cache. At most four nearby name groups per batch. Captions
+identify listing photos via IndiaRestros without fabricating author/license fields; only its
+image origin was added to CSP. Real Photon/IndiaRestros check matched photos for 9 of 12 Delhi
+Starbucks results. All 302 unit tests, TypeScript and full lint passed. Local browser photo load
+passed; exact saved OSM ID N6957678134/28.6022338,77.1861298 confirmed in the isolated database.
+Corrected the browser test to account for provider IDs being absent from portable export;
+saved-detail/picker/Commons fallback checks are ongoing. Production accounts/data untouched.
+
+All seven isolated Chromium checks now pass: real Delhi IndiaRestros photos/CSP/credits,
+selection/save/reload, saved details with no invented CC license, real Commons fallback for
+Le Grand Véfour Paris, 320px picker layout, broken IndiaRestros image placeholder and no browser
+errors. Reviewed Explore/detail/picker screenshots. Direct local SQL again confirms the selected
+OSM venue identity/coordinates. Local test DB, private password/SQL and test servers cleaned up;
+no production fixtures were created. Final production build, TypeScript and full/targeted lint
+passed. Publishing the tested integration to the existing MONO production project; no new
+environment variables, migrations, API keys, accounts or billing configuration are required.
+
+### 2026-11-13 — Broader free India photo source
+
+**DONE (source audit; no verified new provider enabled).** User asks for another source with broader restaurant/cafe photo coverage in
+India without billing/autopay. Researching primary docs rather than promising universal free
+coverage. Found IndiaRestros' free keyless API claim and photo/provenance fields; checking real
+search responses and source-specific photo rights before any integration. No paid account,
+payment mandate, new credentials or production data changes are authorized or needed for research.
+
+Primary docs confirm Foursquare photos are paid Premium, TomTom Photos are unavailable in free
+evaluation/PAYG, and Flickr only lets Pro accounts request new API keys. Mapillary and KartaView
+offer free street imagery, but this does not establish actual venue/indoor gallery coverage.
+IndiaRestros' keyless search returned 200 with three Delhi Starbucks branches and photos; exact
+detail IRR-8SPCQG2J88 matched 28.602234,77.18613. Its photo provenance is Swiggy/Magicpin/Zomato,
+including Zomato chain photos reused across branch results. No reusable license/photographer
+fields appear. Published /sources says external-platform photos are not republished, creating an
+unresolved discrepancy with the actual API. /terms permits personal/commercial API use but does
+not explicitly resolve those third-party photo rights. Do not claim unlawful conduct or universal
+absence of a free provider; state that a qualified source was not verified. No provider enabled,
+account created, payment approved, app code changed or redeployment made for this audit. Existing
+Commons integration remains available. User/restaurant-supplied photos are a practical additional
+source; street imagery would need to be clearly labelled rather than presented as venue photos.
 
 ### 2026-11-13 — Free restaurant/cafe photos
 

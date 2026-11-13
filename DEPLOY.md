@@ -126,6 +126,31 @@ real venue search and exact selection lookup and makes no Google request. Standa
 
 ### Free venue photos (partial coverage)
 
+Indian restaurants and cafes try the keyless [IndiaRestros API](https://indiarestros.com/api/docs)
+first, then Commons for missing, rejected or unavailable API results. No account, API key, card,
+billing or autopay is needed. The existing Photon search and selected venue identifiers remain
+unchanged. Public venue names/categories/coordinates are matched against nearby IndiaRestros
+listings; a name alone is insufficient. Matches must be within 120m and sufficiently separated
+from competing same-name listings (50m nearest-distance margin). Other venue categories and
+regions continue through Commons. A broad geographic prefilter is not itself proof of country;
+the matching IndiaRestros record is still required.
+
+Only same-origin IndiaRestros image paths belonging to the matched listing are accepted.
+Representative/stock/placeholder labels and zero-photo listings are skipped. Captions say
+"Listing photo via IndiaRestros" and link to its human listing page. These are provider-supplied
+listing images, potentially shared chain photos; MONO does not invent a photographer or a
+Commons/CC license for them. The user explicitly selected this source after the provenance
+limitations were explained. IndiaRestros' published terms govern API use; underlying third-party
+photo rights are not independently established by MONO. No direct Swiggy/Zomato/Google scrape
+or image-host wildcard is added. CSP allows `https://indiarestros.com` for images only.
+
+IndiaRestros batches nearby same-name venues into at most four parallel requests per lookup,
+coalesces work, keeps up to 256 public hit/miss entries within the source Cache-Control max-age
+(capped at 24 hours), and honors error/Retry-After backoff. Warm instances space batches by at
+least 2.5 seconds; this is not a global distributed rate limit. An unavailable source adds at
+most one four-second timeout before Commons lookup. Source HTTP/image failures retain the
+existing placeholder when a displayable photo is unavailable. No paid fallback is enabled.
+
 Photon venues can show Wikimedia Commons photographs without signup, API keys, billing or
 autopay. MONO looks up the venue's exact OpenStreetMap node/way/relation backlink in Wikidata,
 then retrieves its Commons thumbnail and reusable license metadata. It does not match arbitrary
@@ -135,8 +160,8 @@ they retain the existing placeholder. Broken or unavailable images also fall bac
 Photographer/custom attribution, the license link and Commons source link accompany each
 photo, with cropping disclosed. Only supported CC BY, CC BY-SA and public-domain license URLs
 with complete attribution are accepted; restricted or unclear metadata is skipped. Thumbnail
-URLs come from the Commons API rather than being hand-built. CSP permits only Wikimedia's
-`upload.wikimedia.org` and `thumb.wikimedia.org` image hosts; images send no referrer.
+URLs come from the Commons API rather than being hand-built. Commons thumbnail URLs are limited
+to `upload.wikimedia.org` and `thumb.wikimedia.org`; images send no referrer.
 
 Lookups batch at most 24 public venue IDs, retain a bounded warm-instance cache for hits/misses
 (24 hours; one minute for errors), coalesce simultaneous work and honor upstream backoff.
