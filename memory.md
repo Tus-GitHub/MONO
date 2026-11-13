@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-13 (implementing user-authorized IndiaRestros photos with Commons fallback)
+Last updated: 2026-11-13 (IndiaRestros-first photos live on Vercel with Commons fallback)
 
 ## Project Overview
 
@@ -22,12 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **IndiaRestros photo integration (2026-11-13)** — user explicitly selects IndiaRestros despite
-  the preceding provenance audit, requests Commons fallback and live Vercel deployment without
-  billing/autopay. Implement keyless read-only matching for Indian restaurants/cafes, keep source
-  credit without inventing a photographer/license, preserve fallback/placeholder behavior, verify
-  and publish. No account, secret, payment or billing enrollment is needed.
 
 - **Remaining verification / optional hardening** — real-device QA and live provider
   verification for Push/storage remain; credential registration/email/recovery is verified.
@@ -52,6 +46,19 @@ components. Business rules never live only in React components — they live in
 
 ### Done
 
+- **IndiaRestros-first venue photos (2026-11-13)** — user explicitly selected the source after
+  the audit. Published 83ffbc1 to main; READY deployment dpl_7d7eUddDedK77tUucqQLgbBndnJm is live
+  at mono-kappa-beryl.vercel.app. Indian restaurant/cafe matches try IndiaRestros first, with
+  Commons for misses, rejected/ambiguous candidates and source failures. Conservative name/type/
+  coordinate matching, safe same-listing URLs, provider credit without fabricated license/author,
+  bounded caches/batches and upstream backoff. No API keys, accounts, migrations, new env vars,
+  billing or autopay. Real checks matched 9/12 Delhi Starbucks locations and Karim's restaurant
+  locations. All 302 unit tests, seven isolated browser checks, TypeScript, lint and final build
+  passed; reviewed phone screenshots. Local test DB/private fixtures removed and servers stopped.
+  Production health is 200/database up, with IndiaRestros allowed in image CSP. Authenticated UI
+  verification used isolated local data and actual upstream photos; no production fixtures were
+  created. Coverage remains partial; image-load failures retain the existing placeholder.
+
 - **Broader free India photo-source audit (2026-11-13)** — tested IndiaRestros' keyless API;
   Delhi Starbucks results do include photos and exact coordinates matching a known Photon venue.
   Its detail response identifies sampled photos as Swiggy, Magicpin and Zomato (including shared
@@ -63,6 +70,8 @@ components. Business rules never live only in React components — they live in
   exclude free/PAYG; requesting a new Flickr key requires Pro. No verified replacement meets
   broad authentic Indian venue-photo coverage plus no billing and clear reuse terms. Existing
   Commons provider, application code, credentials, live data and deployment are unchanged.
+  The user subsequently selected IndiaRestros explicitly; the activation entry above supersedes
+  the decision to leave the app unchanged, while preserving the audit's provenance findings.
 
 - **Free restaurant/cafe photos (2026-11-13)** — implementation 8c58769 is live on Vercel
   (READY deployment dpl_4MZLtXrVnbKA87YoCYyEg6Way5KC). Exact OSM-to-Wikidata links resolve
@@ -1072,7 +1081,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-13 — Activate IndiaRestros photos
 
-**IN PROGRESS.** User explicitly requests IndiaRestros first for Indian restaurant/cafe photos,
+**DONE.** User explicitly requests IndiaRestros first for Indian restaurant/cafe photos,
 Commons as fallback and live Vercel deployment, after the provenance limitation was explained.
 Proceed under that authorization without asking again. Match public venue name and coordinates
 conservatively, label images as IndiaRestros listing photos, retain source links, reject unsafe
@@ -1098,6 +1107,14 @@ OSM venue identity/coordinates. Local test DB, private password/SQL and test ser
 no production fixtures were created. Final production build, TypeScript and full/targeted lint
 passed. Publishing the tested integration to the existing MONO production project; no new
 environment variables, migrations, API keys, accounts or billing configuration are required.
+
+Published implementation 83ffbc1a41685e34368e1c0a7a729018c1e7c4e6 to origin main. Vercel
+deployment dpl_7d7eUddDedK77tUucqQLgbBndnJm is READY on the public production alias. Health
+returns 200/database up and the image CSP permits IndiaRestros. Additional real restaurant
+check matched Karim's locations in Delhi/Nehru Place/Laxmi Nagar to listing photos. A Bukhara
+query returned no relevant Photon venue; it was not assigned an unrelated IndiaRestros image.
+No production fixture, account/billing setup or credentials were introduced. The earlier source
+audit remains historical context; this explicit user instruction authorizes the chosen provider.
 
 ### 2026-11-13 — Broader free India photo source
 
