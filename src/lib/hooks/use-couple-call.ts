@@ -47,13 +47,14 @@ export function useCoupleCall(userId: string) {
     active.current = row; setCall(row); stream.current = media; setLocal(media); setOwned(true);
     cursor.current = "0"; pendingIce.current = []; queue.current = Promise.resolve(); heartbeat.current = 0;
     const pc = new RTCPeerConnection({ iceServers }); peer.current = pc;
+    const received = new MediaStream();
     if (row.callerId === userId) videoSender.current = offerCallTracks(pc, media);
     setCameraOff(!media.getVideoTracks().length);
     pc.onicecandidate = (event) => { if (event.candidate) void sendSignal(row.id, { kind: "ice", payload: event.candidate.toJSON() }, runId).catch((error) => { if (generation.current === runId) { setError(errorMessage(error)); void end(); } }); };
     pc.ontrack = (event) => {
       if (generation.current !== runId) return;
-      const incoming = event.streams[0];
-      setRemote((current) => { if (incoming) return incoming; const next = current ?? new MediaStream(); if (!next.getTracks().includes(event.track)) next.addTrack(event.track); return next; });
+      if (!received.getTracks().includes(event.track)) received.addTrack(event.track);
+      setRemote(received);
     };
     deadline.current = callDeadline((reason) => {
       if (generation.current !== runId) return;

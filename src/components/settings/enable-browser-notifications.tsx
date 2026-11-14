@@ -9,6 +9,7 @@ import { savePushSubscriptionAction } from "@/server/actions/reminders";
 import { TaskScope } from "@/lib/state/task";
 import { waitFor } from "@/lib/state/wait-for";
 import { idleState } from "@/lib/utils/result";
+import { requestNotificationPermission, notificationSetupError } from "@/lib/notifications/browser-permission";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 
@@ -52,6 +53,9 @@ function isStandalone(): boolean {
 export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?: "reminders" | "calls" }) {
   const { toast } = useToast();
   const [state, setState] = useState<State>("loading");
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [progress, setProgress] = useState("");
+  const [revision, setRevision] = useState(0);
   const scope = useRef(new TaskScope());
   const busy = state === "enabling" || state === "disabling";
   const displayState = state === "enabling" ? "off" : state === "disabling" ? "on" : state;
@@ -77,12 +81,12 @@ export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?
         return;
       }
       const reg = await waitFor(navigator.serviceWorker.ready, signal).catch(() => null);
-      const sub = reg ? await reg.pushManager.getSubscription() : null;
+      const sub = reg ? await waitFor(reg.pushManager.getSubscription(), signal) : null;
       if (signal.aborted) return;
       if (sub && !signal.aborted) {
         const fd = new FormData();
         fd.set("subscription", JSON.stringify(sub.toJSON()));
-        const result = await savePushSubscriptionAction(idleState, fd).catch(() => null);
+        const result = await waitFor(savePushSubscriptionAction(idleState, fd), signal).catch(() => null);
         if (result?.status !== "success") {
           if (!signal.aborted) setState("off");
           return;
@@ -91,44 +95,49 @@ export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?
       if (!signal.aborted) setState(sub ? "on" : "off");
     })().catch(() => { if (!signal.aborted) setState("off"); }).finally(() => { owner.finish(signal); });
     return () => owner.cancel();
-  }, []);
+  }, [revision]);
 
   const enable = async () => {
     const signal = scope.current.begin();
     if (!signal || state !== "off") { if (signal) scope.current.finish(signal); return; }
     setState("enabling");
+    setFeedback(null); setProgress("Waiting for notification permission…");
+    let stage: "permission" | "device" | "save" = "permission";
     try {
-      const permission = await waitFor(Notification.requestPermission(), signal, 60_000);
+      const permission = await requestNotificationPermission(signal);
       signal.throwIfAborted();
       if (permission !== "granted") {
         setState(permission === "denied" ? "denied" : "off");
+        setFeedback(permission === "denied" ? "Allow MONO in your browser and phone notification settings, then tap Check again." : "Permission wasn't granted. Check the notification icon beside your browser's address bar, then try again.");
         return;
       }
+      stage = "device"; setProgress("Registering this device…");
       const reg = await waitFor(navigator.serviceWorker.ready, signal);
       const sub =
-        (await reg.pushManager.getSubscription()) ??
-        (await reg.pushManager.subscribe({
+        (await waitFor(reg.pushManager.getSubscription(), signal)) ??
+        (await waitFor(reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-        }));
+        }), signal, 20_000));
       signal.throwIfAborted();
+      stage = "save"; setProgress("Saving notification settings…");
       const fd = new FormData();
       fd.set("subscription", JSON.stringify(sub.toJSON()));
-      const result = await savePushSubscriptionAction(idleState, fd);
+      const result = await waitFor(savePushSubscriptionAction(idleState, fd), signal);
       if (signal.aborted) return;
       if (result.status === "error") {
-        await sub.unsubscribe().catch(() => undefined);
-        toast({ title: result.message ?? "Couldn't turn on reminders.", variant: "error" });
+        setFeedback(result.message ?? "Couldn't save notification settings. Try again.");
         setState("off");
         return;
       }
       setState("on");
       toast({ title: "Notifications enabled on this device.", variant: "success" });
-    } catch {
+    } catch (error) {
       if (signal.aborted) return;
-      toast({ title: "Couldn't turn on reminders. Try again.", variant: "error" });
+      setFeedback(notificationSetupError(stage, error));
       setState("off");
     } finally {
+      if (!signal.aborted) setProgress("");
       scope.current.finish(signal);
     }
   };
@@ -184,6 +193,9 @@ export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-ink">{purpose === "calls" ? "Incoming-call notifications" : "Notifications when MONO is closed"}</p>
           <p className="mt-0.5 text-sm text-muted">{message[displayState]}</p>
+          {progress ? <p role="status" className="mt-2 text-sm text-muted">{progress}</p> : null}
+          {feedback ? <p role="alert" className="mt-2 text-sm text-error">{feedback}</p> : null}
+          {displayState === "denied" || displayState === "unsupported" ? <Button size="sm" variant="secondary" className="mt-3" onClick={() => { setFeedback(null); setState("loading"); setRevision((value) => value + 1); }}>Check again</Button> : null}
           {displayState === "off" ? (
             <Button size="sm" variant="secondary" className="mt-3" loading={busy} onClick={enable}>
               Enable notifications

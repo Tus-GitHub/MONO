@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (partner edits deployed and verified)
+Last updated: 2026-11-14 (mobile voice audio and notification setup follow-up)
 
 ## Project Overview
 
@@ -23,6 +23,19 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
+- **Mobile voice audio and Samsung notification follow-up (2026-11-14)** — user reports
+  voice calls have no sound but video calls do; Samsung installed app notification enable
+  does nothing, while iPhone does show its notification prompt. Screen-sharing statement
+  remains ambiguous. Found voice rendered through hidden video containing a reserved video
+  track and unmounted with the dialog. Separate persistent audio-only output, aggregate
+  peer tracks, preserve audio through video upgrade/minimization, expose autoplay recovery.
+  Support callback/promise notification permission, bound device registration/save waits,
+  and show inline progress/errors and permission recheck. Detect screen-sharing capability
+  at runtime rather than assuming all iPhone versions lack it. User is self-testing;
+  do not interfere with their browser/device calls. 33 targeted tests and TypeScript pass;
+  final lint passes after correcting a React ref-binding diagnostic. Production Webpack
+  build passes. Publishing the fix; physical Samsung/iPhone behavior needs user retest.
+
 - **Permission-first calling and closed-app alerts (2026-11-14)** — user uses Android +
   iPhone and asks for maximum supported background calling plus working notification
   popups. Implement pre-call device setup and permission-before-config/start; remove the
@@ -39,7 +52,12 @@ components. Business rules never live only in React components — they live in
   Worker v6 routes exact call URLs, handles stale alerts and blocks external navigation.
   Configured previously missing production VAPID keys securely (private key sensitive;
   public key mirrored to NEXT_PUBLIC). 47 focused tests and 174 isolated PostgreSQL tests
-  pass; TypeScript/lint pass. Final build, deployment and physical popup verification pending.
+  pass; TypeScript/lint and production build pass. Published c0b175487523dadf9aa13da783a9ec406e1bb5ed;
+  Vercel dpl_BZRr83AGpKVut89DbceABs7LBQYt READY on canonical production. Live regular Edge
+  QA partner session shows Set up calling and notification opt-in. User completed microphone
+  and camera setup checks. Edge exposes a quiet/blocked notification permission request;
+  requested the user allow it. Physical popup, remote closed-tab delivery and phone checks
+  remain pending. QA sessions/passwords remain active for this testing; revoke on completion.
 
 - **Call timeout, ringtone and controls follow-up (2026-11-14)** — live Chrome caller
   acquired its microphone and rang the Edge receiver. Verified the receiver's Incoming
