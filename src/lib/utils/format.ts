@@ -1,5 +1,12 @@
 /** Formatting helpers — deterministic, dependency-free. */
 
+export function currencySymbol(currency = "USD"): string {
+  try {
+    return new Intl.NumberFormat("en", { style: "currency", currency, currencyDisplay: "narrowSymbol" })
+      .formatToParts(0).find((part) => part.type === "currency")?.value ?? currency;
+  } catch { return currency; }
+}
+
 export function formatMoney(cents: number | null | undefined, currency = "USD"): string {
   if (cents == null) return "—";
   try {

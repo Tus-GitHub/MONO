@@ -39,8 +39,10 @@ export function RecapForm({
   plan,
   actual,
   savedPlaces,
+  currency,
 }: {
   dateId: string;
+  currency: string;
   plan: RecapPlan;
   actual: RecapActual;
   savedPlaces: { id: string; name: string }[];
@@ -152,6 +154,7 @@ export function RecapForm({
         {/* Spend */}
         <Field label="What did it actually cost?" htmlFor="actualSpend" optional errors={fieldErrors?.actualSpend}>
           <MoneyInput
+            currency={currency}
             id="actualSpend"
             name="actualSpend"
             defaultValue={actual.spendCents != null ? String(actual.spendCents / 100) : ""}

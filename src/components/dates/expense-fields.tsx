@@ -12,7 +12,7 @@ import {
   type PayerFacing,
 } from "@/lib/date/expense-labels";
 import type { FieldErrors } from "@/lib/errors";
-import { formatMoney } from "@/lib/utils/format";
+import { currencySymbol, formatMoney } from "@/lib/utils/format";
 import { cn } from "@/lib/utils/cn";
 
 export interface ExpenseDefaults {
@@ -79,7 +79,7 @@ export function ExpenseFields({
         <Field label="Amount" htmlFor="ef-amount" errors={fieldErrors?.amount}>
           <div className="relative">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-faint">
-              $
+              {currencySymbol(currency)}
             </span>
             <Input
               id="ef-amount"

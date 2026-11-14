@@ -46,6 +46,7 @@ export default async function RecapPage({ params }: { params: Promise<{ id: stri
       />
 
       <RecapForm
+        currency={data.date.currency}
         dateId={id}
         plan={{
           placeName: data.plan.placeName,

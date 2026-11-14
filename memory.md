@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (chat/arcade release, supplied ringtone, voice-to-video and screen sharing)
+Last updated: 2026-11-14 (chat release and live post-date audit)
 
 ## Project Overview
 
@@ -40,6 +40,16 @@ components. Business rules never live only in React components — they live in
   passes. React review caught a ref-containing hook return access; destructured the audio
   ref from reactive ringtone state. Final lint and production build precede commit/push.
 
+- **Live completion, expenses, reviews and memory audit (2026-11-14)** — continue retained
+  synthetic Chromium/WebKit dates through completion and the post-date flow. Keep records as
+  requested. Found hard-coded dollar prefixes on INR expense, recap and activity-cost fields;
+  fixing currency propagation, including the existing saved-plan budget editor. Live tests
+  and build/deployment verification underway. Both engines saved recap, expenses, independent
+  reviews and memories successfully. Found a second display bug: Memories cards ignored the
+  saved memory title and linked to the date; fixing their memory title/link while preserving
+  date-card behavior elsewhere. No other users' records are in scope.
+
+
 - **Couple call device verification** — implementation and media-helper/backend signaling
   tests pass; the right-panel permission/cancel path passes without granting devices.
   Actual two-device audio/video and restrictive-network TURN still need a real-device check.
@@ -76,6 +86,18 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Full live multiple-event partner audit (2026-11-14)** — complete on READY release 28cdeb0.
+  Chromium and WebKit each passed planning café → movie, validation, start sync, uploads by
+  both partners, automatic photo sync and persistence/lightbox checks. Phone and simulated
+  standalone PWA roles were swapped between engines. SQL confirms two venues/events and
+  two photos by different partners in both successful dates. Normal WebKit PWA link navigation
+  had zero errors; forced runner navigation caused canceled/background fetch errors. No new
+  application defect or patch identified; verified existing deployment remains live.
+  User explicitly requested KEEP test records: LIVE QA Events 7a9b30f6e0 has two synthetic
+  users, four retained QA dates (including two interrupted attempts) and five photos.
+  Do not delete them. Existing user data untouched; physical iPhone testing not claimed.
+  Details: docs/reports/live-events-2026-11-14.md. Isolated checkout avoids unrelated root work.
 
 - **Uploads, multi-event dates and partner updates (2026-11-14)** — published aa28a06,
   Vercel dpl_cCpjG32RrwM4k7zhoM5eBdBZSV1g READY on mono-kappa-beryl.vercel.app.
@@ -1422,6 +1444,13 @@ components. Business rules never live only in React components — they live in
   User supplied Anywhere With You (1).mp3.mpeg, requested it for both ringing ends, then added
   voice-to-video conversion and screen sharing. Target existing MONO production project;
   include these changes before build/commit/push/deploy and test with dedicated fixtures.
+
+### 2026-11-14 — Full live multiple-event flow for both partners
+
+**DONE.** Tested production login/planning/start/photos in Chromium phone/PWA and WebKit
+PWA/phone profiles. All functional steps passed; real SQL persistence verified. No code fix
+or redeployment required. User chose to retain synthetic test records. Report saved at
+docs/reports/live-events-2026-11-14.md; test navigation limitations are recorded explicitly.
 
 Additional steering in this task: user confirmed multiple venue/time events inside one day,
 requested ongoing-date photo access in Memories and automatic partner state updates, and

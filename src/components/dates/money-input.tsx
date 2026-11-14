@@ -1,11 +1,12 @@
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils/cn";
+import { currencySymbol } from "@/lib/utils/format";
 
 export function centsToInput(cents: number | null | undefined): string {
   return cents == null ? "" : (cents / 100).toString();
 }
 
-/** `$`-prefixed decimal money field, matching the plan flow's input. */
+/** Decimal money field prefixed with the date's currency. */
 export function MoneyInput({
   id,
   name,
@@ -13,6 +14,7 @@ export function MoneyInput({
   placeholder = "0",
   invalid,
   className,
+  currency = "USD",
 }: {
   id: string;
   name: string;
@@ -20,11 +22,12 @@ export function MoneyInput({
   placeholder?: string;
   invalid?: boolean;
   className?: string;
+  currency?: string;
 }) {
   return (
     <div className={cn("relative", className)}>
       <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-faint">
-        $
+        {currencySymbol(currency)}
       </span>
       <Input
         id={id}

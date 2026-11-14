@@ -45,7 +45,7 @@ export default async function FavoritesPage() {
           <h2 className="font-display text-lg font-medium text-ink">Favourite dates</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {dates.map((item) => (
-              <GridDateCard key={item.id} item={item} />
+              <GridDateCard key={item.id} item={item} memory />
             ))}
           </div>
         </section>

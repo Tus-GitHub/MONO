@@ -7,10 +7,10 @@ import type { DateHistoryItem } from "@/lib/date/history-item";
 import { formatWallDate } from "@/lib/utils/format";
 
 /** Square tile for the grid view — photo first, minimal chrome. */
-export function GridDateCard({ item }: { item: DateHistoryItem }) {
+export function GridDateCard({ item, memory = false }: { item: DateHistoryItem; memory?: boolean }) {
   return (
     <Link
-      href={`/dates/${item.id}`}
+      href={memory && item.memoryId ? `/memories/${item.memoryId}` : `/dates/${item.id}`}
       className="group relative block aspect-square overflow-hidden rounded-xl border border-line bg-line"
     >
       {item.cover ? (
@@ -34,7 +34,7 @@ export function GridDateCard({ item }: { item: DateHistoryItem }) {
       ) : null}
 
       <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/75 via-black/15 to-transparent p-2.5 pt-8">
-        <p className="line-clamp-1 text-sm font-medium text-white drop-shadow-sm">{item.title}</p>
+        <p className="line-clamp-1 text-sm font-medium text-white drop-shadow-sm">{memory ? item.memoryTitle || item.title : item.title}</p>
         <p className="line-clamp-1 text-2xs text-white/80">
           {[item.placeName, item.dateYmd ? formatWallDate(item.dateYmd, "medium") : null]
             .filter(Boolean)

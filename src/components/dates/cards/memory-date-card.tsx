@@ -7,10 +7,10 @@ import type { DateHistoryItem } from "@/lib/date/history-item";
 import { formatWallDate } from "@/lib/utils/format";
 
 /** The large, feature-sized representation — used for a spotlighted date. */
-export function MemoryDateCard({ item, eyebrow }: { item: DateHistoryItem; eyebrow?: string }) {
+export function MemoryDateCard({ item, eyebrow, memory = false }: { item: DateHistoryItem; eyebrow?: string; memory?: boolean }) {
   return (
     <Link
-      href={`/dates/${item.id}`}
+      href={memory && item.memoryId ? `/memories/${item.memoryId}` : `/dates/${item.id}`}
       className="group block overflow-hidden rounded-2xl border border-line bg-surface shadow-sm transition-colors hover:border-line-strong"
     >
       <div className="relative aspect-[3/2] w-full bg-line sm:aspect-[2/1]">
@@ -35,7 +35,7 @@ export function MemoryDateCard({ item, eyebrow }: { item: DateHistoryItem; eyebr
             <p className="text-2xs font-medium uppercase tracking-wide text-white/70">{eyebrow}</p>
           ) : null}
           <p className="font-display text-xl font-medium text-white drop-shadow-sm">
-            {item.title}
+            {memory ? item.memoryTitle || item.title : item.title}
           </p>
           <p className="text-sm text-white/85">
             {[
@@ -55,7 +55,7 @@ export function MemoryDateCard({ item, eyebrow }: { item: DateHistoryItem; eyebr
           <p className="mt-1 w-full text-sm leading-relaxed text-muted">“{item.memorySnippet}”</p>
         ) : null}
         <span className="ml-auto inline-flex items-center gap-1 text-sm font-medium text-primary">
-          Open date
+          {memory && item.memoryId ? "Open memory" : "Open date"}
           <Icon name="arrowRight" size={14} />
         </span>
       </div>

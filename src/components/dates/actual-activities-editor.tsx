@@ -220,6 +220,7 @@ function ActualRow({
             />
             <div className="grid grid-cols-2 gap-2">
               <MoneyInput
+                currency={currency}
                 id={`cost-${activity.id}`}
                 name="costCents"
                 defaultValue={activity.costCents != null ? String(activity.costCents / 100) : ""}

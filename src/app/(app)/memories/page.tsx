@@ -78,11 +78,11 @@ export default async function MemoriesPage() {
               Full timeline
             </Link>
           </div>
-          {feature ? <MemoryDateCard item={feature} eyebrow="Latest" /> : null}
+          {feature ? <MemoryDateCard item={feature} eyebrow="Latest" memory /> : null}
           {restRecent.length > 0 ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {restRecent.map((item) => (
-                <GridDateCard key={item.id} item={item} />
+                <GridDateCard key={item.id} item={item} memory />
               ))}
             </div>
           ) : null}
@@ -111,7 +111,7 @@ export default async function MemoriesPage() {
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {home.favoriteDates.map((item) => (
-              <GridDateCard key={item.id} item={item} />
+              <GridDateCard key={item.id} item={item} memory />
             ))}
           </div>
         </section>

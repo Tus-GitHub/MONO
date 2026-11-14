@@ -15,6 +15,7 @@ import { UnsavedGuard } from "@/components/system/unsaved-guard";
 import { idleState } from "@/lib/utils/result";
 import { saveStepAction } from "@/server/actions/plan";
 import type { PlanDateDTO } from "@/server/services/plan-service";
+import { currencySymbol } from "@/lib/utils/format";
 
 const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "JPY", "INR", "SGD"];
 
@@ -35,17 +36,19 @@ function MoneyInput({
   onChange,
   placeholder,
   id,
+  currency,
 }: {
   name: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   id: string;
+  currency: string;
 }) {
   return (
     <div className="relative">
       <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-faint">
-        $
+        {currencySymbol(currency)}
       </span>
       <Input
         id={id}
@@ -99,6 +102,7 @@ export function BudgetStep({ plan, userId }: { plan: PlanDateDTO; userId: string
           <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
             <Field label="Expected total" htmlFor="expectedTotal" optional errors={fieldErrors?.expectedTotal}>
               <MoneyInput
+                currency={currency.value}
                 id="expectedTotal"
                 name="expectedTotal"
                 value={total.value} onChange={total.setValue}
@@ -121,6 +125,7 @@ export function BudgetStep({ plan, userId }: { plan: PlanDateDTO; userId: string
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <Field label="Low end" htmlFor="budgetMin" optional errors={fieldErrors?.budgetMin}>
                 <MoneyInput
+                  currency={currency.value}
                   id="budgetMin"
                   name="budgetMin"
                   value={low.value} onChange={low.setValue}
@@ -128,6 +133,7 @@ export function BudgetStep({ plan, userId }: { plan: PlanDateDTO; userId: string
               </Field>
               <Field label="High end" htmlFor="budgetMax" optional errors={fieldErrors?.budgetMax}>
                 <MoneyInput
+                  currency={currency.value}
                   id="budgetMax"
                   name="budgetMax"
                   value={high.value} onChange={high.setValue}
