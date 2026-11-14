@@ -1,5 +1,9 @@
 # Automatic MONO deployment cleanup
 
+**Active since 15 November 2026.** The release-event run and its automatic-apply
+replay passed. The [first apply run](https://github.com/Tus-GitHub/MONO/actions/runs/43628696457)
+removed five obsolete deployments and preserved the healthy live app and rollback.
+
 The public `Tus-GitHub/MONO` repository uses standard GitHub-hosted Ubuntu runners,
 which are free for public repositories. Cleanup creates no Vercel function, cron
 job, paid runner, subscription or billing setting. Existing bundle-size guards
@@ -22,8 +26,8 @@ GitHub. Its expiration is **12 February 2027**. Replace the GitHub secret before
 that date to keep unattended cleanup running. Token values are never recorded here.
 
 The connected Codex tools are not a credential store for GitHub Actions. A missing
-secret produces a clear workflow error and **no deletion**. Until a real successful
-cleanup run is observed, treat automatic cleanup as awaiting activation.
+secret produces a clear workflow error and **no deletion**. The activation variable
+was enabled only after a real dry-run passed.
 
 ## When it runs
 

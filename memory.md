@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-15 (temporary health access approved; final live cleanup verification in progress)
+Last updated: 2026-11-15 (automatic deployment cleanup active and verified; live plus one working rollback retained)
 
 ## Project Overview
 
@@ -22,18 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Automatic post-release deployment cleanup (2026-11-14)** — user requests free cleanup
-  after releases, preserving live and a verified working rollback, no billing. Build a small
-  GitHub Actions job and scoped Node REST cleanup with dry-run/default-safe behaviour,
-  health/alias/scope/race safeguards and focused tests. Work in an isolated checkout based
-  on latest ccb5027; preserve the original workspace's notification edits. No local/browser QA.
-  31 safety tests,519 existing unit tests, lint, YAML parse and production build pass.
-  User explicitly said to handle credential setup; MONO-only90-day Vercel token stored
-  directly as GitHub Actions VERCEL_TOKEN, expiry12February2027, without logging its value.
-  Non-expiring token option rejected by automatic review; used bounded90days instead.
-  Initial automatic runs remain dry-run until the activation variable is enabled after
-  live validation. Publication, real dry-run and activation verification remain pending.
 
 - **Free PWA audio-routing workaround (2026-11-14)** — user rejects native/store costs and
   requests a workaround in the PWA. Research found Web Audio output selection as an alternate
@@ -219,6 +207,13 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Automatic deployment cleanup (2026-11-15)** — published e3e52d2; free GitHub Actions
+  cleanup is active after successful main/Production releases. Five obsolete deployments
+  deleted; live e3e52d2 and rollback49987ce both READY/database healthy. Automatic event
+  replay confirms apply=true. MONO-only Actions credential expires12February2027.
+  Uses approved60-second share links, sequential health checks and immediate revocation;
+  no permanent bypass or billing. Original local work preserved.
 
 - **Photo adjustment and consistent couple-photo framing (2026-11-14)** — published
   4590a53; Vercel dpl_29iRfVVdP4Y1hR5HJSnKVZWe2cJ7 READY on the canonical MONO alias.
@@ -1649,36 +1644,34 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
-### 2026-11-14 — Automatic post-release deployment cleanup (IN PROGRESS)
+### 2026-11-14 — Automatic post-release deployment cleanup (DONE 2026-11-15)
 
--15November:49987ce reached the valid share-link flow (HTTP307). Added only the required same-origin/same-/api/health cookie exchange, with pinned clean destination, _vercel_jwt-only cookie and no automatic redirects. External/path-changing redirects fail closed.41 safety tests include successful exchange and cookie exfiltration rejection. Publication/real dry-run/activation pending.
-
--15November: official Vercel CLI source specifies _vercel_share for shareable links, distinct from automation bypass. Corrected transport, sequential health grants and immediate finally revocation (no project-wide permanent secret);39 focused tests pass. Hobby one-share-link limit documented. Final validation/activation remains pending.
-
--15November follow-up:43c3af9 published/READY; temporary access is accepted by the scoped API, but shareable credentials require the URL query parameter rather than the automation-only header. Changed only credential transport to the approved expiring shareable URL; never log the URL and never follow redirects. No deployment deleted yet.
-
-- User explicitly approved 60-second temporary health-check access for live/rollback. Connected API probe succeeded and returned a shareable-link expiration within60seconds; no permanent bypass. Implemented per-keeper scoped PATCH with ttl60, strict returned-expiry validation, in-memory URL-separated cache/refresh and bounded propagation checks.38 safety tests pass. Pending publish, real dry-run and activation/apply verification.
-
-- fb60b78 fixed automatic SHA-ref event handling. Protected CLI health still failed before deletion. Switched to Node HTTPS with read-only lookup of an existing Automation Bypass credential;37 safety tests pass. Automatic review rejected creating a persistent bypass credential, so creation was removed before publication. No protection setting changed. Checking whether existing access suffices; activation still off.
-
-- Published ab5a565; Vercel production READY. First automatic event skipped because Vercel uses SHA refs. Corrected event guard to validate live main-branch metadata plus expected SHA; manual runs still require main. First authenticated manual dry-run reached Vercel but failed closed at protected health; no deletion. Added credential-free diagnostic categories for the next check.34 safety tests pass;519 application tests, full lint and latest production build passed. Activation still off.
-
-- Existing size gate/docs-only skip stay. Native Vercel retention cannot enforce exactly
-  live+one rollback, so use the existing public GitHub repository's free standard runner.
-  Vercel API credential must be a repository secret, never source or chat. Plan protects
-  healthy current/previous production, aliased and in-flight versions; rechecks before each
-  recoverable deletion and stops safely on uncertainty. No billing or app schema changes.
-- All31 injected API/health/race safety checks and519 existing tests pass. Full lint and
-  production build/typecheck pass; YAML parsing and pinned Vercel65.16.0 curl help verified.
-  Native curl flags use the required separator. Standard public-repository Ubuntu runners
-  are free; workflow actions pinned to reviewed v7 SHAs. No extra runtime dependencies.
-- User's “DO it yourself” authorizes one-time credential setup in the signed-in service
-  pages. Created mono-automatic-deployment-cleanup restricted to this project,90days,
-  expires12February2027, stored as GitHub Actions VERCEL_TOKEN by direct UI clipboard
-  transfer. No value in source/history/logs. Automatic review rejected unlimited lifetime;
-  bounded expiration was accepted. Active clipboard replaced with public settings URL;
-  one-time token display dismissed. Initial automatic runs default to dry-run until
-  MONO_DEPLOYMENT_CLEANUP_ENABLED=true, to be enabled only after real dry-run succeeds.
+- Published workflow/tooling through e3e52d2, based on latest ccb5027 without changing
+  application source or original workspace edits. GitHub repository secret VERCEL_TOKEN
+  is restricted to MONO, expires12February2027, and never enters source/artifacts/logs.
+  Public repository uses free standard Ubuntu runners; no Vercel function/cron or billing.
+- Successful main/Production deployment_status events from vercel[bot] trigger cleanup.
+  Vercel uses SHA refs, so verify the event SHA against live main-branch metadata.
+  Production target, both keeper database health checks and canonical alias are verified
+  repeatedly. Preserve aliases/newer previews/in-flight work; stop on drift or uncertainty.
+  Recoverable DELETE is never retried. Batch/scope/state guards are covered by41 tests.
+- Explicit owner approval covers60-second shareable access to the two keeper deployments.
+  Use _vercel_share and only the required same-host/same-/api/health cookie exchange;
+  reject external redirects and revoke the generated credential in finally. No permanent
+  project bypass credential or protection disablement. Hobby permits one share link/account;
+  checks run sequentially and replace existing shareable access. Credentials stay in memory.
+- Dry-run43628255017 succeeded. Saved MONO_DEPLOYMENT_CLEANUP_ENABLED=true in GitHub;
+  apply43628696457 succeeded and deleted exactly5 obsolete unaliased deployments.
+  Replayed the original deployment_status run (attempt2): apply=true, both keepers healthy,
+  zero remaining candidates. Live dpl_EBpmWxQkrs1a6Pjz7XhMtUJj9vZN/e3e52d2 and
+  rollback dpl_HiXYBDc7SVgrBEZGLVEYwXQ1jC4t/49987ce are the only2 retained deployments.
+  All3 canonical aliases remain live; direct public health200/status ok/database up.
+-519 application tests,41 cleanup tests, lint/actionlint and production build/typecheck/
+  size gate pass. GitHub code/database checks pass; existing Chrome/Firefox E2E failures
+  also occurred before this tooling release and remain outside this task. No browser app QA.
+  Documentation records credential renewal, failure behaviour and rolling storage accounting:
+  pruning stops future accumulation but cannot instantly erase historic usage or cap other
+  projects. Operation proof: https://github.com/Tus-GitHub/MONO/actions/runs/43628696457
 
 ### 2026-11-14 — Crop uploads and preserve couple-photo framing
 
