@@ -234,7 +234,7 @@ export function PhotoLightbox({
         aria-modal="true"
         aria-label={`Photo ${index + 1} of ${count}`}
         style={{ bottom: "var(--kb, 0px)" }}
-        className="fixed inset-x-0 top-0 z-50 flex flex-col bg-ink/95 backdrop-blur-sm transition-[bottom] duration-base ease-out"
+        className="fixed inset-x-0 top-0 z-50 flex flex-col bg-photo-backdrop/95 backdrop-blur-sm transition-[bottom] duration-base ease-out"
       >
         {/* top chrome */}
         <div className="flex items-center justify-between gap-3 px-4 py-3 text-white/90">

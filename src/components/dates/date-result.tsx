@@ -48,23 +48,28 @@ export function DateResult({ data }: { data: DateExperience }) {
 
   return (
     <section className="anim-rise overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
-      <div className="relative">
-        {best ? (
-          <Photo
-            thumbUrl={best.thumbUrl}
-            displayUrl={best.displayUrl}
-            blurDataUrl={best.blurDataUrl}
-            alt=""
-            priority
-            aspect="2 / 1"
-            sizes="(min-width: 640px) 40rem, 100vw"
-          />
-        ) : (
-          <div className="grid aspect-[2/1] w-full place-items-center bg-linear-to-br from-primary-tint via-surface to-accent-tint">
-            <Icon name="camera" size={36} className="text-primary/60" />
-          </div>
-        )}
-        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 via-black/25 to-transparent p-4 pt-14">
+      <div className="relative grid grid-cols-1">
+        {/* Preserve the photo ratio when text fits; let a longer caption grow the hero. */}
+        <div aria-hidden="true" className="col-start-1 row-start-1 aspect-[2/1]" />
+        <div className="absolute inset-0">
+          {best ? (
+            <Photo
+              thumbUrl={best.thumbUrl}
+              displayUrl={best.displayUrl}
+              blurDataUrl={best.blurDataUrl}
+              alt=""
+              priority
+              className="size-full"
+              aspect="2 / 1"
+              sizes="(min-width: 640px) 40rem, 100vw"
+            />
+          ) : (
+            <div className="grid size-full place-items-center bg-linear-to-br from-primary-tint via-surface to-accent-tint">
+              <Icon name="camera" size={36} className="text-primary/60" />
+            </div>
+          )}
+        </div>
+        <div className="relative col-start-1 row-start-1 min-w-0 self-end break-words bg-linear-to-t from-black/70 via-black/25 to-transparent p-4 pt-14">
           <p className="text-2xs font-medium uppercase tracking-wide text-white/70">The result</p>
           <p className="font-display text-xl font-medium text-white drop-shadow-sm">{date.title}</p>
           <p className="text-sm text-white/85">

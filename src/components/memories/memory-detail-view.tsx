@@ -13,23 +13,28 @@ export function MemoryDetailView({ detail }: { detail: MemoryDetail }) {
   return (
     <article className="space-y-6">
       {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl border border-line bg-line">
-        {detail.hero ? (
-          <Photo
-            thumbUrl={detail.hero.thumbUrl}
-            displayUrl={detail.hero.displayUrl}
-            blurDataUrl={detail.hero.blurDataUrl}
-            alt=""
-            priority
-            aspect="3 / 2"
-            sizes="(min-width: 768px) 44rem, 100vw"
-          />
-        ) : (
-          <div className="grid aspect-[3/2] w-full place-items-center bg-linear-to-br from-accent-tint via-surface to-primary-tint">
-            <Icon name="images" size={40} className="text-accent/60" />
-          </div>
-        )}
-        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/80 via-black/25 to-transparent p-5 pt-20">
+      <div className="relative grid grid-cols-1 overflow-hidden rounded-2xl border border-line bg-line">
+        {/* Keep the original photo ratio as a floor, with room for the full caption. */}
+        <div aria-hidden="true" className="col-start-1 row-start-1 aspect-[3/2]" />
+        <div className="absolute inset-0">
+          {detail.hero ? (
+            <Photo
+              thumbUrl={detail.hero.thumbUrl}
+              displayUrl={detail.hero.displayUrl}
+              blurDataUrl={detail.hero.blurDataUrl}
+              alt=""
+              priority
+              className="size-full"
+              aspect="3 / 2"
+              sizes="(min-width: 768px) 44rem, 100vw"
+            />
+          ) : (
+            <div className="grid size-full place-items-center bg-linear-to-br from-accent-tint via-surface to-primary-tint">
+              <Icon name="images" size={40} className="text-accent/60" />
+            </div>
+          )}
+        </div>
+        <div className="relative col-start-1 row-start-1 min-w-0 self-end break-words bg-linear-to-t from-black/80 via-black/25 to-transparent p-5 pt-20">
           <DateOrdinal ordinal={detail.ordinal ?? 0} className="text-white/70" />
           <h1 className="mt-1 font-display text-2xl font-medium text-white drop-shadow-sm">
             {detail.title}

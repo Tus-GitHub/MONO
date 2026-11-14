@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (all-category plan filters completed and verified locally; chat next)
+Last updated: 2026-11-14 (responsive photo fixes and deployment underway)
 
 ## Project Overview
 
@@ -22,6 +22,12 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Responsive photo fixes (2026-11-14)** — user authorizes fixing all three audit findings,
+  preserving the design, checking all screen sizes and deploying. Make date/memory hero
+  captions contribute to layout height and use a theme-independent dark photo-viewer token.
+  Verify all 25 audit configurations in both themes and browser/PWA modes, including long
+  content, photo/no-photo states and both viewers. Work on isolated codex/responsive-photo-fixes.
 
 - **Publish filters and verify production (2026-11-14)** — user explicitly authorized
   publishing/deploying the completed all-category filter changes and testing them live.
@@ -73,6 +79,22 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Whole-site responsive layout audit (2026-11-14)** — completed against live 5bd1a57;
+  25 main viewport configurations from 320px to 3840px, breakpoint boundaries and landscape,
+  plus selected short-landscape, desktop pointer, light-theme and standalone/PWA variants.
+  Recorded 1,971 screen/viewport samples (290 public live, 1,593 local main, 88 focused).
+  All page groups, settings, planning/date/memory states, onboarding/invitations, empty
+  states, menus/dialogs/sheets, photo viewer and archive-file preview covered. No measured
+  page-level horizontal overflow, clipped control labels, unexpected blocked primary nav
+  or uncaught browser errors. **Not fully responsive:** confirmed completed-date result
+  label/title cropping at 320–360px and memory ordinal cropping at 320px with valid long
+  content; also found weak white-on-pale photo-viewer control contrast in dark mode.
+  Findings, source locations, suggested corrections and screenshot evidence are in
+  docs/reports/responsive-audit-2026-11-14.md. These defects were audited, not fixed or
+  deployed. Physical iOS/Safari keyboard/safe-area/zoom testing remains separate.
+  Local synthetic database, generated test-image storage and private preview/server log
+  removed; local servers stopped and idle test cluster stopped. Primary work preserved.
 
 - **Plan-aware filtering across every category (2026-11-14, local)** — added plan-type chips
   and conservative title recognition; Adventure selects Activities, Nature selects Park,
@@ -1295,6 +1317,31 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-14 — Fix responsive photo captions and viewer contrast
+
+**IN PROGRESS.** User authorizes all three fixes, same design, viewport verification and
+production deployment. Started from production 5bd1a57; synced the separately published a95439b plan-category update before release. Caption
+overlays now participate in a single-cell grid; a ratio spacer retains existing dimensions
+when text fits, while long captions can expand the photo area. Image layers fill that area;
+typography, spacing, gradients, rounded corners and controls remain. Both lightboxes use a
+dedicated fixed dark backdrop token instead of the theme-changing ink color. No schema,
+credentials or dependencies changed; unrelated primary-workspace changes remain separate.
+All 816 focused authenticated local screen/viewport samples pass across the 25 configurations
+(320–3840px, breakpoint boundaries and landscape), two themes and browser/standalone-PWA
+emulation: original long captions, maximum-length date/memory/venue text, photo and fallback
+heroes, short-content ratio preservation, image fill, both viewer backgrounds/contrast and
+visible close controls. No clipping, horizontal overflow or uncaught browser errors found.
+Screenshots reviewed at 320px and larger sizes. Full lint and final combined production
+build/TypeScript passed. Synced the separately published a95439b and 7554357 plan-category
+and nearby-search releases; no changes overlap the five verified photo UI files. The
+post-sync focused regression run passed 144 additional samples across 320/360/768/1440px,
+both themes and browser/PWA modes. Production release remains; physical native-device
+QA is distinct from emulation.
+
+### 2026-11-14 — Whole-site responsive layout audit
+
+**DONE.** User asks to check the complete site, clarified every screen size. Audited production 5bd1a57 (sin1); final live-alias inspection confirmed the same version. Isolated codex/mobile-layout-audit preserves unrelated primary work. 25 main viewport configurations cover 320–3840px, responsive breakpoint boundaries, phones/tablets/desktops/ultrawide/4K and landscape. Recorded 1,971 samples: 290 public live; 1,593 main local synthetic-data samples across 67 named states; 88 focused samples across 11 additional variants. Checked all page groups, seven settings subpages, all planning steps and date statuses, populated and empty histories, galleries/details, review/recap/memory editors, onboarding/invitations/unverified gates, confirmation/modal/sheet/menu/photo viewer, standalone/PWA, desktop pointer/light theme and archive file preview (without approvals or restore). No measured horizontal page overflow, clipped control labels, unexpected primary-nav blockers or uncaught browser errors. Confirmed two real clipping defects: DateResult's fixed 2:1 hero clips the result label and long title at 320px (label still clipped at 360px), and MemoryDetailView's fixed 3:2 hero clips the ordinal at 320px. Narrow evidence captures measured the result label 32.5px above its card at 320px and memory ordinal ~5.3px above its card. Also observed photo-wall lightbox white controls on a pale background in dark mode; bg-ink/95 changes with the theme while controls stay white (date lightbox shares the pattern). Report: docs/reports/responsive-audit-2026-11-14.md; summary/raw JSON and screenshots retained under .screenshots/responsive-audit-*. No product code changes or deployment made. Physical native-device behavior is outside Chromium/standalone emulation coverage. Authenticated audit used the supported local development server because production deliberately rejects loopback databases. A Turbopack cache panic was avoided using Next's documented --webpack mode; harness waits for hydration/redirect/dismissal settling. Prisma client was made independent in the isolated checkout to avoid another task's generated-schema changes. Normal signed, database-backed local synthetic sessions were used for layout setup after login had already been checked. All temporary synthetic rows/database, private preview/server log and generated image storage removed; servers and idle test cluster stopped. No production accounts changed.
 
 - **2026-11-14 — IN PROGRESS: publish/deploy filters and live test.** Publishing the tested
   plan-category/city discovery changes; no messaging work is included. Preserve real plans

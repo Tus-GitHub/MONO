@@ -12,6 +12,7 @@
   --paper: #f5f1ea; /* app background */
   --surface: #fdfbf7; /* cards, inputs */
   --elevated: #ffffff; /* modals, sheets, popovers, sticky bars */
+  --photo-backdrop: #211c17; /* photo viewers stay dark in both themes */
   --ink: #211c17; /* primary text */
   --muted: #766c60; /* secondary text */
   --faint: #a89d8e; /* placeholder / tertiary */
@@ -196,6 +197,7 @@
   --color-paper: var(--paper);
   --color-surface: var(--surface);
   --color-elevated: var(--elevated);
+  --color-photo-backdrop: var(--photo-backdrop);
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-faint: var(--faint);

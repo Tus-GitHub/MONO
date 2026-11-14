@@ -204,7 +204,7 @@ function WallViewer({
         role="dialog"
         aria-modal="true"
         aria-label={`Photo ${index + 1} of ${count}`}
-        className="fixed inset-0 z-50 flex flex-col bg-ink/95 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex flex-col bg-photo-backdrop/95 backdrop-blur-sm"
       >
         <div className="flex items-center justify-between gap-3 px-4 py-3 text-white/85">
           <span className="text-xs font-medium tabular-nums">
