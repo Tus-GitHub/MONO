@@ -1651,6 +1651,8 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-14 — Automatic post-release deployment cleanup (IN PROGRESS)
 
+-15November:49987ce reached the valid share-link flow (HTTP307). Added only the required same-origin/same-/api/health cookie exchange, with pinned clean destination, _vercel_jwt-only cookie and no automatic redirects. External/path-changing redirects fail closed.41 safety tests include successful exchange and cookie exfiltration rejection. Publication/real dry-run/activation pending.
+
 -15November: official Vercel CLI source specifies _vercel_share for shareable links, distinct from automation bypass. Corrected transport, sequential health grants and immediate finally revocation (no project-wide permanent secret);39 focused tests pass. Hobby one-share-link limit documented. Final validation/activation remains pending.
 
 -15November follow-up:43c3af9 published/READY; temporary access is accepted by the scoped API, but shareable credentials require the URL query parameter rather than the automation-only header. Changed only credential transport to the approved expiring shareable URL; never log the URL and never follow redirects. No deployment deleted yet.

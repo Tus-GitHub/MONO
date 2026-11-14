@@ -187,6 +187,18 @@ export function createHealthCheck(api, fetcher = fetch, wait = pause) {
         response = await fetcher(url, {
           redirect: "manual", signal: AbortSignal.timeout(20_000),
         });
+        // Share links exchange for a cookie via a same-endpoint redirect. Never follow login/external URLs.
+        const location = response.headers.get("location");
+        const target = location ? new URL(location, url) : undefined;
+        const cookies = response.headers.getSetCookie().map(value => value.split(";")[0])
+          .filter(value => value.startsWith("_vercel_jwt="));
+        if ([302, 303, 307, 308].includes(response.status) && target?.origin === url.origin
+          && target.pathname === "/api/health" && !target.search && !target.username && !target.password && cookies.length) {
+          await response.body?.cancel();
+          response = await fetcher(new URL("/api/health", url), {
+            headers: { Cookie: cookies.join("; ") }, redirect: "manual", signal: AbortSignal.timeout(20_000),
+          });
+        }
         if (![302, 401, 403].includes(response.status) || attempt === 3) break;
         await response.body?.cancel();
         await wait([400, 1000, 2000][attempt]); // Bounded propagation wait; never retry DELETE.

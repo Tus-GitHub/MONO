@@ -198,6 +198,18 @@ test("protected health rejects redirects/HTML, redacts failures and still revoke
   await assert.rejects(createHealthCheck(api,async()=>{throw Error("fixture-private");})(deployment("dpl_live",300)),error=>!error.message.includes("fixture-private")&&/network/.test(error.message));
   assert.equal(releases,3);
 });
+test("share-link cookie exchange is restricted to the same immutable health endpoint",async()=>{
+  let calls=0,releases=0;const api={async healthToken(){return{secret:"fixture-private",expiresAt:Date.now()+60000};},async releaseHealthToken(){releases++;}};
+  const health=createHealthCheck(api,async(url,options)=>{calls++;if(calls===1)return new Response("",{status:307,headers:{Location:"/api/health","Set-Cookie":"_vercel_jwt=fixture-cookie; Secure; HttpOnly"}});assert.equal(url.href,"https://mono-live.vercel.app/api/health");assert.equal(options.redirect,"manual");assert.equal(options.headers.Cookie,"_vercel_jwt=fixture-cookie");return Response.json(goodHealth.body);});
+  assert.deepEqual(await health(deployment("dpl_live",300)),goodHealth);assert.equal(calls,2);assert.equal(releases,1);
+});
+test("share-link redirects cannot send cookies to another host or path",async()=>{
+  for(const location of ["https://evil.invalid/api/health","/account","https://mono-live.vercel.app.evil.invalid/api/health"]){
+    let calls=0;const api={async healthToken(){return{secret:"fixture-private",expiresAt:Date.now()+60000};},async releaseHealthToken(){}};
+    const health=createHealthCheck(api,async(url,options)=>{calls++;assert(!options.headers);return new Response("",{status:307,headers:{Location:location,"Set-Cookie":"_vercel_jwt=fixture-cookie; Secure"}});},async()=>{});
+    await assert.rejects(health(deployment("dpl_live",300)),/HTTP 307/);assert.equal(calls,1);
+  }
+});
 test("temporary health access is deployment-scoped with exactly 60-second TTL", async () => {
   const calls = [], createdAt = Date.now(), expires = Math.floor(createdAt / 1000) + 60;
   const api = createApi("fixture-only", async (url, options) => {

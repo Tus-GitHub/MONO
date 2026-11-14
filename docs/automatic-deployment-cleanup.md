@@ -63,7 +63,9 @@ On Hobby, sharing is limited to one link per account. Checks run sequentially;
 creating a link replaces existing shareable access, so do not depend on persistent
 share links in the same Hobby account while this cleanup is enabled.
 Credentials stay in process memory, are never logged, and use `_vercel_share` only on the
-verified keeper URL without following redirects. Application login remains
+verified keeper URL. The share-link cookie exchange allows one explicitly checked
+redirect to the identical host and `/api/health` path without a query; external
+redirects are rejected, and cookies stay only in process memory. Application login remains
 required. No permanent project bypass credential, protection disablement, extra
 GitHub secret, CLI install or billing change is made.
 
