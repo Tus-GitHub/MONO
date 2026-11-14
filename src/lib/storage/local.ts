@@ -2,6 +2,7 @@ import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 import { env } from "@/config/env";
+import { AppError } from "@/lib/errors";
 import type { PutObjectInput, StorageDriver, StoredObject } from "@/lib/storage/types";
 
 /**
@@ -38,6 +39,7 @@ export class LocalStorageDriver implements StorageDriver {
   readonly name = "local";
 
   async put(input: PutObjectInput): Promise<StoredObject> {
+    if (process.env.VERCEL === "1") throw new AppError("storage_unavailable", "Photo storage is temporarily unavailable. Please try again later.", 503);
     const path = resolveKey(input.key);
     await mkdir(dirname(path), { recursive: true });
     await writeFile(path, input.body);

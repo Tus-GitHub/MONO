@@ -1,5 +1,50 @@
 # MONO regression testing
 
+## Uploads, multi-event dates and partner updates (2026-11-14)
+
+Production upload logs showed `ENOENT mkdir '/var/task/.storage'`: all upload surfaces shared
+the development local-disk driver on Vercel. Production now uses a private bucket on MONO's
+existing Neon Free project through the existing S3 driver. Only scoped storage credentials
+were added to Vercel Production secrets; no card, billing/autopay setup, dependency or schema
+migration was added. Real PUT/GET/HEAD roundtrips passed and anonymous object access returned
+403. All diagnostic objects were removed. Local disk now fails clearly on Vercel rather than
+attempting a write to its deployment filesystem.
+
+Browser image preprocessing recompresses large JPEGs even below the dimension limit, and
+rejects remaining oversized payloads before the platform's request limit. Multi-photo uploads
+refresh only after the whole queue settles. An authenticated browser uploaded an 8.78 MB
+JPEG through the avatar UI into an approximately 2 MB private image. Cover and ongoing-date
+uploads also persisted; authorized reads succeeded and anonymous media reads returned 404.
+
+One date can contain multiple Events, each with a separate venue, start/end clock, duration
+and cost. Venue writes remain inside the explicit, idempotent Save transaction. Tests cover
+atomic saving, per-stop ownership, chronological/bounded times, and shifting event clocks
+when the parent date changes. Continue validates the current step with red fields, inline
+messages, a footer summary and focus on the first invalid field. Evening shows 19:00 and
+defaults the editable end to 21:00; same-day late starts cap the suggestion at 23:59.
+
+Recreate first date loads the earliest completed date, retains its venue/events/notes/budget
+and exposes only date/time edits. The server reloads that authorized template, ignores forged
+detail changes and shifts stop clocks with the new start. Source data remains unchanged.
+Memories includes upload galleries for ongoing dates. Visible partner screens check a private
+revision endpoint every five seconds and refresh changed data without a document reload;
+updates defer while editing, uploading or using a dialog.
+
+Validation before publication: 415 unit tests, 134 isolated PostgreSQL integration tests,
+TypeScript, full ESLint and production build passed. Browser verification uses disposable
+local database users and the real private object store; no production user/date data is
+created or removed. Coverage includes 320/390/844-landscape/1024/1440 widths and automated
+WebKit Safari-style/standalone-PWA profiles. Physical iPhone keyboard behavior remains outside
+this automated coverage. All 14 final browser scenarios passed with zero JavaScript errors;
+six private test objects were removed in the runner's cleanup. The loopback-only test proxy
+strips HTTPS-upgrade policy from both HTML and the worker response; production HTTPS policy
+is preserved. Local evidence: `.screenshots/upload-events/results.json` and
+`.screenshots/upload-events/events-mobile.png`.
+
+The worker cache version is mono-v5. Initial worker-claim races no longer leave an update
+notice over Continue; actual waiting updates can be dismissed. Venue-name queries clear
+between selections while preserving the search area.
+
 ## SOCIAL branches, radius and explicit plan saves (2026-11-14)
 
 New plans now use `/plan/new`: opening, changing steps, choosing a venue and adding activities

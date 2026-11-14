@@ -159,7 +159,7 @@ export async function seedActualsFromPlan(dateId: string): Promise<number> {
       tx.dateActivity.findMany({
         where: { dateId: resource.id, kind: DateActivityKind.PLANNED },
         orderBy: { sortOrder: "asc" },
-        select: { title: true, description: true, costCents: true },
+        select: { title: true, description: true, costCents: true, placeId: true, durationMinutes: true },
       }),
       tx.dateActivity.count({ where: { dateId: resource.id, kind: ACTUAL } }),
     ]);
@@ -171,7 +171,7 @@ export async function seedActualsFromPlan(dateId: string): Promise<number> {
         dateId: resource.id,
         kind: ACTUAL,
         title: activity.title,
-        description: activity.description,
+        description: activity.description, placeId: activity.placeId, durationMinutes: activity.durationMinutes,
         costCents: activity.costCents,
         unplanned: false,
         sortOrder: index,

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Spinner } from "@/components/ui/spinner";
 import { downscaleImage } from "@/lib/images/client-resize";
-import { IMAGE_UPLOAD, validateImageUpload } from "@/lib/storage/image-rules";
+import { IMAGE_UPLOAD, validateImageRequest } from "@/lib/storage/image-rules";
 import { useAsyncTask } from "@/lib/hooks/use-async-task";
 import { uploadImageRequest } from "@/lib/images/upload-request";
 import { cn } from "@/lib/utils/cn";
@@ -55,7 +55,7 @@ export function ImageUpload({
       setProgress(0);
       const file = await downscaleImage(input);
       signal.throwIfAborted();
-      const check = validateImageUpload({ type: file.type, size: file.size });
+      const check = validateImageRequest({ type: file.type, size: file.size });
       if (!check.ok) throw new Error(check.message);
       setPreview(URL.createObjectURL(file));
       try {
@@ -95,7 +95,7 @@ export function ImageUpload({
       : "aspect-[3/2] w-full max-w-sm rounded-xl";
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("space-y-2", className)} data-uploading={status === "uploading" || status === "removing" || undefined}>
       {label ? <p className="text-sm font-medium text-ink">{label}</p> : null}
 
       <div className="flex flex-wrap items-center gap-4">

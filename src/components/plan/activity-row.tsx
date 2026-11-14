@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { PlacePickerSheet } from "./place-picker-sheet";
+import { TimeField } from "./time-field";
+import type { LocalPlaceChoice } from "@/lib/validation/new-plan";
 import { idleState, type ActionState } from "@/lib/utils/result";
 import { formatDurationMinutes, formatMoney } from "@/lib/utils/format";
 import {
@@ -32,7 +34,6 @@ export function ActivityRow({
   dateId,
   timeLabel,
   currency,
-  savedPlaces,
   isFirst,
   isLast,
   onMove,
@@ -42,6 +43,11 @@ export function ActivityRow({
   const [, deleteAction] = useActionState(deleteActivityAction, idleState);
 
   const [editing, setEditing] = useState(false);
+  const [picker, setPicker] = useState(false);
+  const [pickerCategory, setPickerCategory] = useState<string | null>(null);
+  const [venue, setVenue] = useState<LocalPlaceChoice | null | undefined>(undefined);
+  const [startTime, setStart] = useState(activity.startTime ?? "");
+  const [endTime, setEnd] = useState(activity.endTime ?? "");
   const [lastSeen, setLastSeen] = useState<ActionState>(idleState);
   if (editState !== lastSeen) {
     setLastSeen(editState);
@@ -97,20 +103,15 @@ export function ActivityRow({
                 aria-label="Estimated cost"
               />
             </div>
-            {savedPlaces.length > 0 ? (
-              <Select
-                name="savedPlaceId"
-                defaultValue={activity.placeId ?? ""}
-                aria-label="Place for this activity"
-              >
-                <option value="">No specific place</option>
-                {savedPlaces.map((place) => (
-                  <option key={place.id} value={place.id}>
-                    {place.name}
-                  </option>
-                ))}
-              </Select>
-            ) : null}
+            <input type="hidden" name="savedPlaceId" value={venue === undefined ? activity.placeId ?? "" : ""} />
+            <input type="hidden" name="placeSelection" value={venue ? JSON.stringify(venue.selection) : ""} />
+            <input type="hidden" name="description" value={activity.description ?? ""} />
+            <input type="hidden" name="startTime" value={startTime} /><input type="hidden" name="endTime" value={endTime} />
+            <Button variant="secondary" className="max-w-full" onClick={() => setPicker(true)}><span className="truncate">{venue?.name ?? (venue === undefined ? activity.placeName : null) ?? "Find a venue for this event"}</span></Button>
+            {(venue || venue === undefined && activity.placeId) ? <Button variant="link" onClick={() => setVenue(null)}>Remove venue</Button> : null}
+            <div className="grid gap-3 sm:grid-cols-2"><TimeField label="Event start time" value={startTime} onChange={setStart} optional errors={fieldErrors?.startTime} />
+              <TimeField label="Event end time" value={endTime} onChange={setEnd} presets={[]} optional errors={fieldErrors?.endTime} /></div>
+            {editState.status === "error" ? <p role="alert" className="text-xs text-error">{editState.message}</p> : null}
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
                 Cancel
@@ -121,6 +122,8 @@ export function ActivityRow({
             </div>
           </PendingFields>
         </form>
+        <PlacePickerSheet open={picker} onClose={() => setPicker(false)} categoryKey={pickerCategory} onCategoryChange={setPickerCategory} activities={[]}
+          onChooseLocal={setVenue} />
       </li>
     );
   }

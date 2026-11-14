@@ -27,11 +27,13 @@ export function DatePicker({
   onChange,
   className,
   timezone,
+  invalid,
 }: {
   value: string | null;
   onChange: (value: string | null) => void;
   className?: string;
   timezone: string;
+  invalid?: boolean;
 }) {
   const today = todayYmdInTimeZone(timezone);
   const anchor = value || today;
@@ -83,7 +85,7 @@ export function DatePicker({
         ))}
       </div>
 
-      <div className="rounded-xl border border-line bg-surface p-3">
+      <div className={cn("rounded-xl border border-line bg-surface p-3", invalid && "border-error")} aria-invalid={invalid || undefined}>
         <div className="mb-2 flex items-center justify-between">
           <button
             type="button"

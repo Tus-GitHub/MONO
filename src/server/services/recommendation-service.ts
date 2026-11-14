@@ -5,6 +5,7 @@ import { DateStatus, PlaceCategory, RevisitChoice } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { mean } from "@/lib/review/scale";
 import { sharedReviews } from "@/lib/date/review-reveal";
+import { firstCompletedDateId } from "./plan-template-service";
 
 /**
  * Deterministic date recommendations — no AI, no randomness. Everything is derived from the
@@ -17,6 +18,7 @@ export interface DateRecommendation {
   reason: string;
   category: PlaceCategory | null;
   placeId: string | null;
+  recreateId?: string;
 }
 
 const CATEGORY_LABEL: Record<PlaceCategory, string> = {
@@ -61,7 +63,7 @@ export async function getRecommendedDates(
   coupleId: string,
   limit = 3,
 ): Promise<DateRecommendation[]> {
-  const [completed, savedPlaces, members] = await Promise.all([
+  const [completed, savedPlaces, members, firstId] = await Promise.all([
     prisma.date.findMany({
       where: { coupleId, deletedAt: null, status: DateStatus.COMPLETED },
       select: {
@@ -82,6 +84,7 @@ export async function getRecommendedDates(
       orderBy: { createdAt: "asc" },
     }),
     prisma.coupleMember.findMany({ where: { coupleId, status: "ACTIVE" }, select: { userId: true } }),
+    firstCompletedDateId(coupleId),
   ]);
 
   const visitedPlaceIds = new Set<string>();
@@ -157,7 +160,8 @@ export async function getRecommendedDates(
   for (const idea of STARTER_IDEAS) {
     if (out.length >= limit) break;
     if (out.some((r) => r.key === idea.key)) continue;
-    out.push(idea);
+    if (idea.key === "starter-first" && !firstId) continue;
+    out.push(idea.key === "starter-first" ? { ...idea, recreateId: firstId! } : idea);
   }
 
   return out.slice(0, limit);

@@ -18,6 +18,7 @@ export function uploadImageRequest<T>(endpoint: string, file: File, signal: Abor
       if (!signal.aborted && event.lengthComputable) onProgress(Math.round(event.loaded / event.total * 100));
     };
     xhr.onload = () => {
+      if (xhr.status === 413) { finish(new Error("That image is too large to upload. Choose a smaller image.")); return; }
       let data: T & { error?: string };
       try { data = JSON.parse(xhr.responseText); }
       catch { finish(new Error(xhr.status >= 200 && xhr.status < 300 ? "Upload succeeded but the response was unreadable." : "Upload failed. Try again.")); return; }

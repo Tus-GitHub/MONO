@@ -13,18 +13,20 @@ import { PlanDateButton } from "@/components/navigation/plan-date-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
 import { requireOnboarded } from "@/lib/onboarding";
-import { getMemoryHome } from "@/server/services/memory-service";
+import { getMemoryHome, getOngoingMemoryDates } from "@/server/services/memory-service";
+import { OngoingDatePhotos } from "@/components/memories/ongoing-date-photos";
 
 export const metadata: Metadata = { title: "Memories" };
 
 export default async function MemoriesPage() {
   await requireOnboarded();
-  const home = await getMemoryHome();
+  const [home, ongoing] = await Promise.all([getMemoryHome(), getOngoingMemoryDates()]);
 
   if (home.totalCompleted === 0) {
     return (
       <PageContainer className="space-y-6">
         <PageHeader title="Memories" description="Your private photo journal." action={<MemoriesNav />} />
+        <OngoingDatePhotos dates={ongoing} />
         <EmptyState
           icon={<Icon name="images" size="md" />}
           title="The best part comes after the date."
@@ -40,6 +42,7 @@ export default async function MemoriesPage() {
   return (
     <PageContainer className="space-y-10">
       <PageHeader title="Memories" description="Your private photo journal." action={<MemoriesNav />} />
+      <OngoingDatePhotos dates={ongoing} />
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
         <Stat n={home.memoriesKept} label="memories" />

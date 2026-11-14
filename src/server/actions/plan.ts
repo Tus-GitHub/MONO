@@ -21,6 +21,7 @@ import {
   deleteActivity,
   deleteDatePlan,
   finalizePlan,
+  getPlan,
   reorderActivities,
   updateActivity,
   updateBasics,
@@ -47,7 +48,9 @@ export async function saveNewPlanAction(_previous: ActionState<{ id: string; hre
   if (!["draft", "plan"].includes(String(mode)) || !isPlanStep(goto)) return { status: "error", message: "Choose Save draft or Save date." };
   try {
     const input = localPlanSchema.extend({ key: localPlanSchema.shape.key.uuid() }).parse(JSON.parse(raw));
-    const saved = await saveNewPlan(input, mode === "plan");
+    const source = form.get("recreateSource");
+    const recreationId = typeof source === "string" && source ? idSchema.parse(source) : undefined;
+    const saved = await saveNewPlan(input, mode === "plan", recreationId);
     revalidatePath("/plan");
     revalidatePath("/dates");
     return successState({ id: saved.id, href: saved.status === "DRAFT" ? planStepHref(saved.id, goto) : `/dates/${saved.id}` }, "Saved.");
@@ -85,6 +88,14 @@ export async function saveStepAction(
       const parsed = dateBasicsSchema.safeParse(values);
       if (!parsed.success) {
         return errorState("Check the highlighted fields.", toFieldErrors(parsed.error));
+      }
+      if (goto !== "exit" && goto !== "basics") {
+        const errors: Record<string, string[]> = {};
+        if (!parsed.data.title?.trim()) errors.title = ["Give your date a name."];
+        if (!parsed.data.date) errors.date = ["Choose a date."];
+        if (!parsed.data.startTime) errors.startTime = ["Choose a start time."];
+        if (!parsed.data.endTime) errors.endTime = ["Choose an end time."];
+        if (Object.keys(errors).length) return errorState("Check the highlighted fields.", errors);
       }
       await updateBasics(id, parsed.data, version);
     } else if (step === "budget") {
@@ -180,6 +191,8 @@ export async function finalizePlanAction(
 ): Promise<ActionState> {
   const id = dateId(formData);
   try {
+    const plan = await getPlan(id);
+    if (!plan.title.trim() || !plan.date || !plan.startTime || !plan.endTime || plan.endTime <= plan.startTime) return errorState("Add a name, date and valid start/end times in Basics before saving this date.");
     await finalizePlan(id);
   } catch (error) {
     return toActionError(error);

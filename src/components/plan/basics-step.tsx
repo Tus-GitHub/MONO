@@ -1,7 +1,7 @@
 "use client";
 
 import { PendingFields } from "@/components/forms/pending-fields";
-import { useActionState } from "react";
+import { useActionState, useRef, useState } from "react";
 
 import { FormFeedback } from "@/components/forms/form-feedback";
 import { DatePicker } from "@/components/plan/date-picker";
@@ -12,16 +12,21 @@ import { Field } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useLocalDraft } from "@/lib/hooks/use-local-draft";
+import { useValidationFocus } from "@/lib/hooks/use-validation-focus";
 import { UnsavedGuard } from "@/components/system/unsaved-guard";
 import { idleState } from "@/lib/utils/result";
 import { saveStepAction } from "@/server/actions/plan";
+import { emptyLocalPlan } from "@/lib/date/local-plan";
+import { afterMinutes, withStartTime, planStepErrors } from "@/lib/date/plan-validation";
 import { Chip } from "@/components/ui/chip";
 import { PLAN_CATEGORIES, categoryFromPlanTitle, venueCategoryKey } from "@/lib/date/plan-discovery";
 import type { PlanDateDTO } from "@/server/services/plan-service";
 
 export function BasicsStep({ plan, userId }: { plan: PlanDateDTO; userId: string }) {
   const [state, action] = useActionState(saveStepAction, idleState);
-  const fieldErrors = state.status === "error" ? state.fieldErrors : undefined;
+  const [attempted, setAttempted] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  useValidationFocus(formRef, attempted);
 
   const prefix = `mono:plan:${userId}:${plan.id}`;
   const { value: date, setValue: setDate } = useLocalDraft(`${prefix}:date`, plan.date ?? "");
@@ -32,8 +37,16 @@ export function BasicsStep({ plan, userId }: { plan: PlanDateDTO; userId: string
   const category = useLocalDraft(`${prefix}:category`, plan.discoveryCategory ?? "");
   const categoryKey = venueCategoryKey(category.value || categoryFromPlanTitle(title.value));
 
+  const current = { ...emptyLocalPlan(plan.currency, title.value), date, startTime, endTime, notes: notes.value };
+  const localErrors = planStepErrors(current, "basics", plan.timezone);
+  const fieldErrors = attempted ? localErrors : state.status === "error" ? state.fieldErrors : undefined;
   return (
-    <form action={action} className="space-y-6" noValidate>
+    <form ref={formRef} action={action} className="space-y-6" noValidate onSubmit={(event) => {
+      const target = (event.nativeEvent as SubmitEvent).submitter?.getAttribute("value");
+      if (target === "exit" || target === "basics") return;
+      setAttempted(true);
+      if (Object.keys(localErrors).length) event.preventDefault();
+    }}>
       <PendingFields className="space-y-6">
         <UnsavedGuard state={state} valueKey={JSON.stringify([date, startTime, endTime])} />
         <input type="hidden" name="dateId" value={plan.id} />
@@ -59,6 +72,7 @@ export function BasicsStep({ plan, userId }: { plan: PlanDateDTO; userId: string
           <Input
             id="title"
             name="title"
+            invalid={Boolean(fieldErrors?.title)}
             value={title.value}
             onChange={(e) => { title.setValue(e.target.value); category.setValue(""); }}
             placeholder="Friday night out"
@@ -79,7 +93,7 @@ export function BasicsStep({ plan, userId }: { plan: PlanDateDTO; userId: string
 
         <div>
           <p className="mb-2 text-sm font-medium text-ink">When?</p>
-          <DatePicker value={date} onChange={(value) => setDate(value ?? "")} timezone={plan.timezone} />
+          <DatePicker value={date} onChange={(value) => setDate(value ?? "")} timezone={plan.timezone} invalid={Boolean(fieldErrors?.date)} />
           {fieldErrors?.date ? (
             <p className="mt-1.5 text-xs text-error">{fieldErrors.date.join(" ")}</p>
           ) : null}
@@ -89,7 +103,8 @@ export function BasicsStep({ plan, userId }: { plan: PlanDateDTO; userId: string
           <TimeField
             label="Start time"
             value={startTime}
-            onChange={setStartTime}
+            onChange={(value) => { const next = withStartTime({ startTime, endTime }, value); setStartTime(next.startTime); setEndTime(next.endTime); }}
+            errors={fieldErrors?.startTime}
             disabled={!date}
             optional
           />
@@ -97,13 +112,13 @@ export function BasicsStep({ plan, userId }: { plan: PlanDateDTO; userId: string
             label="End time"
             value={endTime}
             onChange={setEndTime}
+            presets={startTime ? [{ label: "2 hours later", value: afterMinutes(startTime) }] : []}
+            errors={fieldErrors?.endTime}
             disabled={!date}
             optional
           />
         </div>
-        {fieldErrors?.endTime ? (
-          <p className="-mt-3 text-xs text-error">{fieldErrors.endTime.join(" ")}</p>
-        ) : null}
+
 
         <Field label="Notes" htmlFor="notes" optional errors={fieldErrors?.notes}>
           <Textarea

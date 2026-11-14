@@ -5,7 +5,7 @@ export type PlanStep = (typeof PLAN_STEPS)[number];
 export const PLAN_STEP_META: Record<PlanStep, { index: number; label: string }> = {
   basics: { index: 1, label: "The basics" },
   budget: { index: 2, label: "Budget" },
-  activities: { index: 3, label: "Activities" },
+  activities: { index: 3, label: "Events" },
   review: { index: 4, label: "Review" },
 };
 

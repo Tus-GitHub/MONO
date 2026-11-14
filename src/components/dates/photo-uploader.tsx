@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { downscaleImage } from "@/lib/images/client-resize";
-import { IMAGE_UPLOAD, validateImageUpload } from "@/lib/storage/image-rules";
+import { IMAGE_UPLOAD, validateImageRequest } from "@/lib/storage/image-rules";
 import { UploadQueue, canUploadTransition, type UploadStatus } from "@/lib/images/upload-queue";
 import { cn } from "@/lib/utils/cn";
 
@@ -58,9 +58,11 @@ export function PhotoUploader({
 
   const scheduleRefresh = useCallback(() => {
     if (refreshTimer.current) clearTimeout(refreshTimer.current);
-    refreshTimer.current = setTimeout(() => {
+    const flush = () => {
+      if (itemsRef.current.some((item) => ["queued", "preparing", "uploading"].includes(item.status))) { refreshTimer.current = setTimeout(flush, 500); return; }
       (onComplete ?? (() => router.refresh()))();
-    }, 500);
+    };
+    refreshTimer.current = setTimeout(flush, 500);
   }, [onComplete, router]);
 
   const processOne = useCallback(async (id: string, input: File, signal: AbortSignal) => {
@@ -69,7 +71,7 @@ export function PhotoUploader({
     try {
       const file = await downscaleImage(input).catch(() => input);
       if (signal.aborted) return;
-      const check = validateImageUpload({ type: file.type, size: file.size });
+      const check = validateImageRequest({ type: file.type, size: file.size });
       if (!check.ok) { patch(id, { status: "error", error: check.message }); return; }
       patch(id, { file });
       await new Promise<void>((resolve) => {
@@ -157,7 +159,7 @@ export function PhotoUploader({
   const finished = items.filter((it) => !pending(it.status)).length;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-uploading={busy || undefined}>
       <div
         role="button"
         tabIndex={0}

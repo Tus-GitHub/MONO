@@ -8,6 +8,14 @@ export const IMAGE_UPLOAD = {
 };
 
 const MB = (n: number) => Math.round(n / 1024 / 1024);
+// Keep multipart requests below Vercel Functions' 4.5 MB body limit, including form overhead.
+export const IMAGE_REQUEST_MAX_BYTES = 4_000_000;
+
+export function validateImageRequest(file: { type: string; size: number }) {
+  const result = validateImageUpload(file);
+  if (!result.ok) return result;
+  return file.size <= IMAGE_REQUEST_MAX_BYTES ? result : { ok: false as const, message: "This image couldn't be resized enough. Choose an image under 4 MB." };
+}
 
 export function validateImageUpload(file: {
   type: string;

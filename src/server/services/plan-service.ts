@@ -1,7 +1,9 @@
 import "server-only";
+import { preparePlanVenue, resolvePlanVenue } from "./plan-venue-service";
+import { stopTimes } from "@/lib/date/stop-time";
 import { lifecyclePatch } from "@/lib/date/lifecycle";
 
-import { DateActivityKind, DateStatus, ExpensePayer, NotificationType, type Prisma } from "@prisma/client";
+import { DateActivityKind, DateStatus, ExpensePayer, NotificationType } from "@prisma/client";
 
 import { assertTransition } from "@/lib/date/lifecycle";
 import { authorizeDate, requireCoupleContext } from "@/lib/authz";
@@ -60,6 +62,11 @@ function combineWall(dateStr?: string, timeStr?: string): Date | null {
 // --- DTOs ------------------------------------------------------------------
 
 export interface PlanActivityDTO {
+  startAt?: string | null;
+  endAt?: string | null;
+  startTime?: string;
+  endTime?: string;
+  description?: string | null;
   id: string;
   title: string;
   durationMinutes: number | null;
@@ -109,6 +116,7 @@ function loadPlanRow(id: string) {
         select: {
           id: true,
           title: true,
+          startAt: true, endAt: true, description: true,
           durationMinutes: true,
           costCents: true,
           sortOrder: true,
@@ -142,6 +150,8 @@ function toDTO(date: DateRow): PlanDateDTO {
     activities: date.activities.map((activity) => ({
       id: activity.id,
       title: activity.title,
+      startAt: activity.startAt?.toISOString() ?? null, endAt: activity.endAt?.toISOString() ?? null, description: activity.description,
+      startTime: activity.startAt?.toISOString().slice(11, 16), endTime: activity.endAt?.toISOString().slice(11, 16),
       durationMinutes: activity.durationMinutes,
       costCents: activity.costCents,
       sortOrder: activity.sortOrder,
@@ -253,6 +263,11 @@ export async function updateBasics(dateId: string, input: DateBasicsInput, expec
         plannedEndAt: nextEnd,
       },
     });
+    if (resource.scheduledFor && nextScheduled) {
+      const shift = nextScheduled.getTime() - resource.scheduledFor.getTime();
+      if (shift) await tx.$executeRaw`UPDATE date_activities SET "startAt" = "startAt" + (${shift} * INTERVAL '1 millisecond'), "endAt" = "endAt" + (${shift} * INTERVAL '1 millisecond') WHERE "dateId" = ${resource.id} AND kind = 'PLANNED'`;
+    }
+    if (!nextScheduled) await tx.dateActivity.updateMany({ where: { dateId: resource.id, kind: PLANNED }, data: { startAt: null, endAt: null } });
     return { context, resource, before: resource };
   }, expectedVersion);
 
@@ -320,21 +335,10 @@ export async function updateBudget(dateId: string, input: DateBudgetInput, expec
 
 // --- activities ----------------------------------------------------------
 
-async function resolveActivityPlace(
-  coupleId: string,
-  savedPlaceId: string | undefined,
-  db: Pick<Prisma.TransactionClient, "place"> = prisma,
-): Promise<string | null> {
-  if (!savedPlaceId) return null;
-  const place = await db.place.findFirst({
-    where: { id: savedPlaceId, coupleId, deletedAt: null },
-    select: { id: true },
-  });
-  if (!place) throw new NotFoundError("That place isn't in your list.");
-  return place.id;
-}
-
 export async function addActivity(dateId: string, input: PlannedActivityInput) {
+  const { context: actor } = await authorizeDate(dateId);
+  const selection = input.placeSelection ?? (input.savedPlaceId ? { mode: "saved" as const, savedPlaceId: input.savedPlaceId } : undefined);
+  const venue = await preparePlanVenue(actor.couple.id, selection);
   const { context, resource } = await withDateWrite(dateId, async (tx, resource, context) => {
     assertPlanEditable(resource);
     const [max, placeId] = await Promise.all([
@@ -342,13 +346,15 @@ export async function addActivity(dateId: string, input: PlannedActivityInput) {
         where: { dateId: resource.id, kind: PLANNED },
         _max: { sortOrder: true },
       }),
-      resolveActivityPlace(context.couple.id, input.savedPlaceId, tx),
+      resolvePlanVenue(tx, context.couple.id, context.user.id, selection, venue),
     ]);
     await tx.dateActivity.create({
       data: {
         dateId: resource.id,
         kind: PLANNED,
         title: input.title,
+        description: input.description ?? null,
+        ...stopTimes(resource.scheduledFor?.toISOString().slice(0, 10), input.startTime, input.endTime),
         durationMinutes: input.durationMinutes ?? null,
         costCents: input.costCents ?? null,
         placeId,
@@ -366,10 +372,13 @@ export async function updateActivity(
   activityId: string,
   input: PlannedActivityInput,
 ) {
+  const { context: actor } = await authorizeDate(dateId);
+  const selection = input.placeSelection ?? (input.savedPlaceId ? { mode: "saved" as const, savedPlaceId: input.savedPlaceId } : undefined);
+  const venue = await preparePlanVenue(actor.couple.id, selection);
   const { context, resource, before } = await withDateWrite(dateId, async (tx, resource, context) => {
     assertPlanEditable(resource);
     const [placeId, before] = await Promise.all([
-      resolveActivityPlace(context.couple.id, input.savedPlaceId, tx),
+      resolvePlanVenue(tx, context.couple.id, context.user.id, selection, venue),
       tx.dateActivity.findFirst({
         where: { id: activityId, dateId: resource.id, kind: PLANNED },
         select: { title: true },
@@ -379,6 +388,8 @@ export async function updateActivity(
       where: { id: activityId, dateId: resource.id, kind: PLANNED },
       data: {
         title: input.title,
+        description: input.description ?? null,
+        ...stopTimes(resource.scheduledFor?.toISOString().slice(0, 10), input.startTime, input.endTime),
         durationMinutes: input.durationMinutes ?? null,
         costCents: input.costCents ?? null,
         placeId,

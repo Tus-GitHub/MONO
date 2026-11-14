@@ -19,10 +19,12 @@ export function PhotoGallery({
   dateId,
   photos,
   canManage = true,
+  anchorId = "photos",
 }: {
   dateId: string;
   photos: PhotoView[];
   canManage?: boolean;
+  anchorId?: string;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -62,7 +64,7 @@ export function PhotoGallery({
         : "masonry";
 
   return (
-    <section id="photos" className="scroll-mt-20 space-y-3">
+    <section id={anchorId} className="scroll-mt-20 space-y-3">
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-display text-lg font-medium text-ink">
           Photos{photos.length > 0 ? ` · ${photos.length}` : ""}

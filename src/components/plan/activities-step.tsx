@@ -75,9 +75,9 @@ export function ActivitiesStep({
       <PlanStepper dateId={plan.id} current="activities" disabled={busy} />
 
       <div className="space-y-1">
-        <h1 className="font-display text-2xl font-medium text-ink">Activities</h1>
+        <h1 className="font-display text-2xl font-medium text-ink">Events</h1>
         <p className="text-sm text-muted">
-          Add what you&apos;ll do, then put them in order — the timeline updates as you go.
+          Add each event with its own venue and time, then put them in order.
         </p>
       </div>
 

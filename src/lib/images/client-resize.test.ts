@@ -67,3 +67,12 @@ it("still keeps an accepted PNG when conversion would increase upload size", asy
   expect(validateImageUpload(file)).toEqual({ ok: true });
   expect(adapter.bitmap.close).toHaveBeenCalledOnce();
 });
+
+it("re-encodes a large JPEG even when its dimensions already fit, so multipart fits Vercel", async () => {
+  const file = new File([new Uint8Array(5_000_000)], "camera.jpg", { type: "image/jpeg" });
+  const adapter = browserAdapter(new Blob([new Uint8Array(300_000)], { type: "image/jpeg" }));
+  adapter.bitmap.width = 2000; adapter.bitmap.height = 1500;
+  const result = await downscaleImage(file);
+  expect(result.size).toBe(300_000);
+  expect(adapter.canvas.toBlob).toHaveBeenCalledOnce();
+});

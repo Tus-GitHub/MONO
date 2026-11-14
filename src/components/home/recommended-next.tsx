@@ -23,7 +23,7 @@ export function RecommendedNext({ items }: { items: DateRecommendation[] }) {
             </div>
             <LinkButton
               href={
-                item.placeId
+                item.recreateId ? `/plan/new?recreate=${encodeURIComponent(item.recreateId)}` : item.placeId
                   ? `/plan?place=${item.placeId}`
                   : `/plan?idea=${encodeURIComponent(item.title)}`
               }

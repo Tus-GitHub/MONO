@@ -13,7 +13,7 @@
  * bag it doesn't understand, anything else) the original `File` is returned for the normal
  * upload validation and processing path.
  */
-import { IMAGE_UPLOAD } from "@/lib/storage/image-rules";
+import { IMAGE_UPLOAD, IMAGE_REQUEST_MAX_BYTES } from "@/lib/storage/image-rules";
 
 const MAX_EDGE = 2560; // long edge, px — matches the server's "original" variant
 const RESIZE_ABOVE_BYTES = 1_100_000; // don't bother re-encoding already-small images
@@ -45,7 +45,7 @@ export async function downscaleImage(file: File): Promise<File> {
 
     // Already small enough and a format the server likes → keep the original bytes (its EXIF
     // orientation rides along and the server applies it).
-    if (scale === 1 && file.type === "image/jpeg") {
+    if (scale === 1 && file.type === "image/jpeg" && file.size <= IMAGE_REQUEST_MAX_BYTES) {
       return file;
     }
 
@@ -58,12 +58,16 @@ export async function downscaleImage(file: File): Promise<File> {
     if (!ctx) return file;
     ctx.drawImage(bitmap, 0, 0, w, h);
 
-    const blob: Blob | null = await new Promise((resolve) =>
+    let blob: Blob | null = await new Promise((resolve) =>
       canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY),
     );
+    for (const quality of [0.7, 0.55, 0.4]) {
+      if (!blob || blob.size <= IMAGE_REQUEST_MAX_BYTES) break;
+      blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+    }
     // A decoded HEIC/HEIF still needs conversion even when its JPEG is larger:
     // returning the unsupported original would make upload validation reject it.
-    if (!blob || (serverAcceptsOriginal && blob.size >= file.size)) return file;
+    if (!blob || (serverAcceptsOriginal && blob.size >= file.size && file.size <= IMAGE_REQUEST_MAX_BYTES)) return file;
 
     const name = file.name.replace(/\.[^.]+$/, "") + ".jpg";
     return new File([blob], name, { type: "image/jpeg", lastModified: Date.now() });

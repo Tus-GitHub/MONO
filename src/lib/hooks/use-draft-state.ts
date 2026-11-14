@@ -5,7 +5,7 @@ import type { z } from "zod";
 import { encodeDraft, readDraft } from "@/lib/utils/draft";
 
 /** Validated, versioned device drafts. Callers scope private values by user and resource. */
-export function useDraftState<T>(key: string, initial: T, schema: z.ZodType<T>) {
+export function useDraftState<T>(key: string, initial: T, schema: z.ZodType<T, z.ZodTypeDef, unknown>) {
   const base = JSON.stringify(initial);
   const identity = `${key}:${base}`;
   const [draft, setDraft] = useState({ identity, value: initial, origin: "server" as "server" | "restored" | "edited" });

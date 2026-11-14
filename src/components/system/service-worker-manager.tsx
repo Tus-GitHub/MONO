@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { focusRing } from "@/components/ui/_shared";
 import { cn } from "@/lib/utils/cn";
+import { Icon } from "@/components/ui/icon";
 
 /**
  * Registers the service worker (production only) and surfaces a quiet "an update is ready"
@@ -26,6 +27,7 @@ export function ServiceWorkerManager() {
     let reloading = false;
     let disposed = false;
     const onControllerChange = () => {
+      setWaiting(null);
       const replacing = controlled;
       controlled = Boolean(navigator.serviceWorker.controller);
       if (!replacing || !controlled || reloading) return;
@@ -47,8 +49,12 @@ export function ServiceWorkerManager() {
           const next = reg.installing;
           if (!next) return;
           next.addEventListener("statechange", () => {
-            if (!disposed && next.state === "installed" && navigator.serviceWorker.controller) {
-              setWaiting(reg.waiting ?? next);
+            if (!disposed && next.state === "installed") {
+              // An initial install can claim the page before this callback runs. Only an
+              // actual waiting replacement is an update; an already-active worker is not.
+              queueMicrotask(() => {
+                if (!disposed && reg.waiting && navigator.serviceWorker.controller) setWaiting(reg.waiting);
+              });
             }
           });
         });
@@ -69,6 +75,16 @@ export function ServiceWorkerManager() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!waiting) return;
+    const clearActiveWorker = () => {
+      if (waiting.state !== "installed") setWaiting(null);
+    };
+    clearActiveWorker();
+    waiting.addEventListener("statechange", clearActiveWorker);
+    return () => waiting.removeEventListener("statechange", clearActiveWorker);
+  }, [waiting]);
+
   if (!waiting) return null;
 
   return (
@@ -87,6 +103,10 @@ export function ServiceWorkerManager() {
           )}
         >
           Refresh
+        </button>
+        <button type="button" aria-label="Dismiss update notice" onClick={() => setWaiting(null)}
+          className="tap grid shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-ink/[0.06] hover:text-ink">
+          <Icon name="x" size="sm" />
         </button>
       </div>
     </div>

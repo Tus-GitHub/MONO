@@ -5,6 +5,11 @@ export interface TimelineInput {
   title: string;
   durationMinutes: number | null;
   costCents: number | null;
+  startAt?: string | null;
+  endAt?: string | null;
+  startTime?: string;
+  endTime?: string;
+  placeName?: string | null;
 }
 
 export interface TimelineSlot extends TimelineInput {
@@ -24,10 +29,19 @@ export function buildTimeline(
   let cursor = startAtIso ? new Date(startAtIso).getTime() : null;
 
   return activities.map((activity) => {
-    const minutes = activity.durationMinutes ?? DEFAULT_ACTIVITY_MINUTES;
-    const startAt = cursor != null ? new Date(cursor).toISOString() : null;
-    if (cursor != null) cursor += minutes * 60_000;
-    const endAt = cursor != null ? new Date(cursor).toISOString() : null;
+    const day = startAtIso?.slice(0, 10) ?? "1970-01-01";
+    const clock = (iso?: string | null, wall?: string) => {
+      const value = iso ?? (wall ? `${day}T${wall}:00.000Z` : null);
+      const time = value ? new Date(value).getTime() : NaN;
+      return Number.isFinite(time) ? time : null;
+    };
+    const begins = clock(activity.startAt, activity.startTime) ?? cursor;
+    const explicitEnd = clock(activity.endAt, activity.endTime);
+    const finishes = begins != null ? (explicitEnd != null && explicitEnd > begins ? explicitEnd : begins + (activity.durationMinutes ?? DEFAULT_ACTIVITY_MINUTES) * 60_000) : null;
+    const minutes = begins != null && finishes != null ? Math.round((finishes - begins) / 60_000) : activity.durationMinutes ?? DEFAULT_ACTIVITY_MINUTES;
+    const startAt = begins != null ? new Date(begins).toISOString() : null;
+    const endAt = finishes != null ? new Date(finishes).toISOString() : null;
+    cursor = finishes;
     return { ...activity, minutes, startAt, endAt };
   });
 }

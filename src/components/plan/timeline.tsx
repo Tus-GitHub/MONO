@@ -39,12 +39,12 @@ export function Timeline({
             <div className="min-w-0">
               <p className="text-sm font-medium text-ink">
                 {slot.startAt ? (
-                  <span className="text-muted">{formatWallTime(wallTimeFromIso(slot.startAt))} → </span>
+                  <span className="text-muted">{formatWallTime(wallTimeFromIso(slot.startAt))}{slot.endAt ? `–${formatWallTime(wallTimeFromIso(slot.endAt))}` : ""} → </span>
                 ) : null}
                 {slot.title}
               </p>
               <p className="text-xs text-muted">
-                {formatDurationMinutes(slot.minutes)}
+                {slot.placeName ? `${slot.placeName} · ` : ""}{formatDurationMinutes(slot.minutes)}
                 {slot.costCents ? ` · ${formatMoney(slot.costCents, currency)}` : ""}
               </p>
             </div>

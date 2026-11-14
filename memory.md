@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (iOS keyboard/landscape fixes deployed and automated checks passed)
+Last updated: 2026-11-14 (upload storage activated; multi-event planning and partner sync verification)
 
 ## Project Overview
 
@@ -22,6 +22,30 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Image upload failures and recreate-first-date behavior (2026-11-14)** — user reports all
+  upload types fail, then requests Recreate your first date to copy its venue/activities/plan
+  and allow only date/time changes. Live logs confirm date-photo and couple-cover writes fail
+  at /var/task/.storage: production still defaults to development local disk, with no persistent
+  storage env configured. Investigate available private free-tier storage, wire it safely,
+  test uploads/authorized reads, and fix first-date source selection and rescheduling flow.
+  Added requests: Memories must offer uploads for ongoing dates; partner screens should sync
+  status/photos without manual reload. Confirmed one date with multiple same-day events,
+  each with its own venue/time. Add a two-hour end-time default and per-step validation on
+  Continue (title, chronology, budget/activity details), retaining editable times.
+  Private Neon bucket provisioned on existing Free plan; scoped storage credentials saved
+  only to Vercel Production. PUT/GET/HEAD and anonymous 403 passed; diagnostic object and
+  temporary local credentials removed. Config-only redeployment READY; no paid setup.
+  All 415 unit tests and 134 isolated integration tests passed. Production build, TypeScript
+  and ESLint passed. Authenticated optimized-app tests passed uploads with real private
+  storage, independent café/movie events, partner refresh, ongoing Memories and recreation.
+  All 14 authenticated browser/provider scenarios passed, including WebKit Safari-style and
+  standalone-PWA phone/landscape validation, no overflow, and resetting venue-name queries
+  between stops. Test objects cleaned. Publishing source now; live public smoke remains.
+  Final screenshot review also kept the Add event button from shrinking/wrapping on phones.
+  Automated checks only; no physical iPhone claim.
+  Preserve existing design/data and prior iOS fixes. Work isolated on codex/fix-image-uploads;
+  unrelated primary workspace notes remain untouched. No billing/autopay setup authorized.
 
 - **Discovery, location feedback and explicit plan saving (2026-11-14)** — user reported
   location timing out, Jaipur appearing selected, sparse Explore results/missing Social, and
@@ -1366,6 +1390,28 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+Additional steering in this task: user confirmed multiple venue/time events inside one day,
+requested ongoing-date photo access in Memories and automatic partner state updates, and
+asked for a two-hour editable time default plus validation at every Continue step. These
+are included in the current isolated fix, alongside all upload types and first-date recreation.
+
+### 2026-11-14 — Fix all image uploads and recreate-first-date scheduling
+
+**IN PROGRESS — implementation and all local checks complete, publishing.** Fixed the
+shared production local-disk misconfiguration with a scoped private bucket on the existing
+Neon Free plan, plus image compression/request-size errors and upload-queue refresh timing.
+Implemented independent venue/time events, required per-step validation, editable two-hour
+defaults, ongoing-date Memories galleries, five-second visible partner synchronization and
+server-authorized first-date recreation with only schedule edits. No migration/dependency,
+paid plan, autopay, production user-data mutation or unrelated root-file edit. All 415 unit
+and 134 isolated DB integration tests, full ESLint, TypeScript and production build passed.
+Authenticated browser checks verify source preservation and real private storage. WebKit
+runner needed its loopback-only HTTPS-upgrade override applied to the worker response as
+well as HTML; production HTTPS policy remains unchanged. All 14 final browser checks passed
+with zero JavaScript errors; private test objects were removed. Publishing, then live public
+smoke; physical iPhone checks are excluded.
+
 
 ### 2026-11-14 — Automated iOS keyboard and landscape remediation
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { discoveryCategorySchema } from "./discovery";
+import { selectPlaceSchema } from "./place";
 import {
   DateActivityKind,
   DateStatus,
@@ -172,6 +173,16 @@ export const plannedActivitySchema = z.object({
   ),
   costCents: dollarsToCents,
   savedPlaceId: z.preprocess(blankToUndef, idSchema.optional()),
+  description: optionalText(2000),
+  startTime: timeString,
+  endTime: timeString,
+  placeSelection: z.preprocess((value) => {
+    if (value == null || value === "") return undefined;
+    if (typeof value !== "string") return value;
+    try { return JSON.parse(value); } catch { return null; }
+  }, selectPlaceSchema.optional()),
+}).refine((value) => !value.endTime || Boolean(value.startTime && value.endTime > value.startTime), {
+  path: ["endTime"], message: "Choose a start time and an end time after it.",
 });
 
 export const reorderActivitiesSchema = z.object({

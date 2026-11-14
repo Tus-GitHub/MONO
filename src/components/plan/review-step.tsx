@@ -43,7 +43,7 @@ export function ReviewStep({ plan }: { plan: PlanDateDTO }) {
   const [, cancel] = useActionState(cancelDateAction, idleState);
   const [, remove] = useActionState(deleteDatePlanAction, idleState);
 
-  const ready = Boolean(plan.title.trim() && plan.date);
+  const ready = Boolean(plan.title.trim() && plan.date && plan.startTime && plan.endTime && plan.endTime > plan.startTime);
   const isDraft = plan.status === DateStatus.DRAFT;
 
   const budget =
@@ -77,7 +77,7 @@ export function ReviewStep({ plan }: { plan: PlanDateDTO }) {
 
       <FormFeedback state={finalizeState} />
       {!ready ? (
-        <Alert tone="warning">Add a title and a date on step 1 before you save the plan.</Alert>
+        <Alert tone="warning">Add a name, date and valid start/end times in Basics before saving this date.</Alert>
       ) : null}
 
       <div className="divide-y divide-line rounded-xl border border-line bg-surface px-4">

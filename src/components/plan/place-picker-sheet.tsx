@@ -52,7 +52,7 @@ export function PlacePickerSheet({
 }) {
   const router = useRouter();
   const search = useVenueSearch({ active: open, categoryKey });
-  const { q, city, near, results, loading } = search;
+  const { q, setQ, city, near, results, loading } = search;
   const selectionTask = useAsyncTask<void, "choosing">();
   const { reset: resetSelection } = selectionTask;
   const choosing = selectionTask.state.status === "pending";
@@ -64,6 +64,8 @@ export function PlacePickerSheet({
   const busy = choosing || ideaTask.state.status === "pending";
 
   useEffect(() => { if (!open) resetSelection(); }, [open, resetSelection]);
+  // Keep the selected area, but don't carry a café's name into the next event's search.
+  useEffect(() => { if (!open) setQ(""); }, [open, setQ]);
 
   const choose = async (body: Record<string, string>) => {
     const outcome = await selectionTask.run("choosing", async () => {

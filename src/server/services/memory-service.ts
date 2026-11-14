@@ -198,6 +198,15 @@ export interface MemoryHome {
   milestones: { item: DateHistoryItem; milestone: Milestone; ordinal: number }[];
 }
 
+/** The photo journal also has an entry point for dates that are happening now. */
+export async function getOngoingMemoryDates() {
+  const { couple } = await requireCoupleContext();
+  const dates = await prisma.date.findMany({ where: { coupleId: couple.id, deletedAt: null, status: "IN_PROGRESS" },
+    orderBy: [{ startedAt: "desc" }, { id: "asc" }], take: 10,
+    select: { id: true, title: true, bestPhotoId: true, photos: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" }, select: PHOTO_SELECT } } });
+  return dates.map((date) => ({ id: date.id, title: date.title, photos: date.photos.map((photo) => toPhotoView(photo, date.bestPhotoId)) }));
+}
+
 export async function getMemoryHome(): Promise<MemoryHome> {
   const [{ items, milestones }, bestPhotos] = await Promise.all([
     loadCompleted(),

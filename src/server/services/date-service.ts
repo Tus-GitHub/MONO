@@ -113,7 +113,7 @@ export async function getDateDetail(dateId: string) {
     include: {
       plannedPlace: true,
       actualPlace: true,
-      activities: { orderBy: { sortOrder: "asc" } },
+      activities: { orderBy: { sortOrder: "asc" }, include: { place: { select: { name: true } } } },
       photos: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" } },
       reviews: {
         include: {
@@ -262,7 +262,7 @@ export async function getDateExperience(dateId: string, userId: string) {
       plannedPlace: { select: placeSelect },
       actualPlace: { select: placeSelect },
       startedBy: { select: { id: true, name: true, nickname: true, avatarUrl: true } },
-      activities: { orderBy: { sortOrder: "asc" } },
+      activities: { orderBy: { sortOrder: "asc" }, include: { place: { select: { name: true } } } },
       photos: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" }, select: PHOTO_SELECT },
       reviews: {
         orderBy: { createdAt: "asc" },
@@ -308,6 +308,7 @@ export async function getDateExperience(dateId: string, userId: string) {
     activities: plannedActivities.map((a) => ({
       id: a.id,
       title: a.title,
+      startAt: iso(a.startAt), endAt: iso(a.endAt), placeName: a.place?.name ?? null,
       durationMinutes: a.durationMinutes,
       costCents: a.costCents,
     })),
