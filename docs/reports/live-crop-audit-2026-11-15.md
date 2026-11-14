@@ -23,6 +23,11 @@ couple are not touched. Test records are retained, as requested.
 3. **Avatar changes did not affect the live revision.** Profile saves updated the user row,
    while couple synchronization watched the couple/date timestamps. Avatar save/removal now
    touches only that user's active couple so partner views refresh without reloading.
+4. **Chat could report failure after saving a photo.** The live upload exceeded the generic
+   15-second chat deadline: the photo appeared in the conversation while the send sheet
+   still reported a timeout. Multipart photo uploads now use the same 120-second deadline
+   as the other photo uploaders. Normal chat/call deadlines remain unchanged, cancellation
+   still works, and retries keep their existing idempotency nonce.
 
 ## Verification before release
 

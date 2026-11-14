@@ -1667,7 +1667,12 @@ the private media route allowed only the avatar's owner. Added a narrowly scoped
 exception for active partners, retaining 404s for unrelated/left/deleted users and retired keys.
 Avatar saves/removals now update the active couple timestamp so the existing revision poll
 refreshes partner views. Added real-database access, ETag, replacement and revision-isolation
-regressions before deploying. Physical iPhone/PWA hardware is not
+regressions before deploying ef70e69. Live profile, couple and date saves then passed;
+chat exposed a second boundary issue: its 15-second client deadline expired after the photo
+had persisted, leaving an erroneous failure sheet over the delivered message. Multipart
+uploads now get the existing photo-uploader 120-second deadline; ordinary messages and
+calls keep their fast deadline. Added slow-success, stalled-upload and cancellation coverage.
+Full matrix continues after publishing this additional fix. Physical iPhone/PWA hardware is not
 available; report browser-engine and standalone-display coverage accurately.
 
 ### 2026-11-14 — Automatic post-release deployment cleanup (DONE 2026-11-15)
