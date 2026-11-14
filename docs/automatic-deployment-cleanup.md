@@ -57,10 +57,12 @@ Health checks use built-in Node HTTPS requests with a fixed deployment host and
 `/api/health` path. The owner explicitly approved temporary access on 14 November
 2026: only the live and selected rollback deployment receive shareable credentials
 with a **60-second TTL**. The script verifies scope/READY state before requesting
-access, validates the returned expiration, and renews short-lived access only when
-needed. A brief bounded wait handles propagation; DELETE is never retried.
+access, validates the returned expiration, and revokes its generated credential immediately after each health request. A brief bounded wait handles propagation; DELETE is never retried.
 Dry-runs can request this temporary access but never delete deployments.
-Credentials stay in process memory, are never logged, and are sent only to the
+On Hobby, sharing is limited to one link per account. Checks run sequentially;
+creating a link replaces existing shareable access, so do not depend on persistent
+share links in the same Hobby account while this cleanup is enabled.
+Credentials stay in process memory, are never logged, and use `_vercel_share` only on the
 verified keeper URL without following redirects. Application login remains
 required. No permanent project bypass credential, protection disablement, extra
 GitHub secret, CLI install or billing change is made.

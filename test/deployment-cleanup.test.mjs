@@ -182,26 +182,21 @@ test("API errors never print returned credential-bearing response bodies", async
   const api = createApi("fixture-only", async () => new Response("sensitive upstream body", { status: 403 }));
   await assert.rejects(api.project(), error => !error.message.includes("sensitive") && /403/.test(error.message));
 });
-test("protected health pins host/path and caches access separately per keeper URL", async () => {
-  let calls = 0, now = Date.now(); const requests = [];
-  const health = createHealthCheck({ async healthToken() { calls++; return { secret: "fixture-private", expiresAt: now + 60000 }; } }, async (url, options) => {
-    requests.push({ url, options }); return Response.json(goodHealth.body);
-  }, () => now);
+test("protected health pins its URL and revokes each temporary grant before another keeper", async () => {
+  let calls = 0, releases = 0; const requests = [];
+  const health = createHealthCheck({ async healthToken() { calls++; return { secret: "fixture-private", expiresAt: Date.now()+60000 }; }, async releaseHealthToken() { releases++; } }, async (url, options) => { requests.push({url,options});return Response.json(goodHealth.body); });
   assert.deepEqual(await health(deployment("dpl_live", 300)), goodHealth);
-  await health(deployment("dpl_live", 300)); assert.equal(calls, 1);
-  await health(deployment("dpl_rollback", 200)); assert.equal(calls, 2);
-  now += 36000; await health(deployment("dpl_live", 300)); assert.equal(calls, 3);
-  assert.equal(requests[0].url.origin, "https://mono-live.vercel.app");
-  assert.equal(requests[0].url.pathname, "/api/health");
-  assert.equal(requests[0].options.redirect, "manual");
-  assert.equal(requests[0].url.searchParams.get("x-vercel-protection-bypass"), "fixture-private");
-  await assert.rejects(health({ url: "evil.invalid/;delete" }), /Unsafe/);
+  await health(deployment("dpl_rollback", 200)); assert.equal(calls,2);assert.equal(releases,2);
+  assert.equal(requests[0].url.origin,"https://mono-live.vercel.app");assert.equal(requests[0].url.pathname,"/api/health");
+  assert.equal(requests[0].url.searchParams.get("_vercel_share"),"fixture-private");assert.equal(requests[0].options.redirect,"manual");
+  await assert.rejects(health({url:"evil.invalid/;delete"}),/Unsafe/);
 });
-test("protected health rejects redirects/HTML and redacts network failures", async () => {
-  const api = { async healthToken() { return { secret: "fixture-private", expiresAt: Date.now() + 60000 }; } };
-  await assert.rejects(createHealthCheck(api, async () => new Response("", { status: 302 }), undefined, async () => {})(deployment("dpl_live", 300)), /HTTP 302/);
-  await assert.rejects(createHealthCheck(api, async () => new Response("<html>sign in</html>"))(deployment("dpl_live", 300)), /not application JSON/);
-  await assert.rejects(createHealthCheck(api, async () => { throw Error("fixture-private"); })(deployment("dpl_live", 300)), error => !error.message.includes("fixture-private") && /network/.test(error.message));
+test("protected health rejects redirects/HTML, redacts failures and still revokes access", async () => {
+  let releases=0; const api={async healthToken(){return{secret:"fixture-private",expiresAt:Date.now()+60000};},async releaseHealthToken(){releases++;}};
+  await assert.rejects(createHealthCheck(api,async()=>new Response("",{status:302}),async()=>{})(deployment("dpl_live",300)),/HTTP 302/);
+  await assert.rejects(createHealthCheck(api,async()=>new Response("<html>sign in</html>"))(deployment("dpl_live",300)),/not application JSON/);
+  await assert.rejects(createHealthCheck(api,async()=>{throw Error("fixture-private");})(deployment("dpl_live",300)),error=>!error.message.includes("fixture-private")&&/network/.test(error.message));
+  assert.equal(releases,3);
 });
 test("temporary health access is deployment-scoped with exactly 60-second TTL", async () => {
   const calls = [], createdAt = Date.now(), expires = Math.floor(createdAt / 1000) + 60;
@@ -228,6 +223,11 @@ test("a foreign deployment cannot request temporary health access", async () => 
 test("a keeper that changes before temporary access is not modified", async () => {
   let calls = 0; const api = createApi("fixture-only", async () => { calls++; return Response.json(deployment("dpl_live", 301)); });
   await assert.rejects(api.healthToken(deployment("dpl_live", 300)), /Health deployment changed/); assert.equal(calls, 1);
+});
+
+test("temporary access revocation only revokes the generated keeper secret without regeneration",async()=>{
+  const api=createApi("fixture-only",async(url,options)=>{assert.equal(url.pathname,"/aliases/dpl_live/protection-bypass");assert.equal(options.method,"PATCH");assert.deepEqual(JSON.parse(options.body),{revoke:{secret:"fixture-private",regenerate:false}});return Response.json({protectionBypass:{}});});
+  await api.releaseHealthToken(deployment("dpl_live",300),{secret:"fixture-private"});
 });
 
 test("workflow accepts only trusted successful main production events and standard free runners", async () => {

@@ -146,6 +146,10 @@ export function createApi(token, fetcher = fetch) {
       assert(entries.length, "No bounded 60-second health credential; cleanup stopped.");
       return { secret: entries[0][0], expiresAt: entries[0][1].expires * 1000 };
     },
+    async releaseHealthToken(deployment, token) {
+      checkProduction(deployment);
+      await request(`/aliases/${idOf(deployment)}/protection-bypass`, { method: "PATCH", body: { revoke: { secret: token.secret, regenerate: false } } });
+    },
     deployment: (id) => { assert(validId(id), "Invalid deployment identifier."); return request(`/v13/deployments/${id}`); },
     aliases: async (id) => { assert(validId(id), "Invalid deployment identifier."); return (await request(`/v2/deployments/${id}/aliases`)).aliases; },
     async list() {
@@ -170,20 +174,16 @@ export function createApi(token, fetcher = fetch) {
   };
 }
 
-export function createHealthCheck(api, fetcher = fetch, now = () => Date.now(), wait = pause) {
-  const tokens = new Map();
+export function createHealthCheck(api, fetcher = fetch, wait = pause) {
   return async deployment => {
     assert(typeof deployment.url === "string" && /^[a-z0-9-]+\.vercel\.app$/.test(deployment.url), "Unsafe deployment health hostname.");
     checkProduction(deployment);
-    let token = tokens.get(deployment.url);
-    if (!token || token.expiresAt <= now() + 25_000) {
-      token = await api.healthToken(deployment); tokens.set(deployment.url, token);
-    }
+    const token = await api.healthToken(deployment);
     let response;
     try {
       for (let attempt = 0; attempt < 4; attempt++) {
         const url = new URL(`https://${deployment.url}/api/health`);
-        url.searchParams.set("x-vercel-protection-bypass", token.secret);
+        url.searchParams.set("_vercel_share", token.secret);
         response = await fetcher(url, {
           redirect: "manual", signal: AbortSignal.timeout(20_000),
         });
@@ -192,6 +192,7 @@ export function createHealthCheck(api, fetcher = fetch, now = () => Date.now(), 
         await wait([400, 1000, 2000][attempt]); // Bounded propagation wait; never retry DELETE.
       }
     } catch { throw new Error("Protected health network request failed; cleanup stopped."); }
+    finally { await api.releaseHealthToken(deployment, token); }
     assert(response.status === 200, `Protected health returned HTTP ${response.status}; cleanup stopped.`);
     let body;
     try { body = await response.json(); } catch { throw new Error("Health response was not application JSON; cleanup stopped."); }

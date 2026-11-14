@@ -1651,6 +1651,8 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-14 — Automatic post-release deployment cleanup (IN PROGRESS)
 
+-15November: official Vercel CLI source specifies _vercel_share for shareable links, distinct from automation bypass. Corrected transport, sequential health grants and immediate finally revocation (no project-wide permanent secret);39 focused tests pass. Hobby one-share-link limit documented. Final validation/activation remains pending.
+
 -15November follow-up:43c3af9 published/READY; temporary access is accepted by the scoped API, but shareable credentials require the URL query parameter rather than the automation-only header. Changed only credential transport to the approved expiring shareable URL; never log the URL and never follow redirects. No deployment deleted yet.
 
 - User explicitly approved 60-second temporary health-check access for live/rollback. Connected API probe succeeded and returned a shareable-link expiration within60seconds; no permanent bypass. Implemented per-keeper scoped PATCH with ttl60, strict returned-expiry validation, in-memory URL-separated cache/refresh and bounded propagation checks.38 safety tests pass. Pending publish, real dry-run and activation/apply verification.
