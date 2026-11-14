@@ -10,6 +10,7 @@ import { PHOTO_WALL_CURSOR_MAX_LENGTH } from "@/lib/date/photo-pagination";
 import { prisma } from "@/lib/db/prisma";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import type { ProcessedImage } from "@/lib/images";
+import { croppedSize, croppedUrl, readSavedCrop } from "@/lib/images/saved-crop";
 import {
   buildDatePhotoBaseKey,
   datePhotoVariantKey,
@@ -33,6 +34,7 @@ export const PHOTO_SELECT = {
   caption: true,
   sortOrder: true,
   isFavorite: true,
+  crop: true,
 } satisfies Prisma.DatePhotoSelect;
 
 type PhotoRow = Prisma.DatePhotoGetPayload<{ select: typeof PHOTO_SELECT }>;
@@ -42,14 +44,14 @@ function url(key: string | null | undefined, fallback: string): string {
 }
 
 export function toPhotoView(row: PhotoRow, bestPhotoId: string | null): PhotoView {
+  const crop = readSavedCrop(row.crop);
   return {
     id: row.id,
-    thumbUrl: url(row.thumbKey, row.storageKey),
-    displayUrl: url(row.displayKey, row.storageKey),
-    fullUrl: storage.publicUrl(row.storageKey),
-    blurDataUrl: row.blurDataUrl,
-    width: row.width,
-    height: row.height,
+    thumbUrl: croppedUrl(url(row.thumbKey, row.storageKey), crop),
+    displayUrl: croppedUrl(url(row.displayKey, row.storageKey), crop),
+    fullUrl: croppedUrl(storage.publicUrl(row.storageKey), crop),
+    blurDataUrl: crop ? null : row.blurDataUrl,
+    ...croppedSize(row, crop),
     caption: row.caption,
     isBest: row.id === bestPhotoId,
     isFavorite: row.isFavorite,
@@ -57,13 +59,13 @@ export function toPhotoView(row: PhotoRow, bestPhotoId: string | null): PhotoVie
 }
 
 function toCover(row: PhotoRow): CoverImage {
+  const crop = readSavedCrop(row.crop);
   return {
-    thumbUrl: url(row.thumbKey, row.storageKey),
-    displayUrl: url(row.displayKey, row.storageKey),
-    fullUrl: storage.publicUrl(row.storageKey),
-    blurDataUrl: row.blurDataUrl,
-    width: row.width,
-    height: row.height,
+    thumbUrl: croppedUrl(url(row.thumbKey, row.storageKey), crop),
+    displayUrl: croppedUrl(url(row.displayKey, row.storageKey), crop),
+    fullUrl: croppedUrl(storage.publicUrl(row.storageKey), crop),
+    blurDataUrl: crop ? null : row.blurDataUrl,
+    ...croppedSize(row, crop),
   };
 }
 
@@ -209,6 +211,7 @@ export async function replaceDatePhoto(
     const row = await tx.datePhoto.update({
       where: { id: resource.id },
       data: {
+        crop: Prisma.DbNull,
         storageKey: keys.original,
         displayKey: keys.display,
         thumbKey: keys.thumb,

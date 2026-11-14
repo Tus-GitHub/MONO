@@ -1,5 +1,6 @@
 import "server-only";
 import { randomInt } from "node:crypto";
+import { readSavedCrop } from "@/lib/images/saved-crop";
 import { Prisma, type ChatMessage, type GameMatch } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
@@ -11,13 +12,13 @@ import { assertChatKey } from "./chat-security-service";
 import type { GameDTO, MessageDTO, ScoreDTO, TogetherSnapshot } from "@/lib/together/types";
 import { bumpTogether, requireTogether, withTogetherWrite } from "./together-context";
 
-export const imageSelect = { width: true, height: true, contentType: true, encrypted: true, viewLimit: true, viewsUsed: true } satisfies Prisma.ChatImageSelect;
-export function messageDTO(row: ChatMessage & { image: { width: number; height: number; contentType: string; encrypted: boolean; viewLimit: number; viewsUsed: number } | null }, userId: string): MessageDTO {
+export const imageSelect = { width: true, height: true, contentType: true, encrypted: true, viewLimit: true, viewsUsed: true, crop: true } satisfies Prisma.ChatImageSelect;
+export function messageDTO(row: ChatMessage & { image: { width: number; height: number; contentType: string; encrypted: boolean; viewLimit: number; viewsUsed: number; crop?: unknown } | null }, userId: string): MessageDTO {
   const hidden = row.hiddenFor.includes(userId), deleted = Boolean(row.deletedAt);
   return { id: row.id, sequence: String(row.sequence), senderId: row.senderId, kind: row.kind,
     body: hidden || deleted ? "" : row.body, gameId: hidden || deleted ? null : row.gameId,
     clientNonce: row.clientNonce, encrypted: row.encrypted, version: row.version, editedAt: row.editedAt?.toISOString() ?? null, hidden, deleted,
-    createdAt: row.createdAt.toISOString(), image: !hidden && !deleted && row.image ? { ...row.image, url: `/api/together/images/${row.id}` } : null };
+    createdAt: row.createdAt.toISOString(), image: !hidden && !deleted && row.image ? { ...row.image, crop: readSavedCrop(row.image.crop), url: `/api/together/images/${row.id}` } : null };
 }
 export function gameDTO(row: GameMatch, userId: string): GameDTO {
   const state = parseGame(row.kind, row.state);

@@ -94,7 +94,12 @@ function resign(archive: CoupleArchive, mutate: (draft: CoupleArchive) => void) 
 }
 
 it("round-trips shared history, standalone records, authors, references and embedded media to fresh IDs", async () => {
+  const crop = { x: 0.25, y: 0.25, width: 0.5, height: 0.5 };
+  await prisma.datePhoto.update({ where: { id: photoId }, data: { crop } });
+  await prisma.couple.update({ where: { id: sourceId }, data: { photoCrop: crop } });
   const archive = await asUser(users[0], exportCoupleArchive);
+  expect(archive.couple.photoCrop).toEqual(crop);
+  expect(archive.photos[0].crop).toEqual(crop);
   expect(archive.media).toHaveLength(1);
   expect(archive.reminders).toHaveLength(1);
   expect(JSON.stringify(archive)).not.toMatch(/passwordHash|tokenVersion|inviteCode|pushSubscription|storageKey/);
@@ -106,6 +111,9 @@ it("round-trips shared history, standalone records, authors, references and embe
   expect(date.plannedPlace?.name).toBe("Preserved cafe");
   expect(date.activities[0].placeId).toBe(date.plannedPlaceId);
   expect(date.bestPhotoId).toBe(date.photos[0].id);
+  expect(date.photos[0].crop).toEqual(crop);
+  expect(date.photos[0].url).toContain("?crop=");
+  expect(await prisma.couple.findUnique({ where: { id: target } })).toMatchObject({ photoCrop: crop, photoUrl: expect.stringContaining("?crop=") });
   expect(date.memory?.coverPhotoId).toBe(date.photos[0].id);
   expect(date.memory?.authorId).toBe(users[1]);
   expect(date.reviews).toHaveLength(2);
@@ -155,7 +163,7 @@ it("rejects forged identities, checksums, foreign graph references and active me
   expect(() => parseArchive({ ...archive, digest: "0".repeat(64) })).toThrow();
   expect(() => parseArchive(resign(archive, (draft) => { draft.dates[0].plannedPlaceId = "foreign-place"; }))).toThrow();
   expect(() => parseArchive(resign(archive, (draft) => { draft.media[0].contentType = "image/svg+xml" as "image/webp"; }))).toThrow();
-  const wrongPeople = resign(archive, (draft) => { draft.members[1].email = "someone-else@example.invalid"; });
+  const wrongPeople = resign(archive, (draft) => { draft.members.find((member) => member.id === users[1])!.email = "someone-else@example.invalid"; });
   await emptyTarget();
   await expect(asUser(users[0], () => approveArchiveRestore(wrongPeople))).rejects.toMatchObject({ code: "authorization_error" });
   const crossDate = resign(archive, (draft) => { draft.photos[0].dateId = "foreign-date"; });

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Spinner } from "@/components/ui/spinner";
 import { ImageCropDialog } from "@/components/uploads/image-crop-dialog";
+import { SavedPhotoCropDialog } from "@/components/uploads/saved-photo-crop-dialog";
 import { COUPLE_PHOTO_ASPECT } from "@/lib/images/crop";
 import { downscaleImage } from "@/lib/images/client-resize";
 import { IMAGE_UPLOAD, validateImageRequest } from "@/lib/storage/image-rules";
@@ -41,6 +42,7 @@ export function ImageUpload({
   const inputRef = useRef<HTMLInputElement>(null);
   const lastFile = useRef<File | null>(null);
   const [cropFiles, setCropFiles] = useState<File[] | null>(null);
+  const [adjusting, setAdjusting] = useState(false);
 
   const task = useAsyncTask<{ url: string | null }, "uploading" | "removing">();
   const { run: runTask } = task;
@@ -106,7 +108,7 @@ export function ImageUpload({
       : "w-full max-w-sm rounded-xl";
 
   return (
-    <div className={cn("space-y-2", className)} data-uploading={Boolean(cropFiles) || status === "uploading" || status === "removing" || undefined}>
+    <div className={cn("space-y-2", className)} data-uploading={adjusting || Boolean(cropFiles) || status === "uploading" || status === "removing" || undefined}>
       {label ? <p className="text-sm font-medium text-ink">{label}</p> : null}
 
       <div className="flex flex-wrap items-center gap-4">
@@ -158,6 +160,8 @@ export function ImageUpload({
             >
               {hasImage ? "Replace" : "Upload"}
             </Button>
+            {hasImage && value?.startsWith("/media/") ? <Button variant="secondary" size="sm" disabled={status === "uploading" || status === "removing"}
+              onClick={() => setAdjusting(true)} leadingIcon={<Icon name="crop" size="sm" />}>Adjust crop</Button> : null}
             {hasImage ? (
               <Button
                 type="button"
@@ -206,6 +210,8 @@ export function ImageUpload({
       />
       {cropFiles ? <ImageCropDialog files={cropFiles} shape={shape} onCancel={() => setCropFiles(null)}
         onConfirm={([file]) => { setCropFiles(null); void upload(file); }} /> : null}
+      {adjusting ? <SavedPhotoCropDialog kind={shape === "circle" ? "avatar" : "couple"} onCancel={() => setAdjusting(false)}
+        onSaved={({ url }) => { setAdjusting(false); if (url) onChange?.(url); router.refresh(); }} /> : null}
     </div>
   );
 }

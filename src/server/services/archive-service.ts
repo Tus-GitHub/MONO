@@ -4,6 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { SignJWT, jwtVerify } from "jose";
 import sharp from "sharp";
+import { croppedUrl, readSavedCrop } from "@/lib/images/saved-crop";
 import { env } from "@/config/env";
 import { requireCoupleContext } from "@/lib/authz";
 import { prisma } from "@/lib/db/prisma";
@@ -153,7 +154,7 @@ export async function exportCoupleArchive(): Promise<CoupleArchive> {
   const payload = json({
     format: "mono.archive.v1" as const, exportedAt: new Date().toISOString(), exporterEmail: context.user.email.toLowerCase(), sourceCoupleId: couple.id,
     members: couple.members.map((member) => ({ ...omit(member.user, "tokenVersion"), role: member.role })),
-    couple: { name: couple.name, description: couple.description, anniversaryAt: couple.anniversaryAt, currency: couple.currency, timezone: couple.timezone, createdAt: couple.createdAt, photoMediaId: couple.photoKey ? keyMap.get(couple.photoKey)! : null },
+    couple: { name: couple.name, description: couple.description, anniversaryAt: couple.anniversaryAt, currency: couple.currency, timezone: couple.timezone, createdAt: couple.createdAt, photoCrop: readSavedCrop(couple.photoCrop), photoMediaId: couple.photoKey ? keyMap.get(couple.photoKey)! : null },
     places: data.places.map((item) => omit(item, "coupleId", "deletedAt")), categories: data.categories.map((item) => omit(item, "coupleId")),
     dates: data.dates.map((item) => ({ ...omit(item, "coupleId", "deletedAt", "version", "clientDraftKey"), plannedPlaceId: item.plannedPlaceId && placeIds.has(item.plannedPlaceId) ? item.plannedPlaceId : null, actualPlaceId: item.actualPlaceId && placeIds.has(item.actualPlaceId) ? item.actualPlaceId : null, bestPhotoId: item.bestPhotoId && photoIds.has(item.bestPhotoId) ? item.bestPhotoId : null })),
     activities: data.activities.map((item) => ({ ...item, placeId: item.placeId && placeIds.has(item.placeId) ? item.placeId : null })),
@@ -286,7 +287,7 @@ export async function restoreCoupleArchive(input: unknown, approvals: readonly s
     if (archive.activities.length) await tx.dateActivity.createMany({ data: archive.activities.map((item) => ({ ...item, id: randomUUID(), dateId: mapped(item.dateId)!, placeId: mapped(item.placeId) })) });
     if (archive.photos.length) await tx.datePhoto.createMany({ data: archive.photos.map((item) => {
       const original = mediaMap.get(item.originalMediaId)!;
-      return { ...omit(item, "originalMediaId", "displayMediaId", "thumbMediaId"), id: mapped(item.id)!, dateId: mapped(item.dateId)!, uploadedById: author(item.uploadedById), storageKey: original.key, displayKey: item.displayMediaId ? mediaMap.get(item.displayMediaId)!.key : null, thumbKey: item.thumbMediaId ? mediaMap.get(item.thumbMediaId)!.key : null, contentType: original.contentType, sizeBytes: original.bytes, url: storage.publicUrl(original.key) };
+      return { ...omit(item, "originalMediaId", "displayMediaId", "thumbMediaId"), id: mapped(item.id)!, dateId: mapped(item.dateId)!, uploadedById: author(item.uploadedById), storageKey: original.key, displayKey: item.displayMediaId ? mediaMap.get(item.displayMediaId)!.key : null, thumbKey: item.thumbMediaId ? mediaMap.get(item.thumbMediaId)!.key : null, contentType: original.contentType, sizeBytes: original.bytes, crop: item.crop ?? Prisma.DbNull, url: croppedUrl(storage.publicUrl(original.key), item.crop ?? null) };
     }) });
     if (archive.reviews.length) await tx.dateReview.createMany({ data: archive.reviews.map((item) => ({ ...item, id: mapped(item.id)!, dateId: mapped(item.dateId)!, authorId: author(item.authorId) })) });
     if (archive.ratings.length) await tx.dateReviewRating.createMany({ data: archive.ratings.map((item) => ({ ...item, id: randomUUID(), reviewId: mapped(item.reviewId)!, categoryId: mapped(item.categoryId)! })) });
@@ -297,9 +298,9 @@ export async function restoreCoupleArchive(input: unknown, approvals: readonly s
     if (archive.reminders.length) await tx.dateReminder.createMany({ data: archive.reminders.map((item) => ({ ...item, id: randomUUID(), dateId: mapped(item.dateId)!, userId: author(item.userId), dismissedAt: new Date() })) });
     if (archive.feedback.length) await tx.recommendationFeedback.createMany({ data: archive.feedback.map((item) => ({ ...item, id: randomUUID(), userId: author(item.userId), targetKey: item.targetType === "PLACE" ? mapped(item.targetKey)! : item.targetKey, coupleId: fresh.couple.id })) });
     for (const date of archive.dates) if (date.bestPhotoId) await tx.date.update({ where: { id: mapped(date.id)! }, data: { bestPhotoId: mapped(date.bestPhotoId) } });
-    const { photoMediaId, createdAt: _createdAt, ...coupleFields } = archive.couple;
+    const { photoMediaId, photoCrop, createdAt: _createdAt, ...coupleFields } = archive.couple;
     const photoKey = photoMediaId ? mediaMap.get(photoMediaId)!.key : null;
-    await tx.couple.update({ where: { id: fresh.couple.id }, data: { ...coupleFields, photoKey, photoUrl: photoKey ? storage.publicUrl(photoKey) : null } });
+    await tx.couple.update({ where: { id: fresh.couple.id }, data: { ...coupleFields, photoKey, photoCrop: photoCrop ?? Prisma.DbNull, photoUrl: photoKey ? croppedUrl(storage.publicUrl(photoKey), photoCrop ?? null) : null } });
     await tx.storageCleanup.deleteMany({ where: { key: { in: stagedKeys } } });
   }, { timeout: 30_000 });
   return { restored: true, digest: archive.digest, dates: archive.dates.length, photos: archive.photos.length, memories: archive.memories.length };

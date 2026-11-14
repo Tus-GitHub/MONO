@@ -12,6 +12,7 @@ import {
   type WheelEvent as ReactWheelEvent,
 } from "react";
 import { useRouter } from "next/navigation";
+import { SavedPhotoCropDialog } from "@/components/uploads/saved-photo-crop-dialog";
 
 import { Portal, useHistoryClose, useEscapeKey, useFocusTrap, useScrollLock } from "@/components/ui/_dialog-primitives";
 import { Icon } from "@/components/ui/icon";
@@ -50,6 +51,7 @@ export function PhotoLightbox({
   const confirm = useConfirm();
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
+  const [adjusting, setAdjusting] = useState(false);
   const [captionDraft, setCaptionDraft] = useState("");
   const [, captionAction, captionPending] = useActionState(async (previous: ActionState, formData: FormData) => {
     const result = await setPhotoCaptionAction(previous, formData);
@@ -100,19 +102,20 @@ export function PhotoLightbox({
   );
 
   const close = useHistoryClose(onClose);
-  useEscapeKey(close, true);
+  useEscapeKey(close, !adjusting);
   useScrollLock(true);
-  useFocusTrap(dialogRef, true);
+  useFocusTrap(dialogRef, !adjusting);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (adjusting || (event.target instanceof HTMLElement && event.target.matches("input, textarea"))) return;
       if (event.key === "ArrowRight") go(1);
       else if (event.key === "ArrowLeft") go(-1);
       else if (event.key === "0") reset();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [go, reset]);
+  }, [go, reset, adjusting]);
 
   if (!photo) return null;
 
@@ -254,6 +257,7 @@ export function PhotoLightbox({
                 <ChromeButton label="Edit caption" onClick={() => { setCaptionDraft(photo.caption ?? ""); setEditing((v) => !v); }}>
                   <Icon name="pencil" size={16} />
                 </ChromeButton>
+                <ChromeButton label="Adjust crop" onClick={() => setAdjusting(true)}><Icon name="crop" size={16} /></ChromeButton>
               </>
             ) : null}
             <ChromeButton label={zoomed ? "Reset zoom" : "Zoom in"} onClick={toggleZoom}>
@@ -352,6 +356,7 @@ export function PhotoLightbox({
           </div>
         ) : null}
       </div>
+      {adjusting ? <SavedPhotoCropDialog kind="date" id={photo.id} onCancel={() => setAdjusting(false)} onSaved={() => { setAdjusting(false); reset(); router.refresh(); }} /> : null}
     </Portal>
   );
 }

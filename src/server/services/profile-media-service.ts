@@ -1,4 +1,5 @@
 import "server-only";
+import { Prisma } from "@prisma/client";
 
 import { requireUser } from "@/lib/auth";
 import { requireCoupleContext } from "@/lib/authz";
@@ -19,7 +20,7 @@ export async function saveUserAvatar(input: ReadImage | null) {
     await tx.$queryRaw`SELECT id FROM users WHERE id = ${user.id} FOR UPDATE`;
     const current = await tx.user.findFirst({ where: { id: user.id, deletedAt: null }, select: { avatarKey: true } });
     if (!current) throw new NotFoundError();
-    await tx.user.update({ where: { id: user.id }, data: { avatarKey: key, avatarUrl: key ? storage.publicUrl(key) : null } });
+    await tx.user.update({ where: { id: user.id }, data: { avatarKey: key, avatarCrop: Prisma.DbNull, avatarUrl: key ? storage.publicUrl(key) : null } });
     // CoupleSync watches this timestamp; avatar changes must refresh the partner's views too.
     await tx.couple.updateMany({
       where: { deletedAt: null, status: { in: ["PENDING", "ACTIVE"] }, members: { some: { userId: user.id, status: "ACTIVE" } } },
@@ -45,7 +46,7 @@ export async function saveCoupleCover(input: ReadImage | null) {
       select: { photoKey: true },
     });
     if (!current) throw new NotFoundError();
-    await tx.couple.update({ where: { id: couple.id }, data: { photoKey: key, photoUrl: key ? storage.publicUrl(key) : null } });
+    await tx.couple.update({ where: { id: couple.id }, data: { photoKey: key, photoCrop: Prisma.DbNull, photoUrl: key ? storage.publicUrl(key) : null } });
     await queueStorageCleanup([current.photoKey], undefined, tx);
     if (key) await tx.storageCleanup.deleteMany({ where: { key } });
   });

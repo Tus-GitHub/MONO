@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { PhotoLightbox } from "@/components/dates/photo-lightbox";
 import { PhotoUploader } from "@/components/dates/photo-uploader";
+import { SavedPhotoCropDialog } from "@/components/uploads/saved-photo-crop-dialog";
 import { FavoriteHeart } from "@/components/memories/favorite-heart";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -29,6 +30,7 @@ export function PhotoGallery({
   const router = useRouter();
   const { toast } = useToast();
   const [open, setOpen] = useState<number | null>(null);
+  const [adjusting, setAdjusting] = useState<string | null>(null);
   const [adding, setAdding] = useState(photos.length === 0 && canManage);
   const [bestState, bestDispatch, bestPending] = useActionState(
     setBestCouplePhotoAction,
@@ -166,6 +168,10 @@ export function PhotoGallery({
                         : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100",
                     )}
                   />
+                  <button type="button" aria-label={`Adjust crop of photo ${i + 1}`} onClick={() => setAdjusting(photo.id)}
+                    className="absolute bottom-1.5 right-1.5 z-10 grid size-9 place-items-center rounded-full bg-ink/45 text-white/85 backdrop-blur-sm hover:bg-ink/60 focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100 opacity-0">
+                    <Icon name="crop" size={15} />
+                  </button>
                 </>
               ) : null}
 
@@ -189,6 +195,7 @@ export function PhotoGallery({
           onClose={() => setOpen(null)}
         />
       ) : null}
+      {adjusting ? <SavedPhotoCropDialog kind="date" id={adjusting} onCancel={() => setAdjusting(null)} onSaved={() => { setAdjusting(null); router.refresh(); }} /> : null}
     </section>
   );
 }

@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
+import { SavedPhotoCropDialog } from "@/components/uploads/saved-photo-crop-dialog";
+import { readSavedCrop } from "@/lib/images/saved-crop";
 import { STICKERS } from "@/lib/together/catalog";
 import { chatAAD, decryptBytes, decryptText, encryptText, type ChatKey } from "@/lib/together/chat-crypto";
 import { togetherFetch, errorMessage } from "@/lib/together/client";
@@ -30,7 +32,7 @@ export function SecureMessage({ message, chatKey, coupleId, mine, append }: { me
     finally { setBusy(false); }
   };
   return <>
-    {message.deleted ? <p className="text-sm italic text-muted">Message deleted</p> : message.image ? <SecurePhoto message={message} chatKey={chatKey} coupleId={coupleId} mine={mine} /> : sticker ? <div className="py-1 text-center"><span role="img" aria-label={sticker.label} className="block text-5xl">{sticker.emoji}</span><p className="text-xs">{sticker.label}</p></div> : <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{body || (message.kind === "GAME" ? "Game update" : error ? "Unable to decrypt" : "Decrypting…")}</p>}
+    {message.deleted ? <p className="text-sm italic text-muted">Message deleted</p> : message.image ? <SecurePhoto message={message} chatKey={chatKey} coupleId={coupleId} mine={mine} append={append} /> : sticker ? <div className="py-1 text-center"><span role="img" aria-label={sticker.label} className="block text-5xl">{sticker.emoji}</span><p className="text-xs">{sticker.label}</p></div> : <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{body || (message.kind === "GAME" ? "Game update" : error ? "Unable to decrypt" : "Decrypting…")}</p>}
     {message.editedAt ? <span className="text-2xs text-muted">Edited</span> : null}
     <button type="button" aria-label="Message options" className="ml-2 rounded px-2 text-xs text-muted hover:bg-surface" onClick={() => setMenu(true)}>•••</button>
     {error && !menu ? <p role="alert" className="text-xs text-error">{error}</p> : null}
@@ -47,11 +49,24 @@ export function SecureMessage({ message, chatKey, coupleId, mine, append }: { me
     </BottomSheet>
   </>;
 }
-function SecurePhoto({ message, chatKey, coupleId, mine }: { message: MessageDTO; chatKey: ChatKey; coupleId: string; mine: boolean }) {
+function SecurePhoto({ message, chatKey, coupleId, mine, append }: { message: MessageDTO; chatKey: ChatKey; coupleId: string; mine: boolean; append: (row: MessageDTO) => void }) {
   const [url, setUrl] = useState(""), [opened, setOpened] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [used, setUsed] = useState(message.image!.viewsUsed);
+  const [adjusting, setAdjusting] = useState(false);
   const resource = useRef(""), operation = useRef(0), active = useRef(false);
   const image = message.image!, limited = image.viewLimit > 0;
+  const loadPhoto = async (signal?: AbortSignal) => {
+    if (image.encrypted) {
+      const payload = await togetherFetch<{ iv: string; data: string; viewsUsed: number }>(image.url, { ...(limited ? { body: {} } : {}), signal });
+      setUsed(payload.viewsUsed);
+      const bytes = await decryptBytes(chatKey, payload, chatAAD(coupleId, message.senderId, message.clientNonce, `IMAGE_BYTES:${image.viewLimit}`));
+      const blob = new Blob([new Uint8Array(bytes)], { type: image.contentType }); bytes.fill(0);
+      return blob;
+    }
+    const response = await fetch(image.url, { cache: "no-store", signal });
+    if (!response.ok) throw new Error("Photo unavailable.");
+    return response.blob();
+  };
   const close = () => { operation.current++; active.current = false; if (resource.current) URL.revokeObjectURL(resource.current); resource.current = ""; setUrl(""); setOpened(false); setBusy(false); };
   useEffect(() => {
     const hide = () => { if (document.hidden && limited) close(); };
@@ -62,29 +77,26 @@ function SecurePhoto({ message, chatKey, coupleId, mine }: { message: MessageDTO
   const open = async () => {
     if (active.current) return; active.current = true; const requestId = ++operation.current; setBusy(true); setError("");
     try {
-      let blob: Blob;
-      if (image.encrypted) {
-        const payload = await togetherFetch<{ iv: string; data: string; viewsUsed: number }>(image.url, limited ? { body: {} } : {});
-        setUsed(payload.viewsUsed);
-        const bytes = await decryptBytes(chatKey, payload, chatAAD(coupleId, message.senderId, message.clientNonce, `IMAGE_BYTES:${image.viewLimit}`));
-        blob = new Blob([new Uint8Array(bytes)], { type: image.contentType }); bytes.fill(0);
-      } else {
-        const response = await fetch(image.url, { cache: "no-store" });
-        if (!response.ok) throw new Error("Photo unavailable.");
-        blob = await response.blob();
-      }
+      const blob = await loadPhoto();
       if (requestId !== operation.current || document.hidden) return;
       const next = URL.createObjectURL(blob); resource.current = next; setUrl(next); setOpened(true);
     } catch (e) { if (requestId === operation.current) setError(errorMessage(e)); }
     finally { if (requestId === operation.current) { active.current = false; setBusy(false); } }
   };
   const remaining = Math.max(0, image.viewLimit - Math.max(used, image.viewsUsed));
+  const crop = readSavedCrop(image.crop) ?? { x: 0, y: 0, width: 1, height: 1 };
+  const aspect = image.width * crop.width / (image.height * crop.height);
   return <div className="space-y-1">
     <Button variant="secondary" size="sm" loading={busy} disabled={limited && !mine && remaining === 0} onClick={() => void open()}>{limited ? mine ? `Your photo · View ${image.viewLimit === 1 ? "once" : "twice"}` : remaining ? `Open photo · ${remaining} ${remaining === 1 ? "view" : "views"} left` : "Photo opened" : image.encrypted ? "Open encrypted photo" : "Open photo · legacy"}</Button>
+    {mine ? <Button variant="ghost" size="sm" disabled={busy} onClick={() => setAdjusting(true)}>Adjust crop</Button> : null}
     {limited ? <p className="max-w-xs text-2xs text-muted">Closes when you leave MONO. Screenshots and recordings cannot be blocked or detected.</p> : null}
     {error ? <p role="alert" className="text-xs text-error">{error}{limited ? " A failed download may still use a view." : ""}</p> : null}
     <BottomSheet open={opened} onClose={close} title={limited ? "Private photo" : "Shared photo"} footer={<Button onClick={close}>Close photo</Button>}>
-      {opened && url ? <Image unoptimized src={url} alt="Shared private chat photo" width={image.width} height={image.height} draggable={false} className="max-h-[65dvh] w-auto max-w-full select-none rounded-lg object-contain" /> : null}
+      {opened && url ? <div className="relative overflow-hidden rounded-lg" style={{ aspectRatio: aspect, width: `min(100%, ${65 * aspect}dvh)` }}>
+        <Image unoptimized src={url} alt="Shared private chat photo" width={image.width} height={image.height} draggable={false} className="absolute max-w-none select-none"
+          style={{ width: `${100 / crop.width}%`, height: `${100 / crop.height}%`, left: `${-100 * crop.x / crop.width}%`, top: `${-100 * crop.y / crop.height}%` }} />
+      </div> : null}
     </BottomSheet>
+    {adjusting ? <SavedPhotoCropDialog kind="chat" id={message.id} loadSource={(_info, signal) => loadPhoto(signal)} onCancel={() => setAdjusting(false)} onSaved={(result) => { if (result.message) append(result.message); setAdjusting(false); }} /> : null}
   </div>;
 }

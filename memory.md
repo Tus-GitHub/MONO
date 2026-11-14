@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-15 (encrypted chat deployed and live-tested)
+Last updated: 2026-11-15 (saved photo crop adjustments in verification)
 
 
 
@@ -24,6 +24,12 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Adjust saved photo crops (2026-11-15)** — add Adjust crop for existing profile, couple,
+  date and own chat photos using the shared editor. Persist crop metadata without selecting
+  or uploading the image again; preserve the stored source, photo/message identity and
+  encrypted chat. Check access, concurrent edits, partner updates and mobile/PWA behavior,
+  then deploy from the isolated codex/adjust-saved-photos worktree.
 
 - **Physical encrypted-chat phone verification (2026-11-15)** — live Chromium two-user flows and emulated phone widths passed. Actual iPhone/Samsung PWA, native keyboard and independent cryptographic review remain outside that evidence. Screenshot/recording blocking and attempt detection remain unavailable in a PWA.
 
@@ -1685,6 +1691,25 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-15 — Adjust crops of already uploaded photos
+
+**IN PROGRESS.** User requests recropping saved profile, couple, date and chat photos without
+uploading again, preserving the design and publishing. Starting from the completed live
+crop audit and merging the concurrent encrypted-chat release 6810807. Plan metadata-only,
+non-destructive adjustments against the source MONO already has; retain photo/message IDs,
+caption/favorite/Memory references and limited-view counters. Chat decryption stays on the
+device. Previously discarded pre-upload pixels cannot be recovered. Existing retained
+synthetic test accounts may be reused; keep production test records as previously requested.
+
+Implemented metadata-only saved crops, authenticated image rendering, own encrypted-chat
+framing, gallery/lightbox controls and archive preservation. Thirteen focused unit tests
+and thirty PostgreSQL crop/access/encryption/archive checks now pass. Fixed an existing
+archive test that assumed member ordering. TypeScript, targeted lint and the production build pass. Local built-site Chromium
+checks passed for both partners in phone/standalone modes: eight saved crop edits,
+cancellation, reopening, partner updates, encrypted chat, nested lightbox Back and Memory
+framing. Dialogs fit 320x568, 390x844, 844x390, 768x1024 and 1440x900. No new upload or
+file chooser occurred. Publishing and live Chromium/WebKit verification remain.
 
 ### 2026-11-15 — Full live crop and upload flow for both partners
 

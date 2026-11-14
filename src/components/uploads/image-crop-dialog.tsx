@@ -8,16 +8,18 @@ import { useAsyncTask } from "@/lib/hooks/use-async-task";
 import { exportCrop, loadCropSource, type CropSource } from "@/lib/images/client-crop";
 import { COUPLE_PHOTO_ASPECT, INITIAL_CROP, MAX_CROP_ZOOM, cropRect, panCrop, zoomCrop } from "@/lib/images/crop";
 import { cn } from "@/lib/utils/cn";
+import { normalizedCrop, savedCropPosition, sourceCrop, type SavedCrop } from "@/lib/images/saved-crop";
 
 type Shape = "circle" | "cover" | "photo";
 const ASPECTS = [{ label: "Original", value: 0 }, { label: "Square", value: 1 }, { label: "Portrait", value: 3 / 4 }, { label: "Landscape", value: 3 / 2 }];
 
 /** One shared editor for pickers, camera capture and drops. A batch uploads only after review. */
-export function ImageCropDialog({ files, shape = "photo", onConfirm, onCancel }: {
+export function ImageCropDialog({ files, shape = "photo", onConfirm, onCancel, saved }: {
   files: File[];
   shape?: Shape;
   onConfirm: (files: File[]) => void;
   onCancel: () => void;
+  saved?: { load: (signal: AbortSignal) => Promise<{ file: File; crop: SavedCrop | null }>; save: (crop: SavedCrop | null, signal: AbortSignal) => Promise<void> };
 }) {
   const [open, setOpen] = useState(true);
   const [index, setIndex] = useState(0);
@@ -26,6 +28,8 @@ export function ImageCropDialog({ files, shape = "photo", onConfirm, onCancel }:
   const [position, setPosition] = useState(INITIAL_CROP);
   const [selectedAspect, setSelectedAspect] = useState(0);
   const [fullPhoto, setFullPhoto] = useState(false);
+  const [savedFile, setSavedFile] = useState<File | null>(null);
+  const [savedEditor] = useState(() => saved);
   const prepared = useRef<File[]>([]);
   const confirmed = useRef<File[] | null>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
@@ -33,25 +37,36 @@ export function ImageCropDialog({ files, shape = "photo", onConfirm, onCancel }:
   const hintId = useId();
   const task = useAsyncTask<File, "preparing">();
   const busy = task.state.status === "pending";
-  const file = files[index];
+  const uploadFile = files[index];
+  const file = savedFile ?? uploadFile;
 
   useEffect(() => {
     const controller = new AbortController();
     let loaded: CropSource | undefined;
-    void loadCropSource(file, controller.signal).then((next) => {
+    void (async () => {
+      const existing = savedEditor ? await savedEditor.load(controller.signal) : null;
+      const next = await loadCropSource(existing?.file ?? uploadFile, controller.signal);
       if (controller.signal.aborted) { next.dispose(); return; }
       loaded = next;
+      if (existing) {
+        setSavedFile(existing.file);
+        const selection = sourceCrop(existing.crop, next);
+        setPosition(savedCropPosition(next, existing.crop));
+        const ratio = selection.width / selection.height;
+        setSelectedAspect(!existing.crop || Math.abs(ratio - next.width / next.height) < 0.00001 ? 0 : ASPECTS.find((option) => Math.abs(option.value - ratio) < 0.00001)?.value ?? ratio);
+        setFullPhoto(shape === "cover" && !existing.crop);
+      }
       setSource(next);
-    }).catch((error: unknown) => {
+    })().catch((error: unknown) => {
       if (!controller.signal.aborted) setLoadError(error instanceof Error ? error.message : "Couldn't open this photo.");
     });
     return () => { controller.abort(); loaded?.dispose(); };
-  }, [file]);
+  }, [uploadFile, savedEditor, shape]);
 
   const aspect = shape === "cover" ? COUPLE_PHOTO_ASPECT : shape === "circle" ? 1 : selectedAspect || (source ? source.width / source.height : 1);
   const crop = source ? fullPhoto ? { x: 0, y: 0, width: source.width, height: source.height } : cropRect(source, aspect, position) : null;
   const error = loadError ?? (task.state.status === "error" ? task.state.message : null);
-  const close = () => { task.reset(); confirmed.current = null; setOpen(false); };
+  const close = () => { if (savedEditor && busy) return; task.reset(); confirmed.current = null; setOpen(false); };
   const setZoom = (value: number) => {
     if (source && !busy && !fullPhoto) setPosition((current) => zoomCrop(source, aspect, current, value));
   };
@@ -72,6 +87,11 @@ export function ImageCropDialog({ files, shape = "photo", onConfirm, onCancel }:
   };
   const apply = async () => {
     if (!source || !crop) return;
+    if (savedEditor) {
+      const result = await task.run("preparing", async (signal) => { await savedEditor.save(normalizedCrop(crop, source), signal); return file; });
+      if (result) { confirmed.current = [file]; setOpen(false); }
+      return;
+    }
     const result = await task.run("preparing", (signal) => exportCrop(source, file, crop, signal));
     if (!result) return;
     prepared.current.push(result.data);
@@ -89,9 +109,9 @@ export function ImageCropDialog({ files, shape = "photo", onConfirm, onCancel }:
       description={shape === "cover" ? "This frame is used throughout your couple space." : shape === "circle" ? "Choose how your profile photo looks." : "Keep the whole photo or choose the part you want to share."}
       onHistoryClosed={(stayedOnPage) => { if (stayedOnPage && confirmed.current) onConfirm(confirmed.current); else onCancel(); }}
       footer={<>
-        <Button variant="secondary" onClick={close}>Cancel</Button>
+        <Button variant="secondary" onClick={close} disabled={Boolean(savedEditor && busy)}>Cancel</Button>
         <Button onClick={() => void apply()} disabled={!source || Boolean(loadError)} loading={busy}>
-          {busy ? "Preparing…" : index + 1 < files.length ? "Next photo" : files.length > 1 ? `Use ${files.length} photos` : "Use photo"}
+          {savedEditor ? busy ? "Saving…" : "Save crop" : busy ? "Preparing…" : index + 1 < files.length ? "Next photo" : files.length > 1 ? `Use ${files.length} photos` : "Use photo"}
         </Button>
       </>}
     >

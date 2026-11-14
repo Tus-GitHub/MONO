@@ -197,6 +197,7 @@ model User {
   birthday      DateTime?
   avatarUrl     String? // resolved URL served to the client
   avatarKey     String? // storage key — source of truth for the avatar object
+  avatarCrop    Json?   // normalized framing; retain the saved source for later adjustments
   tokenVersion  Int       @default(0) // bump to invalidate every existing session
 
   // preferences (per person)
@@ -333,6 +334,7 @@ model Couple {
   description         String?
   photoUrl            String?
   photoKey            String?
+  photoCrop           Json?
   status              CoupleStatus @default(PENDING)
   inviteCode          String       @unique // short human code — the simple join path
   inviteCodeExpiresAt DateTime?
@@ -468,6 +470,7 @@ model ChatImage {
   iv          String?
   viewLimit   Int @default(0)
   viewsUsed   Int @default(0)
+  crop        Json? // metadata only; encrypted source bytes stay unchanged
   message     ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
   couple      Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
   @@index([coupleId])
@@ -769,6 +772,7 @@ model DatePhoto {
   // serves the raw original when a smaller one will do. All keys share the couples/<id>/ prefix
   // that the /media route authorizes against.
   storageKey  String // the (re-encoded, EXIF-stripped) full image
+  crop        Json?
   displayKey  String? // ~1400px long edge — the gallery / lightbox default
   thumbKey    String? // ~480px long edge — grids and cards
   blurDataUrl String? // tiny inline data URI for the blur-up placeholder

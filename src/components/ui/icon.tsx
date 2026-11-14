@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils/cn";
  * generic-SaaS glyph pack. Add glyphs to `GLYPHS` as needed.
  */
 const GLYPHS = {
+  crop: <path d="M6 3v12a3 3 0 0 0 3 3h12M3 6h12a3 3 0 0 1 3 3v12" />,
   microphone: <><rect x="9" y="2" width="6" height="13" rx="3" /><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8" /></>,
   microphoneOff: <><path d="m3 3 18 18M9 9v3a3 3 0 0 0 5 2M9 5a3 3 0 0 1 6 0v5M5 10v2a7 7 0 0 0 12 5M19 10v2M12 19v3M8 22h8" /></>,
   screenShare: <><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4M12 13V7m-3 3 3-3 3 3" /></>,

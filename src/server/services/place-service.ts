@@ -2,6 +2,7 @@ import "server-only";
 import { toggleCoupleFavorite } from "@/server/services/favorite-service";
 
 import { placeImageUrl } from "@/lib/places/image-url";
+import { croppedUrl, readSavedCrop } from "@/lib/images/saved-crop";
 import { lookupVenuePhotos } from "@/lib/places/venue-photos";
 import type { VenuePhoto } from "@/lib/places/venue-photo";
 
@@ -263,7 +264,7 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
           where: { deletedAt: null },
           orderBy: { sortOrder: "asc" },
           take: 4,
-          select: { thumbKey: true, storageKey: true },
+          select: { thumbKey: true, storageKey: true, crop: true },
         },
       },
     }),
@@ -335,7 +336,7 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
     isFavorite: resource.isFavorite,
     gallery: datesHere
       .flatMap((date) =>
-        date.photos.map((photo) => storage.publicUrl(photo.thumbKey ?? photo.storageKey)),
+        date.photos.map((photo) => croppedUrl(storage.publicUrl(photo.thumbKey ?? photo.storageKey), readSavedCrop(photo.crop))),
       )
       .slice(0, 8),
     history: {

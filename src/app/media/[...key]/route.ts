@@ -6,6 +6,8 @@ import { coupleIdFromKey, storage, userIdFromKey } from "@/lib/storage";
 import { isCanonicalStorageKey } from "@/lib/storage/key";
 import { isActiveMediaKey } from "@/server/services/storage-cleanup-service";
 import { createHash } from "node:crypto";
+import { cropToken, parseCropToken } from "@/lib/images/saved-crop";
+import { renderSavedCrop } from "@/lib/images/render-crop";
 
 export const dynamic = "force-dynamic";
 
@@ -55,15 +57,19 @@ export async function GET(
     }
 
     if (!await isActiveMediaKey(key)) return new NextResponse(null, { status: 404 });
-    const etag = `"${createHash("sha256").update(key).digest("hex")}"`;
+    const token = _request.nextUrl.searchParams.get("crop");
+    const crop = token ? parseCropToken(token) : null;
+    if (token && (!crop || !contentTypeFor(key).startsWith("image/"))) return new NextResponse(null, { status: 400 });
+    const etag = `"${createHash("sha256").update(`${key}:${cropToken(crop)}`).digest("hex")}"`;
     if (_request.headers.get("if-none-match") === etag) {
       return new NextResponse(null, { status: 304, headers: { etag, "cache-control": "private, no-cache" } });
     }
-    const body = await storage.get(key);
+    const source = await storage.get(key);
+    const body = crop ? await renderSavedCrop(source, crop) : source;
     return new NextResponse(new Uint8Array(body), {
       status: 200,
       headers: {
-        "content-type": contentTypeFor(key),
+        "content-type": crop ? "image/webp" : contentTypeFor(key),
         // Revalidate authorization and active references before serving cached private media.
         "cache-control": "private, no-cache",
         etag,
