@@ -45,6 +45,17 @@ The worker cache version is mono-v5. Initial worker-claim races no longer leave 
 notice over Continue; actual waiting updates can be dismissed. Venue-name queries clear
 between selections while preserving the search area.
 
+Published source: `aa28a06c109266d5b80e3be8a6ccfedf07f67dec`; Vercel production
+`dpl_cCpjG32RrwM4k7zhoM5eBdBZSV1g` READY, canonical alias
+https://mono-kappa-beryl.vercel.app. Live read-only smoke: health/database 200, private
+updates 401 with private/no-store, all three upload guards 401 (date-photo uses a syntactically
+valid dummy ID), worker v5 200/no-cache. HTTPS WebKit Safari-style and simulated standalone
+PWA login/register checks passed at 320/390/768/1024/1440 and 844×390 landscape; both had
+active v5 workers, zero JS errors and zero failed requests. Production error/fatal logs had
+no entries in the test window. Evidence: `.screenshots/upload-events/live-smoke.json`.
+Authenticated full flows were tested on the optimized local build with real private storage;
+no production accounts or dates were mutated. Dedicated local DB/fixture storage were removed.
+
 ## SOCIAL branches, radius and explicit plan saves (2026-11-14)
 
 New plans now use `/plan/new`: opening, changing steps, choosing a venue and adding activities

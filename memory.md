@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (upload storage activated; multi-event planning and partner sync verification)
+Last updated: 2026-11-14 (uploads, multi-event planning and partner updates live)
 
 ## Project Overview
 
@@ -22,30 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Image upload failures and recreate-first-date behavior (2026-11-14)** — user reports all
-  upload types fail, then requests Recreate your first date to copy its venue/activities/plan
-  and allow only date/time changes. Live logs confirm date-photo and couple-cover writes fail
-  at /var/task/.storage: production still defaults to development local disk, with no persistent
-  storage env configured. Investigate available private free-tier storage, wire it safely,
-  test uploads/authorized reads, and fix first-date source selection and rescheduling flow.
-  Added requests: Memories must offer uploads for ongoing dates; partner screens should sync
-  status/photos without manual reload. Confirmed one date with multiple same-day events,
-  each with its own venue/time. Add a two-hour end-time default and per-step validation on
-  Continue (title, chronology, budget/activity details), retaining editable times.
-  Private Neon bucket provisioned on existing Free plan; scoped storage credentials saved
-  only to Vercel Production. PUT/GET/HEAD and anonymous 403 passed; diagnostic object and
-  temporary local credentials removed. Config-only redeployment READY; no paid setup.
-  All 415 unit tests and 134 isolated integration tests passed. Production build, TypeScript
-  and ESLint passed. Authenticated optimized-app tests passed uploads with real private
-  storage, independent café/movie events, partner refresh, ongoing Memories and recreation.
-  All 14 authenticated browser/provider scenarios passed, including WebKit Safari-style and
-  standalone-PWA phone/landscape validation, no overflow, and resetting venue-name queries
-  between stops. Test objects cleaned. Publishing source now; live public smoke remains.
-  Final screenshot review also kept the Add event button from shrinking/wrapping on phones.
-  Automated checks only; no physical iPhone claim.
-  Preserve existing design/data and prior iOS fixes. Work isolated on codex/fix-image-uploads;
-  unrelated primary workspace notes remain untouched. No billing/autopay setup authorized.
 
 - **Discovery, location feedback and explicit plan saving (2026-11-14)** — user reported
   location timing out, Jaipur appearing selected, sparse Explore results/missing Social, and
@@ -103,6 +79,19 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Uploads, multi-event dates and partner updates (2026-11-14)** — published aa28a06,
+  Vercel dpl_cCpjG32RrwM4k7zhoM5eBdBZSV1g READY on mono-kappa-beryl.vercel.app.
+  Fixed production local-disk uploads with private storage on existing Neon Free plan;
+  no billing/autopay setup. Added separate venues/times for same-day Events, editable
+  two-hour defaults, red per-step validation, ongoing Memories uploads, automatic visible
+  partner refresh and schedule-only first-date recreation. Existing design/data preserved.
+  Passed 415 unit, 134 isolated DB tests, 14 authenticated browser/provider scenarios,
+  TypeScript, ESLint and final production build. Live HTTPS public Safari-style/PWA checks
+  passed with zero JS/request errors, mono-v5 caches, healthy DB and protected endpoints.
+  No error/fatal logs in the live test window. Signed-in flows used an isolated local DB
+  and real private storage, not production user mutations. Own private test objects, local
+  database/storage and temporary credential file removed. Automated iOS profiles only.
 
 - **iOS keyboard and landscape fixes (2026-11-14)** — deployed e14197b on READY Vercel
   dpl_7iFGQchx2u3B6tvthNRrCsodStwt at https://mono-kappa-beryl.vercel.app. Preserved 81694ed.
@@ -1398,7 +1387,7 @@ are included in the current isolated fix, alongside all upload types and first-d
 
 ### 2026-11-14 — Fix all image uploads and recreate-first-date scheduling
 
-**IN PROGRESS — implementation and all local checks complete, publishing.** Fixed the
+**DONE — published aa28a06; production deployment READY.** Fixed the
 shared production local-disk misconfiguration with a scoped private bucket on the existing
 Neon Free plan, plus image compression/request-size errors and upload-queue refresh timing.
 Implemented independent venue/time events, required per-step validation, editable two-hour
@@ -1409,8 +1398,11 @@ and 134 isolated DB integration tests, full ESLint, TypeScript and production bu
 Authenticated browser checks verify source preservation and real private storage. WebKit
 runner needed its loopback-only HTTPS-upgrade override applied to the worker response as
 well as HTML; production HTTPS policy remains unchanged. All 14 final browser checks passed
-with zero JavaScript errors; private test objects were removed. Publishing, then live public
-smoke; physical iPhone checks are excluded.
+with zero JavaScript errors. Live public HTTPS checks also passed in Safari-style and PWA
+profiles with zero request/JS errors, active mono-v5 workers, healthy DB, and guarded update/
+upload endpoints. Production error/fatal log query found no entries in the test window.
+Own private test objects, dedicated local DB/storage and temporary credentials were cleaned.
+Physical iPhone checks are excluded. See docs/testing.md for coverage and deployment ID.
 
 
 ### 2026-11-14 — Automated iOS keyboard and landscape remediation
