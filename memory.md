@@ -214,12 +214,11 @@ components. Business rules never live only in React components — they live in
 
 ### Done
 
-- **Automatic deployment cleanup (2026-11-15)** — free GitHub Actions
-  cleanup is active after successful main/Production releases. Five obsolete deployments
-  deleted; live e3e52d2 and rollback49987ce both READY/database healthy. Automatic event
-  replay confirms apply=true. MONO-only Actions credential expires12February2027.
-  Uses approved60-second share links, sequential health checks and immediate revocation;
-  no permanent bypass or billing. Original local work preserved.
+- **Automatic deployment cleanup (2026-11-15)** — active on free GitHub Actions after
+  successful main/Production releases. Retains canonical live plus one healthy rollback;
+  resolves live through its alias even after ignored builds. All43 safety tests pass.
+  Uses approved60-second share links with immediate revocation. No billing or permanent
+  bypass; MONO-only API credential expires12February2027. Other local work preserved.
 
 - **Photo adjustment and consistent couple-photo framing (2026-11-14)** — published
   4590a53; Vercel dpl_29iRfVVdP4Y1hR5HJSnKVZWe2cJ7 READY on the canonical MONO alias.
@@ -1672,6 +1671,13 @@ regressions before deploying. Physical iPhone/PWA hardware is not
 available; report browser-engine and standalone-display coverage accurately.
 
 ### 2026-11-14 — Automatic post-release deployment cleanup (DONE 2026-11-15)
+
+- Final runtime6d9b5ef preserved concurrent photo/avatar release ef70e69. Automatic
+  release-event run43630415393 succeeded in apply mode, removing obsolete e3e52d2
+  and retaining only6d9b5ef plus ef70e69. Both keeper database checks passed; all3
+  canonical aliases stayed live and public health/login returned200.519 unit tests,
+  43 cleanup tests, lint/actionlint, production build/typecheck and size gate pass.
+  Proof: https://github.com/Tus-GitHub/MONO/actions/runs/43630415393
 
 - Post-documentation follow-up: a safely ignored/CANCELED deployment can become the
   project production target while the canonical domain still serves its READY deployment.
