@@ -191,9 +191,10 @@ test("protected health pins host/path and caches access separately per keeper UR
   await health(deployment("dpl_live", 300)); assert.equal(calls, 1);
   await health(deployment("dpl_rollback", 200)); assert.equal(calls, 2);
   now += 36000; await health(deployment("dpl_live", 300)); assert.equal(calls, 3);
-  assert.equal(requests[0].url, "https://mono-live.vercel.app/api/health");
+  assert.equal(requests[0].url.origin, "https://mono-live.vercel.app");
+  assert.equal(requests[0].url.pathname, "/api/health");
   assert.equal(requests[0].options.redirect, "manual");
-  assert.equal(requests[0].options.headers["x-vercel-protection-bypass"], "fixture-private");
+  assert.equal(requests[0].url.searchParams.get("x-vercel-protection-bypass"), "fixture-private");
   await assert.rejects(health({ url: "evil.invalid/;delete" }), /Unsafe/);
 });
 test("protected health rejects redirects/HTML and redacts network failures", async () => {

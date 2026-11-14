@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (automatic deployment cleanup ready for authenticated dry-run; latest releases preserved)
+Last updated: 2026-11-15 (temporary health access approved; final live cleanup verification in progress)
 
 ## Project Overview
 
@@ -1650,6 +1650,8 @@ components. Business rules never live only in React components — they live in
 ## Task Log
 
 ### 2026-11-14 — Automatic post-release deployment cleanup (IN PROGRESS)
+
+-15November follow-up:43c3af9 published/READY; temporary access is accepted by the scoped API, but shareable credentials require the URL query parameter rather than the automation-only header. Changed only credential transport to the approved expiring shareable URL; never log the URL and never follow redirects. No deployment deleted yet.
 
 - User explicitly approved 60-second temporary health-check access for live/rollback. Connected API probe succeeded and returned a shareable-link expiration within60seconds; no permanent bypass. Implemented per-keeper scoped PATCH with ttl60, strict returned-expiry validation, in-memory URL-separated cache/refresh and bounded propagation checks.38 safety tests pass. Pending publish, real dry-run and activation/apply verification.
 

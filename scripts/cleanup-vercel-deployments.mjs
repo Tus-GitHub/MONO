@@ -182,8 +182,10 @@ export function createHealthCheck(api, fetcher = fetch, now = () => Date.now(), 
     let response;
     try {
       for (let attempt = 0; attempt < 4; attempt++) {
-        response = await fetcher(`https://${deployment.url}/api/health`, {
-          headers: { "x-vercel-protection-bypass": token.secret }, redirect: "manual", signal: AbortSignal.timeout(20_000),
+        const url = new URL(`https://${deployment.url}/api/health`);
+        url.searchParams.set("x-vercel-protection-bypass", token.secret);
+        response = await fetcher(url, {
+          redirect: "manual", signal: AbortSignal.timeout(20_000),
         });
         if (![302, 401, 403].includes(response.status) || attempt === 3) break;
         await response.body?.cancel();
