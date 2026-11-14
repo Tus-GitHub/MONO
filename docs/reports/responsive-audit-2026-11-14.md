@@ -19,7 +19,23 @@ was approximately 9.99:1. After syncing the separately published `a95439b` plan-
 update, 144 additional focused samples passed at 320/360/768/1440px in both themes and
 browser/PWA modes. The final source also preserves the `7554357` nearby-search release;
 none of its files overlap the five photo UI fixes. Full lint and final combined production
-build/TypeScript passed. Production deployment is pending.
+build/TypeScript passed. All three fixes are live in production.
+
+| Release check | Result |
+| --- | --- |
+| URL / target / status | https://mono-kappa-beryl.vercel.app / production / READY |
+| Commit | `3a2332b73dc2b0efe468fd74a294813c8615d156` |
+| Deployment | `dpl_5n2nZMZvj9ENNMX3Y4dA5ugSothY` |
+| Framework / region / build | Next.js 16.3.4 / Singapore `sin1` / about 55 seconds |
+| Authenticated local validation | 816 full-matrix + 144 post-sync focused samples passed |
+| Published stylesheet validation | 100 samples passed across 25 sizes, both themes, browser/PWA emulation |
+| Health | HTTP 200, database up |
+| Runtime error scan | No error/fatal logs found for the new deployment |
+
+The live probes verify the actual published stylesheet and health. Authenticated captions
+and viewer interactions were verified locally with synthetic data; production accounts
+were not modified. Temporary test database/storage/logs have been removed. Native-device
+Safari, keyboard and safe-area verification remains distinct from emulation.
 
 Post-fix screenshots and results: `C:/my/projects/k/Date_Calendar/.screenshots/responsive-photo-fixes/`.
 
@@ -82,7 +98,7 @@ Completed 1,971 screen/viewport samples: 290 on live public screens, 1,593 in th
 
 Covered public auth/recovery/verification/offline/404/style screens; Home; calendar/history/upcoming; Explore and place details; all four planning steps; draft/planned/today/active/completed/cancelled date views; recap and review form/reveal; memory editor, detail, timeline, favorites and photo wall; couple and notifications; every settings page; confirmation modal, place-picker sheet, account menu and photo-wall lightbox; profile/connect/couple/done onboarding and invitation states; unverified-account and fresh-couple empty states; selected standalone/PWA, desktop pointer, light-theme and archive-file-preview variants.
 
-The desktop sidebar/bottom-navigation transition is correct at 1024px. Core page layouts fit the measured widths. The two known caption-cropping defects and photo-viewer contrast issue remain unresolved. The final source check confirmed the live alias still served `5bd1a57` when verification finished.
+The desktop sidebar/bottom-navigation transition is correct at 1024px. Core page layouts fit the measured widths. The two caption-cropping defects and photo-viewer contrast issue existed in the original `5bd1a57` audit; they are resolved by the verified production release above.
 
 The automated audit uses Chromium touch emulation and emulated standalone display mode. It samples breakpoint boundaries and representative device sizes; it does not test every possible pixel width or certify physical iOS/Safari keyboard, safe-area or browser-zoom behavior. Native phone testing remains separate.
 

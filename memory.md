@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (responsive photo fixes and deployment underway)
+Last updated: 2026-11-14 (responsive photo fixes deployed and verified)
 
 ## Project Overview
 
@@ -22,12 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Responsive photo fixes (2026-11-14)** — user authorizes fixing all three audit findings,
-  preserving the design, checking all screen sizes and deploying. Make date/memory hero
-  captions contribute to layout height and use a theme-independent dark photo-viewer token.
-  Verify all 25 audit configurations in both themes and browser/PWA modes, including long
-  content, photo/no-photo states and both viewers. Work on isolated codex/responsive-photo-fixes.
 
 - **Publish filters and verify production (2026-11-14)** — user explicitly authorized
   publishing/deploying the completed all-category filter changes and testing them live.
@@ -79,6 +73,21 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Responsive photo fixes (2026-11-14)** — published 3a2332b; production deployment
+  dpl_5n2nZMZvj9ENNMX3Y4dA5ugSothY is READY on the canonical MONO alias, Singapore.
+  All three findings fixed: date/memory captions contribute to hero height while retaining
+  the original ratio as a floor, and both photo viewers use a fixed dark backdrop token.
+  Existing typography, gradients, spacing, corners and controls preserved. Full lint and
+  final combined production build/TypeScript pass. 816 full-matrix local checks plus
+  144 post-sync focused samples pass, covering 25 main sizes (320–3840px), both themes,
+  browser/PWA emulation, long/max/short captions, photos/fallbacks and both viewers.
+  Minimum measured viewer-control contrast ~9.99:1. All 100 live deployed-stylesheet
+  samples pass; health 200/database up; new-deployment error/fatal scan clean. Existing
+  a95439b/7554357 plan/nearby updates preserved. No production accounts modified.
+  Local synthetic database/storage/log removed, servers and idle cluster stopped,
+  own published-change backup stash removed. Native physical-device QA remains separate.
+  Report and screenshot evidence: docs/reports/responsive-audit-2026-11-14.md.
 
 - **Whole-site responsive layout audit (2026-11-14)** — completed against live 5bd1a57;
   25 main viewport configurations from 320px to 3840px, breakpoint boundaries and landscape,
@@ -1320,7 +1329,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-14 — Fix responsive photo captions and viewer contrast
 
-**IN PROGRESS.** User authorizes all three fixes, same design, viewport verification and
+**DONE.** User authorizes all three fixes, same design, viewport verification and
 production deployment. Started from production 5bd1a57; synced the separately published a95439b plan-category update before release. Caption
 overlays now participate in a single-cell grid; a ratio spacer retains existing dimensions
 when text fits, while long captions can expand the photo area. Image layers fill that area;
@@ -1336,8 +1345,16 @@ Screenshots reviewed at 320px and larger sizes. Full lint and final combined pro
 build/TypeScript passed. Synced the separately published a95439b and 7554357 plan-category
 and nearby-search releases; no changes overlap the five verified photo UI files. The
 post-sync focused regression run passed 144 additional samples across 320/360/768/1440px,
-both themes and browser/PWA modes. Production release remains; physical native-device
-QA is distinct from emulation.
+both themes and browser/PWA modes. Published 3a2332b73dc2b0efe468fd74a294813c8615d156
+to origin main. Vercel deployment dpl_5n2nZMZvj9ENNMX3Y4dA5ugSothY is READY on
+mono-kappa-beryl.vercel.app (sin1, Next.js 16.3.4, build about 55 seconds). All 100 live
+stylesheet samples pass in both themes and browser/PWA emulation, confirming the deployed
+backdrop stays dark across all 25 main viewport configurations. Health 200/database up;
+no error/fatal logs found for the new deployment. Authenticated hero/viewer checks used
+local synthetic accounts; live checks submitted no forms and changed no accounts. Local
+synthetic database, generated photo storage and server log removed; servers and idle test
+cluster stopped. Copied env was never needed; own published-change backup stash removed.
+Physical native-device QA remains distinct from browser/PWA emulation.
 
 ### 2026-11-14 — Whole-site responsive layout audit
 
