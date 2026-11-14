@@ -47,9 +47,9 @@ export function reviewStage(input: {
   return input.mineExists ? "draft" : "none";
 }
 
-/** A review can be changed right up until the reveal — after that it's locked. */
+/** Authors can edit shared reviews; saving keeps the submitted review visible. */
 export function isReviewEditable(stage: ReviewStage): boolean {
-  return stage !== "revealed";
+  return ["none", "draft", "submitted", "revealed"].includes(stage);
 }
 
 /**

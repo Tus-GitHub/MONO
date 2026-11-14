@@ -133,7 +133,7 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
         <div className="flex items-start gap-2.5 rounded-lg border border-accent/25 bg-accent-tint/40 px-3.5 py-2.5 text-sm text-accent">
           <Icon name="lock" size="sm" className="mt-0.5 shrink-0" />
           <p>
-            {ctx.hasPartner
+            {ctx.stage === "revealed" ? "This review is shared. Saved changes are immediately visible to your partner." : ctx.hasPartner
               ? `Only you can see this. Nothing is shared until ${ctx.partnerName} submits their side too.`
               : "Only you can see this."}
           </p>
@@ -272,7 +272,7 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
 
         {/* Actions */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-5">
-          {my ? (
+          {my && ctx.stage !== "revealed" ? (
             <Button type="button" variant="ghost" size="sm" onClick={discard}>
               Discard
             </Button>
@@ -280,11 +280,11 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
             <span />
           )}
           <div className="flex gap-2">
-            <SubmitButton variant="secondary" pendingText="Saving…">
+            {ctx.stage !== "revealed" ? <SubmitButton variant="secondary" pendingText="Saving…">
               Save draft
-            </SubmitButton>
+            </SubmitButton> : null}
             <SubmitButton name="intent" value="submit" pendingText="Submitting…">
-              Submit my side
+              {ctx.stage === "revealed" ? "Save changes" : "Submit my side"}
             </SubmitButton>
           </div>
         </div>

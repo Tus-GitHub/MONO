@@ -69,14 +69,15 @@ export async function submitReviewAction(
       toFieldErrors(parsed.error),
     );
   }
+  let revealed = false;
   try {
-    await submitReview(id, parsed.data, categoryScores(formData));
+    revealed = (await submitReview(id, parsed.data, categoryScores(formData))).revealed;
   } catch (error) {
     return toActionError(error);
   }
   revalidatePath(`/dates/${id}`, "layout");
   revalidatePath("/", "layout");
-  redirect(`/dates/${id}/review`);
+  redirect(revealed ? `/dates/${id}` : `/dates/${id}/review`);
 }
 
 /** Re-open a submitted-but-not-yet-revealed review for another pass. */

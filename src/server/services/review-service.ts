@@ -171,7 +171,7 @@ async function writeReview(
   categoryScores: Record<string, number>,
   opts: { submit: boolean },
 ): Promise<WriteResult> {
-  const { context, resource, submittedAt, isNew, nowRevealed } = await withDateWrite(dateId, async (tx, resource, context) => {
+  const { context, resource, submittedAt, isNew, nowRevealed, alreadyRevealed } = await withDateWrite(dateId, async (tx, resource, context) => {
     if (!dateAllows(resource.status, "review")) {
       throw new ValidationError("Reviews open once the date has happened.");
     }
@@ -194,8 +194,8 @@ async function writeReview(
     const hasPartner = memberCount >= 2;
     const alreadyRevealed =
       mine?.submittedAt != null && (partner?.submittedAt != null || !hasPartner);
-    if (alreadyRevealed) {
-      throw new ConflictError("Both sides are in — this review is locked now.");
+    if (alreadyRevealed && !opts.submit) {
+      throw new ConflictError("This review is already shared. Use Save changes to update it for both of you.");
     }
 
     const scores = Object.entries(categoryScores).filter(
@@ -233,7 +233,7 @@ async function writeReview(
     const nowRevealed =
       opts.submit && (partner?.submittedAt != null || !hasPartner);
 
-    return { context, resource, submittedAt, isNew, nowRevealed };
+    return { context, resource, submittedAt, isNew, nowRevealed, alreadyRevealed };
   });
 
   if (opts.submit) {
@@ -248,8 +248,8 @@ async function writeReview(
         coupleId: context.couple.id,
         actorId: context.user.id,
         type: NotificationType.REVIEW_ADDED,
-        title: "The reviews are in",
-        body: "You've both submitted — see how you compared.",
+        title: alreadyRevealed ? "Review updated" : "The reviews are in",
+        body: alreadyRevealed ? "Your partner updated their shared review." : "You've both submitted — see how you compared.",
         entityType: "Date",
         entityId: resource.id,
       });

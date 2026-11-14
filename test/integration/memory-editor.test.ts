@@ -13,7 +13,8 @@ vi.mock("@/lib/auth/current-user", async () => {
 });
 
 import { prisma } from "@/lib/db/prisma";
-import { deleteMemory, getMemoryContext, saveMemory } from "@/server/services/memory-service";
+import { deleteMemory, getMemoryContext, saveMemory, toggleMemoryFavorite } from "@/server/services/memory-service";
+import { coupleRevision } from "@/server/services/couple-sync-service";
 
 let users: string[] = [];
 let coupleId: string;
@@ -50,4 +51,18 @@ it("keeps the editor and replacement operation scoped to the caller's space", as
   await expect(asUser(users[2], () => getMemoryContext(dateId))).rejects.toMatchObject({ httpStatus: 409 });
   await expect(asUser(users[2], () => saveMemory(dateId, { title: "Foreign", body: "Unwanted replacement", isFavorite: false }))).rejects.toMatchObject({ httpStatus: 409 });
   expect((await prisma.memory.findUniqueOrThrow({ where: { dateId } })).title).toBe("New memory");
+});
+
+it("signals memory heart changes to the other partner's live screens", async () => {
+  const memory = await prisma.memory.findUniqueOrThrow({ where: { dateId } });
+  const revision = async () => {
+    const couple = await prisma.couple.findUniqueOrThrow({ where: { id: coupleId } });
+    return coupleRevision(coupleId, couple.updatedAt);
+  };
+  for (const user of users.slice(0, 2)) {
+    const before = await revision();
+    const favorite = await asUser(user, () => toggleMemoryFavorite(memory.id));
+    expect(await revision()).not.toBe(before);
+    expect((await asUser(users.find((id) => id !== user)!, () => getMemoryContext(dateId))).memory?.isFavorite).toBe(favorite);
+  }
 });

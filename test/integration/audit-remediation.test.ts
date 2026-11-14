@@ -151,7 +151,7 @@ it("serializes activity insertion so concurrent additions have distinct position
   expect(activities.map((activity) => activity.sortOrder)).toEqual([0, 1]);
 });
 
-it("concurrent submissions reveal once and lock all later changes", async () => {
+it("concurrent submissions reveal once and prevent making shared reviews private again", async () => {
   const date = await newDate();
   const results = await Promise.all([
     asUser(users[0], () => submitReview(date.id, { personalRevisit: "DEFINITELY", overallRating: 9 }, { [categoryId]: 9 })),
@@ -162,6 +162,24 @@ it("concurrent submissions reveal once and lock all later changes", async () => 
   await expect(asUser(users[1], () => deleteReview(date.id))).rejects.toMatchObject({ code: "conflict" });
   await expect(asUser(users[0], () => saveReviewDraft(date.id, { overallRating: 1 }, {}))).rejects.toMatchObject({ code: "conflict" });
   expect(await prisma.dateReview.count({ where: { dateId: date.id, submittedAt: { not: null } } })).toBe(2);
+});
+
+it("lets each author edit a revealed review without changing their partner or hiding the reveal", async () => {
+  const date = await newDate();
+  await asUser(users[0], () => submitReview(date.id, { personalRevisit: "DEFINITELY", overallRating: 9 }, { [categoryId]: 9 }));
+  await asUser(users[1], () => submitReview(date.id, { personalRevisit: "MAYBE", overallRating: 7 }, { [categoryId]: 7 }));
+  const before = await prisma.dateReview.findMany({ where: { dateId: date.id }, orderBy: { authorId: "asc" } });
+  for (const [index, authorId] of users.slice(0, 2).entries()) {
+    const partnerBefore = await prisma.dateReview.findFirstOrThrow({ where: { dateId: date.id, authorId: { not: authorId } }, include: { ratings: true } });
+    const result = await asUser(authorId, () => submitReview(date.id, { personalRevisit: "DEFINITELY", overallRating: 6 + index, lovedText: `Edited by ${index}` }, { [categoryId]: 6 + index }));
+    expect(result).toEqual({ submitted: true, revealed: true });
+    const mine = await prisma.dateReview.findUniqueOrThrow({ where: { dateId_authorId: { dateId: date.id, authorId } }, include: { ratings: true } });
+    expect(mine.submittedAt).toEqual(before.find((review) => review.authorId === authorId)?.submittedAt);
+    expect(mine.overallRating).toBe(6 + index);
+    expect(mine.lovedText).toBe(`Edited by ${index}`);
+    expect(mine.ratings[0].score).toBe(6 + index);
+    expect(await prisma.dateReview.findUniqueOrThrow({ where: { id: partnerBefore.id }, include: { ratings: true } })).toEqual(partnerBefore);
+  }
 });
 
 it("a reopen racing the partner submission cannot modify a revealed review", async () => {

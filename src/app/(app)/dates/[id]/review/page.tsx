@@ -22,8 +22,6 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
     throw error;
   }
   if (!ctx.reviewable) redirect(`/dates/${id}`);
-  // Once both sides are in, the reveal lives on the date page.
-  if (ctx.stage === "revealed") redirect(`/dates/${id}`);
 
   const waiting = ctx.stage === "submitted";
 
@@ -32,7 +30,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
       <PageHeader
         title={waiting ? "Your side is in" : ctx.myReview ? "Your review" : "How was it, really?"}
         description={
-          waiting
+          ctx.stage === "revealed" ? "Changes to your review are shared with your partner when you save." : waiting
             ? "Private until you've both submitted."
             : "Filled in on your own — your partner writes theirs separately, and nothing shows until you both submit."
         }

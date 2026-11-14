@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (post-date audit fixes deployed and verified)
+Last updated: 2026-11-14 (partner edit audit, deployment verification pending)
 
 ## Project Overview
 
@@ -22,6 +22,14 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Live partner edit audit (2026-11-14)** — test expense, review and memory edits in both
+  directions on retained live QA dates. User explicitly authorizes editing one's own review
+  after both reviews reveal; saved edits remain shared without resetting submission status.
+  Keep synthetic records. Expense/memory edits sync in both Chromium and WebKit phone/PWA
+  profiles at 320/390/844px. Fixed missing favourite-heart sync and author-only revealed review
+  editing. 171 integration tests and 16 review unit tests pass; deployment verification pending.
+  Existing unrelated accounts are out of scope.
 
 - **Couple call device verification** — implementation and media-helper/backend signaling
   tests pass; the right-panel permission/cancel path passes without granting devices.
@@ -1447,6 +1455,18 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-14 — Both-partner edits to expenses, revealed reviews and memories
+
+**IN PROGRESS.** User explicitly chose to allow each author to edit their own revealed review.
+Added Edit my review / Save changes, shared-state copy, author-scoped updates that preserve
+submitted timestamps, and rejection of shared-to-private draft/reopen/discard operations.
+Live expense amounts/splits/totals and memory text edits sync without reload in Chromium
+and WebKit phone/PWA profiles. Memory heart toggles reproduced a missing partner refresh;
+now the atomic favourite write also changes the couple revision. 171 PostgreSQL regression
+tests and 16 review unit tests pass. Local Turbopack CSS subprocess failed, so checking the
+documented Webpack build path. Live post-deploy review/heart/list checks remain pending.
+Keep all retained synthetic records; no existing user data changed.
 
 ### 2026-11-14 — Completion, expenses, reviews and memory live audit
 

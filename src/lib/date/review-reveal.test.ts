@@ -85,10 +85,10 @@ describe("dateCoupleScore — never surfaces a hidden score", () => {
 });
 
 describe("isReviewEditable", () => {
-  it("stays editable until the reveal, then locks", () => {
+  it("allows authors to edit before and after the reveal", () => {
     expect(isReviewEditable("none")).toBe(true);
     expect(isReviewEditable("draft")).toBe(true);
     expect(isReviewEditable("submitted")).toBe(true);
-    expect(isReviewEditable("revealed")).toBe(false);
+    expect(isReviewEditable("revealed")).toBe(true);
   });
 });

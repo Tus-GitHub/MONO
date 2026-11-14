@@ -13,6 +13,7 @@ export async function toggleCoupleFavorite(kind: "place" | "memory" | "photo", i
     ? Prisma.sql`EXISTS (SELECT 1 FROM dates d WHERE d.id = target."dateId" AND d."coupleId" = ${couple.id} AND d."deletedAt" IS NULL)`
     : Prisma.sql`target."coupleId" = ${couple.id}`;
   const rows = await prisma.$queryRaw<{ isFavorite: boolean }[]>(Prisma.sql`
+    WITH toggled AS (
     UPDATE ${table} AS target SET "isFavorite" = NOT target."isFavorite", "updatedAt" = CURRENT_TIMESTAMP AT TIME ZONE 'UTC'
     WHERE target.id = ${id} AND target."deletedAt" IS NULL AND ${owner}
       AND EXISTS (
@@ -22,6 +23,11 @@ export async function toggleCoupleFavorite(kind: "place" | "memory" | "photo", i
           AND m."userId" = ${user.id} AND m.status = 'ACTIVE' AND u."deletedAt" IS NULL
       )
     RETURNING target."isFavorite"
+    ), changed AS (
+      UPDATE couples SET "updatedAt" = CURRENT_TIMESTAMP AT TIME ZONE 'UTC'
+      WHERE id = ${couple.id} AND EXISTS (SELECT 1 FROM toggled)
+    )
+    SELECT "isFavorite" FROM toggled
   `);
   if (!rows[0]) throw new NotFoundError();
   return rows[0].isFavorite;

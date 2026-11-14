@@ -6,6 +6,7 @@ import type { ReviewRevisit } from "@prisma/client";
 import { Avatar } from "@/components/ui/avatar";
 import { CoupleAvatar } from "@/components/ui/couple-avatar";
 import { Button } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/link-button";
 import { Icon } from "@/components/ui/icon";
 import type {
   AgreementInsight,
@@ -85,6 +86,7 @@ export function ReviewReveal({
 
   return (
     <section className="space-y-3" aria-label="Combined review">
+      <div className="flex justify-end"><LinkButton href={`/dates/${dateId}/review`} variant="secondary" size="sm">Edit my review</LinkButton></div>
       {/* --- Reveal gate --- */}
       <div
         hidden={open}
