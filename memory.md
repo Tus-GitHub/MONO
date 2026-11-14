@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-15 (saved photo crop adjustments in verification)
+Last updated: 2026-11-15 (saved photo crop adjustments deployed and verified)
 
 
 
@@ -24,12 +24,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Adjust saved photo crops (2026-11-15)** — add Adjust crop for existing profile, couple,
-  date and own chat photos using the shared editor. Persist crop metadata without selecting
-  or uploading the image again; preserve the stored source, photo/message identity and
-  encrypted chat. Check access, concurrent edits, partner updates and mobile/PWA behavior,
-  then deploy from the isolated codex/adjust-saved-photos worktree.
 
 - **Physical encrypted-chat phone verification (2026-11-15)** — live Chromium two-user flows and emulated phone widths passed. Actual iPhone/Samsung PWA, native keyboard and independent cryptographic review remain outside that evidence. Screenshot/recording blocking and attempt detection remain unavailable in a PWA.
 
@@ -225,6 +219,11 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Adjust saved photo crops (2026-11-15)** — live in 5d9e7c8. Profile, couple, date and own
+  encrypted-chat photos can be reframed without another upload. Original sources and record
+  references stay intact. Automated local and live two-partner checks passed; WebKit required
+  an HTTP transport relay after native TLS failures. See docs/reports/saved-photo-crops-2026-11-15.md.
 
 - **Encrypted chat production release and live QA (2026-11-15)** — pushed `6810807`; Vercel
   dpl_AthShWpFLnhxwWLnDpVDDazjm94o READY on mono-kappa-beryl.vercel.app. Two synthetic partners
@@ -1694,22 +1693,35 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-15 — Adjust crops of already uploaded photos
 
-**IN PROGRESS.** User requests recropping saved profile, couple, date and chat photos without
-uploading again, preserving the design and publishing. Starting from the completed live
-crop audit and merging the concurrent encrypted-chat release 6810807. Plan metadata-only,
-non-destructive adjustments against the source MONO already has; retain photo/message IDs,
-caption/favorite/Memory references and limited-view counters. Chat decryption stays on the
-device. Previously discarded pre-upload pixels cannot be recovered. Existing retained
-synthetic test accounts may be reused; keep production test records as previously requested.
+**DONE.** Published `5d9e7c8` to main; production deployment
+`dpl_E7EswCZSdpiRTro25jbjkVT8qgkv` is READY on the canonical MONO domain.
+Preserved the concurrent encrypted-chat release and verification documentation.
 
-Implemented metadata-only saved crops, authenticated image rendering, own encrypted-chat
-framing, gallery/lightbox controls and archive preservation. Thirteen focused unit tests
-and thirty PostgreSQL crop/access/encryption/archive checks now pass. Fixed an existing
-archive test that assumed member ordering. TypeScript, targeted lint and the production build pass. Local built-site Chromium
-checks passed for both partners in phone/standalone modes: eight saved crop edits,
-cancellation, reopening, partner updates, encrypted chat, nested lightbox Back and Memory
-framing. Dialogs fit 320x568, 390x844, 844x390, 768x1024 and 1440x900. No new upload or
-file chooser occurred. Publishing and live Chromium/WebKit verification remain.
+- Added Adjust crop to profile/couple upload controls, date galleries/lightboxes and the
+  sender's chat photos, using the existing editor and design.
+- Saves normalized crop metadata against the immutable stored source, without image upload,
+  duplicate records or lost captions/favorites/Memory references. Source regions can be
+  expanded again within the stored image; previously discarded pre-upload pixels cannot
+  be recovered. Added four nullable JSONB fields with an additive migration.
+- Enforced authentication, couple isolation, sender ownership, strict bounds, same-origin
+  writes and revision conflicts. Private media has crop-specific ETags. Date covers,
+  Memories, place galleries and archive restore preserve framing.
+- Chat decryption stays on the client. Existing ciphertext, quotas and limited-view counts
+  remain unchanged; old-message revisions update the partner's open photo without reload.
+- Validation: 13 unit tests, 30 real local PostgreSQL integration tests, TypeScript, targeted
+  lint and production builds passed. Local Chromium passed 13 checkpoints/eight crop saves;
+  live Chromium and WebKit each passed 14 checkpoints for both partners in phone/standalone
+  modes. Crop dialogs fit 320x568, 390x844, 844x390, 768x1024 and 1440x900 after layout settled.
+- Native Windows WebKit had TLS failures. Remaining WebKit UI checks used real production
+  responses through an HTTP relay with service workers blocked; direct Chromium included
+  the active production service worker. No physical iPhone or native keyboard claim.
+- Corrected test-harness thumbnail selectors, lazy-image/viewport readiness and a local
+  blob interception in the relay. No production application change was needed after release.
+- Production health is 200; anonymous crop descriptors are 401. Four synthetic accounts'
+  test sessions were revoked and test records retained. One missing synthetic partner
+  encrypted-photo fixture was added before the edit tests. Real user data was untouched.
+
+Details: docs/saved-photo-crops.md and docs/reports/saved-photo-crops-2026-11-15.md.
 
 ### 2026-11-15 — Full live crop and upload flow for both partners
 
