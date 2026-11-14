@@ -28,7 +28,7 @@ export function AppHeader({ user, unreadCount }: AppHeaderProps) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-20 flex h-(--appheader-h) items-center gap-(--appheader-gap) border-b border-line bg-paper/85 pt-safe backdrop-blur-md",
+        "mono-appheader sticky top-0 z-20 flex h-(--appheader-h) items-center gap-(--appheader-gap) border-b border-line bg-paper/85 pt-safe backdrop-blur-md",
         "px-(--appheader-gutter) sm:px-6 lg:justify-end lg:border-b-0 lg:bg-transparent lg:px-8 lg:backdrop-blur-none",
       )}
     >

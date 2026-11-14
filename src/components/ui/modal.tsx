@@ -80,7 +80,7 @@ export function Modal({
             // Never taller than the *visible* viewport minus the inset gutters — `--vvh` tracks
             // the keyboard (set by <ViewportManager>); `100dvh` is the fallback. The body
             // scrolls inside instead, so it stays usable in landscape and with the keyboard up.
-            "relative z-10 flex max-h-[calc(var(--vvh,100dvh)-2rem)] w-full origin-center flex-col overflow-hidden rounded-xl border border-line bg-elevated shadow-xl transition-[opacity,transform] duration-base ease-out",
+            "mono-dialog-panel mono-modal-panel relative z-10 flex max-h-[calc(var(--vvh,100dvh)-2rem)] w-full origin-center flex-col overflow-hidden rounded-xl border border-line bg-elevated shadow-xl transition-[opacity,transform] duration-base ease-out",
             SIZE[size],
             visible ? "scale-100 opacity-100" : "scale-95 opacity-0",
             className,

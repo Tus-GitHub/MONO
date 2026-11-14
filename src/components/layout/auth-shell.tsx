@@ -39,7 +39,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
 
       {/* `m-auto` (not `items/justify-center`) keeps the form centred when it fits but lets it
           scroll to both ends when the viewport is short — small phones, landscape, keyboard. */}
-      <main className="flex w-full min-w-0 flex-col overflow-y-auto px-4 py-12">
+      <main className="mono-auth-main flex w-full min-w-0 flex-col overflow-y-auto px-4 py-12">
         <div className="m-auto w-full max-w-sm">
           <div className="mb-8 flex justify-center lg:hidden">
             <Logo />

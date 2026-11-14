@@ -69,6 +69,12 @@
      `visualViewport`; 0 when there is no keyboard (or no `visualViewport`). Never hardcode a
      keyboard height anywhere; read this token instead. */
   --kb: 0px;
+  --vv-top: 0px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-bottom-visible: var(--safe-bottom);
   /* Content column widths. `content-max` is the everyday reading/planning column;
      `content-wide` is for galleries and timelines; `content-narrow` for focused forms. */
   --content-narrow: 44rem;
@@ -305,7 +311,7 @@
   /* When `scrollIntoView({ block: "nearest" })` pulls a focused field into view, keep it clear
      of the sticky app header at the top and leave a little breathing room at the bottom. */
   :where(input, select, textarea, [contenteditable]) {
-    scroll-margin-top: calc(var(--appheader-h) + env(safe-area-inset-top) + 0.75rem);
+    scroll-margin-top: calc(var(--appheader-h) + var(--safe-top) + 0.75rem);
     scroll-margin-bottom: 0.75rem;
   }
 }
@@ -332,7 +338,91 @@ html[data-kb="open"] .mono-bottom-nav {
 /* A sticky in-flow action row: normally clears the bottom nav + home indicator; with the
    keyboard open the nav is gone, so it only needs to clear the keyboard itself. */
 html[data-kb="open"] .above-bottom-nav {
-  bottom: calc(var(--kb) + env(safe-area-inset-bottom));
+  bottom: var(--kb);
+}
+
+/* Keep in-flow content inside landscape cutouts; fixed layers opt in below. */
+body {
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+}
+html[data-kb="open"] {
+  --safe-bottom-visible: 0px;
+}
+html[data-kb="open"] body {
+  /* Safari can keep the layout tall behind the keyboard. Give covered fields scroll room. */
+  padding-bottom: var(--kb);
+}
+.mono-appheader,
+.mono-setup-header {
+  height: calc(var(--appheader-h) + var(--safe-top));
+}
+.mono-auth-main {
+  padding-top: max(3rem, var(--safe-top));
+  padding-bottom: max(3rem, var(--safe-bottom-visible));
+}
+.mono-sidebar {
+  left: var(--safe-left);
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom-visible);
+}
+.mono-bottom-nav,
+.mono-sheet-wrap,
+.mono-visual-layer {
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+}
+.mono-modal-wrap,
+.mono-sheet-wrap,
+.mono-visual-layer {
+  top: var(--vv-top);
+  bottom: var(--kb);
+}
+.mono-visual-layer {
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom-visible);
+}
+.mono-modal-panel {
+  max-height: calc(var(--vvh, 100dvh) - max(1rem, var(--safe-top)) - max(1rem, var(--safe-bottom-visible)));
+}
+.mono-sheet-panel {
+  max-height: calc(var(--vvh, 92dvh) - max(1rem, var(--safe-top)));
+}
+.mono-dialog-panel {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+html[data-kb="open"] .mono-dialog-panel > .scroll-area {
+  flex: none;
+  overflow: visible;
+}
+@media (max-height: 30rem) {
+  .mono-dialog-panel > .scroll-area {
+    flex: none;
+    overflow: visible;
+  }
+}
+.mono-offline-banner {
+  top: var(--vv-top);
+  padding-top: max(0.5rem, var(--safe-top));
+}
+.mono-offline-banner,
+.mono-update-banner {
+  padding-left: max(1rem, var(--safe-left));
+  padding-right: max(1rem, var(--safe-right));
+}
+.mono-toast {
+  padding-left: max(0.75rem, var(--safe-left));
+  padding-right: max(0.75rem, var(--safe-right));
+  padding-bottom: max(0.75rem, var(--safe-bottom-visible));
+}
+html[data-kb="open"] .mono-toast {
+  top: var(--vv-top);
+  bottom: auto;
+}
+html[data-kb="open"] .mono-update-banner {
+  display: none;
 }
 
 /* Centred dialog: pin it to the top of the visible area when the keyboard is open so its
@@ -344,31 +434,31 @@ html[data-kb="open"] .mono-modal-wrap {
 @layer utilities {
   /* Safe areas (notches, home indicator, keyboard). */
   .pt-safe {
-    padding-top: env(safe-area-inset-top);
+    padding-top: var(--safe-top);
   }
   .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: var(--safe-bottom-visible);
   }
   .pl-safe {
-    padding-left: env(safe-area-inset-left);
+    padding-left: var(--safe-left);
   }
   .pr-safe {
-    padding-right: env(safe-area-inset-right);
+    padding-right: var(--safe-right);
   }
   .inset-b-safe {
-    bottom: env(safe-area-inset-bottom);
+    bottom: var(--safe-bottom-visible);
   }
 
   /* Gutter for a centred dialog: at least 1rem, more where a notch / home indicator intrudes
      (matters in iPhone landscape and for full-height sheets). */
   .dialog-inset {
-    padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
-      max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+    padding: max(1rem, var(--safe-top)) max(1rem, var(--safe-right))
+      max(1rem, var(--safe-bottom-visible)) max(1rem, var(--safe-left));
   }
 
   /* Sits a sticky action row clear of BOTH the fixed bottom nav and the home indicator. */
   .above-bottom-nav {
-    bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom));
+    bottom: calc(var(--bottomnav-h) + var(--safe-bottom-visible));
   }
 
   /* Minimum comfortable touch target. */

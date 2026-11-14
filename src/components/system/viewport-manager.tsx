@@ -1,105 +1,125 @@
 "use client";
 
 import { useEffect } from "react";
+import { focusScrollDelta, viewportGeometry } from "@/lib/browser/viewport";
 
-/**
- * Keyboard / viewport awareness for mobile.
- *
- * The virtual keyboard shrinks the *visual* viewport but, on iOS Safari (and in an installed
- * iOS PWA), leaves the *layout* viewport — and therefore `dvh`, `position: fixed` and sticky
- * bars — unchanged. Chromium can be told to resize the layout viewport too
- * (`interactive-widget=resizes-content`, set in the root viewport export), but Safari can't.
- *
- * This component fills the gap with `window.visualViewport`, exposing three things that CSS can
- * key off, updated on a rAF so there's no layout thrash:
- *
- *   --kb    px the keyboard (plus any bottom browser chrome) covers at the bottom edge
- *   --vvh   the true visible height in px — for capping modal / sheet heights
- *   [data-kb="open"] on <html> once --kb passes a small threshold
- *
- * It also nudges a newly-focused field into view once the keyboard has settled, using the
- * browser's own `scrollIntoView` (with `block: "nearest"` so the page doesn't jump further
- * than it has to). Everything degrades to a no-op where `visualViewport` is absent (older
- * browsers, most desktops) — the `dvh`-based fallbacks in the CSS then apply unchanged.
- */
+/** Match fixed UI and focused fields to the visible area without disabling native zoom. */
 export function ViewportManager() {
   useEffect(() => {
     const vv = window.visualViewport;
     const root = document.documentElement;
     if (!vv) return;
 
-    // A keyboard-sized occlusion; anything smaller is browser chrome jitter, not a keyboard.
-    const KB_THRESHOLD = 120;
     let frame = 0;
-
+    let focusTimer: number | undefined;
+    let baselineHeight = window.innerHeight;
+    let keyboardOpen = false;
+    let checkFocus = false;
+    let allowFocusScroll = true;
+    const touch = window.matchMedia("(any-pointer: coarse)").matches;
+    const editable = () => {
+      const el = document.activeElement;
+      if (!(el instanceof HTMLElement) || !el.matches("input,select,textarea,[contenteditable]")) return null;
+      if (el.matches('[readonly],[disabled],[contenteditable="false"],[type="checkbox"],[type="radio"],[type="range"],[type="button"],[type="submit"],[type="file"]')) return null;
+      return el;
+    };
+    const geometry = () => viewportGeometry({
+      layoutHeight: window.innerHeight, visualHeight: vv.height, visualTop: vv.offsetTop,
+      scale: vv.scale, baselineHeight, editing: Boolean(editable()), keyboardWasOpen: keyboardOpen, touch,
+    });
+    const cancelFocusScroll = () => window.clearTimeout(focusTimer);
+    const move = (element: HTMLElement, top: number, page = false) => {
+      const previous = element.style.scrollBehavior;
+      element.style.scrollBehavior = "auto";
+      try { (page ? window : element).scrollBy({ top, behavior: "auto" }); }
+      finally { element.style.scrollBehavior = previous; }
+    };
+    const nudgeFocus = () => {
+      const el = editable();
+      if (!el || !el.isConnected || !allowFocusScroll || Math.abs(vv.scale - 1) > 0.01) return;
+      const view = geometry();
+      const header = el.closest('[role="dialog"]') ? null : document.querySelector(".mono-appheader,.mono-setup-header");
+      const hr = header?.getBoundingClientRect();
+      const visibleTop = Math.max(view.top + 8, hr && hr.top <= view.top && hr.bottom > view.top ? hr.bottom + 8 : 0);
+      const delta = () => {
+        const rect = el.getBoundingClientRect();
+        return focusScrollDelta(rect.top, rect.bottom, visibleTop, view.top + view.height - 8, view.keyboardOpen);
+      };
+      // Nearest-layout scrolling can no-op behind iOS's keyboard. Correct visual occlusion
+      // once after it settles, consuming nested scroll areas before moving the page.
+      for (let parent = el.parentElement; parent && Math.abs(delta()) > 1; parent = parent.parentElement) {
+        if (parent === document.body || parent === root) break;
+        if (parent.scrollHeight > parent.clientHeight && /^(auto|scroll)$/.test(getComputedStyle(parent).overflowY)) {
+          move(parent, delta());
+        }
+      }
+      if (Math.abs(delta()) > 1) move(root, delta(), true);
+    };
     const apply = () => {
       frame = 0;
-      // How much the visible area is inset from the bottom of the layout viewport.
-      const bottomInset = Math.max(
-        0,
-        window.innerHeight - vv.height - vv.offsetTop,
-      );
-      root.style.setProperty("--kb", `${Math.round(bottomInset)}px`);
-      root.style.setProperty("--vvh", `${Math.round(vv.height)}px`);
-      const open = bottomInset > KB_THRESHOLD;
-      if (open) root.setAttribute("data-kb", "open");
+      if (vv.height <= 0) return;
+      const view = geometry();
+      keyboardOpen = view.keyboardOpen;
+      if (!editable() && !keyboardOpen && Math.abs(vv.scale - 1) <= 0.01) baselineHeight = window.innerHeight;
+      root.style.setProperty("--kb", `${Math.round(view.bottom)}px`);
+      root.style.setProperty("--vvh", `${Math.round(view.height)}px`);
+      root.style.setProperty("--vv-top", `${Math.round(view.top)}px`);
+      if (keyboardOpen) root.setAttribute("data-kb", "open");
       else root.removeAttribute("data-kb");
+      if (checkFocus && allowFocusScroll) {
+        cancelFocusScroll();
+        focusTimer = window.setTimeout(nudgeFocus, 300);
+      }
+      checkFocus = false;
     };
-
-    const schedule = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(apply);
+    const schedule = (focus = false) => {
+      checkFocus ||= focus;
+      if (!frame) frame = requestAnimationFrame(apply);
+    };
+    const onResize = () => schedule(true);
+    const onScroll = () => schedule();
+    const onOrientation = () => {
+      const angle = (window as Window & { orientation?: number }).orientation ?? window.screen.orientation?.angle;
+      const landscape = angle === undefined ? innerWidth > innerHeight : Math.abs(angle) % 180 === 90;
+      baselineHeight = touch
+        ? (landscape ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height))
+        : window.innerHeight;
+      schedule(true);
+    };
+    const onFocusIn = () => {
+      if (!editable()) return;
+      baselineHeight = Math.max(baselineHeight, window.innerHeight);
+      allowFocusScroll = true;
+      schedule(true);
+    };
+    const onFocusOut = () => { allowFocusScroll = false; cancelFocusScroll(); schedule(); };
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.target !== document.activeElement) { allowFocusScroll = false; cancelFocusScroll(); }
     };
 
     apply();
-    vv.addEventListener("resize", schedule);
-    vv.addEventListener("scroll", schedule);
-    window.addEventListener("orientationchange", schedule);
-
-    // Keep a focused field clear of the keyboard. Native focus scrolling handles the simple
-    // cases; this covers the ones it misses — fields inside our own scroll containers, and
-    // fields the (about-to-appear) keyboard will cover.
-    let focusTimer: number | undefined;
-    const onFocusIn = (event: FocusEvent) => {
-      const el = event.target as HTMLElement | null;
-      if (!el || !el.matches?.("input, select, textarea, [contenteditable]")) return;
-      if (el.matches('[type="checkbox"], [type="radio"], [type="range"], [type="button"], [type="submit"]')) return;
-      window.clearTimeout(focusTimer);
-      // Wait for the keyboard animation + a viewport update before measuring.
-      focusTimer = window.setTimeout(() => {
-        if (!el.isConnected || document.activeElement !== el) return;
-        const kb = parseFloat(getComputedStyle(root).getPropertyValue("--kb")) || 0;
-        const rect = el.getBoundingClientRect();
-        const safeBottom = (window.visualViewport?.height ?? window.innerHeight);
-        const hiddenBelow = rect.bottom > safeBottom - 8;
-        const hiddenAbove = rect.top < 8;
-        if (kb > KB_THRESHOLD ? hiddenBelow || hiddenAbove : hiddenAbove) {
-          el.scrollIntoView({ block: "nearest", behavior: "smooth" });
-        }
-      }, 300);
-    };
+    vv.addEventListener("resize", onResize);
+    vv.addEventListener("scroll", onScroll);
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onOrientation);
+    window.screen.orientation?.addEventListener("change", onOrientation);
     document.addEventListener("focusin", onFocusIn);
-    const cancelFocusScroll = () => window.clearTimeout(focusTimer);
-    const onPointerDown = (event: PointerEvent) => {
-      if (event.target !== document.activeElement) cancelFocusScroll();
-    };
-    document.addEventListener("focusout", cancelFocusScroll);
+    document.addEventListener("focusout", onFocusOut);
     document.addEventListener("pointerdown", onPointerDown, { passive: true });
-
     return () => {
       if (frame) cancelAnimationFrame(frame);
-      window.clearTimeout(focusTimer);
-      vv.removeEventListener("resize", schedule);
-      vv.removeEventListener("scroll", schedule);
-      window.removeEventListener("orientationchange", schedule);
+      cancelFocusScroll();
+      vv.removeEventListener("resize", onResize);
+      vv.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onOrientation);
+      window.screen.orientation?.removeEventListener("change", onOrientation);
       document.removeEventListener("focusin", onFocusIn);
-      document.removeEventListener("focusout", cancelFocusScroll);
+      document.removeEventListener("focusout", onFocusOut);
       document.removeEventListener("pointerdown", onPointerDown);
-      root.style.removeProperty("--kb");
-      root.style.removeProperty("--vvh");
+      for (const property of ["--kb", "--vvh", "--vv-top"]) root.style.removeProperty(property);
       root.removeAttribute("data-kb");
     };
   }, []);
-
   return null;
 }

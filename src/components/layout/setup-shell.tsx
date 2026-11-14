@@ -12,7 +12,7 @@ export async function SetupShell({ children }: { children: ReactNode }) {
   const user = await getCurrentUser();
   return (
     <div className="flex min-h-dvh flex-col bg-paper">
-      <header className="flex h-14 items-center justify-between border-b border-line px-4 pt-safe sm:px-6">
+      <header className="mono-setup-header flex h-14 items-center justify-between border-b border-line px-4 pt-safe sm:px-6">
         <Logo href="/onboarding" />
         <form action={logoutAction}>
           <PendingFields>

@@ -10,7 +10,7 @@ export default async function VerifyEmailPage() {
   const user = await getCurrentUser();
   const invitationPath = user ? await pendingInvitationPath(user.id) : null;
   return (
-    <main className="flex min-h-dvh flex-col bg-paper px-4 py-12">
+    <main className="mono-auth-main flex min-h-dvh flex-col bg-paper px-4 py-12">
       <div className="m-auto w-full max-w-sm space-y-6">
         <div className="flex justify-center"><Logo /></div>
         <div className="space-y-6 rounded-xl border border-line bg-surface p-5 sm:p-6">

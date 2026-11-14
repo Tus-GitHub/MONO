@@ -36,8 +36,7 @@ export function OfflineBanner() {
       role="status"
       aria-live="polite"
       className={cn(
-        "fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-2 px-4 py-2 text-center text-xs font-medium",
-        "pt-[max(0.5rem,env(safe-area-inset-top))]",
+        "mono-offline-banner fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-2 px-4 py-2 text-center text-xs font-medium",
         online
           ? "bg-success text-primary-fg"
           : "bg-ink text-paper",

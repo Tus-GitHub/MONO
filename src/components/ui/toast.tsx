@@ -102,7 +102,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {items.length > 0 ? (
         <Portal>
           <div
-            className="pointer-events-none fixed inset-x-0 top-0 z-[60] flex flex-col items-center gap-2 p-3 pt-safe sm:inset-x-auto sm:right-0 sm:top-auto sm:bottom-0 sm:items-end"
+            className="mono-toast pointer-events-none fixed inset-x-0 top-0 z-[60] flex flex-col items-center gap-2 p-3 pt-safe sm:inset-x-auto sm:right-0 sm:top-auto sm:bottom-0 sm:items-end"
             role="region"
             aria-label="Notifications"
           >

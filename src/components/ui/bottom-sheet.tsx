@@ -72,8 +72,7 @@ export function BottomSheet({
           its footer actions — ride up above it instead of hiding behind it. */}
       <div
         inert={!open}
-        className={cn("fixed inset-x-0 top-0 z-50 flex items-end justify-center transition-[bottom] duration-base ease-out", !open && "pointer-events-none")}
-        style={{ bottom: "var(--kb, 0px)" }}
+        className={cn("mono-sheet-wrap fixed inset-x-0 top-0 z-50 flex items-end justify-center transition-[bottom] duration-base ease-out", !open && "pointer-events-none")}
       >
         <div
           className={cn(
@@ -89,7 +88,7 @@ export function BottomSheet({
           aria-labelledby={title ? titleId : undefined}
           style={{ transform: drag ? `translateY(${drag}px)` : undefined }}
           className={cn(
-            "relative z-10 flex max-h-[calc(var(--vvh,92dvh)-1rem)] w-full max-w-xl flex-col rounded-t-2xl border border-line bg-elevated pb-safe shadow-xl",
+            "mono-dialog-panel mono-sheet-panel relative z-10 flex max-h-[calc(var(--vvh,92dvh)-1rem)] w-full max-w-xl flex-col rounded-t-2xl border border-line bg-elevated pb-safe shadow-xl",
             "transition-transform duration-slow ease-out",
             !drag && (visible ? "translate-y-0" : "translate-y-full"),
             className,

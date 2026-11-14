@@ -233,8 +233,7 @@ export function PhotoLightbox({
         role="dialog"
         aria-modal="true"
         aria-label={`Photo ${index + 1} of ${count}`}
-        style={{ bottom: "var(--kb, 0px)" }}
-        className="fixed inset-x-0 top-0 z-50 flex flex-col bg-photo-backdrop/95 backdrop-blur-sm transition-[bottom] duration-base ease-out"
+        className="mono-visual-layer fixed inset-x-0 top-0 z-50 flex flex-col bg-photo-backdrop/95 backdrop-blur-sm transition-[bottom] duration-base ease-out"
       >
         {/* top chrome */}
         <div className="flex items-center justify-between gap-3 px-4 py-3 text-white/90">
@@ -319,7 +318,7 @@ export function PhotoLightbox({
                   onChange={(event) => setCaptionDraft(event.target.value)}
                   placeholder="Add a caption"
                   autoFocus
-                  className="h-9 flex-1 rounded-lg border border-white/25 bg-white/10 px-3 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/40"
+                  className="h-9 min-w-0 flex-1 rounded-lg border border-white/25 bg-white/10 px-3 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/40"
                 />
                 <button
                   type="submit"

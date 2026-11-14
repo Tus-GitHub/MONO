@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (SOCIAL/radius/explicit Save release; responsive photo fixes preserved)
+Last updated: 2026-11-14 (automated iOS keyboard and landscape release underway)
 
 ## Project Overview
 
@@ -22,6 +22,20 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **iOS Safari/PWA keyboard and landscape (2026-11-14)** — user requests checking Safari
+  and installed PWA, fixing remaining keyboard/landscape issues with the same design and
+  deploying. Available surfaces are Windows/IAB; no connected iPhone or remote device
+  service found. User explicitly chose **automated checks only**. Use WebKit engine and
+  simulated visual-viewport/safe-area/standalone profiles; never claim native iPhone QA.
+  Confirmed live baseline failures for pinch/covered confirmation field. Implemented
+  offset-aware viewport geometry and focus scroll, safe-area layout/overlay gutters,
+  short-dialog scrolling, preserved sheet input focus, unrestricted manifest orientation
+  and a worker cache-version refresh. All 300 WebKit/Chromium browser/PWA + light/dark checks passed with no page errors;
+  27 targeted WebKit/PWA checks passed again after preserving 81694ed, with retained-focus
+  assertions. All 404 unit tests, full ESLint, TypeScript/production build and 25 tablet/desktop
+  samples passed; publishing and live HTTPS checks remain. Isolated
+  codex/ios-keyboard-landscape; unrelated root work remains untouched.
 
 - **Discovery, location feedback and explicit plan saving (2026-11-14)** — user reported
   location timing out, Jaipur appearing selected, sparse Explore results/missing Social, and
@@ -1353,6 +1367,27 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-14 — Automated iOS keyboard and landscape remediation
+
+**IN PROGRESS.** User requests Safari and installed-PWA keyboard/landscape checks, fixes,
+same design and deployment. Inventory showed no connected iPhone; user selected automated
+checks only. Continue independently with WebKit and explicit synthetic viewport/safe-area
+profiles, preserving a clear distinction from physical iOS/Safari. Initial inspection:
+viewport manager does not expose visual viewport offsetTop to fixed overlays, compares
+focused elements against height without offset, and may treat pinch zoom as a keyboard;
+layout/header/nav/viewer side-safe-area coverage is incomplete. Manifest currently requests
+portrait orientation. Baseline confirmed pinch zoom wrongly set keyboard mode and a
+confirmation field at 652px behind the simulated 430px visible edge. Fixed shifted viewport
+edges, nested/page focus scroll room, notch/home-indicator safe areas, short dialog overflow,
+sheet focus preservation and manifest orientation/cache version. All eight WebKit/Chromium browser/PWA and light/dark contexts
+passed 300 checks with no page errors, and 25 tablet/desktop public-page samples passed.
+After preserving newly published 81694ed, all 27 targeted WebKit/PWA checks passed again
+against the merged optimized build with retained-focus assertions. All 404 unit tests,
+full ESLint, TypeScript and the production build passed. The worker activation test was
+updated to verify both v3 caches retire and v4 caches remain. Publishing/live HTTPS checks
+remain; no native device QA is claimed.
+No product credentials/dependencies or production test accounts required.
 
 - **2026-11-14 — IN PROGRESS: fix discovery and save semantics.** User screenshots show
   a location timeout and Explore showing the QA-saved Jaipur café. Explain the fixture source,

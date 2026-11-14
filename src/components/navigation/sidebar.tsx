@@ -27,7 +27,7 @@ export function Sidebar({ coupleName, members }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-(--sidebar-w) flex-col border-r border-line bg-surface lg:flex">
+    <aside className="mono-sidebar fixed inset-y-0 left-0 z-30 hidden w-(--sidebar-w) flex-col border-r border-line bg-surface lg:flex">
       <div className="px-5 py-5">
         <Logo href="/home" />
       </div>

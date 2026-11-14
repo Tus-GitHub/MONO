@@ -452,3 +452,47 @@ there was no permanent deletion. The old whole-space fixture cleanup request is 
 this space now contains a pre-existing user-created draft. Final screenshot and non-secret
 result JSON are `.screenshots/live-filter-location-7554357.jpg` and
 `.postgres-test/live-filter-results-7554357.json`. Actual device GPS consent was not exercised.
+
+## iOS keyboard, safe areas and landscape (2026-11-14)
+
+The user selected automated checks only because this Windows workspace has no connected
+iPhone. Playwright WebKit on Windows exercises the browser engine with explicit simulated
+visual-viewport, safe-area and standalone values. This is not branded Safari, a native iOS
+keyboard or an actual home-screen installation. See the [Playwright WebKit limitations](https://playwright.dev/docs/browsers#webkit).
+
+Before the fix, a read-only live WebKit check classified 2x pinch zoom as an open keyboard.
+Registration's confirmation field ended at 652px with the simulated visible edge at 430px,
+and no corrective scroll occurred. The manifest also requested portrait-only orientation.
+
+Viewport geometry now includes the visual viewport's top offset and excludes pinch zoom
+from keyboard detection. Focus correction consumes nested scroll areas before the page,
+and keyboard occlusion creates enough page scroll room without doubling the gap in a
+content-resizing browser. Fixed sheets, dialogs and photo viewers use both visible edges.
+Short dialogs scroll as a whole so their footer remains reachable. Opening focus traps
+preserve a field already focused inside the sheet instead of taking that focus away.
+
+Shared safe-area tokens keep app/setup headers, navigation, page content and viewer
+controls clear of cutouts and the home indicator. Header height includes the top inset;
+scroll locks preserve side padding. Landscape is allowed by the manifest; the worker cache
+version advances so an existing installation can refresh its precached manifest. Existing color,
+typography, spacing and component design remain the reference. Geometry follows
+[VisualViewport's layout-relative offsets](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport/offsetTop)
+and [scale](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport/scale), with
+[WebKit safe-area guidance](https://webkit.org/blog/7929/designing-websites-for-iphone-x/).
+
+The isolated local database contains only generated fixtures. The optimized build runs
+with the supported test environment and normal database-backed signed sessions. Only the
+local harness removes CSP's HTTPS-upgrade directive for loopback HTTP; the live HTTPS
+deployment retains and separately verifies its production headers. No product dependency,
+database schema, provider credentials or production account is changed by this work.
+
+All 300 checks passed across WebKit and Chromium, browser/standalone simulation, light/dark,
+320/390/430px portrait and 844/932px landscape safe-area profiles. Coverage includes
+registration/profile focus, first navigation tap after keyboard dismissal, pinch zoom,
+rotation, content-resizing keyboard gaps, confirmation footers, venue search sheets and
+photo captions. Twenty-five public-page regression samples passed at 768–3840px. There were
+no page errors. The newer published plan release 81694ed was preserved before publication;
+27 targeted WebKit/PWA checks passed again against that merged optimized build, including
+an explicit check that each keyboard target retained focus. All 404 unit tests, full ESLint,
+TypeScript and the production build passed. The existing worker activation test now also
+checks retirement of both v3 caches while retaining v4. No physical iOS result is claimed.

@@ -66,7 +66,10 @@ export function useScrollLock(active: boolean) {
       unlockedBodyStyle = { overflow, paddingRight };
       const gap = window.innerWidth - document.documentElement.clientWidth;
       document.body.style.overflow = "hidden";
-      if (gap > 0) document.body.style.paddingRight = `${gap}px`;
+      if (gap > 0) {
+        const safePadding = parseFloat(getComputedStyle(document.body).paddingRight) || 0;
+        document.body.style.paddingRight = `${safePadding + gap}px`;
+      }
     }
     bodyLockCount++;
     return () => {
@@ -104,7 +107,8 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
         node.focus();
       }
     };
-    focusFirst();
+    // Preserve autofocus or a user's early tap inside an entering sheet/modal.
+    if (!node.contains(document.activeElement)) focusFirst();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
