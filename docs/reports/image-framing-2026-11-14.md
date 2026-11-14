@@ -16,12 +16,12 @@ Date: 2026-11-14
 
 ## Verification
 
-The final source includes concurrent production changes through `0f23a15`.
+The published source includes concurrent production changes through `623f193`.
 
 - 14 crop, image-resize and upload-queue unit tests passed.
 - Targeted ESLint and `git diff --check` passed.
 - `npm run build` passed, including TypeScript and the runtime-function size guard.
-  80 route traces: largest 3,445,049 bytes; summed 219,271,651; unique 5,642,390.
+  80 route traces: largest 3,448,719 bytes; summed 219,341,777; unique 5,646,121.
 - Headless browser tests use isolated local users, a dedicated loopback PostgreSQL database,
   real API routes and protected local storage. Generated red/green/blue images allow checks
   of saved pixels and dimensions, not just the upload response.
@@ -42,9 +42,10 @@ passes the isolated diagnostic. The full test now waits for outstanding requests
 Final local Chromium report `chromium-mwgohf04.json`: all 13 checks passed, zero page errors.
 WebKit report `webkit-mwgoggbb.json`: all 13 feature assertions passed; the overall zero-error
 assertion retained one background `/couple` prefetch access-control diagnostic on local HTTP.
-This is recorded as an unresolved local test diagnostic, not a clean full-suite pass.
-The separate settled-navigation diagnostic had zero errors. Production HTTPS verification
-remains the release follow-up. Local artifacts are under the ignored
+This is recorded as a local test diagnostic, not a clean full-suite pass. A subsequent local
+HTTPS flow was interrupted by forced document navigation racing a page refresh; no clean
+full local WebKit pass is claimed. The separate settled-navigation diagnostic had zero
+errors. The production HTTPS smoke check below passed. Local artifacts are under the ignored
 `.postgres-test/framing-results/` directory in the isolated image-framing worktree.
 
 Automated WebKit and PWA profiles do not establish behavior on a physical iPhone or installed
@@ -52,4 +53,15 @@ iOS PWA. Browser-native capture, photos and keyboard hardware were not used.
 
 ## Release
 
-Pending publication and the non-mutating production crop-preview smoke test.
+Commit `4590a53e3396007e2f2ab38752ffe4f1d0a68427` pushed to `main`.
+Vercel deployment `dpl_29iRfVVdP4Y1hR5HJSnKVZWe2cJ7` is **READY** and assigned to
+https://mono-kappa-beryl.vercel.app. Non-mutating production smoke verification is complete.
+
+Production smoke report `live-framing-report.json` **passed** with zero page errors:
+
+- Chromium mobile touch pinch increased crop zoom; Reset restored it.
+- Chromium and WebKit standalone-display profiles opened the deployed crop editor and
+  Full photo mode at 320x568, 390x844 and 844x390. Confirmation remained visible and there
+  was no horizontal overflow.
+- Cancel sent zero upload requests, leaving the synthetic account's saved photo unchanged.
+- Both sessions signed out successfully. No real user account or photo was changed.
