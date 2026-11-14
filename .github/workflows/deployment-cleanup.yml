@@ -46,8 +46,6 @@ jobs:
           node-version: 24
       - name: Test cleanup safety without network credentials
         run: node --test test/deployment-cleanup.test.mjs
-      - name: Install the pinned authenticated health-check CLI
-        run: npm install --global --ignore-scripts vercel@65.16.0
       - name: Clean obsolete deployments after a successful production release
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

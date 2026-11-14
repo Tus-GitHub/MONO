@@ -182,21 +182,44 @@ test("API errors never print returned credential-bearing response bodies", async
   const api = createApi("fixture-only", async () => new Response("sensitive upstream body", { status: 403 }));
   await assert.rejects(api.project(), error => !error.message.includes("sensitive") && /403/.test(error.message));
 });
-test("CLI health uses fixed safe hosts and has no credential in command arguments", async () => {
-  let seen;
-  const health = createHealthCheck((command, args, options) => {
-    seen = { command, args, options }; return { status: 0, stdout: `${JSON.stringify(goodHealth.body)}\n200` };
+test("protected health pins host and path, caches its credential and refuses redirects", async () => {
+  let calls = 0; const requests = [];
+  const health = createHealthCheck({ async healthToken() { calls++; return "fixture-private"; } }, async (url, options) => {
+    requests.push({ url, options }); return Response.json(goodHealth.body);
   });
   assert.deepEqual(await health(deployment("dpl_live", 300)), goodHealth);
-  assert.equal(seen.command, "vercel"); assert.equal(seen.args[0], "curl");
-  assert(seen.args.indexOf("--") < seen.args.indexOf("--silent"));
-  assert(!seen.args.includes("--token") && !seen.args.includes("--location")); assert.equal(seen.options.timeout, 45000);
+  await health(deployment("dpl_rollback", 200)); assert.equal(calls, 1);
+  assert.equal(requests[0].url, "https://mono-live.vercel.app/api/health");
+  assert.equal(requests[0].options.redirect, "manual");
+  assert.equal(requests[0].options.headers["x-vercel-protection-bypass"], "fixture-private");
   await assert.rejects(health({ url: "evil.invalid/;delete" }), /Unsafe/);
 });
-test("CLI errors or HTML responses cannot count as health", async () => {
-  await assert.rejects(createHealthCheck(() => ({ status: 1, stdout: "" }))(deployment("dpl_live", 300)), /health request failed/);
-  await assert.rejects(createHealthCheck(() => ({ status: 0, stdout: "<html>sign in</html>\n200" }))(deployment("dpl_live", 300)), /not application JSON/);
+test("protected health rejects sign-in redirects, HTML, and redacts network failures", async () => {
+  const api = { async healthToken() { return "fixture-private"; } };
+  await assert.rejects(createHealthCheck(api, async () => new Response("", { status: 302 }))(deployment("dpl_live", 300)), /HTTP 302/);
+  await assert.rejects(createHealthCheck(api, async () => new Response("<html>sign in</html>"))(deployment("dpl_live", 300)), /not application JSON/);
+  await assert.rejects(createHealthCheck(api, async () => { throw Error("fixture-private"); })(deployment("dpl_live", 300)), error => !error.message.includes("fixture-private") && /network/.test(error.message));
 });
+test("existing project automation health credential requires no mutation", async () => {
+  const api = createApi("fixture-only", async (url, options) => {
+    assert.equal(options.method, "GET"); assert.equal(url.pathname, `/v9/projects/${SCOPE.project}`);
+    return Response.json({ id: SCOPE.project, accountId: SCOPE.team, name: "mono", targets: { production: { id: "dpl_live" } }, protectionBypass: { "fixture-private": { scope: "automation-bypass" } } });
+  });
+  assert.equal(await api.healthToken(), "fixture-private");
+});
+test("missing health credential fails without changing protection settings", async () => {
+  let calls = 0;
+  const api = createApi("fixture-only", async (url, options) => {
+    calls++; assert.equal(options.method, "GET");
+    return Response.json({ id: SCOPE.project, accountId: SCOPE.team, name: "mono", targets: { production: { id: "dpl_live" } } });
+  });
+  await assert.rejects(api.healthToken(), /No existing automation health credential/); assert.equal(calls, 1);
+});
+test("a foreign project cannot create a health credential", async () => {
+  let calls = 0; const api = createApi("fixture-only", async () => { calls++; return Response.json({ id: "other" }); });
+  await assert.rejects(api.healthToken(), /Project\/team mismatch/); assert.equal(calls, 1);
+});
+
 test("workflow accepts only trusted successful main production events and standard free runners", async () => {
   const workflow = await readFile(new URL("../.github/workflows/deployment-cleanup.yml", import.meta.url), "utf8");
   for (const expected of ["deployment_status:", "refs/heads/main", "state == 'success'", "environment == 'Production'", "vercel[bot]", "cancel-in-progress: false", "contents: read", "ubuntu-24.04", "persist-credentials: false", "secrets.VERCEL_TOKEN", "default: dry-run"]) assert(workflow.includes(expected), expected);

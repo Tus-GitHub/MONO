@@ -33,7 +33,7 @@ The creator of both the deployment and its status must be `vercel[bot]`. Existin
 MONO deployment records use those exact values. Keep Vercel's Git setting for
 Vercel reports the deployed SHA as its Git ref; the script verifies that SHA
 against the current production deployment and checks its commit branch is `main`.
-`deployment_status` events enabled. Failed, canceled, skipped, preview and fork
+Keep Vercel's Git setting for `deployment_status` events enabled. Failed, canceled, skipped, preview and fork
 deployments cannot trigger destructive cleanup.
 
 The Actions workflow also has a manual **Run workflow** control, defaulting to
@@ -54,11 +54,13 @@ domain still belongs to it. It selects the most recent earlier READY production
 deployment as rollback. Both must return HTTP 200 and application JSON containing
 `status: ok` and `database: up` before anything is removed.
 
-Vercel CLI 65.16.0 is pinned only in this Actions job for authenticated `vercel curl`
-health checks. This handles the existing deployment protection using the token's
-Vercel identity. It does not disable protection or require a second bypass secret.
-The CLI may create a scoped automation bypass token. Tokens are not logged or
-committed. The application installs no additional dependency.
+Health checks use built-in Node HTTPS requests with a fixed deployment host and
+`/api/health` path. They read an existing project Automation Bypass credential
+from Vercel's project API. They never create a credential or change Deployment
+Protection settings. If no existing credential is available, cleanup fails safely.
+The credential stays only in Vercel and process memory and is never logged.
+Requests never follow redirects or send it to another host. No CLI installation
+or additional GitHub secret is needed.
 
 After a release, older unaliased READY deployments before the rollback, and
 terminal canceled/errored/blocked records, are eligible for recoverable deletion.
@@ -76,7 +78,7 @@ APIs. More than 25 candidates or ten inventory pages requires manual review.
 
 `npm run test:deployment-cleanup` exercises mocked API/health failures and races
 without network access or secrets. The normal CI checks and cleanup job run it.
-For a local dry run with an already authenticated CLI/environment:
+For a local dry run with VERCEL_TOKEN set in the environment:
 
 ```sh
 npm run cleanup:deployments

@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -131,6 +130,13 @@ export function createApi(token, fetcher = fetch) {
   }
   return {
     project: () => request(`/v9/projects/${SCOPE.project}`),
+    async healthToken() {
+      const project = await this.project(); checkProject(project);
+      const bypass = project.protectionBypass;
+      const token = Object.keys(bypass ?? {}).find(key => bypass[key].scope === "automation-bypass");
+      assert(token, "No existing automation health credential; protection settings were not changed and no deployments were deleted.");
+      return token;
+    },
     deployment: (id) => { assert(validId(id), "Invalid deployment identifier."); return request(`/v13/deployments/${id}`); },
     aliases: async (id) => { assert(validId(id), "Invalid deployment identifier."); return (await request(`/v2/deployments/${id}/aliases`)).aliases; },
     async list() {
@@ -155,19 +161,21 @@ export function createApi(token, fetcher = fetch) {
   };
 }
 
-export function createHealthCheck(run = spawnSync) {
-  return async (deployment) => {
+export function createHealthCheck(api, fetcher = fetch) {
+  let token;
+  return async deployment => {
     assert(typeof deployment.url === "string" && /^[a-z0-9-]+\.vercel\.app$/.test(deployment.url), "Unsafe deployment health hostname.");
-    const result = run("vercel", ["curl", `https://${deployment.url}/api/health`, "--scope", SCOPE.slug, "--",
-      "--silent", "--show-error", "--fail-with-body", "--max-time", "20", "--connect-timeout", "10", "--write-out", "\n%{http_code}"],
-    { encoding: "utf8", timeout: 45_000, maxBuffer: 64 * 1024, windowsHide: true });
-    const categories = [...new Set((result.stderr ?? "").toLowerCase().match(/forbidden|unauthorized|permission|not authorized|no existing credentials|scope|team|token|project|unknown option|invalid option|not found|timed out|\b40[13]\b|curl: \(\d+\)/g) ?? [])].join(", ");
-    assert(!result.error && result.status === 0, `Protected deployment health request failed; cleanup stopped. Exit ${result.status ?? "unknown"}; categories: ${categories || "unspecified"}.`);
-    const lines = result.stdout.trim().split(/\r?\n/);
-    const status = Number(lines.pop());
+    token ??= await api.healthToken();
+    let response;
+    try {
+      response = await fetcher(`https://${deployment.url}/api/health`, {
+        headers: { "x-vercel-protection-bypass": token }, redirect: "manual", signal: AbortSignal.timeout(20_000),
+      });
+    } catch { throw new Error("Protected health network request failed; cleanup stopped."); }
+    assert(response.status === 200, `Protected health returned HTTP ${response.status}; cleanup stopped.`);
     let body;
-    try { body = JSON.parse(lines.join("\n")); } catch { throw new Error("Health response was not application JSON; cleanup stopped."); }
-    return { status, body };
+    try { body = await response.json(); } catch { throw new Error("Health response was not application JSON; cleanup stopped."); }
+    return { status: response.status, body };
   };
 }
 
@@ -187,18 +195,7 @@ async function main() {
   assert(!expectedSha || /^[a-f0-9]{40}$/i.test(expectedSha), "Invalid release SHA.");
   checkActionContext(process.env, expectedSha);
   const api = createApi(process.env.VERCEL_TOKEN);
-  // Explicit local context for authenticated CLI curl; no interactive linking or auth change.
-  const filename = path.resolve(".vercel/project.json");
-  let project;
-  try { project = JSON.parse(await readFile(filename, "utf8")); }
-  catch (error) {
-    if (error.code !== "ENOENT") throw error;
-    await mkdir(path.dirname(filename), { recursive: true });
-    project = { projectId: SCOPE.project, orgId: SCOPE.team, projectName: "mono" };
-    await writeFile(filename, JSON.stringify(project));
-  }
-  assert(project.projectId === SCOPE.project && project.orgId === SCOPE.team, "Existing CLI project link does not match MONO.");
-  const result = await cleanupDeployments({ api, health: createHealthCheck(), apply, expectedSha, log: console.log });
+  const result = await cleanupDeployments({ api, health: createHealthCheck(api), apply, expectedSha, log: console.log });
   const summary = `MONO deployment cleanup: ${JSON.stringify(result)}`;
   console.log(summary);
   if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `\n${summary}\n`);
