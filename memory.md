@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (call controls and iPhone keyboard fix deployed; browser testing prohibited)
+Last updated: 2026-11-14 (free PWA compatibility audio implemented; checking and publishing)
 
 ## Project Overview
 
@@ -23,9 +23,41 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Call controls and screen-sharing follow-up (2026-11-14; browser testing paused by user)**
-  — User confirms another chat is using the desktop and explicitly says to stop our testing
-  until they tell us to resume. Do not operate QA browsers or resume live tests meanwhile.
+- **Free PWA audio-routing workaround (2026-11-14)** — user rejects native/store costs and
+  requests a workaround in the PWA. Research found Web Audio output selection as an alternate
+  route and WebKit single-track WebRTC routing bug 320087 (fixed upstream; installed release
+  availability not assumed). Implement opt-in compatibility playback with real exposed output
+  IDs, safe rollback/cleanup and standard playback recovery. Do not label acceptance by an API
+  as physical earpiece success. AudioSession playback hacks can terminate microphone tracks and
+  must not be used during two-way calls. User says both phones run latest versions and asks
+  whether version-specific: use runtime detection and explain update/device differences.
+
+- **Samsung notification settings recovery (2026-11-14)** — user reports manually allowing
+  MONO notifications worked while the internal Enable button did not. This is permission-flow
+  feedback, not proof of end-to-end notification delivery. Existing request already runs
+  synchronously from tap and supports callback/Promise; exact phone/browser blocking cause
+  remains unverified. Found missing automatic recheck on returning from external settings.
+  Adding focus/visibility/Permissions API observation, silent-request recovery, manual setup
+  guidance, and separate allowed-but-not-registered Finish enabling state. Browser testing
+  is now explicitly allowed again; zero-spend constraint remains in force.
+
+- **Strictly free native calling feasibility (2026-11-14)** — user asks how to obtain
+  speaker routing and whole-phone sharing like WhatsApp on Samsung/iPhone, then explicitly
+  says it must be free. Treat zero new spend as a constraint: no paid developer membership,
+  paid calling SDK or paid relay/hosting without a later user change. Research only; no native
+  implementation started. Android native MediaProjection/audio routing and private distribution
+  can use free tools; Google's limited-distribution account allows up to 20 authorized devices.
+  Apple free Personal Team builds expire after 7 days and need rebuild/reinstall; advanced
+  capabilities may require membership. Regular iOS distribution is not a guaranteed zero-cost
+  route. Need existing Mac/Xcode access and target iOS version before promising a free native
+  iPhone build. Native capture still follows system consent/lock/protected-content rules;
+  reliable calls can require TURN relay bandwidth. User now explicitly wants working audio
+  switching; asked whether a Mac/Xcode is available for free iPhone installation. No native
+  build or physical routing success claimed. Browser testing is allowed again.
+
+- **Call controls and screen-sharing follow-up (2026-11-14; browser testing resumed)**
+  — User explicitly says "Now you are free to test", superseding the earlier desktop pause.
+  Use only the disposable QA accounts for live calls and preserve other browser sessions.
   Requested WhatsApp-referenced voice/video layout, voice speaker/earpiece option,
   full-screen video and shared-screen viewing with thoughtfully placed controls.
   Reports iPhone sharing only MONO and cutting off when leaving for the phone home screen;
@@ -1595,6 +1627,85 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-14 — Free PWA audio-routing workaround (IN PROGRESS)
+
+User explicitly wants to stay PWA and avoid native/store costs. Implemented opt-in compatibility
+playback using AudioContext.setSinkId when present; otherwise local Web Audio MediaStream into
+the existing element route. Runtime detection, real enumerated output IDs, Refresh outputs,
+Use normal audio recovery, bounded waits, hangup cancellation and no peer/microphone stops.
+Normal supported element playback remains default. The original 37 focused tests passed; the
+audio-router suite now has 10 passing lifecycle tests including late fallback after hangup
+(38 focused cases total). TypeScript,
+targeted ESLint and production build passed (80 traces, largest 26.82 MiB). Review found a
+notification focus-event race before React rerenders; use a synchronous operation ref instead
+of a captured busy state so the watcher cannot cancel the just-started enable request. Rebuilding
+the final playback-fallback cancellation refinement before publication. Physical iPhone/Samsung
+routing remains unverified. No source changes planned after the final build.
+Included earlier notification recovery and transient call-sync feedback changes in this release.
+No claim that this adds an unexposed phone earpiece or guarantees a physical route change.
+My earlier blanket browser impossibility answer was too broad: browser/version capabilities and
+WebKit routing bugs matter. User says both phones are latest; Apple lists iOS 27.2.1 on Nov 14;
+Samsung official public release-note pages are stale, so no exact current Samsung build asserted.
+Use feature detection rather than a version-specific whitelist. Actual phone test still required.
+
+### 2026-11-14 — Store publication versus free personal installation (GUIDANCE)
+
+User asks whether MONO can be published to Play Store or App Store. Explain publication is
+possible after native implementation and store review, but ordinary developer accounts cost
+Google Play US$25 once and Apple US$99/year (local pricing/taxes vary). Apple's fee waivers
+are limited to qualifying organizations, not assumed for this personal app. Direct Android
+installation and free temporary iPhone development installation are separate from store
+publication. Strict zero-spend constraint remains; no enrollment, purchase or submission made.
+
+### 2026-11-14 — Free native Android and iPhone migration (GUIDANCE)
+
+User asks how to make MONO native on both platforms for free after confirming the browser/PWA
+cannot reliably control iPhone built-in speaker/earpiece routing. Recommended reusing the
+existing UI/backend with an open-source Capacitor shell and genuine native call/media plugins;
+packaging alone does not add routing, screen capture or background call delivery. Next.js server
+code remains hosted; a mobile client needs appropriate API/auth integration, not a static export
+of server-dependent pages. Android personal installation can use a free signed APK/toolchain.
+iPhone free Personal Team testing needs Mac/Xcode and 7-day provisioning renewal; public store
+distribution and full background push capabilities are not promised free. TURN/network usage
+can have costs even with open-source calling. Mac access remains unanswered. No native build,
+paid purchase, new deployment or browser test performed for this guidance. Earlier desktop QA
+was stopped by Computer Use URL-verification policy; do not claim screen-share/audibility pass.
+
+### 2026-11-14 — Samsung notification permission recovery (IN PROGRESS)
+
+User needed manual Samsung permission settings because the internal enable flow did not work.
+Fix external settings state reconciliation without re-prompting denied users or cancelling
+an active user-initiated enable operation. Preserve explicit subscription opt-in and distinguish
+browser permission from device push registration. Show manual recovery/help and accurate local
+test notification wording. No claim that OS-level settings can be overridden from the website.
+Browser testing explicitly reauthorized. Nine focused permission/audio-output tests and targeted
+ESLint passed; production build passed (80 traces, largest 26.82 MiB). During live QA, the
+two disposable accounts connected a voice call; Edge offered real system/Realtek outputs and
+accepted a speaker selection. Voice-to-video upgrade delivered remote camera video in Chrome.
+Physical audibility not yet confirmed. Screen picker is waiting for user consent. Found stale
+polling/heartbeat timeout text persisting during a connected call: separate transient sync
+feedback from call errors, clear it after successful poll and explain automatic retry.
+This does not fix network latency itself. Final build/deploy pending.
+
+### 2026-11-14 — Resume live QA and require working phone audio routing (IN PROGRESS)
+
+User supersedes earlier browser pause and explicitly wants working audio switching.
+Current PWA already calls setSinkId on actual browser-provided outputs. Native Android
+AudioManager and iPhone AVAudioSession are needed where built-in routes are not exposed.
+Asked for existing Mac/Xcode access before promising zero-cost iPhone installation; no answer
+yet and no native artifact built. Do not report desktop output selection as phone routing proof.
+
+### 2026-11-14 — Free native calling feasibility (ANSWERED; implementation not started)
+
+User requires zero cost for Samsung/iPhone speaker switching and whole-device sharing.
+Checked official Android MediaProjection/AudioManager, Google limited distribution,
+Apple audio routing/ScreenCaptureKit and account membership docs, and WebRTC TURN guidance.
+Native integration is the path to phone-level controls; a web wrapper alone does not supply
+the native call/capture implementation. Android private testing/distribution has a free route.
+Apple free Xcode Personal Team profiles expire after 7 days; do not promise full native
+capabilities, permanent installs, App Store distribution or unlimited relay use for free.
+No browser operation, account purchase, deployment or source-code change for this discussion.
 
 ### 2026-11-14 — Publish call controls and iPhone typing fix (DONE; device QA pending)
 

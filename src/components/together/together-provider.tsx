@@ -18,7 +18,7 @@ export function TogetherProvider({ userId, children }: { userId: string; childre
   const calling = useCoupleCall(userId), [hiddenFor, setHidden] = useState<string | null>(null);
   const [screenHelp, setScreenHelp] = useState(false);
   const screenSupported = useSyncExternalStore(subscribeCapabilities, screenSharingAvailable, () => false);
-  const { element: partnerAudioRef, blocked: partnerAudioBlocked, resume: resumePartnerAudio } = useRemoteCallAudio(calling.owned ? calling.remote : null);
+  const { element: partnerAudioRef, router: audioRouter, blocked: partnerAudioBlocked, resume: resumePartnerAudio } = useRemoteCallAudio(calling.owned ? calling.remote : null);
   const preparing = calling.phase === "permission" || calling.phase === "preparing";
   const id = calling.call?.id ?? (preparing ? "permission" : null);
   const incoming = calling.call?.status === "RINGING" && calling.call.calleeId === userId && !calling.owned;
@@ -42,7 +42,7 @@ export function TogetherProvider({ userId, children }: { userId: string; childre
     {calling.owned ? <>
       <CallControl icon={calling.muted ? "microphoneOff" : "microphone"} label={calling.muted ? "Unmute" : "Mute"} active={calling.muted} onClick={calling.toggleMute} />
       <CallControl icon="video" label={calling.call?.kind === "AUDIO" ? "Video" : calling.cameraOff ? "Camera on" : "Camera off"} active={!calling.cameraOff && !calling.sharing} disabled={calling.phase !== "connected" || calling.mediaBusy || calling.sharing} onClick={() => void calling.toggleCamera()} />
-      <CallAudioOutput key={id} audio={partnerAudioRef} />
+      <CallAudioOutput key={id} audio={partnerAudioRef} router={audioRouter} />
       <CallControl icon="screenShare" label={calling.sharing ? "Stop sharing" : "Share"} active={calling.sharing} disabled={calling.phase !== "connected" || calling.mediaBusy} onClick={() => { if (calling.sharing) void calling.stopSharing(); else if (screenSupported) void calling.shareScreen(); else setScreenHelp(!screenHelp); }} />
     </> : null}
     {incoming && !preparing ? <><div className="col-start-2"><CallControl icon="phoneEnd" label="Decline" tone="danger" onClick={() => { stopRingtone(); void calling.decline(); }} /></div><div className="col-start-4"><CallControl icon="phone" label="Pick up" tone="success" onClick={() => { stopRingtone(); void calling.accept(); }} /></div></>
@@ -71,6 +71,7 @@ export function TogetherProvider({ userId, children }: { userId: string; childre
         {calling.owned ? <>
           {partnerAudioBlocked ? <Button variant="secondary" onClick={resumePartnerAudio}>Tap to hear your partner</Button> : null}
           <p role="status" className="text-sm text-muted">{calling.phase === "connected" ? "Connected · media is not recorded" : calling.phase === "ringing" ? "Calling your partner…" : "Connecting…"}</p>
+          {calling.syncError ? <p role="status" className="text-xs text-muted">{calling.phase === "connected" ? "Call updates are delayed. Retrying automatically; you can stay on the call." : `${calling.syncError} Retrying call updates automatically…`}</p> : null}
           {screenHelp && !screenSupported ? <div className="rounded-xl bg-elevated p-3 text-ink"><p className="text-sm">Screen sharing isn’t offered by this browser. There is no screen permission for MONO to request here. You can still view your partner’s screen; use MONO on a supported desktop browser to share yours.</p><Button size="sm" variant="ghost" onClick={() => setScreenHelp(false)}>Got it</Button></div> : null}
           {calling.mediaBusy ? <div className="space-y-2"><p role="status" className="text-sm text-muted">Choose what to share in your browser. Your current call continues.</p><Button variant="ghost" onClick={calling.cancelMediaChange}>Cancel video change</Button></div> : null}
           {calling.sharing ? <p role="status" className="text-xs text-muted">{calling.screenPaused ? "Screen sharing is paused by your device. Return to the shared app or stop and share again." : `${calling.screenSurface === "browser" ? "Sharing the selected browser tab, not other apps." : calling.screenSurface === "window" ? "Sharing the selected window, not the whole screen." : "Sharing the source you selected."} Keep MONO open; your phone may pause capture when you switch apps or lock it. Screen audio is off.`}</p> : null}

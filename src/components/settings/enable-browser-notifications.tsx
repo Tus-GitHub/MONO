@@ -9,7 +9,7 @@ import { savePushSubscriptionAction } from "@/server/actions/reminders";
 import { TaskScope } from "@/lib/state/task";
 import { waitFor } from "@/lib/state/wait-for";
 import { idleState } from "@/lib/utils/result";
-import { requestNotificationPermission, notificationSetupError } from "@/lib/notifications/browser-permission";
+import { requestNotificationPermission, notificationSetupError, watchNotificationPermission } from "@/lib/notifications/browser-permission";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 
@@ -56,9 +56,21 @@ export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?
   const [feedback, setFeedback] = useState<string | null>(null);
   const [progress, setProgress] = useState("");
   const [revision, setRevision] = useState(0);
+  const [permission, setPermission] = useState<NotificationPermission>("default");
   const scope = useRef(new TaskScope());
+  const permissionOperation = useRef(false);
   const busy = state === "enabling" || state === "disabling";
   const displayState = state === "enabling" ? "off" : state === "disabling" ? "on" : state;
+
+  useEffect(() => {
+    if (!("Notification" in window)) return;
+    return watchNotificationPermission((next) => {
+      setPermission(next);
+      // The active enable flow handles its own permission result. Do not cancel it
+      // when the native prompt dismisses and focus returns to the page.
+      if (!permissionOperation.current) { setFeedback(null); setState("loading"); setRevision((value) => value + 1); }
+    });
+  }, []);
 
   useEffect(() => {
     const owner = scope.current;
@@ -72,6 +84,7 @@ export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?
         if (!signal.aborted) setState(isIOS() && !isStandalone() ? "ios-needs-install" : "unsupported");
         return;
       }
+      setPermission(Notification.permission);
       if (!VAPID_PUBLIC_KEY) {
         if (!signal.aborted) setState("not-configured");
         return;
@@ -100,12 +113,14 @@ export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?
   const enable = async () => {
     const signal = scope.current.begin();
     if (!signal || state !== "off") { if (signal) scope.current.finish(signal); return; }
+    permissionOperation.current = true;
     setState("enabling");
     setFeedback(null); setProgress("Waiting for notification permission…");
     let stage: "permission" | "device" | "save" = "permission";
     try {
       const permission = await requestNotificationPermission(signal);
       signal.throwIfAborted();
+      setPermission(permission);
       if (permission !== "granted") {
         setState(permission === "denied" ? "denied" : "off");
         setFeedback(permission === "denied" ? "Allow MONO in your browser and phone notification settings, then tap Check again." : "Permission wasn't granted. Check the notification icon beside your browser's address bar, then try again.");
@@ -137,6 +152,7 @@ export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?
       setFeedback(notificationSetupError(stage, error));
       setState("off");
     } finally {
+      permissionOperation.current = false;
       if (!signal.aborted) setProgress("");
       scope.current.finish(signal);
     }
@@ -145,6 +161,7 @@ export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?
   const disable = async () => {
     const signal = scope.current.begin();
     if (!signal || state !== "on") { if (signal) scope.current.finish(signal); return; }
+    permissionOperation.current = true;
     setState("disabling");
     try {
       const reg = await waitFor(navigator.serviceWorker.ready, signal);
@@ -169,18 +186,19 @@ export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?
       setState("on");
       toast({ title: "Couldn't turn off reminders. Try again.", variant: "error" });
     } finally {
+      permissionOperation.current = false;
       scope.current.finish(signal);
     }
   };
 
   const message: Record<Exclude<State, "enabling" | "disabling">, string> = {
-    loading: "…",
+    loading: "Checking notification permission and this device’s registration…",
     unsupported: "This browser can't show reminders — you'll still see everything inside MONO.",
     "not-configured": "Browser reminders aren't set up for this install. In-app notifications still work.",
     "ios-needs-install":
       "On iPhone, add MONO to your Home Screen first — then you can turn on reminders here.",
-    denied: "Notifications are blocked in your browser settings. Re-enable them there to use this.",
-    off: purpose === "calls" ? "Allow notifications for incoming calls, even when MONO is closed. Tap the alert to open MONO and answer." : "Want MONO to remind you about your next date, and when your partner adds something — even when MONO is closed?",
+    denied: "Your browser reports notifications are blocked. Allow MONO in browser or phone settings, then return here. MONO cannot change a blocked permission itself.",
+    off: permission === "granted" ? "Notification permission is allowed. Finish enabling to connect this device to your MONO alerts." : purpose === "calls" ? "Allow notifications for incoming calls, even when MONO is closed. Tap the alert to open MONO and answer." : "Want MONO to remind you about your next date, and when your partner adds something — even when MONO is closed?",
     on: "Enabled on this device. Delivery depends on your connection and phone notification settings.",
   };
 
@@ -195,20 +213,25 @@ export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?
           <p className="mt-0.5 text-sm text-muted">{message[displayState]}</p>
           {progress ? <p role="status" className="mt-2 text-sm text-muted">{progress}</p> : null}
           {feedback ? <p role="alert" className="mt-2 text-sm text-error">{feedback}</p> : null}
-          {displayState === "denied" || displayState === "unsupported" ? <Button size="sm" variant="secondary" className="mt-3" onClick={() => { setFeedback(null); setState("loading"); setRevision((value) => value + 1); }}>Check again</Button> : null}
+          {displayState === "denied" || displayState === "unsupported" || (displayState === "off" && !busy) ? <Button size="sm" variant="secondary" className="mt-3" onClick={() => { setFeedback(null); setState("loading"); setRevision((value) => value + 1); }}>Check again</Button> : null}
           {displayState === "off" ? (
             <Button size="sm" variant="secondary" className="mt-3" loading={busy} onClick={enable}>
-              Enable notifications
+              {permission === "granted" ? "Finish enabling notifications" : "Enable notifications"}
             </Button>
           ) : null}
           {displayState === "on" ? (
             <div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" className="mt-3" onClick={() => {
-              void navigator.serviceWorker.ready.then((reg) => reg.showNotification("MONO test notification", { body: "Popups are enabled. Incoming-call alerts open MONO to answer.", icon: "/icons/icon-192.png", tag: "mono_popup_test", data: { url: "/chat" } }))
+              void navigator.serviceWorker.ready.then((reg) => reg.showNotification("MONO test notification", { body: "If you can see this, MONO notifications can appear on this device. Tap to open Chat.", icon: "/icons/icon-192.png", tag: "mono_popup_test", data: { url: "/chat" } }))
                 .catch(() => toast({ title: "Couldn't show the popup. Check this device's notification settings.", variant: "error" }));
             }}>Test notification popup</Button><Button size="sm" variant="ghost" className="mt-3" loading={busy} onClick={disable}>
               Turn off
             </Button></div>
           ) : null}
+          <details className="mt-3 text-sm text-muted"><summary className="cursor-pointer">No popup, or enabled manually?</summary>
+            <div className="mt-2 space-y-2"><p>In Samsung Internet, check its notification/site settings and allow MONO. Also check phone Settings → Apps → Samsung Internet (or the installed MONO app) → Notifications.</p>
+              <p>Return here and tap Check again. If permission is allowed, tap Finish enabling notifications if shown, then Test notification popup. Check your notification shade too—your phone can deliver notifications without a popup or sound.</p>
+              <p>MONO can request browser permission, but cannot turn on a phone-level notification switch for you.</p></div>
+          </details>
         </div>
       </div>
     </div>

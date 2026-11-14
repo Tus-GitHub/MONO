@@ -5,6 +5,35 @@ and green pickup / red decline and hang-up actions. The remote view defaults to 
 screen content is not cropped; **Fill screen** deliberately crops to fill the available view.
 Audio remains on a separate persistent player when the call view is minimized.
 
+## Free PWA compatibility playback
+
+The Audio menu detects both media-element and Web Audio output selection at runtime. It does
+not whitelist browser versions. Refresh outputs re-enumerates real devices after headphones
+or Bluetooth change. Missing built-in speaker/earpiece routes cannot be invented by the app.
+
+**Try compatibility audio** is an opt-in experiment for an exposed route that fails to change
+sound. Where available it sends the remote audio through `AudioContext.setSinkId`, keeping
+the original player muted so there is only one audible output. Otherwise it re-renders the
+remote audio into a local Web Audio MediaStream for the existing audio element to route.
+The latter is an inference from WebKit's separate remote/local renderer behavior, not a
+verified fix on the user's iPhone. WebKit bug 320087 was fixed upstream in July 2026; that
+does not establish which installed Safari builds include the fix.
+
+**Use normal audio** restores the original player. Failed setup rolls back; pending setup is
+bounded and cancelled on hangup. Generated tracks/context are released, while incoming peer
+tracks and the microphone are never stopped by this playback helper. Compatibility mode lasts
+only for the current call and remains owned by the persistent call player when minimized.
+Physical audibility, echo cancellation quality and actual speaker/earpiece route still need
+testing on each phone. A resolved `setSinkId` promise is only an accepted browser request.
+
+Do not use `navigator.audioSession.type = "playback"` as an in-call speaker toggle: the Audio
+Session specification permits ending microphone capture for types other than auto or
+play-and-record. No capture/session-mode or permission bypass is used here.
+
+Sources: [Web Audio output routing](https://developer.chrome.com/blog/audiocontext-setsinkid/),
+[WebKit routing fix](https://github.com/WebKit/WebKit/commit/bdaffe35a57ea067f07b46dd45ba29a1c0557afd),
+[Audio Session microphone integration](https://www.w3.org/TR/audio-session/#microphone-mediastreamtrack).
+
 **Audio** lists actual outputs returned by the browser and uses `setSinkId`. Where supported,
 **Choose audio device** invokes the browser's `selectAudioOutput` picker from a user gesture.
 No invented speaker or earpiece identifiers are used. A phone can keep those routes under OS

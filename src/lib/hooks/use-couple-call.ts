@@ -13,6 +13,7 @@ export function useCoupleCall(userId: string) {
   const [local, setLocal] = useState<MediaStream | null>(null), [remote, setRemote] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null), [unread, setUnread] = useState(0), [owned, setOwned] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [muted, setMuted] = useState(false), [cameraOff, setCameraOff] = useState(false);
   const active = useRef<CallDTO | null>(null), peer = useRef<RTCPeerConnection | null>(null), stream = useRef<MediaStream | null>(null);
   const generation = useRef(0), starting = useRef(false), cursor = useRef("0"), heartbeat = useRef(0);
@@ -39,7 +40,7 @@ export function useCoupleCall(userId: string) {
     if (peer.current) { peer.current.onicecandidate = null; peer.current.onconnectionstatechange = null; peer.current.ontrack = null; peer.current.close(); peer.current = null; }
     for (const track of stream.current?.getTracks() ?? []) track.stop();
     stream.current = null; active.current = null; pendingIce.current = []; cursor.current = "0";
-    setLocal(null); setRemote(null); setOwned(false); setCall(null); setPhase("idle"); setMuted(false); setCameraOff(false);
+    setLocal(null); setRemote(null); setOwned(false); setCall(null); setPhase("idle"); setMuted(false); setCameraOff(false); setSyncError(null);
   }, []);
   const end = useCallback(async () => {
     const id = active.current?.id; release();
@@ -182,7 +183,8 @@ export function useCoupleCall(userId: string) {
         cursor.current = event.id;
       }
       if (Date.now() - heartbeat.current > 15_000) { await togetherFetch("/api/together/calls", { body: { action: "heartbeat", id: row.id }, signal }); heartbeat.current = Date.now(); }
-    } catch (error) { if (!signal.aborted && generation.current === runId) setError(errorMessage(error)); }
+      if (!signal.aborted && generation.current === runId) setSyncError(null);
+    } catch (error) { if (!signal.aborted && generation.current === runId) setSyncError(errorMessage(error)); }
   }, 1000, owned, true);
   useEffect(() => () => {
     generation.current++; mediaRequest.current?.abort(); videoRequest.current?.abort(); deadline.current?.stop(); peer.current?.close(); stream.current?.getTracks().forEach((track) => track.stop());
@@ -251,6 +253,6 @@ export function useCoupleCall(userId: string) {
     } catch { if (generation.current === runId) setError("Couldn't turn off video. End the call to stop the camera."); }
     finally { if (videoRequest.current === controller) { videoRequest.current = null; setMediaBusy(false); } }
   };
-  return { call, phase, local, remote, error, notice, unread, owned, muted, cameraOff, sharing, screenPaused: sharing && screenPaused, screenSurface, screenPreview, mediaBusy, start, accept, decline, end,
+  return { call, phase, local, remote, error, syncError, notice, unread, owned, muted, cameraOff, sharing, screenPaused: sharing && screenPaused, screenSurface, screenPreview, mediaBusy, start, accept, decline, end,
     toggleMute, toggleCamera, shareScreen: () => changeVideo("screen"), stopSharing, cancelMediaChange: () => videoRequest.current?.abort(), dismissError: () => { setError(null); setNotice(null); } };
 }
