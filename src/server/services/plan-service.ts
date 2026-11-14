@@ -80,6 +80,7 @@ export interface PlanDateDTO {
   timezone: string;
   status: DateStatus;
   title: string;
+  discoveryCategory?: string | null;
   notes: string | null;
   date: string | null; // YYYY-MM-DD
   startTime: string | null; // HH:MM
@@ -126,6 +127,7 @@ function toDTO(date: DateRow): PlanDateDTO {
     timezone: date.couple.timezone,
     status: date.status,
     title: date.title,
+    discoveryCategory: date.discoveryCategory,
     notes: date.notes,
     date: date.scheduledFor ? date.scheduledFor.toISOString().slice(0, 10) : null,
     startTime: date.plannedStartAt ? date.plannedStartAt.toISOString().slice(11, 16) : null,
@@ -244,6 +246,7 @@ export async function updateBasics(dateId: string, input: DateBasicsInput, expec
       where: { id: resource.id },
       data: {
         title: nextTitle,
+        discoveryCategory: input.discoveryCategory,
         notes: nextNotes,
         scheduledFor: nextScheduled,
         plannedStartAt: nextStart,
@@ -491,6 +494,7 @@ export async function duplicateDate(dateId: string): Promise<{ id: string }> {
       createdById: context.user.id,
       status: DateStatus.DRAFT,
       title: source.title ? `${source.title} (copy)`.slice(0, 160) : "",
+      discoveryCategory: source.discoveryCategory,
       notes: source.notes,
       plannedPlaceId: source.plannedPlaceId,
       expectedBudgetCents: source.expectedBudgetCents,

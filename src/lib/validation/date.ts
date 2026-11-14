@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { discoveryCategorySchema } from "./discovery";
 import {
   DateActivityKind,
   DateStatus,
@@ -133,6 +134,7 @@ export const transitionDateSchema = z.object({
 export const dateBasicsSchema = z
   .object({
     title: z.string().trim().max(160, "Keep the title under 160 characters.").optional(),
+    discoveryCategory: z.union([z.literal(""), discoveryCategorySchema]).transform((value) => value || null).optional(),
     date: futureDateString,
     startTime: timeString,
     endTime: timeString,

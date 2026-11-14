@@ -23,14 +23,36 @@ it("resolves an area before browsing its cafes instead of matching names elsewhe
   fetcher.mockResolvedValueOnce(collection([{ properties: { name: "Delhi", osm_key: "place", osm_value: "city" }, geometry: { type: "Point", coordinates: [77.2, 28.6] } }])).mockResolvedValueOnce(collection([cafe]));
   const results = await settle(new PhotonPlacesProvider().search({ text: "cafes in Delhi" }));
   expect(results).toHaveLength(1);
-  expect(fetcher.mock.calls[0][0].searchParams.get("layer")).toBe("city");
+  expect(fetcher.mock.calls[0][0].searchParams.has("layer")).toBe(false);
   const lookup = fetcher.mock.calls[1][0];
   expect(lookup.pathname).toBe("/reverse"); expect(lookup.searchParams.get("lat")).toBe("28.6"); expect(lookup.searchParams.get("lon")).toBe("77.2");
+});
+it("resolves the relevant city even when a same-named venue comes first, without the restrictive city layer", async () => {
+  fetcher.mockResolvedValueOnce(collection([
+    { ...cafe, properties: { ...cafe.properties, name: "Jaipur" } },
+    { properties: { name: "Jaipur", osm_key: "place", osm_value: "city", state: "Rajasthan" }, geometry: { type: "Point", coordinates: [75.8, 26.9] } },
+  ])).mockResolvedValueOnce(collection([cafe]));
+  await settle(new PhotonPlacesProvider().search({ text: "cafes in Jaipur" }));
+  expect(fetcher.mock.calls[0][0].searchParams.has("layer")).toBe(false);
+  expect(fetcher.mock.calls[1][0].searchParams.get("lat")).toBe("26.9");
 });
 it("uses an explicitly supplied near point for cafes near me", async () => {
   fetcher.mockResolvedValue(collection([cafe]));
   await new PhotonPlacesProvider().search({ text: "cafes near me", near: { latitude: 28.6, longitude: 77.2 } });
   expect(fetcher).toHaveBeenCalledTimes(1); expect(fetcher.mock.calls[0][0].pathname).toBe("/reverse");
+});
+it.each([
+  ["activities", PlaceCategory.ACTIVITY, "leisure", "bowling_alley"],
+  ["shops", PlaceCategory.SHOPPING, "shop", "mall"],
+  ["hotels", PlaceCategory.TRAVEL, "tourism", "hotel"],
+])("browses %s in the selected city instead of treating it as a venue name", async (word, category, key, value) => {
+  const venue = { ...cafe, properties: { ...cafe.properties, name: "Selected venue", osm_key: key, osm_value: value } };
+  fetcher.mockResolvedValueOnce(collection([{ properties: { name: "Jaipur", osm_key: "place", osm_value: "city" }, geometry: { type: "Point", coordinates: [75.8, 26.9] } }])).mockResolvedValueOnce(collection([venue]));
+  const results = await settle(new PhotonPlacesProvider().search({ text: `${word} in Jaipur`, category }));
+  expect(results).toHaveLength(1);
+  expect(results[0].category).toBe(category);
+  expect(fetcher.mock.calls[0][0].searchParams.get("q")).toBe("Jaipur");
+  expect(fetcher.mock.calls[1][0].pathname).toBe("/reverse");
 });
 it("does not guess an area for near-me searches without coordinates", async () => {
   expect(await new PhotonPlacesProvider().search({ text: "cafes near me" })).toEqual([]); expect(fetcher).not.toHaveBeenCalled();

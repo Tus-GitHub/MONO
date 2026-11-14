@@ -23,29 +23,44 @@ import { EXPLORE_CATEGORIES } from "@/lib/date/explore-categories";
 import { PLACE_CATEGORY_LABEL } from "@/lib/date/place-category";
 import { selectPlaceForDateAction } from "@/server/actions/place";
 import type { PlaceSearchResult } from "@/server/services/place-search-service";
+import { DATE_IDEAS } from "@/lib/explore/date-ideas";
+import { addActivityAction } from "@/server/actions/plan";
+import type { PlanActivityDTO } from "@/server/services/plan-service";
 
-const BROWSE = EXPLORE_CATEGORIES.filter((category) => category.kind === "category");
+const BROWSE = EXPLORE_CATEGORIES.filter((category) => category.kind === "category" && !["adventure", "nature"].includes(category.key));
 
 export function PlacePickerSheet({
   dateId,
   open,
   onClose,
+  categoryKey,
+  onCategoryChange,
+  activities,
 }: {
   dateId: string;
   open: boolean;
   onClose: () => void;
+  categoryKey: string | null;
+  onCategoryChange: (key: string | null) => void;
+  activities: PlanActivityDTO[];
 }) {
   const router = useRouter();
   const [q, setQ] = useState("");
-  const [categoryKey, setCategoryKey] = useState<string | null>(null);
-  const [search, setSearch] = useState<TaskState<PlaceSearchResult[]>>({ status: "idle" });
+  const [city, setCity] = useState("");
+  const [search, setSearch] = useState<TaskState<{ key: string; results: PlaceSearchResult[] }>>({ status: "idle" });
   const selectionTask = useAsyncTask<void, "choosing">();
   const { reset: resetSelection } = selectionTask;
-  const results = search.status === "success" ? search.data : [];
-  const loading = search.status === "pending";
   const choosing = selectionTask.state.status === "pending";
   const error = selectionTask.state.status === "error" ? selectionTask.state.message : search.status === "error" ? search.message : null;
   const [retry, setRetry] = useState(0);
+  const searchKey = JSON.stringify([q, city, categoryKey, retry]);
+  const results = search.status === "success" && search.data.key === searchKey ? search.data.results : [];
+  const loading = search.status === "pending" || (open && search.status !== "error" && !(search.status === "success" && search.data.key === searchKey));
+  const selectedCategory = BROWSE.find((category) => category.key === categoryKey);
+  const ideas = selectedCategory ? DATE_IDEAS.filter((idea) => selectedCategory.match.includes(idea.category) &&
+    (!q.trim() || `${idea.title} ${idea.blurb}`.toLowerCase().includes(q.trim().toLowerCase()))) : [];
+  const ideaTask = useAsyncTask<void, "adding">();
+  const busy = choosing || ideaTask.state.status === "pending";
 
   useEffect(() => {
     if (!open) return;
@@ -55,13 +70,14 @@ export function PlacePickerSheet({
       try {
         const params = new URLSearchParams();
         if (q.trim()) params.set("q", q.trim());
+        if (city.trim()) params.set("city", city.trim());
         if (categoryKey) params.set("category", categoryKey);
         const response = await fetch(`/api/places/search?${params.toString()}`, {
-          signal: controller.signal,
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]), cache: "no-store",
         });
         if (!response.ok) throw new Error(String(response.status));
         const data = (await response.json()) as { results?: PlaceSearchResult[] };
-        if (!controller.signal.aborted) setSearch({ status: "success", data: data.results ?? [] });
+        if (!controller.signal.aborted) setSearch({ status: "success", data: { key: searchKey, results: data.results ?? [] } });
       } catch {
         if (!controller.signal.aborted) setSearch({ status: "error", phase: "search", message: !navigator.onLine ? "You're offline — reconnect to search." : "Couldn't load places just now." });
       }
@@ -70,7 +86,7 @@ export function PlacePickerSheet({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [open, q, categoryKey, retry]);
+  }, [open, q, city, categoryKey, retry, searchKey]);
 
   useEffect(() => { if (!open) resetSelection(); }, [open, resetSelection]);
 
@@ -94,20 +110,45 @@ export function PlacePickerSheet({
 
         <TabsContent value="find" className="space-y-3">
           <SearchInput value={q} onValueChange={setQ} placeholder="Venue name, or cafés in your city" />
+          <Field label="City or area" htmlFor="place-city" optional>
+            <Input id="place-city" value={city} onChange={(event) => setCity(event.target.value)} placeholder="e.g. Jaipur" />
+          </Field>
           <div className="scroll-x no-scrollbar -mx-1 flex gap-2 px-1">
+            <Chip size="sm" selected={!categoryKey} onClick={() => onCategoryChange(null)}>All</Chip>
             {BROWSE.map((category) => (
               <Chip
                 key={category.key}
                 size="sm"
                 selected={categoryKey === category.key}
                 onClick={() =>
-                  setCategoryKey((current) => (current === category.key ? null : category.key))
+                  onCategoryChange(categoryKey === category.key ? null : category.key)
                 }
               >
                 {category.label}
               </Chip>
             ))}
           </div>
+
+          {ideas.length > 0 ? <section className="space-y-2" aria-label="Matching date ideas">
+            <h3 className="text-sm font-medium text-ink">{PLACE_CATEGORY_LABEL[selectedCategory?.match[0] ?? PlaceCategory.OTHER]} ideas</h3>
+            <p className="text-xs text-muted">Add an idea to your plan. Choose a real venue separately below.</p>
+            <ul className="space-y-2">{ideas.map((idea) => {
+              const added = activities.some((activity) => activity.title.toLowerCase() === idea.title.toLowerCase());
+              return <li key={idea.key} className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3">
+                <div className="min-w-0 flex-1"><p className="text-sm font-medium text-ink">{idea.title}</p><p className="text-xs text-muted">{idea.blurb}</p></div>
+                <Button size="sm" variant="secondary" disabled={busy || added} aria-label={`${added ? "Added" : "Add"} ${idea.title}`}
+                  onClick={() => void ideaTask.run("adding", async () => {
+                    const form = new FormData(); form.set("dateId", dateId); form.set("title", idea.title);
+                    const result = await addActivityAction({ status: "idle" }, form);
+                    if (result.status === "error") throw new Error(result.message);
+                  })}>{added ? "Added" : "Add to plan"}</Button>
+              </li>;
+            })}</ul>
+            {ideaTask.state.status === "error" ? <p role="alert" className="text-sm text-error">{ideaTask.state.message}</p> : null}
+          </section> : null}
+
+          <h3 className="text-sm font-medium text-ink">{selectedCategory ? `${PLACE_CATEGORY_LABEL[selectedCategory.match[0]]} places` : "Places"}</h3>
+          {categoryKey && !q.trim() && !city.trim() ? <p className="text-xs text-muted">Showing saved places. Enter a city or area to find more matching venues.</p> : null}
 
           {error ? (
             <p className="flex flex-wrap items-center gap-x-2 text-sm text-error">
@@ -129,7 +170,7 @@ export function PlacePickerSheet({
           ) : results.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted">
               {q || categoryKey
-                ? "Nothing matched. Try the custom tab."
+                ? "No matching places found. Try another city or search, or add a custom place."
                 : "Search your saved places, or add a custom one."}
             </p>
           ) : (
@@ -157,7 +198,7 @@ export function PlacePickerSheet({
                     <Button
                       size="sm"
                       variant="secondary"
-                      disabled={choosing}
+                      disabled={busy}
                       onClick={() =>
                         choose(
                           place.savedPlaceId
@@ -184,7 +225,7 @@ export function PlacePickerSheet({
           <p className="text-sm text-muted">
             Can&apos;t find it? Add it yourself — you can flesh it out later.
           </p>
-          <CustomPlaceForm choosing={choosing} onChoose={choose} error={error} />
+          <CustomPlaceForm choosing={busy} onChoose={choose} error={error} />
         </TabsContent>
       </Tabs>
     </BottomSheet>

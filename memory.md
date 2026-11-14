@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (live signup, actual email verification and invitation join passed)
+Last updated: 2026-11-14 (all-category plan filters completed and verified locally; chat next)
 
 ## Project Overview
 
@@ -23,16 +23,21 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Verification and space-join latency (2026-11-14)** — tracing database round trips,
-  Server Action refreshes and invitation navigation; fix unnecessary waiting and repeat the
-  actual-email signup/verification/join flow on production in the right panel.
-  Implemented same-origin, no-store JSON confirmation/status/hint requests with a 15-second
-  timeout; removed duplicate root/client refresh and background Server Action queue.
-  Confirmation uses two locked transaction queries instead of six; connection actions
-  target the resolved onboarding step. Slow submissions offer a safe status link after
-  eight seconds. 364 unit + 114 local PostgreSQL tests, TypeScript, targeted lint and
-  Webpack production build pass. Initial sandbox build hit EPERM; retry passed with normal
-  filesystem access. Deployment/live retest pending.
+- **Publish filters and verify production (2026-11-14)** — user explicitly authorized
+  publishing/deploying the completed all-category filter changes and testing them live.
+  Run the established Webpack build gate, commit/push main, confirm the exact Vercel
+  deployment and additive migration, then test with disposable data in the right panel.
+
+- **Next update: private couple messenger** — explicitly deferred until filters are finished
+  (2026-11-14). Requested text, images, stickers, emoji, voice and video calls, using free
+  options. Discussed browser WebRTC calls and the need for a TURN relay on restrictive
+  networks; do not promise unlimited free hosting or universal relay-free connectivity.
+  No messaging/call implementation, new provider account, subscription or billing change yet.
+
+- **Live latency fixture cleanup (2026-11-14)** — live run 92e6bc63ca passed on 5bd1a57.
+  Exact owner cmwfhrmd70000jn085kxe763q, partner cmwfi1sjy0002js08zbkat7yu and empty
+  space cmwfhz08d0001jn073z348rlf await the requested permanent-cleanup approval. Both
+  temporary inboxes and private state remain until that approval; preserve real data.
 
 
 
@@ -58,6 +63,43 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Plan-aware filtering across every category (2026-11-14, local)** — added plan-type chips
+  and conservative title recognition; Adventure selects Activities, Nature selects Park,
+  and Café/Restaurant/Bar/Cinema/Museum/Shopping/Staycation use the matching Where filter.
+  Manual changes and All remain available. Nullable, validated `dates.discoveryCategory`
+  persists the choice independently of the custom title and supports duplicate/archive restore;
+  additive migration 20261114060000 exists and was applied only to the isolated local database.
+  Picker separates matching ideas (which add real plan activities) from saved/provider venues.
+  Added city browsing, mixed HOME/TRAVEL handling, category checks on provider results,
+  stale-response protection and bounded search waits. Real provider testing caught a city-layer
+  regression that chose small Jaipur villages; the corrected city/area lookup returned venues
+  in Jaipur, Rajasthan and excludes venue objects from city-center selection.
+  Right-panel local fixture passed Adventure → Activities, Add Bowling once, Café filtering,
+  Restaurant + city, All, place selection, save/reopen and activity persistence. Custom title
+  remained intact; real PostgreSQL confirmed category, café and one Bowling. 382 unit + 118
+  database tests, TypeScript, full lint and Webpack production build passed. Screenshots and
+  non-secret results retained in ignored local artifacts. Local preview stopped after testing.
+  Not committed, pushed, deployed or migrated in production. User explicitly chose filters
+  first and couple chat as the next update; no messaging/provider/billing changes were made.
+
+- **Faster verification and space joining (2026-11-14)** — published 5bd1a57 to main;
+  READY production deployment dpl_9yezvCYm8piKkM35sKqpd4sqFt9K serves the canonical MONO
+  alias in sin1. Private same-origin JSON confirmation/status/hint calls bypass RSC rendering
+  and the Server Action queue; confirmation has a 15-second timeout. Removed duplicate
+  verification refreshes, reduced locked confirmation queries from six to two, and redirect
+  connection actions straight to the resolved onboarding step. An eight-second pending hint
+  offers a safe status navigation without resubmitting. 364 unit and 114 isolated PostgreSQL
+  integration tests passed, along with TypeScript, targeted lint and Webpack build. The first
+  sandbox build hit .next EPERM; the normal-access retry passed. Vercel's Turbopack build passed.
+  Right-panel live run received all four real welcome/verification emails. Partner signed up
+  from the owner's link, was blocked while unverified, confirmed the actual email, unlocked
+  the original popup without refresh, returned through the email's invitation link, joined and
+  reached the connected setup with both names. Observed warm click-to-visible timings:
+  confirmation 305ms, verified-status check 508ms, join to profile 879ms (include browser control
+  overhead; not an SLA or cold-start guarantee). Database: two verified users, two active
+  members, one accepted invitation, one join notification. No generic error or production
+  error/fatal logs. Screenshots and non-secret result JSON retained; cleanup approval pending.
 
 - **Live signup → email verification → invitation join (2026-11-14)** — tested on bc0bc2c,
   READY deployment dpl_GLtRwnxUBeqizLGJ7ZfsAJ7hpgYD, in the right-panel browser. Two
@@ -1244,9 +1286,24 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
-- **2026-11-14 — IN PROGRESS: verification/join loading.** User requested faster email
-  confirmation and space joining plus another live test. Investigating redundant root
-  revalidation/client refresh, mount-time invitation actions and sequential database work.
+- **2026-11-14 — IN PROGRESS: publish/deploy filters and live test.** Publishing the tested
+  plan-category/city discovery changes; no messaging work is included. Preserve real plans
+  during live verification and retain the earlier fixture until cleanup is explicitly approved.
+
+- **2026-11-14 — DONE: all-category plan discovery.** User clarified Café and every other
+  category must auto-filter too, then explicitly deferred private couple messaging to the next
+  update. Implemented category persistence, title/chip mapping, matching ideas and venue/city
+  filtering; fixed the live provider's wrong-city lookup. Right-panel local persistence checks,
+  382 unit tests, all 118 integration tests, TypeScript, full lint and production build pass.
+  Production unchanged; feature remains local for publication. The earlier live email fixture
+  cleanup approval remains pending and its private state was preserved.
+
+- **2026-11-14 — DONE: verification/join loading and live retest.** Published 5bd1a57;
+  production READY. Confirmation 305ms, verified check 508ms and join 879ms in the warm
+  right-panel test, with real emails and PostgreSQL evidence. Removed refresh/redirect
+  waterfalls and bounded confirmation waiting. All 364 unit + 114 integration tests,
+  TypeScript, targeted lint and production build passed. Exact disposable-run cleanup was
+  requested separately because the Neon connector mandates destructive-SQL approval.
 
 ### 2026-11-14 — Live invitation acceptance from new signup — DONE
 

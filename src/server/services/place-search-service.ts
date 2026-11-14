@@ -11,6 +11,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getExternalPlaceProvider } from "@/lib/places";
 import { getPlaceHistoryMap, score10 } from "@/server/services/place-history";
 import { haversineKm } from "@/lib/utils/geo";
+import { CATEGORY_SEARCH_TEXT, providerCategoryFor } from "@/lib/date/plan-discovery";
 
 export interface PlaceSearchResult {
   /** Present when this is (or matches) a place already saved in MONO. */
@@ -41,6 +42,7 @@ export interface PlaceSearchResult {
 
 interface Options {
   text?: string;
+  city?: string;
   categories?: PlaceCategory[];
   near?: { latitude: number; longitude: number } | null;
   curated?: boolean;
@@ -51,12 +53,16 @@ export async function searchPlaces(options: Options = {}): Promise<PlaceSearchRe
   const { couple } = await requireCoupleContext();
   const limit = Math.min(options.limit ?? 24, 40);
   const text = options.text?.trim() || undefined;
+  const city = options.city?.trim().slice(0, 80) || undefined;
+  const providerCategory = providerCategoryFor(options.categories);
+  const browseText = CATEGORY_SEARCH_TEXT[providerCategory ?? PlaceCategory.OTHER];
 
   const [saved, history] = await Promise.all([
     prisma.place.findMany({
       where: {
         coupleId: couple.id,
         deletedAt: null,
+        ...(city ? { city: { contains: city, mode: "insensitive" } } : {}),
         ...(options.categories && options.categories.length
           ? { category: { in: options.categories } }
           : {}),
@@ -111,11 +117,12 @@ export async function searchPlaces(options: Options = {}): Promise<PlaceSearchRe
 
   // Merge in external provider results (deduped against saved places).
   const provider = getExternalPlaceProvider();
-  if (provider && text && !options.curated) {
+  if (provider && (text || (city && browseText)) && !options.curated) {
     const external = await provider
-      .search({ text, category: options.categories?.[0] ?? null, near: options.near, limit })
+      .search({ text: text ?? `${browseText} in ${city}`, city, category: providerCategory, near: options.near, limit })
       .catch(() => []);
     for (const place of external) {
+      if (options.categories?.length && (!place.category || !options.categories.includes(place.category))) continue;
       if (savedByProviderId.has(`${place.provider}:${place.providerPlaceId}`)) continue;
       results.push({
         savedPlaceId: null,

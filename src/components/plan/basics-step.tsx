@@ -15,6 +15,8 @@ import { useLocalDraft } from "@/lib/hooks/use-local-draft";
 import { UnsavedGuard } from "@/components/system/unsaved-guard";
 import { idleState } from "@/lib/utils/result";
 import { saveStepAction } from "@/server/actions/plan";
+import { Chip } from "@/components/ui/chip";
+import { PLAN_CATEGORIES, categoryFromPlanTitle, venueCategoryKey } from "@/lib/date/plan-discovery";
 import type { PlanDateDTO } from "@/server/services/plan-service";
 
 export function BasicsStep({ plan, userId }: { plan: PlanDateDTO; userId: string }) {
@@ -27,6 +29,8 @@ export function BasicsStep({ plan, userId }: { plan: PlanDateDTO; userId: string
   const { value: endTime, setValue: setEndTime } = useLocalDraft(`${prefix}:end`, plan.endTime ?? "");
   const title = useLocalDraft(`${prefix}:title`, plan.title);
   const notes = useLocalDraft(`${prefix}:notes`, plan.notes ?? "");
+  const category = useLocalDraft(`${prefix}:category`, plan.discoveryCategory ?? "");
+  const categoryKey = venueCategoryKey(category.value || categoryFromPlanTitle(title.value));
 
   return (
     <form action={action} className="space-y-6" noValidate>
@@ -35,6 +39,7 @@ export function BasicsStep({ plan, userId }: { plan: PlanDateDTO; userId: string
         <input type="hidden" name="dateId" value={plan.id} />
         <input type="hidden" name="version" value={plan.version} />
         <input type="hidden" name="step" value="basics" />
+        <input type="hidden" name="discoveryCategory" value={category.value} />
         <input type="hidden" name="date" value={date ?? ""} />
         <input type="hidden" name="startTime" value={date ? startTime : ""} />
         <input type="hidden" name="endTime" value={date ? endTime : ""} />
@@ -55,13 +60,22 @@ export function BasicsStep({ plan, userId }: { plan: PlanDateDTO; userId: string
             id="title"
             name="title"
             value={title.value}
-            onChange={(e) => title.setValue(e.target.value)}
+            onChange={(e) => { title.setValue(e.target.value); category.setValue(""); }}
             placeholder="Friday night out"
             maxLength={160}
           />
+          <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Type of plan">
+            {PLAN_CATEGORIES.map((choice) => <Chip key={choice.key} size="sm"
+              selected={category.value ? category.value === choice.key : categoryFromPlanTitle(title.value) === choice.key}
+              onClick={() => {
+                category.setValue(choice.key);
+                if (!title.value.trim() || PLAN_CATEGORIES.some((item) => item.label === title.value)) title.setValue(choice.label);
+              }}>{choice.label}</Chip>)}
+          </div>
         </Field>
 
-        <PlaceField dateId={plan.id} place={plan.place} />
+        <PlaceField dateId={plan.id} place={plan.place} categoryKey={categoryKey}
+          onCategoryChange={(key) => category.setValue(key ?? "all")} activities={plan.activities} />
 
         <div>
           <p className="mb-2 text-sm font-medium text-ink">When?</p>

@@ -18,6 +18,12 @@ export interface DateIdea {
 }
 
 export const DATE_IDEAS: DateIdea[] = [
+  { key: "bowling", title: "Bowling", blurb: "A few friendly rounds together.", category: PlaceCategory.ACTIVITY, icon: "sparkles", effort: "low" },
+  { key: "climbing", title: "Indoor climbing", blurb: "Try a climbing wall or a beginner bouldering session.", category: PlaceCategory.ACTIVITY, icon: "compass", effort: "medium" },
+  { key: "kayaking", title: "Kayaking", blurb: "Head out on the water with a local guided session.", category: PlaceCategory.ACTIVITY, icon: "compass", effort: "high" },
+  { key: "karting", title: "Go-karting", blurb: "Make a little friendly competition part of the date.", category: PlaceCategory.ACTIVITY, icon: "compass", effort: "medium" },
+  { key: "escape-room", title: "Escape room", blurb: "Work through a puzzle together against the clock.", category: PlaceCategory.ACTIVITY, icon: "sparkles", effort: "medium" },
+  { key: "arcade", title: "Arcade games", blurb: "Pick a few games and compare your high scores.", category: PlaceCategory.ACTIVITY, icon: "sparkles", effort: "low" },
   {
     key: "picnic",
     title: "Picnic",

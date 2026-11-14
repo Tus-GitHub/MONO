@@ -485,6 +485,7 @@ model Date {
 
   // --- Planning ---
   title                  String
+  discoveryCategory      String? // chosen plan/venue filter; null infers from the title
   notes                  String?
   scheduledFor           DateTime? // the day the date is planned for (midnight)
   plannedStartAt         DateTime?

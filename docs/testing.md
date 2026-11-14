@@ -328,4 +328,55 @@ navigation without submitting a second join.
 concurrent confirmation, replay/expiry, account closure races, unverified joins and delayed
 link/code joins. TypeScript, targeted ESLint and the Webpack production build passed. The
 initial sandbox build hit a Windows .next mkdir EPERM; the same build passed with normal
-filesystem access. Live evidence will be recorded after deployment.
+filesystem access.
+
+Production 5bd1a57, READY deployment dpl_9yezvCYm8piKkM35sKqpd4sqFt9K, passed the
+right-panel live run 92e6bc63ca. The owner created a space/link; the partner registered from
+that invitation and received actual welcome/verification emails. An unverified status check
+returned useful feedback, and Accept reopened the gate without joining. Actual confirmation
+showed success in 305ms; the original popup's fresh check closed it in 508ms without a page
+refresh. The email page's Return to your invitation opened the same link. Accept connected
+the partner and reached their required profile in 879ms, then Continue reached the shared
+setup showing both names. These are observed click-to-visible timings including browser
+control overhead in one warm run, not an SLA or cold-start benchmark.
+
+PostgreSQL independently confirmed two verified users, ACTIVE space, exactly two active
+members, one accepted invitation and one joined notification. No “Something went wrong”
+appeared; the deployment's error/fatal log query was empty. New confirmation left no token
+fragment in the success-page URL. Screenshots and non-secret results are in ignored local
+artifacts. Permanent cleanup of the exact fixtures/inboxes was requested; approval is pending.
+
+## Plan-aware venue filtering (2026-11-14, local)
+
+The Basics plan-type chips and recognized title terms select the matching Where category.
+Adventure maps to Activities and Nature to Park; all venue categories, including Café,
+Restaurant, Bar, Cinema, Museum, Shopping and Staycation, share the same filter path.
+Manual overrides and All are supported. `dates.discoveryCategory` is nullable for legacy
+plans, validates known keys, saves independently of a custom title, and survives copy and
+archive restore. The additive migration has only been applied to the isolated local database.
+
+The picker shows matching ideas with Add to plan separately from real saved/provider venues.
+City filtering applies independently of venue-name text; mixed Staycation categories browse
+hotels while retaining saved home places. Provider results with a mismatched category are
+discarded. A request key and abort signal prevent an older category response from appearing
+under a newer filter. Searches have a 15-second client deadline and retry feedback.
+
+Right-panel local testing used two synthetic users, one draft and three clearly named venues
+in an isolated PostgreSQL database. Adventure preselected Activities, displayed the saved
+bowling venue and activity ideas, and Add Bowling created exactly one persisted activity.
+Café displayed only the saved café. Restaurant with Jaipur showed no incorrect Delhi result;
+switching the city to Delhi showed the restaurant. All restored all three venues. Choosing the
+café and saving preserved the custom title and category; reload restored Café and the chosen
+venue, and the Activities step retained Bowling. Screenshots are retained under ignored
+`.screenshots/plan-adventure-filter-local.jpg` and `plan-cafe-filter-local.jpg`; non-secret
+database evidence is in `.postgres-test/discovery-ui-results.json`.
+
+Real public-provider checks also found and fixed a city-layer regression: `layer=city` omitted
+Jaipur, Rajasthan and returned same-named villages. The updated area lookup preserves provider
+relevance, validates city/area candidates, and avoids using a venue as the city center. Repeat
+café and activity searches returned venues in Jaipur Municipal Corporation. Results still
+depend on upstream coverage; no exhaustive worldwide listing is promised.
+
+382 unit tests, all 118 isolated database integration tests, TypeScript, full ESLint and the
+Webpack production build passed. No live account, plan, migration,
+provider credentials or deployment was changed. Couple messaging is explicitly the next update.

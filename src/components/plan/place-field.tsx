@@ -7,13 +7,21 @@ import { PlacePickerSheet } from "@/components/plan/place-picker-sheet";
 import { Icon } from "@/components/ui/icon";
 import { idleState } from "@/lib/utils/result";
 import { clearDatePlaceAction } from "@/server/actions/place";
+import type { PlanActivityDTO } from "@/server/services/plan-service";
+import { exploreCategoryByKey } from "@/lib/date/explore-categories";
 
 export function PlaceField({
   dateId,
   place,
+  categoryKey,
+  onCategoryChange,
+  activities,
 }: {
   dateId: string;
   place: { id: string; name: string } | null;
+  categoryKey: string | null;
+  onCategoryChange: (key: string | null) => void;
+  activities: PlanActivityDTO[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -64,11 +72,12 @@ export function PlaceField({
           className="flex w-full items-center gap-3 rounded-lg border border-dashed border-line-strong bg-surface px-3.5 py-2.5 text-sm text-muted transition-colors hover:border-primary hover:text-ink"
         >
           <Icon name="plus" size="sm" />
-          Add a place
+          {categoryKey ? `Find a place · ${exploreCategoryByKey(categoryKey)?.label}` : "Add a place"}
         </button>
       )}
 
-      <PlacePickerSheet dateId={dateId} open={open} onClose={() => setOpen(false)} />
+      <PlacePickerSheet dateId={dateId} open={open} onClose={() => setOpen(false)}
+        categoryKey={categoryKey} onCategoryChange={onCategoryChange} activities={activities} />
     </div>
   );
 }

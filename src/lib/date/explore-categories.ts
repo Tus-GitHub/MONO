@@ -18,6 +18,7 @@ export interface ExploreCategory {
 export const EXPLORE_CATEGORIES: ExploreCategory[] = [
   { key: "cafe", label: "Café", icon: "mapPin", tint: "bg-primary-tint text-primary", kind: "category", match: [PlaceCategory.CAFE] },
   { key: "restaurant", label: "Restaurant", icon: "mapPin", tint: "bg-primary-tint text-primary", kind: "category", match: [PlaceCategory.RESTAURANT] },
+  { key: "bar", label: "Bar", icon: "mapPin", tint: "bg-primary-tint text-primary", kind: "category", match: [PlaceCategory.BAR] },
   { key: "cinema", label: "Cinema", icon: "images", tint: "bg-accent-tint text-accent", kind: "category", match: [PlaceCategory.CINEMA] },
   { key: "park", label: "Park", icon: "compass", tint: "bg-success-tint text-success", kind: "category", match: [PlaceCategory.PARK] },
   { key: "museum", label: "Museum", icon: "images", tint: "bg-accent-tint text-accent", kind: "category", match: [PlaceCategory.MUSEUM] },

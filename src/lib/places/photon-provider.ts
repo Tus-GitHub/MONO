@@ -7,7 +7,7 @@ const TAGS: Partial<Record<PlaceCategory, string[]>> = {
   CAFE: ["amenity.cafe", "amenity.ice_cream"], BAR: ["amenity.bar", "amenity.pub", "amenity.biergarten"],
   PARK: ["leisure.park", "leisure.garden", "leisure.nature_reserve", "natural.beach"],
   CINEMA: ["amenity.cinema"], MUSEUM: ["tourism.museum", "tourism.gallery"],
-  ACTIVITY: ["tourism.attraction", "amenity.theatre", "leisure.sports_centre"],
+  ACTIVITY: ["tourism.attraction", "amenity.theatre", "leisure.sports_centre", "leisure.bowling_alley", "leisure.water_park", "leisure.amusement_arcade", "leisure.escape_game", "tourism.theme_park"],
   SHOPPING: ["shop"], TRAVEL: ["tourism.hotel", "tourism.guest_house", "tourism.camp_site"],
 };
 interface Feature {
@@ -41,13 +41,16 @@ function mapPlace(feature: Feature): ProviderPlace | null {
     externalRating: null, externalRatingCount: null, priceLevel: null,
   };
 }
-const AREA_QUERY = /^(caf[eé]s?|coffee(?: shops?)?|restaurants?|bars?|pubs?|parks?|museums?|cinemas?)\s+(?:in|near|around)\s+(.+)$/iu;
+const AREA_QUERY = /^(caf[eé]s?|coffee(?: shops?)?|restaurants?|bars?|pubs?|parks?|museums?|cinemas?|activities|adventures?|shops?|hotels?)\s+(?:in|near|around)\s+(.+)$/iu;
 function wordCategory(word: string): PlaceCategory {
   if (/^(caf|coffee)/i.test(word)) return PlaceCategory.CAFE;
   if (/^(bar|pub)/i.test(word)) return PlaceCategory.BAR;
   if (/^park/i.test(word)) return PlaceCategory.PARK;
   if (/^museum/i.test(word)) return PlaceCategory.MUSEUM;
   if (/^cinema/i.test(word)) return PlaceCategory.CINEMA;
+  if (/^(activit|adventure)/i.test(word)) return PlaceCategory.ACTIVITY;
+  if (/^shop/i.test(word)) return PlaceCategory.SHOPPING;
+  if (/^hotel/i.test(word)) return PlaceCategory.TRAVEL;
   return PlaceCategory.RESTAURANT;
 }
 
@@ -97,8 +100,14 @@ export class PhotonPlacesProvider implements PlaceProvider {
       category ??= wordCategory(area[1]);
       let point = query.near;
       if (!/^(me|here)$/i.test(area[2].trim())) {
-        const places = await this.get("/api/", new URLSearchParams({ q: area[2].trim(), layer: "city", limit: "1", lang: "en" }));
-        point = places[0] ? coordinates(places[0]) : null;
+        // Some installations classify large cities outside layer=city (live Jaipur did).
+        // Keep upstream relevance, but never mistake a same-named venue for a city/area.
+        const places = await this.get("/api/", new URLSearchParams({ q: area[2].trim(), limit: "5", lang: "en" }));
+        const location = places.find((place) => coordinates(place) && (
+          (place.properties?.osm_key === "place" && ["city", "town", "village", "hamlet", "suburb", "quarter", "neighbourhood"].includes(place.properties.osm_value ?? ""))
+          || (place.properties?.osm_key === "boundary" && place.properties.osm_value === "administrative")
+        ));
+        point = location ? coordinates(location) : null;
       }
       if (!point) return [];
       const params = this.parameters(category, limit);

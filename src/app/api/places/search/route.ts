@@ -5,6 +5,7 @@ import { isAppError } from "@/lib/errors";
 import { searchPlaces } from "@/server/services/place-search-service";
 
 export const dynamic = "force-dynamic";
+const headers = { "Cache-Control": "private, no-store" };
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
@@ -18,17 +19,18 @@ export async function GET(request: NextRequest) {
 
   try {
     const results = await searchPlaces({
-      text: params.get("q") ?? undefined,
+      text: params.get("q")?.slice(0, 120) || undefined,
+      city: params.get("city")?.trim().slice(0, 80) || undefined,
       categories: category?.kind === "category" ? category.match : undefined,
       curated: params.get("view") === "hidden" || category?.kind === "curated",
       near,
       limit: 24,
     });
-    return NextResponse.json({ results });
+    return NextResponse.json({ results }, { headers });
   } catch (error) {
     if (isAppError(error)) {
-      return NextResponse.json({ error: error.message }, { status: error.httpStatus });
+      return NextResponse.json({ error: error.message }, { status: error.httpStatus, headers });
     }
-    return NextResponse.json({ error: "Search failed." }, { status: 500 });
+    return NextResponse.json({ error: "Search failed." }, { status: 500, headers });
   }
 }
