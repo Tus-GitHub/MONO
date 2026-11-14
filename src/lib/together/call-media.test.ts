@@ -69,3 +69,13 @@ it("handles cancelled/unsupported sharing and stops a selection returned after h
   const abort = new AbortController(), pending = acquireScreenMedia(abort.signal); abort.abort();
   await expect(pending).rejects.toMatchObject({ name: "AbortError" }); const media = stream(); complete(media.value); await Promise.resolve(); expect(media.stop).toHaveBeenCalledOnce();
 });
+
+it.each([
+  ["NotReadableError", "couldn’t capture that screen"],
+  ["NotSupportedError", "no screen source"],
+  ["InvalidStateError", "Return to MONO"],
+  ["NotAllowedError", "If no picker appeared"],
+])("explains a %s screen failure without blaming microphone permission", async (name, text) => {
+  vi.stubGlobal("navigator", { mediaDevices: { getDisplayMedia: vi.fn().mockRejectedValue(new DOMException("capture failed", name)) } });
+  await expect(acquireScreenMedia(new AbortController().signal)).rejects.toThrow(text);
+});

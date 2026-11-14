@@ -1,5 +1,5 @@
 /** Device capture is invoked only from an explicit call, camera or screen-share action. */
-function capture(request: () => Promise<MediaStream>, signal: AbortSignal, denied: string, waiting: string): Promise<MediaStream> {
+function capture(request: () => Promise<MediaStream>, signal: AbortSignal, denied: string, waiting: string, captureError?: (error: unknown) => string): Promise<MediaStream> {
   return new Promise((resolve, reject) => {
     if (typeof window === "undefined" || !window.isSecureContext) { reject(new Error("Calling needs a supported browser and a secure connection.")); return; }
     if (signal.aborted) { reject(new DOMException("Call cancelled", "AbortError")); return; }
@@ -10,7 +10,7 @@ function capture(request: () => Promise<MediaStream>, signal: AbortSignal, denie
     signal.addEventListener("abort", cancel, { once: true });
     try {
       void request().then((stream) => { if (finished) stream.getTracks().forEach((track) => track.stop()); else settle(() => resolve(stream)); })
-        .catch((error) => settle(() => reject(new Error(error?.name === "NotReadableError" ? "Your camera or microphone is unavailable or already in use. Close other calls or camera apps, then try again." : error?.name === "NotFoundError" ? "No suitable camera or microphone was found. Connect a device and try again." : denied))));
+        .catch((error) => settle(() => reject(new Error(captureError ? captureError(error) : error?.name === "NotReadableError" ? "Your camera or microphone is unavailable or already in use. Close other calls or camera apps, then try again." : error?.name === "NotFoundError" ? "No suitable camera or microphone was found. Connect a device and try again." : denied))));
     } catch (error) { settle(() => reject(error instanceof Error ? error : new Error(denied))); }
   });
 }
@@ -44,5 +44,13 @@ export function acquireScreenMedia(signal: AbortSignal) {
     if (!navigator.mediaDevices?.getDisplayMedia) throw new Error("Screen sharing isn't available in this browser. Try a supported desktop browser.");
     // Invoke before any await: browsers require this call directly after the Share screen click.
     return navigator.mediaDevices.getDisplayMedia({ audio: false, video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 15, max: 24 } } });
-  }, signal, "Screen sharing was cancelled or wasn't allowed. Your call is still connected.", "Screen selection took too long. Your call is still connected; try Share screen again.");
+  }, signal, "Screen sharing was cancelled or wasn't allowed. Your call is still connected.", "Screen selection took too long. Your call is still connected; try Share screen again.", screenCaptureError);
+}
+
+export function screenCaptureError(error: unknown) {
+  const name = error instanceof Error ? error.name : "";
+  if (name === "NotReadableError") return "Your device couldn’t capture that screen. Keep the selected app open, stop other screen recordings, then try again. Your call continues.";
+  if (name === "NotFoundError" || name === "NotSupportedError") return "This browser has no screen source to share. Use a supported desktop browser; your call continues.";
+  if (name === "InvalidStateError") return "Return to MONO and tap Share again to open the screen picker. Your call continues.";
+  return "Screen sharing was cancelled or blocked by your browser. If no picker appeared, this browser may not support capture. Your call continues.";
 }

@@ -354,6 +354,9 @@ html[data-kb="open"] body {
   /* Safari can keep the layout tall behind the keyboard. Give covered fields scroll room. */
   padding-bottom: var(--kb);
 }
+html[data-kb="open"] body:has(.mono-chat-page) {
+  padding-bottom: 0;
+}
 .mono-appheader,
 .mono-setup-header {
   height: calc(var(--appheader-h) + var(--safe-top));
@@ -404,6 +407,9 @@ html[data-kb="open"] body {
   animation: none;
 }
 .mono-chat-input {
+  min-width: 0;
+  font-size: max(1rem, 16px);
+  scroll-margin: 0;
   max-height: min(7rem, max(2.75rem, calc(var(--vvh, 100dvh) * 0.24)));
   resize: none;
 }
@@ -474,6 +480,78 @@ html[data-kb="open"] .mono-modal-wrap {
 .mono-fullscreen-panel > .scroll-area,
 html[data-kb="open"] .mono-fullscreen-panel > .scroll-area {
   flex: 1 1 0%;
+  overflow-y: auto;
+}
+
+/* Call chrome overlays one viewport-sized stage, with safe-area aware controls. */
+.mono-call-panel {
+  --call-header-space: calc(4rem + var(--safe-top));
+  --call-controls-space: calc(6rem + var(--safe-bottom-visible));
+  padding: 0;
+  overflow: hidden;
+  background: var(--photo-backdrop);
+  color: white;
+}
+.mono-call-panel > :first-child {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 20;
+  border: 0;
+  padding-top: max(0.75rem, var(--safe-top));
+  padding-inline: max(1rem, var(--safe-left)) max(1rem, var(--safe-right));
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0.8), transparent);
+}
+.mono-call-panel > :first-child h2,
+.mono-call-panel > :first-child button { color: white; }
+.mono-call-panel > .scroll-area,
+html[data-kb="open"] .mono-call-panel > .scroll-area {
+  padding: 0;
+  overflow: hidden;
+}
+.mono-call-panel > :last-child:not(.scroll-area) {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 20;
+  border: 0;
+  padding: 1rem max(0.75rem, var(--safe-right)) max(0.75rem, var(--safe-bottom-visible)) max(0.75rem, var(--safe-left));
+  background: linear-gradient(to top, rgb(0 0 0 / 0.9), rgb(0 0 0 / 0.6), transparent);
+}
+.mono-call-controls { max-width: 32rem; margin-inline: auto; }
+.mono-call-video-fit {
+  position: absolute;
+  top: var(--call-header-space);
+  width: 100%;
+  height: max(0px, calc(100% - var(--call-header-space) - var(--call-controls-space)));
+}
+.mono-call-controls > div > button { width: 100%; }
+.mono-call-status {
+  margin-top: var(--call-header-space);
+  margin-inline: max(1rem, var(--safe-left)) max(1rem, var(--safe-right));
+  max-height: calc(var(--vvh, 100dvh) - var(--call-header-space) - var(--call-controls-space) - 1rem);
+  overflow-y: auto;
+  align-self: flex-start;
+  max-width: 32rem;
+  border-radius: var(--radius-lg);
+  background: rgb(0 0 0 / 0.6);
+  padding: 0.5rem 0.75rem;
+  color: white;
+}
+.mono-call-status > .text-muted { color: rgb(255 255 255 / 0.85); }
+.mono-call-preview {
+  position: absolute;
+  right: max(0.75rem, var(--safe-right));
+  bottom: var(--call-controls-space);
+  width: clamp(5rem, 22vw, 10rem);
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgb(255 255 255 / 0.3);
+}
+.mono-call-view-control { position: absolute; bottom: var(--call-controls-space); left: max(0.75rem, var(--safe-left)); }
+.mono-call-popover {
+  position: absolute;
+  bottom: calc(100% + 0.75rem);
+  inset-inline: 0;
+  max-height: calc(var(--vvh, 100dvh) - var(--call-header-space) - var(--call-controls-space));
   overflow-y: auto;
 }
 

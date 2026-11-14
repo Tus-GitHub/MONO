@@ -22,6 +22,15 @@ export function useCoupleCall(userId: string) {
   const videoRequest = useRef<AbortController | null>(null), videoSender = useRef<RTCRtpSender | null>(null);
   const screenStream = useRef<MediaStream | null>(null), cameraWasEnabled = useRef(false);
   const [sharing, setSharing] = useState(false), [screenPreview, setScreenPreview] = useState<MediaStream | null>(null), [mediaBusy, setMediaBusy] = useState(false);
+  const [screenPaused, setScreenPaused] = useState(false);
+  const [screenSurface, setScreenSurface] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    const track = screenPreview?.getVideoTracks()[0];
+    if (!track) return;
+    const sync = () => setScreenPaused(track.muted);
+    sync(); track.addEventListener("mute", sync); track.addEventListener("unmute", sync);
+    return () => { track.removeEventListener("mute", sync); track.removeEventListener("unmute", sync); };
+  }, [screenPreview]);
 
   const release = useCallback(() => {
     generation.current++; starting.current = false; deadline.current?.stop(); deadline.current = null; mediaRequest.current?.abort(); videoRequest.current?.abort();
@@ -197,7 +206,7 @@ export function useCoupleCall(userId: string) {
   const changeVideo = async (source: "camera" | "screen") => {
     const row = active.current, sender = videoSender.current, media = stream.current, runId = generation.current;
     if (videoRequest.current || screenStream.current || !row || row.status !== "ACCEPTED" || phase !== "connected" || !sender || !media) return;
-    const controller = new AbortController(); videoRequest.current = controller; setMediaBusy(true); setError(null);
+    const controller = new AbortController(); videoRequest.current = controller; setMediaBusy(true); setError(null); setNotice(null);
     let captured: MediaStream | null = null;
     try {
       captured = await (source === "screen" ? acquireScreenMedia(controller.signal) : acquireCameraMedia(controller.signal));
@@ -217,9 +226,10 @@ export function useCoupleCall(userId: string) {
       active.current = updated; setCall(updated);
       if (source === "screen") {
         screenStream.current = captured;
+        setScreenSurface(track.getSettings().displaySurface);
         const camera = media.getVideoTracks()[0]; cameraWasEnabled.current = camera?.enabled ?? false;
         if (camera) camera.enabled = false;
-        track.onended = () => void stopSharing();
+        track.onended = () => { setNotice("Your device stopped screen sharing. Your call continues; tap Share to choose a source again."); void stopSharing(); };
         setSharing(true); setScreenPreview(captured);
       } else {
         for (const old of media.getVideoTracks()) { old.stop(); media.removeTrack(old); }
@@ -241,6 +251,6 @@ export function useCoupleCall(userId: string) {
     } catch { if (generation.current === runId) setError("Couldn't turn off video. End the call to stop the camera."); }
     finally { if (videoRequest.current === controller) { videoRequest.current = null; setMediaBusy(false); } }
   };
-  return { call, phase, local, remote, error, notice, unread, owned, muted, cameraOff, sharing, screenPreview, mediaBusy, start, accept, decline, end,
+  return { call, phase, local, remote, error, notice, unread, owned, muted, cameraOff, sharing, screenPaused: sharing && screenPaused, screenSurface, screenPreview, mediaBusy, start, accept, decline, end,
     toggleMute, toggleCamera, shareScreen: () => changeVideo("screen"), stopSharing, cancelMediaChange: () => videoRequest.current?.abort(), dismissError: () => { setError(null); setNotice(null); } };
 }

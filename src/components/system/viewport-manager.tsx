@@ -37,6 +37,9 @@ export function ViewportManager() {
     const nudgeFocus = () => {
       const el = editable();
       if (!el || !el.isConnected || !allowFocusScroll || Math.abs(vv.scale - 1) > 0.01) return;
+      // Chat already tracks visualViewport. Scrolling the document here on iOS
+      // moves it a second time and sends the composer/messages above the keyboard.
+      if (el.closest(".mono-chat-page")) return;
       const view = geometry();
       const header = el.closest('[role="dialog"]') ? null : document.querySelector(".mono-appheader,.mono-setup-header");
       const hr = header?.getBoundingClientRect();

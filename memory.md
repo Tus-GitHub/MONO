@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (smaller functions deployed and verified)
+Last updated: 2026-11-14 (call controls and iPhone keyboard fix; browser testing prohibited)
 
 ## Project Overview
 
@@ -23,6 +23,36 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
+- **Publish call controls and iPhone typing fix (2026-11-14)** — user authorizes code work,
+  documentation research and publishing, explicitly prohibits browser testing until told.
+  User will test phones themselves; iPhone typing moves messages upward, Android works.
+  Official WhatsApp calling pages used as design reference. Implementing full-viewport
+  video stage, circular labelled controls, real browser audio-output selection with honest
+  OS-managed fallback, screen capture pause/end/error feedback. iOS chat: skip generic
+  document focus nudge, remove extra body keyboard padding and inherited header scroll margin.
+  No desktop/browser interaction or browser-based automated testing permitted this turn.
+  Implemented controls, fit/fill video, persistent audio routing picker, capture errors and
+  paused/ended-source feedback; documented platform limits in docs/mobile-calling.md.
+  35 focused Node tests pass, including two iPhone focus regressions. TypeScript and targeted
+  ESLint pass. Initial production build passed after filesystem permission retry. Synced
+  concurrent function-size changes through 520f4f4 without losing either task's memory;
+  merged production build and size guards pass (80 traces, largest 26.82 MiB, summed
+  529.13 MiB, unique 29.13 MiB); publishing now. Exact lockfile install
+  succeeded after removing only this workspace's generated .next cache/output to recover
+  from disk exhaustion. No source, QA data or unrelated files removed. Actual phone behavior
+  is user-tested.
+
+- **Call controls and screen-sharing follow-up (2026-11-14; browser testing paused by user)**
+  — User confirms another chat is using the desktop and explicitly says to stop our testing
+  until they tell us to resume. Do not operate QA browsers or resume live tests meanwhile.
+  Requested WhatsApp-referenced voice/video layout, voice speaker/earpiece option,
+  full-screen video and shared-screen viewing with thoughtfully placed controls.
+  Reports iPhone sharing only MONO and cutting off when leaving for the phone home screen;
+  Samsung still does not offer the needed permission, preventing screen sharing.
+  Exact Samsung permission remains unclear (previously notification, now screen sharing).
+  Research supported browser/OS audio routing and capture before promising native behavior;
+  physical-phone keyboard and two-way audio are still unverified.
+
 - **Responsive/mobile keyboard and two-way audio verification (2026-11-14)** — user asks
   full responsiveness check after full-screen release, including composer above mobile
   keyboard and audible media in both directions. Check live phone-sized portrait/landscape,
@@ -34,7 +64,12 @@ components. Business rules never live only in React components — they live in
   844x190 with multiline draft. Cap input against visual height, compact header/tabs while
   keyboard open/very short, and move photo preview to a sheet to avoid inflating composer.
   Normal 844x390 landscape and 768x1024 tablet pass. Fix passes TypeScript, direct ESLint
-  and production Webpack build; publishing then retesting the failing short-height case.
+  and production Webpack build. Published 3dbceb3; production deployment
+  dpl_2VAbuaJs21NbP8VvDPBD7aYVsj4M READY on the live alias. Retest 844x190 passed with
+  eight-line draft and expanded tools; Send stays visible. Test draft cleared without sending.
+  Further live call/page QA interrupted by repeated desktop helper "already has an active
+  request" and competing window changes. Asked user to leave QA controls to this chat.
+  Actual Android/iPhone keyboard and audible two-way audio results still pending.
 
 - **Mobile voice audio and Samsung notification follow-up (2026-11-14)** — user reports
   voice calls have no sound but video calls do; Samsung installed app notification enable
@@ -1611,9 +1646,42 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-14 — Responsive layout, mobile keyboard and audio audit (IN PROGRESS)
 
+Latest authorization: work on code/research and publish, but do NOT use a browser for testing.
+User will test themselves. They reiterate WhatsApp UI reference and report iPhone typing
+moving messages above the viewport while Android works. Implemented a full-stage call layout,
+icon controls, real audio output picker/fallback, Fit/Fill, screen capability/error/pause/end
+messages. Screen capture cannot exceed OS/browser limits. Removed generic focus page nudge
+for fixed chat and body keyboard padding there; cleared inherited composer scroll margin.
+35 focused Node tests pass; TypeScript/targeted lint pass. No browser operation performed.
+Merged current main through 520f4f4 (function-storage work retained), reinstalled the exact
+lockfile, reran all 35 focused tests and built successfully with size guards. Initial install
+hit disk exhaustion; only this workspace's generated .next cache/output was removed, then
+install/build succeeded. No source or QA fixture data removed. Publishing pending.
+
+Follow-up: user explicitly paused our browser testing because another chat is using it;
+wait for their resume instruction. Recorded requested WhatsApp-style voice/video controls,
+speaker option, full-screen shared content, iPhone capture stopping outside MONO and Samsung
+permission/capture issue. No browser actions taken after the stop instruction. No physical
+audio/keyboard pass inferred from this feedback.
+
 User requests full responsiveness and real mobile keyboard/two-way audio confirmation.
 Reviewing live QA layouts and viewport/media regressions; requested Android/iPhone user
 observations in parallel. Do not claim physical-phone audio from a connected UI alone.
+
+- Fixed and published commit 3dbceb3 (responsive input cap, compact short-height header,
+  photo preview in scrollable sheet). Production deployment dpl_2VAbuaJs21NbP8VvDPBD7aYVsj4M
+  READY and assigned mono-kappa-beryl.vercel.app. 26 focused tests, TypeScript, ESLint and
+  production Webpack build pass.
+- Live Edge device emulation: 320x568 / 390x844 portrait, 390x300 short viewport,
+  844x390 landscape and 768x1024 tablet checked. Former 844x190 multiline-draft failure
+  retested on deployed fix: composer and Send visible, also with expanded tools.
+- Cleared unsent QA draft; no messages/photos sent. Receiving Chrome QA page refreshed.
+  Edge microphone readiness check succeeded before sending a call. No call connection
+  or voice-to-video upgrade completed in this audit; setup is still open in Edge.
+- Desktop helper repeatedly reported another active request, with other window activity.
+  Pending user clarification about competing desktop use. Remaining live broader-page,
+  photo-sheet and call checks, browser emulation cleanup, and physical phone keyboard/audio
+  verification are not marked complete. Existing disposable QA accounts retained.
 
 ### 2026-11-14 — Full-screen chat and calls (DONE)
 
