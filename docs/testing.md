@@ -90,6 +90,17 @@ passed after two additional radius tests (130 distinct integration tests total).
 build passed. Local screenshots are
 `.postgres-test/social-radius-preview.png` and `.postgres-test/social-explore-preview.png`.
 
+Released as 81694ed3f68aeb9d96daa5978f3c16f70f291a48 after rebasing onto 297ac22 and passing
+the combined build. Production dpl_G7ZXLpoKsWhG92mNCxometswDF8T is READY on the canonical
+MONO alias in sin1; Vercel build completed in 54 seconds and the nullable migration applied.
+Live Explore and the new-plan picker each returned five actual SOCIAL outlets at 20 km;
+5 km returned only Noida at 749 m. Three source photos were loaded (naturalWidth > 0).
+The unrelated partial-word store was absent. New-plan navigation through all four steps
+reached Review; read-only production SQL confirmed the same five draft IDs and versions
+0/4/0/0/2 as the baseline. No production Save or deletion was performed for this retest.
+Health 200/database up and no error/fatal logs found for the deployment. Live screenshot:
+`.postgres-test/social-radius-live-81694ed.png`. Disposable local test cluster stopped/removed.
+
 ## Full live invitation flow (2026-11-14)
 
 Passed on bc0bc2c / production deployment dpl_GLtRwnxUBeqizLGJ7ZfsAJ7hpgYD using two disposable
@@ -563,3 +574,62 @@ reopen MONO and choose Refresh when the update banner appears. The dedicated loc
 database and generated fixture storage were removed; reports/screenshots remain ignored.
 Native iOS Safari, its actual keyboard and a physical home-screen installation remain
 unverified, as agreed with the user.
+
+### Private chat and 24-game arcade (2026-11-14, local implementation)
+
+All 432 unit tests (59 files), 164 isolated database integration tests (16 files), full ESLint,
+TypeScript and `npm run build -- --webpack` pass. The migration was generated against the
+existing schema, applied to a dedicated local PostgreSQL database and tested there. No
+production migration, publish, deployment, provider signup or billing change was performed.
+The production release remains 81694ed.
+
+Unit tests play each of the 24 games to a terminal result with immutable moves and JSON
+round-tripping. They cover legal turns, occupied squares, exact Ludo finishes/safe squares,
+chess king safety/repetition and real rank labels, hidden cards/fleets/numbers/choices, and
+media permission timeout/cancellation/late-track cleanup. Integration cases exercise every
+game's invitation/acceptance/first-move path, foreign/revoked membership, stale versions,
+concurrent retries/results, score forgery, message pagination beyond 60 with unchanged
+revision, read receipts, private image persistence/access/quota rollback, simultaneous calls,
+offer/answer roles, signal privacy, hang-up cleanup and call expiry. Race tests intentionally
+produce handled serialization/deadlock retries.
+
+The right-panel browser used two disposable, verified local accounts sequentially. It
+verified text + emoji + sticker delivery, image preview and explicit Send image, both
+partners loading the 360×240 re-encoded synthetic image, unread/read state, and the reply
+after switching accounts. It showed all 24 playable cards and filtered search. A Tic-tac-toe
+invitation was created, accepted by the partner and played by the owner; the board then
+disabled moves while waiting for the partner. A staged Ludo position finished through the
+real UI/API and recorded exactly one owner win/partner loss, retained after reload. Separate
+staged active fixtures verified chess piece selection/legal destination/move, concealed
+memory cards and two-card reveal, and a server-random Snakes & Ladders roll/turn change.
+These staged board checks are not claims of complete manual browser rounds for every game.
+
+320px, 390px and 1280px checks showed no document horizontal overflow; large game boards
+scroll inside their own container. The 320px header was tightened so the full MONO wordmark
+fits beside the added chat control. Call cancellation returned to idle without granting
+actual microphone/camera access. The final reloaded preview had no browser console errors.
+Actual two-device audio/video, mobile permissions and restrictive-network TURN remain device
+checks. The implementation uses no new paid service; existing hosting/database quotas apply.
+
+The local preview remains at `http://127.0.0.1:3213/chat`, backed only by the isolated PG
+database `mono_test_together_20261114` on port 55451. Ignored fixture helpers and local-only
+credentials remain under `.postgres-test/` for review. Evidence: `arcade-24-preview.png`
+(complete library), `arcade-overview-preview.png` and `arcade-scores-preview.png` in that
+directory, plus the `together-*` test/build logs. See `docs/chat-and-games.md` for game
+variants, image limits, call configuration and archive/backup scope.
+
+### Chat release and expanded calling (2026-11-14)
+
+Merged origin/main 28cdeb0 before release, preserving live uploads, multi-event planning and
+iOS layout fixes. The combined suite passes 460 unit tests across 64 files and 169 isolated
+database integration tests across 16 files. Added checks cover supplied-song looping,
+autoplay retry/cleanup, camera-only capture, synchronous display-picker invocation,
+capture rejection/deadlines/late-track cleanup, reserved video transceivers, answerer reuse,
+and authenticated/idempotent in-call upgrades without creating a second call.
+
+The desktop update replaced the browser tool. Its Windows URL safety check stopped automation
+before navigation, and opening the right panel was queued. No further UI input was attempted.
+The local synthetic two-peer media harness is prepared but not executed; neither it nor actual
+camera/screen transmission is claimed as verified. Earlier local chat/game browser evidence
+above still applies, but post-release browser verification remains outstanding. Live HTTP/API
+verification is tracked separately below once the authorized deployment is ready.

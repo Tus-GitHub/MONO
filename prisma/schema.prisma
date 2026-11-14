@@ -234,6 +234,14 @@ model User {
   pushSubscriptions      PushSubscription[]
   notificationDeliveries NotificationDelivery[]
   recommendationFeedback RecommendationFeedback[]
+  chatMessages           ChatMessage[]
+  chatStates             ChatMemberState[]
+  gamesAsOne             GameMatch[] @relation("GamePlayerOne")
+  gamesAsTwo             GameMatch[] @relation("GamePlayerTwo")
+  gamesWon               GameMatch[] @relation("GameWinner")
+  outgoingCalls          CoupleCall[] @relation("CallCaller")
+  incomingCalls          CoupleCall[] @relation("CallCallee")
+  callSignals            CallSignal[]
 
   @@index([deletedAt])
   @@map("users")
@@ -334,6 +342,7 @@ model Couple {
 
   // onboarding
   setupCompletedAt DateTime?
+  togetherRevision BigInt @default(0)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -349,12 +358,178 @@ model Couple {
   memories         Memory[]
   notifications    Notification[]
   archiveRestore   ArchiveRestore?
+  chatMessages     ChatMessage[]
+  chatImages       ChatImage[]
+  chatStates       ChatMemberState[]
+  games            GameMatch[]
+  calls            CoupleCall[]
 
   recommendationFeedback RecommendationFeedback[]
 
   @@index([createdById])
   @@index([status])
   @@map("couples")
+}
+
+enum ChatMessageKind {
+  TEXT
+  STICKER
+  IMAGE
+  GAME
+}
+
+enum MiniGameKind {
+  TIC_TAC_TOE
+  CONNECT_FOUR
+  LUDO
+  GOMOKU
+  REVERSI
+  DOTS_BOXES
+  NIM
+  TAKE_21
+  PIG
+  ROCK_PAPER_SCISSORS
+  MEMORY
+  BATTLESHIP
+  CHESS
+  CHECKERS
+  SNAKES_LADDERS
+  MANCALA
+  SOS
+  ORDER_CHAOS
+  HEX
+  DOMINEERING
+  CHOMP
+  BREAKTHROUGH
+  PENTAGO
+  HIGHER_LOWER
+}
+
+enum MiniGameStatus {
+  WAITING
+  ACTIVE
+  FINISHED
+  DECLINED
+  CANCELLED
+}
+
+enum CoupleCallKind {
+  AUDIO
+  VIDEO
+}
+
+enum CoupleCallStatus {
+  RINGING
+  ACCEPTED
+  ENDED
+  DECLINED
+  MISSED
+}
+
+model ChatMessage {
+  id          String @id @default(cuid())
+  sequence    BigInt @unique @default(autoincrement())
+  coupleId    String
+  senderId    String
+  clientNonce String
+  kind        ChatMessageKind
+  body        String @default("")
+  gameId      String?
+  createdAt   DateTime @default(now())
+  couple      Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  sender      User @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  game        GameMatch? @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  image       ChatImage?
+  @@unique([senderId, clientNonce])
+  @@index([coupleId, sequence])
+  @@map("chat_messages")
+}
+
+// Compressed, bounded chat images persist without requiring a separate paid bucket.
+// The bytes are selected only by the authenticated image endpoint, never by chat polling.
+model ChatImage {
+  messageId   String @id
+  coupleId    String
+  bytes       Bytes
+  byteLength  Int
+  contentType String
+  width       Int
+  height      Int
+  message     ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  couple      Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  @@index([coupleId])
+  @@map("chat_images")
+}
+
+model ChatMemberState {
+  coupleId     String
+  userId       String
+  lastRead     BigInt @default(0)
+  lastSeenAt   DateTime @default(now())
+  typingUntil  DateTime?
+  couple       Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([coupleId, userId])
+  @@map("chat_member_states")
+}
+
+model GameMatch {
+  id           String @id @default(cuid())
+  coupleId     String
+  playerOneId  String
+  playerTwoId  String
+  clientNonce  String
+  kind         MiniGameKind
+  status       MiniGameStatus @default(WAITING)
+  state        Json
+  version      Int @default(0)
+  winnerId     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  finishedAt   DateTime?
+  couple       Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  playerOne    User @relation("GamePlayerOne", fields: [playerOneId], references: [id], onDelete: Restrict)
+  playerTwo    User @relation("GamePlayerTwo", fields: [playerTwoId], references: [id], onDelete: Restrict)
+  winner       User? @relation("GameWinner", fields: [winnerId], references: [id], onDelete: Restrict)
+  messages     ChatMessage[]
+  @@unique([playerOneId, clientNonce])
+  @@index([coupleId, updatedAt])
+  @@map("game_matches")
+}
+
+model CoupleCall {
+  id           String @id @default(cuid())
+  coupleId     String
+  callerId     String
+  calleeId     String
+  clientNonce  String
+  kind         CoupleCallKind
+  status       CoupleCallStatus @default(RINGING)
+  createdAt    DateTime @default(now())
+  acceptedAt   DateTime?
+  endedAt      DateTime?
+  callerSeenAt DateTime @default(now())
+  calleeSeenAt DateTime?
+  couple       Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  caller       User @relation("CallCaller", fields: [callerId], references: [id], onDelete: Restrict)
+  callee       User @relation("CallCallee", fields: [calleeId], references: [id], onDelete: Restrict)
+  signals      CallSignal[]
+  @@unique([callerId, clientNonce])
+  @@index([coupleId, createdAt])
+  @@map("couple_calls")
+}
+
+model CallSignal {
+  id        BigInt @id @default(autoincrement())
+  callId    String
+  senderId  String
+  kind      String
+  payload   Json
+  createdAt DateTime @default(now())
+  call      CoupleCall @relation(fields: [callId], references: [id], onDelete: Cascade)
+  sender    User @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  @@index([callId, id])
+  @@map("call_signals")
 }
 
 /// A shareable, single-use, expiring link for the second person to join a couple.

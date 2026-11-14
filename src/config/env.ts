@@ -24,6 +24,7 @@ const schema = z.object({
 
   APP_URL: z.string().url().default("http://localhost:3000"),
   CRON_SECRET: z.union([z.literal(""), z.string().min(32)]).default(""),
+  COUPLE_ICE_SERVERS: z.string().max(8192).default(""),
 
   STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
   STORAGE_LOCAL_ROOT: z.string().default("./.storage"),

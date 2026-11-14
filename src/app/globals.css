@@ -8,6 +8,7 @@
    ========================================================================== */
 
 :root {
+  --game-cell-min: 2rem;
   /* — surfaces & text (light) — */
   --paper: #f5f1ea; /* app background */
   --surface: #fdfbf7; /* cards, inputs */

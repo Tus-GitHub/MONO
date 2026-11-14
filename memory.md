@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (uploads, multi-event planning and partner updates live)
+Last updated: 2026-11-14 (chat/arcade release, supplied ringtone, voice-to-video and screen sharing)
 
 ## Project Overview
 
@@ -23,30 +23,27 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Discovery, location feedback and explicit plan saving (2026-11-14)** — user reported
-  location timing out, Jaipur appearing selected, sparse Explore results/missing Social, and
-  unwanted unfinished dates being created before Save. Implemented shared city/location/radius
-  discovery, distinct provider-ID branch results, and a device-only four-step new-plan editor
-  with atomic, idempotent explicit Save. SOCIAL means the venue chain; user also requested
-  branch addresses, real photos, and 5 km or wider nearby searches. Found and fixed Noida's
-  restaurant-versus-bar photo mismatch. Local browser returned five SOCIAL outlets in a
-  20 km Noida search, including matched real photos. All 396 unit tests, 128 full DB tests plus
-  two later radius regressions (130 distinct integration cases), final 53 targeted tests and
-  TypeScript and full ESLint passed. Browser proved zero dates/places through all four steps, restored the
-  device draft after reconnection, then Save date created exactly one planned date/place/activity.
-  Explore and picker both returned 1 km/20 km branch results and matched real photos. Added
-  exact-word brand preference to exclude an unrelated “socially conscious store” when actual
-  SOCIAL outlets match. Final Webpack production build, TypeScript and ESLint passed. Publishing
-  to existing MONO production next, then live verification. Read-only baseline: run92 space has
-  five undeleted drafts, with versions 0/4/0/0/2 in creation order; preserve them all.
-  Browser reconnected after user said “check again”.
-  Preserve existing user drafts; no broad deletion is authorized by the complaint.
+- **Publish chat/arcade and expanded calling (2026-11-14)** — user explicitly authorizes
+  publish, production deployment and live testing. Add the provided Anywhere With You audio
+  on outgoing/incoming ringing, voice-to-video conversion and explicit screen sharing before
+  releasing. Preserve the newer 28cdeb0 upload, multi-event and iOS fixes pulled from main.
+  Verify call tone cleanup/autoplay fallback, camera/screen consent, private chat/game scope
+  and saved live scores. Do not use real user space for synthetic chat/call tests.
+  Resumed after desktop restart. Implemented supplied MP3 on both ringing ends, autoplay
+  fallback and cleanup; reserved video transceiver and answerer reuse enable in-call camera
+  and screen replacement. Capture consent is explicit; stopping sharing restores camera;
+  permission cancellation retains voice. All 169 local database integration tests pass.
+  Browser automation stopped because its Windows URL safety check could not identify Chrome;
+  no further browser input attempted. Right-panel opening is queued. Live API verification
+  can proceed, but synthetic peer media and actual device/browser testing are unverified.
+  Combined unit suite: 460 passed / 64 files. Integration: 169 passed / 16 files. TypeScript
+  passes. React review caught a ref-containing hook return access; destructured the audio
+  ref from reactive ringtone state. Final lint and production build precede commit/push.
 
-- **Next update: private couple messenger** — explicitly deferred until filters are finished
-  (2026-11-14). Requested text, images, stickers, emoji, voice and video calls, using free
-  options. Discussed browser WebRTC calls and the need for a TURN relay on restrictive
-  networks; do not promise unlimited free hosting or universal relay-free connectivity.
-  No messaging/call implementation, new provider account, subscription or billing change yet.
+- **Couple call device verification** — implementation and media-helper/backend signaling
+  tests pass; the right-panel permission/cancel path passes without granting devices.
+  Actual two-device audio/video and restrictive-network TURN still need a real-device check.
+  Do not claim universal relay-free calling or unlimited free provider resources.
 
 - **Earlier fixture cleanup needs fresh scope (2026-11-14)** — owner
   cmwfhrmd70000jn085kxe763q, partner cmwfi1sjy0002js08zbkat7yu and space
@@ -105,6 +102,47 @@ components. Business rules never live only in React components — they live in
   Windows and simulated keyboard/safe-area/standalone modes do not verify a physical iPhone.
   Reopen/refresh the installed PWA to receive the update. Reports: docs/testing.md and ignored
   .screenshots/ios-keyboard/{local,post-sync,live-results.json,desktop-regression.json}.
+
+- **Private chat and 24 scored games (2026-11-14)** — implemented locally, uncommitted and
+  not deployed. User chose classic four-token Ludo and expanded to 20+ games. All 24 games
+  are playable with server-authoritative turns, hidden-state redaction, persisted outcomes,
+  invitations/rematches and per-game W/L/D. Text, emoji, eight sticker cards, compressed private
+  image sharing, read receipts/typing/unread header, and WebRTC voice/video UI/signaling are
+  implemented using existing auth/Postgres; no paid provider signup or billing changes.
+  Chat images are byte-signature checked/re-encoded, capped at 512 KiB each and 25 MiB per
+  space, served by authenticated no-store routes; no blob bytes in polling. Games load lazily;
+  bounded incremental polling pauses in hidden tabs. Calls have permission/connection deadlines,
+  track cleanup and optional COUPLE_ICE_SERVERS relay configuration. Added BSD-2-Clause
+  chess.js 1.4.0 only. Migration 20261114130000 applied to isolated local test DB only.
+  All 432 unit tests, 164 DB integration tests, final full ESLint, TypeScript and Webpack
+  production build pass. Right-panel two-account QA verified message/sticker/emoji/photo
+  delivery, 24 cards/search, Tic-tac-toe invitation/acceptance/first move/turn enforcement,
+  staged Ludo finishing move and saved win/loss after reload, staged chess/memory/dice controls,
+  call cancellation and 320/390/1280 layouts. Fixed chess rank labels and cramped mobile header.
+  Final new-tab console errors empty. Screenshots: .postgres-test/arcade-24-preview.png,
+  arcade-overview-preview.png and arcade-scores-preview.png. Local preview retained on
+  http://127.0.0.1:3213/chat (session 33708) with disposable example.invalid accounts and
+  isolated PG port 55451/database mono_test_together_20261114; helpers/credentials ignored.
+  Production remains 81694ed. Docs: docs/chat-and-games.md, docs/testing.md. Planner portable
+  archive v1 does not include new history; complete DB backups preserve it. Real-device
+  media/relay verification remains as noted above; no actual mic/camera was granted.
+
+- **SOCIAL branches, radius and explicit Save (2026-11-14)** — published 81694ed; READY
+  production deployment dpl_G7ZXLpoKsWhG92mNCxometswDF8T on the canonical alias, sin1.
+  Rebased onto 297ac22, preserving the responsive photo fixes; combined build passed.
+  Shared Explore/picker city and location search offers 1/5/10/20/50/100 km, separate branch
+  IDs/addresses/distances, real matched photos, and exact-word brand results. No default city;
+  Jaipur was the earlier saved QA café. New plans stay on-device through all four steps until
+  explicit Save, with atomic venue/activity writes and duplicate-save protection. Nullable
+  migration applied successfully. 396 unit and 130 distinct DB regressions pass, with full
+  lint/TypeScript/Webpack builds. Local UI/SQL proved zero records before Save and exactly one
+  planned date/place/activity afterwards. Live Explore and picker both showed five SOCIAL
+  outlets within 20 km, only Noida at 749 m within 5 km, and three loaded source photos.
+  Live new-plan navigation through Review preserved all five existing drafts and versions
+  0/4/0/0/2. Health/database up; error/fatal logs empty. Real device GPS remains untested;
+  permission/timeout/cancellation/high-accuracy retry use mocks. Isolated local test cluster
+  stopped/removed. Screenshot: .postgres-test/social-radius-live-81694ed.png. User drafts and
+  accounts preserved; chat remains the deferred next update.
 
 - **Filter publication, live retest and Use my location (2026-11-14)** — initial a95439b
   pushed/deployed and migration 20261114060000 applied. Live testing found All + city omitted
@@ -1380,6 +1418,11 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
+- **2026-11-14 — IN PROGRESS: publish chat and games, song ringtone and expanded calls.**
+  User supplied Anywhere With You (1).mp3.mpeg, requested it for both ringing ends, then added
+  voice-to-video conversion and screen sharing. Target existing MONO production project;
+  include these changes before build/commit/push/deploy and test with dedicated fixtures.
+
 Additional steering in this task: user confirmed multiple venue/time events inside one day,
 requested ongoing-date photo access in Memories and automatic partner state updates, and
 asked for a two-hour editable time default plus validation at every Continue step. These
@@ -1429,14 +1472,30 @@ were empty in the checked window. Dedicated local synthetic database and storage
 No native device QA is claimed.
 No product credentials/dependencies or production test accounts required.
 
-- **2026-11-14 — IN PROGRESS: fix discovery and save semantics.** User screenshots show
+
+- **2026-11-14 — DONE locally: private chat, classic Ludo and 20+ games.** User approves chat,
+  chooses four tokens each for Ludo and explicitly requests at least 20 playable games.
+  Delivered all 24 with saved W/L/D, private text/image/sticker/emoji chat and WebRTC call
+  implementation. 432 unit/164 isolated integration tests, full lint/TypeScript/build pass;
+  two-account right-panel QA covers invites, messages, private images, turns, staged Ludo
+  scoring/reload, chess/memory/dice and call cancel. No mic/camera grant or real-device media
+  claim. Local preview remains available; no commit/push/deploy or production migration.
+  See Done entry and docs/chat-and-games.md for limits, screenshots and retained local fixture.
+
+- **2026-11-14 — DONE: fix discovery and save semantics.** User screenshots show
   a location timeout and Explore showing the QA-saved Jaipur café. Explain the fixture source,
   make discovery searchable beyond saved places, improve location fallback, and create a date
   only on explicit Save. Implemented separate SOCIAL branches, source-matched photos and
   addresses, shared city/location/radius controls, and atomic idempotent explicit Save. Local
   browser and SQL verified no premature records and exactly one final save. 396 unit/130
-  distinct DB cases, targeted regressions and TypeScript passed. Preparing release; existing
-  production user drafts remain untouched. Chat remains deferred.
+  distinct DB cases, targeted regressions, full lint and TypeScript passed. Rebased the release
+  onto newer responsive-photo commits, preserved both implementations, and rebuilt successfully.
+  Pushed 81694ed3f68aeb9d96daa5978f3c16f70f291a48; Vercel READY in sin1, build 54 seconds,
+  nullable migration applied. Live Explore/picker passed 5 km versus 20 km branch counts,
+  source photos and addresses; exact matching removed the unrelated store. Live new-plan
+  navigation reached Review with the same five pre-existing draft IDs/versions in SQL.
+  Health 200/database up; deployment error/fatal logs empty. Local cluster removed. Screenshot
+  .postgres-test/social-radius-live-81694ed.png. Real device GPS not acquired; chat deferred.
 
 - **2026-11-14 — DONE: publish/deploy filters and live test.** Published a95439b, then
   7554357 with the live-discovered All correction and user's requested Use my location option.

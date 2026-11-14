@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils/cn";
  * generic-SaaS glyph pack. Add glyphs to `GLYPHS` as needed.
  */
 const GLYPHS = {
+  message: <><path d="M20.5 11a8.5 8.5 0 0 1-8.5 8.5H5l-3 2v-7A8.5 8.5 0 1 1 20.5 11Z" /><path d="M7 10h8M7 14h5" /></>,
+  gamepad: <><path d="M7 7h10c3 0 4 11 2 11-1 0-3-3-4-3H9c-1 0-3 3-4 3-2 0-1-11 2-11Z" /><path d="M8 9v5M5.5 11.5h5M16 10h.01M18 13h.01" /></>,
   home: (
     <>
       <path d="M3 10.75 12 4l9 6.75" />

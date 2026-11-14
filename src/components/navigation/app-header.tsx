@@ -12,6 +12,7 @@ import { Icon } from "@/components/ui/icon";
 import { useEscapeKey } from "@/components/ui/_dialog-primitives";
 import { logoutAction } from "@/server/actions/auth";
 import { cn } from "@/lib/utils/cn";
+import { ChatLink } from "@/components/together/chat-link";
 
 interface AppHeaderProps {
   user: { name: string; avatarUrl?: string | null };
@@ -28,8 +29,8 @@ export function AppHeader({ user, unreadCount }: AppHeaderProps) {
   return (
     <header
       className={cn(
-        "mono-appheader sticky top-0 z-20 flex h-(--appheader-h) items-center gap-(--appheader-gap) border-b border-line bg-paper/85 pt-safe backdrop-blur-md",
-        "px-(--appheader-gutter) sm:px-6 lg:justify-end lg:border-b-0 lg:bg-transparent lg:px-8 lg:backdrop-blur-none",
+        "mono-appheader sticky top-0 z-20 flex h-(--appheader-h) items-center gap-0.5 border-b border-line bg-paper/85 pt-safe backdrop-blur-md sm:gap-(--appheader-gap)",
+        "px-3 sm:px-6 lg:justify-end lg:border-b-0 lg:bg-transparent lg:px-8 lg:backdrop-blur-none",
       )}
     >
       <div className="mr-auto min-w-0 lg:hidden">
@@ -48,6 +49,7 @@ export function AppHeader({ user, unreadCount }: AppHeaderProps) {
         <Icon name="compass" size="md" />
       </Link>
 
+      <ChatLink />
       <NotificationsBell unreadCount={unreadCount} />
       <AccountMenu user={user} />
     </header>
@@ -131,7 +133,7 @@ function AccountMenu({ user }: { user: { name: string; avatarUrl?: string | null
         <Icon
           name="chevronDown"
           size="sm"
-          className={cn("text-faint transition-transform duration-fast", open && "rotate-180")}
+          className={cn("hidden text-faint transition-transform duration-fast sm:block", open && "rotate-180")}
         />
       </button>
 

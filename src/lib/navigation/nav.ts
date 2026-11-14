@@ -21,6 +21,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "dates", label: "Our Dates", short: "Dates", href: "/dates", icon: "calendar", match: startsWith("/dates") },
   { key: "memories", label: "Memories", short: "Memories", href: "/memories", icon: "images", match: startsWith("/memories") },
   { key: "explore", label: "Explore", short: "Explore", href: "/explore", icon: "compass", match: startsWith("/explore") },
+  { key: "chat", label: "Chat & games", short: "Chat", href: "/chat", icon: "message", match: startsWith("/chat") },
   { key: "couple", label: "Couple", short: "Couple", href: "/couple", icon: "users", match: startsWith("/couple") },
 ];
 

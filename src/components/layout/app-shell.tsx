@@ -6,6 +6,7 @@ import { BottomNav } from "@/components/navigation/bottom-nav";
 import { Sidebar } from "@/components/navigation/sidebar";
 import { OfflineBanner } from "@/components/system/offline-banner";
 import { ReminderPoller } from "@/components/system/reminder-poller";
+import { TogetherProvider } from "@/components/together/together-provider";
 import type { SessionUser } from "@/lib/auth/current-user";
 
 export interface ShellPerson {
@@ -28,7 +29,7 @@ interface AppShellProps {
  */
 export function AppShell({ user, couple, members, unreadCount, children }: AppShellProps) {
   return (
-    <div className="min-h-dvh bg-paper">
+    <TogetherProvider userId={user.id}><div className="min-h-dvh bg-paper">
       <OfflineBanner />
       <ReminderPoller />
       <Sidebar coupleName={couple?.name ?? null} members={members} />
@@ -44,6 +45,6 @@ export function AppShell({ user, couple, members, unreadCount, children }: AppSh
       </div>
 
       <BottomNav />
-    </div>
+    </div></TogetherProvider>
   );
 }

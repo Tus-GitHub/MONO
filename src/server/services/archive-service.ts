@@ -185,7 +185,7 @@ async function imageContentType(bytes: Buffer): Promise<ArchivePayload["media"][
 type Destination = Awaited<ReturnType<typeof destination>>;
 async function restoreBlocker(couple: { id: string; photoKey: string | null; archiveRestore: unknown }, tx: Prisma.TransactionClient = prisma) {
   if (couple.archiveRestore) return "This space has already received an archive.";
-  const count = await Promise.all([tx.date.count({ where: { coupleId: couple.id } }), tx.place.count({ where: { coupleId: couple.id } }), tx.expense.count({ where: { coupleId: couple.id } }), tx.memory.count({ where: { coupleId: couple.id } }), tx.recommendationFeedback.count({ where: { coupleId: couple.id } })]);
+  const count = await Promise.all([tx.date.count({ where: { coupleId: couple.id } }), tx.place.count({ where: { coupleId: couple.id } }), tx.expense.count({ where: { coupleId: couple.id } }), tx.memory.count({ where: { coupleId: couple.id } }), tx.recommendationFeedback.count({ where: { coupleId: couple.id } }), tx.chatMessage.count({ where: { coupleId: couple.id } }), tx.gameMatch.count({ where: { coupleId: couple.id } }), tx.coupleCall.count({ where: { coupleId: couple.id } })]);
   return count.some(Boolean) || couple.photoKey ? "Restore requires an empty space with no existing couple cover." : null;
 }
 
