@@ -1,6 +1,7 @@
 import { Avatar } from "@/components/ui/avatar";
 import { Icon } from "@/components/ui/icon";
-import { Photo } from "@/components/ui/photo";
+import { CouplePhoto } from "@/components/ui/couple-photo";
+import { COUPLE_PHOTO_ASPECT } from "@/lib/images/crop";
 import { formatDate } from "@/lib/utils/format";
 import type { CoupleProfile } from "@/server/services/couple-insights-service";
 
@@ -35,17 +36,9 @@ export function CoupleProfileHeader({ profile }: { profile: CoupleProfile }) {
 
   return (
     <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
-      <div className="relative aspect-[5/2] w-full bg-line">
+      <div className="relative w-full bg-line" style={{ aspectRatio: COUPLE_PHOTO_ASPECT }}>
         {couple.photoUrl ? (
-          <Photo
-            displayUrl={couple.photoUrl}
-            thumbUrl={couple.photoUrl}
-            alt=""
-            priority
-            aspect="5 / 2"
-            sizes="(min-width: 768px) 44rem, 100vw"
-            className="absolute inset-0"
-          />
+          <CouplePhoto src={couple.photoUrl} priority className="absolute inset-0 size-full" />
         ) : (
           <div className="grid size-full place-items-center bg-linear-to-br from-primary-tint via-surface to-accent-tint">
             <Icon name="heartHandshake" size={40} className="text-primary/50" />

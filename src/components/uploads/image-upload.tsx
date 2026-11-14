@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Spinner } from "@/components/ui/spinner";
+import { ImageCropDialog } from "@/components/uploads/image-crop-dialog";
+import { COUPLE_PHOTO_ASPECT } from "@/lib/images/crop";
 import { downscaleImage } from "@/lib/images/client-resize";
 import { IMAGE_UPLOAD, validateImageRequest } from "@/lib/storage/image-rules";
 import { useAsyncTask } from "@/lib/hooks/use-async-task";
@@ -34,8 +37,10 @@ export function ImageUpload({
   hint,
   className,
 }: ImageUploadProps) {
+  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const lastFile = useRef<File | null>(null);
+  const [cropFiles, setCropFiles] = useState<File[] | null>(null);
 
   const task = useAsyncTask<{ url: string | null }, "uploading" | "removing">();
   const { run: runTask } = task;
@@ -64,20 +69,26 @@ export function ImageUpload({
         return response;
       } finally { if (!signal.aborted) setPreview(null); }
     });
-    if (outcome) onChange?.(outcome.data.url);
-  }, [runTask, endpoint, onChange]);
+    if (outcome) { onChange?.(outcome.data.url); router.refresh(); }
+  }, [runTask, endpoint, onChange, router]);
+
+  const select = (file: File) => {
+    if (status === "uploading" || status === "removing" || cropFiles) return;
+    task.reset();
+    setCropFiles([file]);
+  };
 
   const onPick = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (file) void upload(file);
+    if (file) select(file);
   };
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragging(false);
     const file = event.dataTransfer.files?.[0];
-    if (file) void upload(file);
+    if (file) select(file);
   };
 
   const remove = async () => {
@@ -86,16 +97,16 @@ export function ImageUpload({
       if (!response.ok) throw new Error("Couldn't remove the photo.");
       return { url: null };
     });
-    if (outcome) onChange?.(null);
+    if (outcome) { onChange?.(null); router.refresh(); }
   };
 
   const frame =
     shape === "circle"
       ? "size-24 rounded-full"
-      : "aspect-[3/2] w-full max-w-sm rounded-xl";
+      : "w-full max-w-sm rounded-xl";
 
   return (
-    <div className={cn("space-y-2", className)} data-uploading={status === "uploading" || status === "removing" || undefined}>
+    <div className={cn("space-y-2", className)} data-uploading={Boolean(cropFiles) || status === "uploading" || status === "removing" || undefined}>
       {label ? <p className="text-sm font-medium text-ink">{label}</p> : null}
 
       <div className="flex flex-wrap items-center gap-4">
@@ -106,6 +117,7 @@ export function ImageUpload({
           }}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
+          style={shape === "cover" ? { aspectRatio: COUPLE_PHOTO_ASPECT } : undefined}
           className={cn(
             "relative grid shrink-0 place-items-center overflow-hidden border border-line bg-surface text-faint",
             frame,
@@ -114,7 +126,7 @@ export function ImageUpload({
         >
           {shown ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={shown} alt="" className="size-full object-cover" />
+            <img src={shown} alt="" className={cn("absolute inset-0 size-full", shape === "cover" ? "object-contain" : "object-cover")} />
           ) : (
             <Icon name={shape === "circle" ? "user" : "images"} size="lg" />
           )}
@@ -192,6 +204,8 @@ export function ImageUpload({
         className="hidden"
         onChange={onPick}
       />
+      {cropFiles ? <ImageCropDialog files={cropFiles} shape={shape} onCancel={() => setCropFiles(null)}
+        onConfirm={([file]) => { setCropFiles(null); void upload(file); }} /> : null}
     </div>
   );
 }

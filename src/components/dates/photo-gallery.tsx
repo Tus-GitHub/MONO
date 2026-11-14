@@ -128,6 +128,7 @@ export function PhotoGallery({
                   blurDataUrl={photo.blurDataUrl}
                   width={photo.width}
                   height={photo.height}
+                  fit="contain"
                   aspect={layout === "single" ? undefined : layout === "pair" ? "1 / 1" : undefined}
                   alt={photo.caption ?? "Date photo"}
                   sizes={layout === "single" ? "100vw" : "(min-width: 640px) 33vw, 50vw"}

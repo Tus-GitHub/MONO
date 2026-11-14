@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (free PWA compatibility audio implemented; checking and publishing)
+Last updated: 2026-11-14 (photo adjustment release in progress; latest PWA audio and notification work preserved)
 
 ## Project Overview
 
@@ -22,6 +22,11 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Photo adjustment and consistent couple-photo framing (2026-11-14)** — crop/drag/pinch/zoom
+  confirmation added for profile, couple, date, camera and chat uploads, preserving the existing
+  style. Couple photos share one 5:2 frame with a full-photo option. Final headless automated
+  verification and publishing pending; no shared desktop browser use or call testing.
 
 - **Free PWA audio-routing workaround (2026-11-14)** — user rejects native/store costs and
   requests a workaround in the PWA. Research found Web Audio output selection as an alternate
@@ -1627,6 +1632,29 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-14 — Crop uploads and preserve couple-photo framing
+
+**IN PROGRESS.** User reports uploads have no framing control and couple photos are cut
+off differently across the app. Confirmed settings/onboarding used 3:2, the couple banner
+5:2 and Home a circle. Added a shared pre-upload crop dialog with drag, pinch, zoom,
+keyboard movement, reset, multi-photo review and full-photo preservation. All couple-photo
+displays now share a 5:2 frame and contain the saved image. Cancel never uploads; only
+confirmed crop pixels are sent. Camera, date and chat use the same editor. Found and fixed
+landscape dialog-footer clipping and an onboarding image-positioning conflict during QA.
+
+14 crop/resize/queue tests, targeted lint and the final production build passed (80 runtime
+traces; largest 3.29 MiB, summed 209.11 MiB, unique 5.38 MiB). Final Chromium report
+chromium-mwgohf04 passes all 13 end-to-end checks with zero page errors. WebKit report
+webkit-mwgoggbb passes all 13 functional checks but retains one background /couple prefetch
+access-control diagnostic on local HTTP; its overall zero-error assertion is not marked
+passed. The two-page settled-navigation diagnostic passes. Verify the deployed HTTPS site
+before reporting release completion. Local test fixtures and browser transport are isolated.
+Synced the isolated worktree through 623f193 to preserve the concurrently published call, keyboard
+and PostgreSQL adapter changes. No production records or photos have been changed. Tests
+run headlessly with dedicated profiles and a loopback database, without operating the shared
+desktop or changing the other chat's call tests. User asked "update" and then "is it
+published?"; answered accurately that the feature was not yet live and continued publishing.
 
 ### 2026-11-14 — Free PWA audio-routing workaround (IN PROGRESS)
 

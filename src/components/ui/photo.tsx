@@ -20,6 +20,7 @@ interface PhotoProps {
   priority?: boolean;
   className?: string;
   imgClassName?: string;
+  fit?: "cover" | "contain";
 }
 
 /**
@@ -43,6 +44,7 @@ function PhotoContent({
   priority = false,
   className,
   imgClassName,
+  fit = "cover",
 }: PhotoProps) {
   const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
 
@@ -86,7 +88,8 @@ function PhotoContent({
           onLoad={() => setStatus("loaded")}
           onError={() => setStatus("error")}
           className={cn(
-            "absolute inset-0 size-full object-cover transition-opacity duration-slow ease-out",
+            "absolute inset-0 size-full transition-opacity duration-slow ease-out",
+            fit === "contain" ? "object-contain" : "object-cover",
             status === "loaded" ? "opacity-100" : "opacity-0",
             imgClassName,
           )}

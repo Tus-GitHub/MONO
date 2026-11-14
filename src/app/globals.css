@@ -82,6 +82,12 @@
   --content-max: 72rem;
   --content-wide: 84rem;
   --prose-max: 42rem;
+  --crop-frame-max-height: min(22rem, 42dvh);
+}
+
+.image-crop-frame {
+  width: min(100%, calc(var(--crop-frame-max-height) * var(--crop-aspect)));
+  aspect-ratio: var(--crop-aspect);
 }
 
 /* Dark palette. Applied two ways:
@@ -449,6 +455,16 @@ html[data-kb="open"] .mono-dialog-panel > .scroll-area {
     flex: none;
     overflow: visible;
   }
+}
+
+/* The crop confirmation stays visible even on short landscape screens. */
+.image-crop-dialog {
+  overflow: hidden;
+}
+.image-crop-dialog > .scroll-area,
+html[data-kb="open"] .image-crop-dialog > .scroll-area {
+  flex: 1 1 auto;
+  overflow-y: auto;
 }
 .mono-offline-banner {
   top: var(--vv-top);

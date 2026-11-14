@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 import { Avatar } from "@/components/ui/avatar";
+import { CouplePhoto } from "@/components/ui/couple-photo";
+import { COUPLE_PHOTO_ASPECT } from "@/lib/images/crop";
 import { Icon } from "@/components/ui/icon";
 import { LinkButton } from "@/components/ui/link-button";
 import { MonoMark } from "@/components/layout/logo";
@@ -16,10 +18,9 @@ export default async function OnboardingDonePage() {
 
   return (
     <div className="anim-rise text-center">
-      <div className="relative mx-auto mb-6 grid h-40 w-full max-w-md place-items-center overflow-hidden rounded-2xl border border-line bg-surface">
+      <div className="relative mx-auto mb-6 grid w-full max-w-md place-items-center overflow-hidden rounded-2xl border border-line bg-surface" style={{ aspectRatio: COUPLE_PHOTO_ASPECT }}>
         {couple.photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={couple.photoUrl} alt="" className="absolute inset-0 size-full object-cover" />
+          <CouplePhoto src={couple.photoUrl} priority className="absolute inset-0 size-full" />
         ) : (
           <div className="absolute inset-0 bg-linear-to-br from-primary-tint/70 via-transparent to-accent-tint/60" />
         )}

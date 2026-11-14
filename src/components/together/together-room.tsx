@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/icon";
 import { Textarea } from "@/components/ui/input";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Spinner } from "@/components/ui/spinner";
+import { ImageCropDialog } from "@/components/uploads/image-crop-dialog";
 import { useTogether } from "@/lib/hooks/use-together";
 import { togetherFetch, errorMessage } from "@/lib/together/client";
 import { CHAT_IMAGE_SPACE, EMOJI, STICKERS } from "@/lib/together/catalog";
@@ -88,6 +89,7 @@ function Composer({ append, onTyping, imageBytes }: { append: (message: MessageD
   const [text, setText] = useState(""), [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null);
   const [palette, setPalette] = useState<"emoji" | "stickers" | null>(null), [picture, setPicture] = useState<File | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [cropFiles, setCropFiles] = useState<File[] | null>(null);
   const input = useRef<HTMLTextAreaElement | null>(null);
   const file = useRef<HTMLInputElement | null>(null), nonce = useRef({ identity: "", value: "" }), imageNonce = useRef("");
   const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -125,13 +127,15 @@ function Composer({ append, onTyping, imageBytes }: { append: (message: MessageD
         <Button size="sm" variant="ghost" disabled={busy || imageBytes >= CHAT_IMAGE_SPACE} onClick={() => file.current?.click()}>Photo</Button>
         <span className="ml-auto text-2xs text-faint">{(imageBytes / 1024 / 1024).toFixed(1)} / {CHAT_IMAGE_SPACE / 1024 / 1024} MB</span>
       </div> : null}
-        <input ref={file} type="file" accept="image/*" aria-label="Choose a chat image" className="sr-only" tabIndex={-1} onChange={(event) => { const next = event.target.files?.[0]; if (next) { setPicture(next); imageNonce.current = ""; } event.target.value = ""; }} />
+        <input ref={file} type="file" accept="image/*" aria-label="Choose a chat image" className="sr-only" tabIndex={-1} onChange={(event) => { const next = event.target.files?.[0]; if (next && !busy && !cropFiles) setCropFiles([next]); event.target.value = ""; }} />
       <div className="flex items-end gap-2">
         <Button size="icon" variant="ghost" aria-label={toolsOpen ? "Hide message tools" : "Emoji, stickers and photos"} aria-expanded={toolsOpen} onClick={() => setToolsOpen(!toolsOpen)} className="shrink-0"><Icon name={toolsOpen ? "x" : "plus"} /></Button>
         <Textarea ref={input} aria-label="Message your partner" placeholder="Message…" className="mono-chat-input min-h-11 flex-1" maxLength={4000} rows={1} value={text} disabled={busy} onChange={(event) => edit(event.target.value)} />
         <Button className="shrink-0" size="icon" aria-label="Send message" type="submit" loading={busy} disabled={!text.trim() || busy}><Icon name="arrowRight" /></Button>
       </div>
     </form>
+    {cropFiles ? <ImageCropDialog files={cropFiles} onCancel={() => setCropFiles(null)}
+      onConfirm={([cropped]) => { setCropFiles(null); setPicture(cropped); imageNonce.current = ""; }} /> : null}
     <BottomSheet open={palette != null} onClose={() => setPalette(null)} title={palette === "emoji" ? "Say it with an emoji" : "A little something for them"}>
       {palette === "emoji" ? <div className="grid grid-cols-6 gap-2">{EMOJI.map((emoji) => <button key={emoji} type="button" aria-label={`Insert ${emoji}`} disabled={text.length + emoji.length > 4000} className="aspect-square rounded-xl bg-surface text-3xl disabled:opacity-40" onClick={() => { edit(text + emoji); setPalette(null); }}>{emoji}</button>)}</div>
         : <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{STICKERS.map((sticker) => <button key={sticker.id} type="button" disabled={busy} aria-label={`Send ${sticker.label} sticker`} onClick={() => void send("STICKER", sticker.id)} className={cn("rounded-xl border border-line p-4 text-center", sticker.background)}><span className="text-5xl">{sticker.emoji}</span><span className="mt-3 block text-sm font-medium">{sticker.label}</span></button>)}</div>}

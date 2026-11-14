@@ -1,6 +1,7 @@
 import Link from "@/components/ui/app-link";
 
 import { CoupleAvatar } from "@/components/ui/couple-avatar";
+import { CouplePhoto } from "@/components/ui/couple-photo";
 import { Icon } from "@/components/ui/icon";
 import { formatDate, possessiveNames } from "@/lib/utils/format";
 
@@ -48,14 +49,13 @@ export function HomeHeader({
     <header className="space-y-4">
       <Link
         href="/couple"
-        className="inline-flex min-w-0 items-center gap-3 rounded-lg py-1 pr-2 transition-colors hover:bg-ink/[0.04]"
+        className="inline-flex min-w-0 max-w-full items-center gap-3 rounded-lg py-1 pr-2 transition-colors hover:bg-ink/[0.04]"
       >
         {couplePhotoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <CouplePhoto
             src={couplePhotoUrl}
-            alt=""
-            className="size-9 shrink-0 rounded-full object-cover ring-2 ring-surface"
+            className="h-9 shrink-0 rounded-lg ring-2 ring-surface"
+            priority
           />
         ) : (
           <CoupleAvatar

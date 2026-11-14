@@ -5,15 +5,15 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { ImageCropDialog } from "@/components/uploads/image-crop-dialog";
 import { downscaleImage } from "@/lib/images/client-resize";
-import { IMAGE_UPLOAD, validateImageUpload } from "@/lib/storage/image-rules";
+import { IMAGE_UPLOAD, validateImageRequest } from "@/lib/storage/image-rules";
 import { useAsyncTask } from "@/lib/hooks/use-async-task";
 import { uploadImageRequest } from "@/lib/images/upload-request";
 import { cn } from "@/lib/utils/cn";
 
 /**
- * One-tap photo capture for a date. Uploads straight to the date-photo route (with progress),
- * then refreshes the page so the new picture shows up. Used in Day Mode and the photos section.
+ * Photo capture with crop confirmation, upload progress and a refreshed date gallery.
  */
 export function QuickPhotoButton({
   dateId,
@@ -36,13 +36,14 @@ export function QuickPhotoButton({
   const busy = task.state.status === "pending";
   const error = task.state.status === "error" ? task.state.message : null;
   const [progress, setProgress] = useState(0);
+  const [cropFiles, setCropFiles] = useState<File[] | null>(null);
 
   const upload = async (input: File) => {
     const outcome = await task.run("uploading", async (signal) => {
       setProgress(0);
       const file = await downscaleImage(input);
       signal.throwIfAborted();
-      const check = validateImageUpload({ type: file.type, size: file.size });
+      const check = validateImageRequest({ type: file.type, size: file.size });
       if (!check.ok) throw new Error(check.message);
       return uploadImageRequest(`/api/uploads/date-photo?dateId=${encodeURIComponent(dateId)}`, file, signal, setProgress);
     });
@@ -52,7 +53,7 @@ export function QuickPhotoButton({
   const onPick = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (file) void upload(file);
+    if (file && !busy && !cropFiles) { task.reset(); setCropFiles([file]); }
   };
 
   return (
@@ -77,6 +78,8 @@ export function QuickPhotoButton({
         className="hidden"
         onChange={onPick}
       />
+      {cropFiles ? <ImageCropDialog files={cropFiles} onCancel={() => setCropFiles(null)}
+        onConfirm={([file]) => { setCropFiles(null); void upload(file); }} /> : null}
     </div>
   );
 }

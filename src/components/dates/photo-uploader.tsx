@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { ImageCropDialog } from "@/components/uploads/image-crop-dialog";
 import { downscaleImage } from "@/lib/images/client-resize";
 import { IMAGE_UPLOAD, validateImageRequest } from "@/lib/storage/image-rules";
 import { UploadQueue, canUploadTransition, type UploadStatus } from "@/lib/images/upload-queue";
@@ -38,6 +39,7 @@ export function PhotoUploader({
   const router = useRouter();
   const [items, setItems] = useState<UploadItem[]>([]);
   const [dragging, setDragging] = useState(false);
+  const [cropFiles, setCropFiles] = useState<File[] | null>(null);
   const pickRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -112,13 +114,17 @@ export function PhotoUploader({
 
   useEffect(() => { queue.setWorker(processOne); }, [queue, processOne]);
 
-  const addFiles = useCallback((fileList: FileList | File[]) => {
-    const added = Array.from(fileList).filter((file) => file.type.startsWith("image/") || file.type === "").map((file) => ({
+  const uploadFiles = useCallback((fileList: File[]) => {
+    const added = fileList.map((file) => ({
       id: `u${++seq}`, file, previewUrl: URL.createObjectURL(file), status: "queued" as ItemStatus, progress: 0,
     }));
     setItems((list) => [...list, ...added]);
     for (const item of added) queue.enqueue(item.id, item.file);
   }, [queue]);
+
+  const addFiles = (fileList: FileList | File[]) => {
+    if (!cropFiles && fileList.length) setCropFiles(Array.from(fileList));
+  };
 
   useEffect(() => {
     const onOnline = () => {
@@ -159,7 +165,7 @@ export function PhotoUploader({
   const finished = items.filter((it) => !pending(it.status)).length;
 
   return (
-    <div className="space-y-3" data-uploading={busy || undefined}>
+    <div className="space-y-3" data-uploading={busy || Boolean(cropFiles) || undefined}>
       <div
         role="button"
         tabIndex={0}
@@ -253,7 +259,7 @@ export function PhotoUploader({
               <img
                 src={item.previewUrl}
                 alt=""
-                className="size-12 shrink-0 rounded-lg object-cover"
+                className="size-12 shrink-0 rounded-lg bg-line object-contain"
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium text-ink">{item.file.name}</p>
@@ -320,6 +326,8 @@ export function PhotoUploader({
           Clear finished
         </button>
       ) : null}
+      {cropFiles ? <ImageCropDialog files={cropFiles} onCancel={() => setCropFiles(null)}
+        onConfirm={(files) => { setCropFiles(null); uploadFiles(files); }} /> : null}
     </div>
   );
 }
