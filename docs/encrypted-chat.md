@@ -89,10 +89,11 @@ npm run lint
 npm run build
 ```
 
-Physical iPhone/Samsung PWA behavior, cross-device recovery and the full interactive viewer
-flow still need device testing. No live key has been generated and no production history
-has been migrated as part of the local implementation.
+Published in `6810807` and verified with two live Chromium QA sessions, including recovery,
+editing, deletion and one/two photo displays. See [live verification](reports/encrypted-chat-live-2026-11-15.md).
+Physical iPhone/Samsung PWA behavior remains unverified. Only a disposable QA key was generated;
+real-user history was not migrated.
 
-Local validation on 2026-11-15:529 unit tests,188 PostgreSQL integration tests,
+Local validation on 2026-11-15: 529 unit tests, 188 PostgreSQL integration tests,
 TypeScript, full ESLint and production build passed. The final focused chat/security run
-passed46 tests. Build traces:82 routes; largest26.82MiB. No browser/phone UI pass is claimed.
+passed 46 tests. Build traces:82 routes; largest26.82MiB. Subsequent live Chromium UI checks passed; no physical-phone pass is claimed.

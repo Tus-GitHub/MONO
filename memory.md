@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-15 (encrypted chat publication and live QA in progress)
+Last updated: 2026-11-15 (encrypted chat deployed and live-tested)
 
 
 
@@ -25,9 +25,7 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Encrypted chat production release/live QA (2026-11-15)** — explicitly authorized to publish and deploy, then test photo view-once/twice, edits and both deletion modes on production using retained synthetic QA accounts. Refresh current main, build before commit/push, verify canonical deployment, exercise real client encryption and persisted limits. Do not migrate real user history or disclose recovery keys.
-
-- **Encrypted chat release/device verification (2026-11-15)** — implementation and automated verification complete locally; production build passed. User approved private recovery codes. Production has not been changed, no real recovery code generated and no production history migrated. Cross-device browser/PWA UI and physical iPhone/Samsung checks remain. PWA screenshot/recording blocking or detection is unavailable; no fabricated secret alerts. See docs/encrypted-chat.md.
+- **Physical encrypted-chat phone verification (2026-11-15)** — live Chromium two-user flows and emulated phone widths passed. Actual iPhone/Samsung PWA, native keyboard and independent cryptographic review remain outside that evidence. Screenshot/recording blocking and attempt detection remain unavailable in a PWA.
 
 
 - **Live compatibility audio continuity QA (2026-11-15)** — user requests real live testing of
@@ -221,6 +219,13 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Encrypted chat production release and live QA (2026-11-15)** — pushed `6810807`; Vercel
+  dpl_AthShWpFLnhxwWLnDpVDDazjm94o READY on mono-kappa-beryl.vercel.app. Two synthetic partners
+  passed nine live flow checkpoints: recovery/unlock, encrypted delivery, edit, both deletion
+  modes, view-once/twice limits with reload persistence, photo access revocation and phone-width
+  layout checks. Two additional settled-viewer/deleted-photo checks passed. Successful-run
+  sessions revoked; real user history untouched. See docs/reports/encrypted-chat-live-2026-11-15.md.
 
 - **Full live crop/upload audit (2026-11-15)** — deployed saved-framing, partner-avatar
   authorization/live-update and chat-upload timeout fixes in ef70e69 and 31f5c95. Completed
@@ -3881,5 +3886,12 @@ audited, Signal protocol, forward-secret, screenshot-proof, or already live.
 
 Final production build passed:82 routes; largest26.82MiB; summed519.11MiB; unique29.18MiB. Focused46 integration checks also passed after final code review. Changes remain local and uncommitted. Live history remains unchanged and requires recovery-code setup plus Secure existing history after a future deployment.
 
-### 2026-11-15 — Publish encrypted chat and test production — IN PROGRESS
+### 2026-11-15 — Publish encrypted chat and test production — DONE
 User explicitly requests deployment and live verification. Synced main58136c4 preserving completed photo-audit notes. Release adds one additive migration; the configured Vercel build applies it before assigning production. Existing529 unit/188 integration tests passed; production build repeated for this publish. Tests target retained synthetic d8e38499 space, not real partner content.
+
+Published `6810807` after a successful build; push succeeded. Canonical Vercel deployment
+is READY. Live flow cbd4ca1495 passed all 9 checkpoints with no JavaScript errors; follow-up
+4e005b4ea0 passed 2 viewport/persisted-deletion checkpoints. Both successful runs revoked their
+sessions. Earlier failed readiness/network attempts remain recorded, not presented as passes.
+Only synthetic QA data was used. Real-user recovery setup/history migration and actual physical
+phone behavior are not claimed complete. Final evidence documentation is being published.
