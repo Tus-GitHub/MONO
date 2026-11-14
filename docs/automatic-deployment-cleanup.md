@@ -30,8 +30,7 @@ cleanup run is observed, treat automatic cleanup as awaiting activation.
 `.github/workflows/deployment-cleanup.yml` listens to successful Vercel
 `deployment_status` events for MONO's `main` branch and `Production` environment.
 The creator of both the deployment and its status must be `vercel[bot]`. Existing
-MONO deployment records use those exact values. Keep Vercel's Git setting for
-Vercel reports the deployed SHA as its Git ref; the script verifies that SHA
+MONO deployment records use those exact values. Vercel reports the deployed SHA as its Git ref; the script verifies that SHA
 against the current production deployment and checks its commit branch is `main`.
 Keep Vercel's Git setting for `deployment_status` events enabled. Failed, canceled, skipped, preview and fork
 deployments cannot trigger destructive cleanup.
@@ -55,12 +54,16 @@ deployment as rollback. Both must return HTTP 200 and application JSON containin
 `status: ok` and `database: up` before anything is removed.
 
 Health checks use built-in Node HTTPS requests with a fixed deployment host and
-`/api/health` path. They read an existing project Automation Bypass credential
-from Vercel's project API. They never create a credential or change Deployment
-Protection settings. If no existing credential is available, cleanup fails safely.
-The credential stays only in Vercel and process memory and is never logged.
-Requests never follow redirects or send it to another host. No CLI installation
-or additional GitHub secret is needed.
+`/api/health` path. The owner explicitly approved temporary access on 14 November
+2026: only the live and selected rollback deployment receive shareable credentials
+with a **60-second TTL**. The script verifies scope/READY state before requesting
+access, validates the returned expiration, and renews short-lived access only when
+needed. A brief bounded wait handles propagation; DELETE is never retried.
+Dry-runs can request this temporary access but never delete deployments.
+Credentials stay in process memory, are never logged, and are sent only to the
+verified keeper URL without following redirects. Application login remains
+required. No permanent project bypass credential, protection disablement, extra
+GitHub secret, CLI install or billing change is made.
 
 After a release, older unaliased READY deployments before the rollback, and
 terminal canceled/errored/blocked records, are eligible for recoverable deletion.
@@ -95,3 +98,5 @@ References:
 - https://vercel.com/docs/cli/curl
 - https://docs.github.com/en/billing/concepts/product-billing/github-actions
 - https://vercel.com/docs/deployment-storage
+
+- https://github.com/vercel/sdk/blob/main/src/funcs/aliasesPatchUrlProtectionBypass.ts

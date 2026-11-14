@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { appendFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { setTimeout as pause } from "node:timers/promises";
 
 // This credential must never be usable by this script against another project.
 export const SCOPE = Object.freeze({
@@ -119,23 +120,31 @@ export async function cleanupDeployments({ api, health, apply = false, expectedS
 
 export function createApi(token, fetcher = fetch) {
   assert(typeof token === "string" && token.trim(), "Set the GitHub Actions repository secret VERCEL_TOKEN. Cleanup is disabled until then; nothing was deleted.");
-  async function request(route, { method = "GET", query = {} } = {}) {
+  async function request(route, { method = "GET", query = {}, body } = {}) {
     const url = new URL(route, "https://api.vercel.com");
     assert(url.origin === "https://api.vercel.com", "Unexpected API origin.");
     url.searchParams.set("teamId", SCOPE.team);
     for (const [key, value] of Object.entries(query)) url.searchParams.set(key, String(value));
-    const response = await fetcher(url, { method, headers: { Authorization: `Bearer ${token}` }, redirect: "error", signal: AbortSignal.timeout(15_000) });
+    const response = await fetcher(url, { method, headers: { Authorization: `Bearer ${token}`, ...(body ? { "Content-Type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: "error", signal: AbortSignal.timeout(15_000) });
     assert(response.ok, `Vercel ${method} request failed (${response.status}); cleanup stopped.`);
     return response.json();
   }
   return {
     project: () => request(`/v9/projects/${SCOPE.project}`),
-    async healthToken() {
-      const project = await this.project(); checkProject(project);
-      const bypass = project.protectionBypass;
-      const token = Object.keys(bypass ?? {}).find(key => bypass[key].scope === "automation-bypass");
-      assert(token, "No existing automation health credential; protection settings were not changed and no deployments were deleted.");
-      return token;
+    async healthToken(deployment) {
+      checkProduction(deployment);
+      const current = await this.deployment(idOf(deployment));
+      checkProduction(current);
+      assert(current.url === deployment.url && createdOf(current) === createdOf(deployment), "Health deployment changed.");
+      // Explicit user approval: only these keeper URLs, maximum 60 seconds. Never a project-wide secret.
+      const response = await request(`/aliases/${idOf(current)}/protection-bypass`, { method: "PATCH", body: { ttl: 60 } });
+      const entries = Object.entries(response.protectionBypass ?? {}).filter(([, value]) => value.scope === "shareable-link"
+        && Number.isSafeInteger(value.expires) && Number.isSafeInteger(value.createdAt)
+        && value.expires * 1000 > Date.now() + 20_000 && value.expires * 1000 <= Date.now() + 65_000
+        && value.expires * 1000 > value.createdAt && value.expires * 1000 - value.createdAt <= 60_000);
+      entries.sort((a, b) => b[1].createdAt - a[1].createdAt);
+      assert(entries.length, "No bounded 60-second health credential; cleanup stopped.");
+      return { secret: entries[0][0], expiresAt: entries[0][1].expires * 1000 };
     },
     deployment: (id) => { assert(validId(id), "Invalid deployment identifier."); return request(`/v13/deployments/${id}`); },
     aliases: async (id) => { assert(validId(id), "Invalid deployment identifier."); return (await request(`/v2/deployments/${id}/aliases`)).aliases; },
@@ -161,16 +170,25 @@ export function createApi(token, fetcher = fetch) {
   };
 }
 
-export function createHealthCheck(api, fetcher = fetch) {
-  let token;
+export function createHealthCheck(api, fetcher = fetch, now = () => Date.now(), wait = pause) {
+  const tokens = new Map();
   return async deployment => {
     assert(typeof deployment.url === "string" && /^[a-z0-9-]+\.vercel\.app$/.test(deployment.url), "Unsafe deployment health hostname.");
-    token ??= await api.healthToken();
+    checkProduction(deployment);
+    let token = tokens.get(deployment.url);
+    if (!token || token.expiresAt <= now() + 25_000) {
+      token = await api.healthToken(deployment); tokens.set(deployment.url, token);
+    }
     let response;
     try {
-      response = await fetcher(`https://${deployment.url}/api/health`, {
-        headers: { "x-vercel-protection-bypass": token }, redirect: "manual", signal: AbortSignal.timeout(20_000),
-      });
+      for (let attempt = 0; attempt < 4; attempt++) {
+        response = await fetcher(`https://${deployment.url}/api/health`, {
+          headers: { "x-vercel-protection-bypass": token.secret }, redirect: "manual", signal: AbortSignal.timeout(20_000),
+        });
+        if (![302, 401, 403].includes(response.status) || attempt === 3) break;
+        await response.body?.cancel();
+        await wait([400, 1000, 2000][attempt]); // Bounded propagation wait; never retry DELETE.
+      }
     } catch { throw new Error("Protected health network request failed; cleanup stopped."); }
     assert(response.status === 200, `Protected health returned HTTP ${response.status}; cleanup stopped.`);
     let body;

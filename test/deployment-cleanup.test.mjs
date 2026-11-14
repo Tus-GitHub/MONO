@@ -182,42 +182,51 @@ test("API errors never print returned credential-bearing response bodies", async
   const api = createApi("fixture-only", async () => new Response("sensitive upstream body", { status: 403 }));
   await assert.rejects(api.project(), error => !error.message.includes("sensitive") && /403/.test(error.message));
 });
-test("protected health pins host and path, caches its credential and refuses redirects", async () => {
-  let calls = 0; const requests = [];
-  const health = createHealthCheck({ async healthToken() { calls++; return "fixture-private"; } }, async (url, options) => {
+test("protected health pins host/path and caches access separately per keeper URL", async () => {
+  let calls = 0, now = Date.now(); const requests = [];
+  const health = createHealthCheck({ async healthToken() { calls++; return { secret: "fixture-private", expiresAt: now + 60000 }; } }, async (url, options) => {
     requests.push({ url, options }); return Response.json(goodHealth.body);
-  });
+  }, () => now);
   assert.deepEqual(await health(deployment("dpl_live", 300)), goodHealth);
-  await health(deployment("dpl_rollback", 200)); assert.equal(calls, 1);
+  await health(deployment("dpl_live", 300)); assert.equal(calls, 1);
+  await health(deployment("dpl_rollback", 200)); assert.equal(calls, 2);
+  now += 36000; await health(deployment("dpl_live", 300)); assert.equal(calls, 3);
   assert.equal(requests[0].url, "https://mono-live.vercel.app/api/health");
   assert.equal(requests[0].options.redirect, "manual");
   assert.equal(requests[0].options.headers["x-vercel-protection-bypass"], "fixture-private");
   await assert.rejects(health({ url: "evil.invalid/;delete" }), /Unsafe/);
 });
-test("protected health rejects sign-in redirects, HTML, and redacts network failures", async () => {
-  const api = { async healthToken() { return "fixture-private"; } };
-  await assert.rejects(createHealthCheck(api, async () => new Response("", { status: 302 }))(deployment("dpl_live", 300)), /HTTP 302/);
+test("protected health rejects redirects/HTML and redacts network failures", async () => {
+  const api = { async healthToken() { return { secret: "fixture-private", expiresAt: Date.now() + 60000 }; } };
+  await assert.rejects(createHealthCheck(api, async () => new Response("", { status: 302 }), undefined, async () => {})(deployment("dpl_live", 300)), /HTTP 302/);
   await assert.rejects(createHealthCheck(api, async () => new Response("<html>sign in</html>"))(deployment("dpl_live", 300)), /not application JSON/);
   await assert.rejects(createHealthCheck(api, async () => { throw Error("fixture-private"); })(deployment("dpl_live", 300)), error => !error.message.includes("fixture-private") && /network/.test(error.message));
 });
-test("existing project automation health credential requires no mutation", async () => {
+test("temporary health access is deployment-scoped with exactly 60-second TTL", async () => {
+  const calls = [], createdAt = Date.now(), expires = Math.floor(createdAt / 1000) + 60;
   const api = createApi("fixture-only", async (url, options) => {
-    assert.equal(options.method, "GET"); assert.equal(url.pathname, `/v9/projects/${SCOPE.project}`);
-    return Response.json({ id: SCOPE.project, accountId: SCOPE.team, name: "mono", targets: { production: { id: "dpl_live" } }, protectionBypass: { "fixture-private": { scope: "automation-bypass" } } });
+    calls.push(options.method); assert.equal(url.searchParams.get("teamId"), SCOPE.team);
+    if (options.method === "GET") return Response.json(deployment("dpl_live", 300));
+    assert.equal(url.pathname, "/aliases/dpl_live/protection-bypass"); assert.equal(options.method, "PATCH");
+    assert.deepEqual(JSON.parse(options.body), { ttl: 60 });
+    return Response.json({ protectionBypass: { "fixture-private": { scope: "shareable-link", createdAt, expires } } });
   });
-  assert.equal(await api.healthToken(), "fixture-private");
+  assert.deepEqual(await api.healthToken(deployment("dpl_live", 300)), { secret: "fixture-private", expiresAt: expires * 1000 });
+  assert.deepEqual(calls, ["GET", "PATCH"]);
 });
-test("missing health credential fails without changing protection settings", async () => {
-  let calls = 0;
-  const api = createApi("fixture-only", async (url, options) => {
-    calls++; assert.equal(options.method, "GET");
-    return Response.json({ id: SCOPE.project, accountId: SCOPE.team, name: "mono", targets: { production: { id: "dpl_live" } } });
-  });
-  await assert.rejects(api.healthToken(), /No existing automation health credential/); assert.equal(calls, 1);
+test("unbounded, expired and overlong access responses cannot authorize health", async () => {
+  for (const value of [{ scope: "shareable-link", createdAt: Date.now() }, { scope: "shareable-link", createdAt: Date.now() - 120000, expires: Math.floor(Date.now()/1000) - 60 }, { scope: "shareable-link", createdAt: Date.now(), expires: Math.floor(Date.now()/1000) + 120 }, { scope: "automation-bypass", createdAt: Date.now(), expires: Math.floor(Date.now()/1000) + 60 }]) {
+    const api = createApi("fixture-only", async (url, options) => Response.json(options.method === "GET" ? deployment("dpl_live", 300) : { protectionBypass: { "fixture-private": value } }));
+    await assert.rejects(api.healthToken(deployment("dpl_live", 300)), /bounded 60-second/);
+  }
 });
-test("a foreign project cannot create a health credential", async () => {
-  let calls = 0; const api = createApi("fixture-only", async () => { calls++; return Response.json({ id: "other" }); });
-  await assert.rejects(api.healthToken(), /Project\/team mismatch/); assert.equal(calls, 1);
+test("a foreign deployment cannot request temporary health access", async () => {
+  let calls = 0; const api = createApi("fixture-only", async () => { calls++; throw Error("must not call"); });
+  await assert.rejects(api.healthToken(deployment("dpl_live", 300, { projectId: "other" })), /another project/); assert.equal(calls, 0);
+});
+test("a keeper that changes before temporary access is not modified", async () => {
+  let calls = 0; const api = createApi("fixture-only", async () => { calls++; return Response.json(deployment("dpl_live", 301)); });
+  await assert.rejects(api.healthToken(deployment("dpl_live", 300)), /Health deployment changed/); assert.equal(calls, 1);
 });
 
 test("workflow accepts only trusted successful main production events and standard free runners", async () => {

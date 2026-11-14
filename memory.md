@@ -1651,6 +1651,8 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-14 — Automatic post-release deployment cleanup (IN PROGRESS)
 
+- User explicitly approved 60-second temporary health-check access for live/rollback. Connected API probe succeeded and returned a shareable-link expiration within60seconds; no permanent bypass. Implemented per-keeper scoped PATCH with ttl60, strict returned-expiry validation, in-memory URL-separated cache/refresh and bounded propagation checks.38 safety tests pass. Pending publish, real dry-run and activation/apply verification.
+
 - fb60b78 fixed automatic SHA-ref event handling. Protected CLI health still failed before deletion. Switched to Node HTTPS with read-only lookup of an existing Automation Bypass credential;37 safety tests pass. Automatic review rejected creating a persistent bypass credential, so creation was removed before publication. No protection setting changed. Checking whether existing access suffices; activation still off.
 
 - Published ab5a565; Vercel production READY. First automatic event skipped because Vercel uses SHA refs. Corrected event guard to validate live main-branch metadata plus expected SHA; manual runs still require main. First authenticated manual dry-run reached Vercel but failed closed at protected health; no deletion. Added credential-free diagnostic categories for the next check.34 safety tests pass;519 application tests, full lint and latest production build passed. Activation still off.
