@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (full-screen chat and calling UI)
+Last updated: 2026-11-14 (function storage validation)
 
 ## Project Overview
 
@@ -22,6 +22,15 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Function storage optimization (2026-11-14)** — isolated Free-only release, preserving
+  source working tree and all published calling/UI changes through3dbceb3. Replace Prisma's
+  native query engine with the official version-matched PostgreSQL adapter/compiler; no
+  database schema changes. Local production build,492 unit tests,174 isolated PostgreSQL
+  tests, lint and packed health-handler database probe pass.80 runtime traces:26.81MiB
+  largest,529.36MiB summed,29.53MiB unique (baseline47.26MiB unique).11 online account
+  browser checks pass; offline/plan-edit/review-navigation failures reproduce on the native
+  baseline. Deployment verification pending; historical/team-wide10GB cannot be guaranteed.
 
 - **Responsive/mobile keyboard and two-way audio verification (2026-11-14)** — user asks
   full responsiveness check after full-screen release, including composer above mobile
@@ -1559,6 +1568,35 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-14 — Smaller runtime functions and deployment growth guards (IN PROGRESS)
+
+- Initial isolated checkout used c0b1754; synced published calling/layout changes through
+  3dbceb3 without modifying the original workspace. Prisma Client/CLI/adapter pinned6.19.3,
+  Rust-free client enabled, bounded pg pool preserves URL cap/timeout/schema and verifies
+  remote TLS. Existing serialization/deadlock and duplicate-name handlers support both
+  engines' metadata; first6 integration incompatibilities corrected, all174 now pass.
+- Explicitly trace the1.95MB WASM compiler; verified the compiled production health handler
+  queries isolated PostgreSQL using only its171 packaged trace files. No native query engine
+  remains in any runtime trace. Required Sharp/image processing and private R2 storage stay.
+- Both production build paths use the tested Next Webpack builder and enforce45MiB per
+  route/2GiB summed trace budgets, compiler presence and no private test/storage files.
+  Documentation-only builds skip against Vercel's last successful SHA; missing history,
+  runtime changes, same SHA and force builds continue. No paid service or SQL migration.
+- Successful local production build:80 traces,28,115,928bytes largest,555,070,990bytes summed,
+  30,964,710bytes unique. Native baseline copy49,560,760bytes unique:37.5% reduction.
+  Counts are local trace measurements, not Vercel billing totals or sums of dashboard rows.
+-492 unit tests and lint pass. Browser login, session/ownership guards, real Sharp upload,
+  archive privacy/export/approval/restore/media/replay checks pass. Broader state-navigation
+  and plan-edit suites fail identically against the baseline native-engine build; no app
+  assertions weakened. Account harness now waits despite polling, retries only interrupted
+  GET reads and emulates offline networking on its own worker/profile.11 production-build
+  online account checks pass, including password change/reset, deletion and all-device
+  revocation. Corrected offline-worker test also fails on the unchanged native build at
+  the same assertion; do not report the whole browser suite as green. Release verification
+  pending. Temporary cache overrides are removed; local disk/OOM
+  interruptions did not affect production. Free limits are shared and historical GB-month
+  readings remain after deletions; documentation explains retention and manual cleanup.
 
 ### 2026-11-14 — Responsive layout, mobile keyboard and audio audit (IN PROGRESS)
 

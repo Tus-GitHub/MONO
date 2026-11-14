@@ -2,6 +2,7 @@ import "server-only";
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { databaseSqlState } from "./error-metadata";
 
 /** Retry serialization conflicts; callbacks must only perform database work. */
 export async function serializable<T>(
@@ -20,7 +21,7 @@ export async function serializable<T>(
     } catch (error) {
       const retryable = error instanceof Prisma.PrismaClientKnownRequestError && (
         error.code === "P2034"
-        || (error.code === "P2010" && ["40001", "40P01"].includes(String(error.meta?.code)))
+        || (error.code === "P2010" && ["40001", "40P01"].includes(String(databaseSqlState(error))))
       );
       if (attempt >= 2 || !retryable) throw error;
       await new Promise((resolve) => setTimeout(resolve, 10 * 2 ** attempt));

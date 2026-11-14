@@ -18,7 +18,7 @@ export async function runAccountControls({ browser, baseUrl, prisma, runId, arti
   const users = await Promise.all(["owner", "partner", "outsider", "outsider-partner"].map((label) => prisma.user.create({
     data: { email: `e2e-${runId}-account-${label}@example.invalid`, name: `E2E ${label}`, passwordHash: hash, profileCompletedAt: new Date() },
   })));
-  const createSpace = (members, name) => prisma.couple.create({ data: {
+  const createSpace = (members, name, client = prisma) => client.couple.create({ data: {
     name, createdById: members[0].id, inviteCode: randomBytes(12).toString("hex"),
     status: members.length === 2 ? "ACTIVE" : "PENDING", setupCompletedAt: new Date(),
     members: { create: members.map((user, i) => ({ userId: user.id, role: i ? "PARTNER" : "OWNER", joinedAt: new Date() })) },
@@ -41,7 +41,12 @@ export async function runAccountControls({ browser, baseUrl, prisma, runId, arti
     await page.setViewport({ width: 1280, height: 900 });
     return page;
   }
-  async function goto(page, pathname) { await page.goto(`${baseUrl}${pathname}`, { waitUntil: "networkidle0" }); }
+  async function goto(page, pathname) {
+    // Private pages poll partner updates; an idle network is not a page-ready signal.
+    const response = await page.goto(`${baseUrl}${pathname}`, { waitUntil: "networkidle2" });
+    assert(response && response.status() < 400, `Route failed: ${pathname}`);
+    await page.waitForFunction(() => document.readyState === "complete" && Boolean(document.body));
+  }
   async function fill(page, selector, value) {
     await page.waitForSelector(selector, { visible: true });
     await page.click(selector, { clickCount: 3 });
@@ -61,12 +66,21 @@ export async function runAccountControls({ browser, baseUrl, prisma, runId, arti
     await page.waitForFunction(() => location.pathname === "/home", { timeout: 90_000 });
   }
   async function api(page, route, body) {
-    return page.evaluate(async (url, payload) => {
-      const response = await fetch(url, payload === null ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const text = await response.text();
-      let data; try { data = JSON.parse(text); } catch { data = null; }
-      return { status: response.status, body: data, cache: response.headers.get("cache-control"), text };
-    }, route, body ?? null);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await page.evaluate(async (url, payload) => {
+          const response = await fetch(url, payload === null ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+          const text = await response.text();
+          let data; try { data = JSON.parse(text); } catch { data = null; }
+          return { status: response.status, body: data, cache: response.headers.get("cache-control"), text };
+        }, route, body ?? null);
+      } catch (error) {
+        // On-demand development compilation can reload another page. Retry only
+        // reads; never repeat a mutation whose commit result is uncertain.
+        if (body != null || attempt >= 2 || !String(error).includes("Execution context was destroyed")) throw error;
+        await page.waitForFunction(() => document.readyState === "complete" && Boolean(document.body));
+      }
+    }
   }
   try {
     const owner = await newPage(), second = await newPage(), partner = await newPage(), outsider = await newPage();
@@ -130,11 +144,11 @@ export async function runAccountControls({ browser, baseUrl, prisma, runId, arti
     pass("both export formats preserve blind-review privacy; portable export includes media");
 
     // The source history stays archived. A distinct empty target is explicitly provisioned.
-    await prisma.$transaction([
-      prisma.coupleMember.updateMany({ where: { coupleId: source.id }, data: { status: "LEFT" } }),
-      prisma.couple.update({ where: { id: source.id }, data: { status: "ARCHIVED" } }),
-    ]);
-    const target = await createSpace(users.slice(0, 2), "Restored account space");
+    const target = await prisma.$transaction(async (tx) => {
+      await tx.coupleMember.updateMany({ where: { coupleId: source.id }, data: { status: "LEFT" } });
+      await tx.couple.update({ where: { id: source.id }, data: { status: "ARCHIVED" } });
+      return createSpace(users.slice(0, 2), "Restored account space", tx);
+    });
     await goto(owner, "/home"); await goto(partner, "/home"); await goto(outsider, "/home");
     assert.equal((await api(outsider, "/api/archive", { action: "approve", archive: downloaded.body })).status, 403);
     const ownConsent = await api(owner, "/api/archive", { action: "approve", archive: downloaded.body });
@@ -176,12 +190,23 @@ export async function runAccountControls({ browser, baseUrl, prisma, runId, arti
     });
     assert.ok(cachedPaths.includes("/offline"), "Worker must precache the offline fallback");
     assert.ok(cachedPaths.every((pathname) => !/^\/(?:api|media|dates|home)(?:\/|$)/.test(pathname)), "Private responses must never enter CacheStorage");
+    // Chromium's page-only offline emulation does not disable the service
+    // worker's own fetch target. Exercise a real worker network failure too.
+    const workerTarget = await browser.waitForTarget((target) => target.type() === "service_worker"
+      && target.browserContext() === offline.browserContext() && target.url().startsWith(`${baseUrl}/`));
+    const workerSession = await workerTarget.createCDPSession();
+    await workerSession.send("Network.enable");
+    await workerSession.send("Network.emulateNetworkConditions", { offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0 });
     await offline.setOfflineMode(true);
     try {
       await offline.goto(`${baseUrl}/dates/${restoredDate.id}?offline=e2e`, { waitUntil: "domcontentloaded" });
       await offline.waitForFunction(() => /You[’']re offline/.test(document.body.innerText));
       assert.doesNotMatch(await offline.$eval("body", (body) => body.innerText), /Browser archive history|Preserved memory body/);
-    } finally { await offline.setOfflineMode(false); }
+    } finally {
+      await offline.setOfflineMode(false);
+      await workerSession.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+      await workerSession.detach();
+    }
     await offline.browserContext().close();
     contexts.splice(contexts.indexOf(offline.browserContext()), 1);
     pages.splice(pages.indexOf(offline), 1);

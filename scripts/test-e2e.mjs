@@ -120,7 +120,8 @@ try {
   const migration = launch(["node_modules/prisma/build/index.js", "migrate", "deploy"]);
   if (await migration.completion !== 0) throw new Error("Isolated test migrations failed; inspect fixture server log.");
   const { PrismaClient } = await import("@prisma/client");
-  prisma = new PrismaClient();
+  const { createDatabaseAdapter } = await import("../src/lib/db/pg-adapter.mjs");
+  prisma = new PrismaClient({ adapter: createDatabaseAdapter(process.env.DATABASE_URL) });
   const { default: puppeteer } = await import("puppeteer-core");
   browser = await puppeteer.launch({ browser: engine, executablePath, headless: true, args: engine === "chrome" ? ["--disable-background-networking", "--no-first-run"] : [] });
   browserVersion = await browser.version();
@@ -150,6 +151,7 @@ try {
   failed = true;
   failure = error instanceof Error ? error.message : "unknown failure";
   console.error(`E2E failed: ${failure}`);
+  if (error instanceof Error) console.error(error.stack);
 } finally {
   await browser?.close();
   await stop(server);

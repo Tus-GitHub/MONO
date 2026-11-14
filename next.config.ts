@@ -52,6 +52,11 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // Keep native/server-only packages out of the bundler; they run as-is on the server.
   serverExternalPackages: ["@prisma/client", "bcryptjs", "sharp", "@aws-sdk/client-s3", "nodemailer"],
+  // The compiler loads this binary through config.dirname, which static tracing
+  // cannot resolve. Include the small WASM asset explicitly for deployed queries.
+  outputFileTracingIncludes: {
+    "/*": ["./node_modules/.prisma/client/query_compiler_bg.wasm"],
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

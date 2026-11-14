@@ -11,6 +11,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { PrismaClient } from "@prisma/client";
+import { createDatabaseAdapter } from "../src/lib/db/pg-adapter.mjs";
 
 import { DEFAULT_REVIEW_CATEGORIES } from "../src/lib/review/default-categories";
 
@@ -48,7 +49,7 @@ if (process.env.NODE_ENV === "production" && !process.argv.includes("--force")) 
   process.exit(1);
 }
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ adapter: createDatabaseAdapter(process.env.DATABASE_URL!) });
 
 async function main() {
   const couples = await prisma.couple.findMany({ select: { id: true } });
