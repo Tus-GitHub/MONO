@@ -661,3 +661,40 @@ Run `d8e38499` retains four QA accounts, two spaces, 53 messages, one generated 
 QA password login disabled and generated credentials removed from the non-secret report.
 No existing user's space was used or removed. Report: `.postgres-test/chat-release-live-report.json`;
 logs: `chat-release-{unit,integration,build,live,tone}.log` in the same ignored directory.
+
+### Both-partner editing audit (2026-11-14)
+
+Published `ccfca96da7ce51b1c35300d618947cd062d3a5d8`; production deployment
+`dpl_DtbvjtUiTK53czEUr3eiAZWrWqgB` reached READY on `https://mono-kappa-beryl.vercel.app`.
+Each author can now edit their own revealed review, with required-score/revisit validation,
+original submission timestamps preserved and no return to a private draft. Shared review
+editing was explicitly requested by the user. Memory/photo/place favourite toggles now
+atomically change the couple revision, fixing partner screens that remained stale.
+
+The retained synthetic couple `LIVE QA Events 7a9b30f6e0` was tested through normal live
+UI login. Chromium used owner phone/partner PWA; WebKit used owner PWA/partner phone.
+Both roles edited the same shared expense, their own review, and the shared saved memory.
+All 22 checks per engine passed: amount/description/split and total updates; invalid review
+rejection; saved scores/reflections; latest values when reopening editors; memory title/body,
+cover image decoding, favourite checkbox/heart and list updates. The receiving screen's
+`performance.timeOrigin` stayed unchanged for every sync check (1.0–5.7 seconds).
+The old favourite-heart bug reproduced a 35-second timeout before the fix. Widths 320/390
+and landscape 844px showed no horizontal document overflow on the edited forms/views.
+
+SQL read-back confirms both dates remain completed, both authors' updated ratings (7/6),
+unchanged original submitted timestamps, edited expenses, memory text and cover references.
+The synthetic couple has no category ratings; category edits are covered by the PostgreSQL
+regression, not claimed as part of this live fixture. All synthetic users/dates/photos remain
+as requested; existing user accounts were not changed. No provider or billing changes.
+
+171 local PostgreSQL integration tests (16 files), 16 targeted review unit tests, targeted
+ESLint and production build pass. Local Windows Turbopack's CSS worker failed to start;
+the documented Webpack build passed, as did Vercel's production build. Production error/fatal
+logs were empty after the live tests. Chromium reported no page errors. WebKit recorded
+background-request access-control/cancellation messages around harness hard navigations;
+all functional sync checks passed. Physical Safari, its real keyboard and a device-installed
+PWA remain untested, consistent with the user's automated-checks-only choice.
+
+Ignored evidence: `.screenshots/live-edits-7a9b30f6e0/{chromium,webkit}-deployed.json`,
+per-role memory screenshots and `.postgres-test/live-edits.mjs`. Credentials remain only
+in the existing ignored fixture, not in reports or source control.

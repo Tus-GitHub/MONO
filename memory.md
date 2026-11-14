@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (partner edit audit, deployment verification pending)
+Last updated: 2026-11-14 (partner edits deployed and verified)
 
 ## Project Overview
 
@@ -22,14 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Live partner edit audit (2026-11-14)** — test expense, review and memory edits in both
-  directions on retained live QA dates. User explicitly authorizes editing one's own review
-  after both reviews reveal; saved edits remain shared without resetting submission status.
-  Keep synthetic records. Expense/memory edits sync in both Chromium and WebKit phone/PWA
-  profiles at 320/390/844px. Fixed missing favourite-heart sync and author-only revealed review
-  editing. 171 integration tests and 16 review unit tests pass; deployment verification pending.
-  Existing unrelated accounts are out of scope.
 
 - **Couple call device verification** — implementation and media-helper/backend signaling
   tests pass; the right-panel permission/cancel path passes without granting devices.
@@ -71,6 +63,13 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Live partner edit audit (2026-11-14)** — deployed `ccfca96`. Both partners can edit their
+  own revealed review while preserving submission/privacy boundaries. Fixed memory-heart
+  partner sync. Live expenses/totals/splits, reviews/validation, memory text/covers/favourites
+  and lists passed in both directions across Chromium/WebKit phone/PWA profiles, without
+  reloads (1.0–5.7 seconds), at 320/390/844px. 171 integration tests, 16 targeted unit tests,
+  lint and production builds pass. All synthetic records retained. Physical iOS untested.
 
 - **Live completion-to-memory flow (2026-11-14)** — published dbe5936, Vercel
   dpl_KfdgghnBSWnpeF5atwmNVZ38rHBs READY. Fixed hard-coded dollar prefixes in INR expense,
@@ -1458,15 +1457,20 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-14 — Both-partner edits to expenses, revealed reviews and memories
 
-**IN PROGRESS.** User explicitly chose to allow each author to edit their own revealed review.
+**DONE.** User explicitly chose to allow each author to edit their own revealed review.
 Added Edit my review / Save changes, shared-state copy, author-scoped updates that preserve
 submitted timestamps, and rejection of shared-to-private draft/reopen/discard operations.
 Live expense amounts/splits/totals and memory text edits sync without reload in Chromium
 and WebKit phone/PWA profiles. Memory heart toggles reproduced a missing partner refresh;
 now the atomic favourite write also changes the couple revision. 171 PostgreSQL regression
-tests and 16 review unit tests pass. Local Turbopack CSS subprocess failed, so checking the
-documented Webpack build path. Live post-deploy review/heart/list checks remain pending.
-Keep all retained synthetic records; no existing user data changed.
+tests, 16 review unit tests and targeted lint pass. Local Webpack production build passed
+after the Windows Turbopack CSS subprocess failed. Vercel's production build passed for
+`ccfca96da7ce51b1c35300d618947cd062d3a5d8`, deployment `dpl_DtbvjtUiTK53czEUr3eiAZWrWqgB`.
+Live post-deploy edits passed all 22 checks per engine, including invalid review rejection,
+updated expense totals/splits, memory covers/hearts/list updates and same-document sync.
+SQL read-back confirms author-specific scores/reflections and original submitted timestamps.
+Error/fatal production logs empty. Retained all synthetic records; no existing user data changed.
+Automated phone/PWA profiles only; no physical iPhone or installed-device claim.
 
 ### 2026-11-14 — Completion, expenses, reviews and memory live audit
 
