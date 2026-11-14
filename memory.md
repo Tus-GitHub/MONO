@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (mobile voice audio and notification setup follow-up)
+Last updated: 2026-11-14 (full-screen chat and calling UI)
 
 ## Project Overview
 
@@ -23,6 +23,15 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
+- **Full-screen chat and call UI (2026-11-14)** — user requests mobile/PWA/laptop chat
+  and video calls use the whole screen, with smaller chat bubbles. Add route-aware chat
+  frame, compact header/composer, content-width bubbles and reduced vertical spacing.
+  Calls use full-viewport dialog with persistent controls and floating self-preview.
+  Respect safe areas and visual viewport/keyboard, retain existing games and media logic.
+  TypeScript, targeted ESLint and production Webpack build pass. Local preview could render
+  login but TCP to Neon is unavailable from this computer; stopped it and moved visual QA
+  to the deployed environment. Publishing; live layout review pending.
+
 - **Mobile voice audio and Samsung notification follow-up (2026-11-14)** — user reports
   voice calls have no sound but video calls do; Samsung installed app notification enable
   does nothing, while iPhone does show its notification prompt. Screen-sharing statement
@@ -34,7 +43,10 @@ components. Business rules never live only in React components — they live in
   at runtime rather than assuming all iPhone versions lack it. User is self-testing;
   do not interfere with their browser/device calls. 33 targeted tests and TypeScript pass;
   final lint passes after correcting a React ref-binding diagnostic. Production Webpack
-  build passes. Publishing the fix; physical Samsung/iPhone behavior needs user retest.
+  build passes. Published/pushed 796ffadc93d2e9887601f0995b6624ab0c19c056; Vercel
+  dpl_2fQcBspqyB7rYQ3Xsdjdpx58aPsB READY with canonical production alias. Physical
+  Samsung/iPhone behavior needs user retest after reloading. Samsung root cause is not
+  established; progress/error handling now exposes permission versus subscription failure.
 
 - **Permission-first calling and closed-app alerts (2026-11-14)** — user uses Android +
   iPhone and asks for maximum supported background calling plus working notification
@@ -1533,6 +1545,17 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-14 — Full-screen chat and calls (IN PROGRESS)
+
+User explicitly authorized this UI redesign for mobile PWA and laptops. Chat now owns the
+viewport, with compact partner header, fixed composer, smaller content-width bubbles and
+reduced message gaps. Games/scores retain their own scrolling panels. Calls use a full-screen
+modal variant, large video stage, floating self-preview and persistent bottom controls.
+Existing journal pages keep their navigation. TypeScript, targeted lint and production build
+pass (first sandboxed build failed to create .next directories; escalated retry passed).
+Local authentication blocked by unavailable Neon TCP connection; use deployed QA session
+for visual review. No database changes, new dependencies or message writes.
 
 ### 2026-11-14 — Permission-first setup and incoming-call push (IN PROGRESS)
 - User prioritizes setup before ringing and Android/iPhone notifications while installed app

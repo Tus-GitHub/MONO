@@ -389,6 +389,23 @@ html[data-kb="open"] body {
 .mono-sheet-panel {
   max-height: calc(var(--vvh, 92dvh) - max(1rem, var(--safe-top)));
 }
+/* Conversation and calls use the visible viewport, including installed-PWA safe areas. */
+.mono-chat-page {
+  position: fixed;
+  inset-inline: 0;
+  top: var(--vv-top, 0px);
+  height: var(--vvh, 100dvh);
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom-visible) var(--safe-left);
+  overflow: hidden;
+}
+.mono-fullscreen-wrap {
+  padding: 0;
+}
+.mono-fullscreen-panel {
+  height: var(--vvh, 100dvh);
+  max-height: var(--vvh, 100dvh);
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom-visible) var(--safe-left);
+}
 .mono-dialog-panel {
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -430,6 +447,11 @@ html[data-kb="open"] .mono-update-banner {
    header stays put and its own scroll area (not the keyboard) owns the overflow. */
 html[data-kb="open"] .mono-modal-wrap {
   align-items: flex-start;
+}
+.mono-fullscreen-panel > .scroll-area,
+html[data-kb="open"] .mono-fullscreen-panel > .scroll-area {
+  flex: 1 1 0%;
+  overflow-y: auto;
 }
 
 @layer utilities {

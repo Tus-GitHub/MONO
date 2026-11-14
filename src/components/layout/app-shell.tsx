@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/navigation/sidebar";
 import { OfflineBanner } from "@/components/system/offline-banner";
 import { ReminderPoller } from "@/components/system/reminder-poller";
 import { TogetherProvider } from "@/components/together/together-provider";
+import { AppFrame } from "@/components/layout/app-frame";
 import type { SessionUser } from "@/lib/auth/current-user";
 
 export interface ShellPerson {
@@ -32,19 +33,13 @@ export function AppShell({ user, couple, members, unreadCount, children }: AppSh
     <TogetherProvider userId={user.id}><div className="min-h-dvh bg-paper">
       <OfflineBanner />
       <ReminderPoller />
-      <Sidebar coupleName={couple?.name ?? null} members={members} />
-
-      <div className="lg:pl-(--sidebar-w)">
-        <AppHeader
+      <AppFrame sidebar={<Sidebar coupleName={couple?.name ?? null} members={members} />}
+        bottomNav={<BottomNav />} header={<AppHeader
           user={{ name: user.name, avatarUrl: user.avatarUrl }}
           unreadCount={unreadCount}
-        />
-        <main className="mx-auto w-full max-w-(--content-wide) px-4 pt-6 pb-[calc(var(--bottomnav-h)+var(--safe-bottom-visible)+2.5rem)] sm:px-6 lg:px-8 lg:pt-8 lg:pb-16">
+        />}>
           {children}
-        </main>
-      </div>
-
-      <BottomNav />
+      </AppFrame>
     </div></TogetherProvider>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -22,19 +23,21 @@ export function TogetherRoom({ initial, userId, userName }: { initial: TogetherS
   const chat = useTogether(initial, tab === "chat"), calling = useTogetherCall();
   const { partner } = chat.data;
   const callBusy = Boolean(calling.call) || calling.phase !== "idle";
-  return <div className="mx-auto max-w-4xl space-y-5">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="font-display text-3xl font-medium text-ink">Just us</h1>
-      <p className="mt-1 text-sm text-muted">{partner.name} · {chat.partnerTyping ? "Typing…" : chat.partnerOnline ? "Online" : "Your private conversation and arcade"}</p></div>
-      <div className="flex gap-2"><Button size="sm" variant="secondary" leadingIcon={<Icon name="phone" />} disabled={callBusy} onClick={() => void calling.start("AUDIO")}>Voice call</Button><Button size="sm" variant="secondary" leadingIcon={<Icon name="video" />} disabled={callBusy} onClick={() => void calling.start("VIDEO")}>Video call</Button></div></div>
-    {!callBusy ? <div className="flex flex-wrap items-center gap-2"><CallSetup soundsReady={calling.soundsReady} enableSounds={calling.enableCallSounds} /><p className="text-xs text-muted">Prepare permissions, your ringtone and incoming-call notifications before calling.</p></div> : null}
-    <div role="tablist" aria-label="Together" className="flex gap-2 border-b border-line pb-3">{([['chat', 'Chat'], ['games', 'Games · 24'], ['scores', 'Scores']] as const).map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={tab === key} aria-controls={`together-${key}`} id={`tab-${key}`} onClick={() => setTab(key)} className={cn("rounded-lg px-4 py-2 text-sm font-medium", tab === key ? "bg-primary-tint text-primary" : "text-muted hover:bg-surface")}>{label}</button>)}</div>
-    {chat.error ? <p role="alert" className="text-sm text-error">Live updates paused: {chat.error} <Button variant="link" onClick={() => void chat.refresh()}>Reconnect</Button></p> : null}
-    {tab === "chat" ? <section role="tabpanel" id="together-chat" aria-labelledby="tab-chat" className="space-y-3">
+  return <div className="flex h-full min-h-0 w-full flex-col">
+    <header className="flex shrink-0 items-center gap-2 border-b border-line bg-elevated px-2 py-2 sm:gap-3 sm:px-5">
+      <Link href="/home" aria-label="Back to MONO" className="tap grid shrink-0 place-items-center rounded-lg text-muted hover:bg-surface"><Icon name="arrowLeft" /></Link>
+      <div className="min-w-0 flex-1"><h1 className="truncate font-display text-xl font-medium text-ink">{partner.name}</h1>
+        <p className="truncate text-xs text-muted">{chat.partnerTyping ? "Typing…" : chat.partnerOnline ? "Online" : "Just us · private chat"}</p></div>
+      <div className="flex shrink-0 items-center gap-1"><Button size="icon" variant="ghost" aria-label="Voice call" title="Voice call" disabled={callBusy} onClick={() => void calling.start("AUDIO")}><Icon name="phone" /></Button><Button size="icon" variant="ghost" aria-label="Video call" title="Video call" disabled={callBusy} onClick={() => void calling.start("VIDEO")}><Icon name="video" /></Button>
+        {!callBusy ? <CallSetup compact soundsReady={calling.soundsReady} enableSounds={calling.enableCallSounds} /> : null}</div>
+    </header>
+    <div role="tablist" aria-label="Together" className="flex shrink-0 gap-1 border-b border-line px-3 py-1 sm:px-5">{([['chat', 'Chat'], ['games', 'Games · 24'], ['scores', 'Scores']] as const).map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={tab === key} aria-controls={`together-${key}`} id={`tab-${key}`} onClick={() => setTab(key)} className={cn("min-h-9 rounded-lg px-3 py-1 text-sm font-medium", tab === key ? "bg-primary-tint text-primary" : "text-muted hover:bg-surface")}>{label}</button>)}</div>
+    {chat.error ? <p role="alert" className="shrink-0 px-3 py-1 text-sm text-error">Live updates paused: {chat.error} <Button variant="link" onClick={() => void chat.refresh()}>Reconnect</Button></p> : null}
+    {tab === "chat" ? <section role="tabpanel" id="together-chat" aria-labelledby="tab-chat" className="flex min-h-0 flex-1 flex-col">
       <MessageList messages={chat.data.messages} userId={userId} lastRead={partner.lastRead} timezone={chat.data.timezone} older={chat.older} hasOlder={chat.hasOlder}
         openGame={(id) => { setGame(id); setTab("games"); }} />
       <Composer append={chat.append} onTyping={chat.onTyping} imageBytes={chat.data.imageBytes ?? 0} />
-      <p className="text-xs text-faint">Shared only in this space. Calls need microphone/camera permission and both partners online in MONO. Photos use {((chat.data.imageBytes ?? 0) / 1024 / 1024).toFixed(1)} of {CHAT_IMAGE_SPACE / 1024 / 1024} MB shared chat storage.</p>
-    </section> : <section role="tabpanel" id={`together-${tab}`} aria-labelledby={`tab-${tab}`}>
+    </section> : <section role="tabpanel" id={`together-${tab}`} aria-labelledby={`tab-${tab}`} className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-6">
       <GamesPanel games={chat.data.games ?? []} scores={chat.data.scores ?? []} userId={userId} userName={userName} partnerName={partner.name}
         selectedId={selectedGame} onSelect={setGame} refresh={chat.refresh} mode={tab} />
     </section>}
@@ -49,6 +52,13 @@ function MessageList({ messages, userId, lastRead, timezone, hasOlder, older, op
     const list = scroll.current;
     if (list && (first.current || atBottom.current || last?.senderId === userId)) { list.scrollTo({ top: list.scrollHeight, behavior: first.current ? "auto" : "smooth" }); first.current = false; }
   }, [last?.id, last?.senderId, userId]);
+  useEffect(() => {
+    const list = scroll.current;
+    if (!list) return;
+    const resize = new ResizeObserver(() => { if (atBottom.current) list.scrollTop = list.scrollHeight; });
+    resize.observe(list);
+    return () => resize.disconnect();
+  }, []);
   const loadOlder = async () => {
     const element = scroll.current, height = element?.scrollHeight ?? 0, top = element?.scrollTop ?? 0;
     setLoading(true); await older(); setLoading(false);
@@ -56,16 +66,16 @@ function MessageList({ messages, userId, lastRead, timezone, hasOlder, older, op
   };
   const day = (value: string) => new Intl.DateTimeFormat("en-GB", { timeZone: timezone, day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
   const time = (value: string) => new Intl.DateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit" }).format(new Date(value));
-  return <div ref={scroll} className="h-[clamp(18rem,50dvh,36rem)] overflow-y-auto rounded-2xl border border-line bg-surface/60 p-3 sm:p-5" onScroll={() => { const el = scroll.current; if (el) atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100; }}>
+  return <div ref={scroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-paper px-3 py-2 sm:px-6" onScroll={() => { const el = scroll.current; if (el) atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100; }}>
     {hasOlder ? <div className="mb-4 text-center"><Button variant="ghost" size="sm" loading={loading} onClick={() => void loadOlder()}>Load earlier messages</Button></div> : null}
     {!messages.length ? <div className="grid h-full place-content-center text-center"><p className="font-display text-xl">A little space for the two of you</p><p className="mt-2 text-sm text-muted">Say hello, share a photo, or invite your partner to a game.</p></div> : null}
-    <div role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions" className="space-y-3">{messages.map((message, index) => {
+    <div role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions" className="space-y-1">{messages.map((message, index) => {
       const mine = message.senderId === userId, sticker = message.kind === "STICKER" ? STICKERS.find((item) => item.id === message.body) : null;
       return <div key={message.id}>
-        {index === 0 || day(messages[index - 1].createdAt) !== day(message.createdAt) ? <p className="my-5 text-center text-2xs text-faint">{day(message.createdAt)}</p> : null}
-        <article aria-label={`${mine ? "You" : "Partner"} ${time(message.createdAt)}`} className={cn("max-w-[85%] space-y-2 rounded-2xl px-4 py-3 sm:max-w-[75%]", mine ? "ml-auto bg-primary-tint text-ink" : "mr-auto border border-line bg-surface text-ink")}>
+        {index === 0 || day(messages[index - 1].createdAt) !== day(message.createdAt) ? <p className="my-3 text-center text-2xs text-faint">{day(message.createdAt)}</p> : null}
+        <article aria-label={`${mine ? "You" : "Partner"} ${time(message.createdAt)}`} className={cn("w-fit max-w-[85%] space-y-0.5 rounded-lg px-3 py-1.5 sm:max-w-[65%]", mine ? "ml-auto bg-primary-tint text-ink" : "mr-auto border border-line bg-surface text-ink")}>
           {message.image ? <a href={message.image.url} target="_blank" rel="noreferrer"><Image unoptimized src={message.image.url} alt="Shared chat image" width={message.image.width} height={message.image.height} className="max-h-80 w-auto max-w-full rounded-xl object-contain" /></a>
-            : sticker ? <div className="py-2 text-center"><span role="img" aria-label={sticker.label} className="block text-6xl">{sticker.emoji}</span><p className="mt-2 font-display text-lg">{sticker.label}</p></div>
+            : sticker ? <div className="py-1 text-center"><span role="img" aria-label={sticker.label} className="block text-5xl">{sticker.emoji}</span><p className="mt-1 text-xs">{sticker.label}</p></div>
             : <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{message.body}</p>}
           {message.kind === "GAME" && message.gameId ? <Button variant="secondary" size="sm" onClick={() => openGame(message.gameId!)}>Open game</Button> : null}
           <p className="text-right text-2xs text-muted">{time(message.createdAt)}{mine ? ` · ${BigInt(lastRead) >= BigInt(message.sequence) ? "Read" : "Sent"}` : ""}</p>
@@ -77,8 +87,11 @@ function MessageList({ messages, userId, lastRead, timezone, hasOlder, older, op
 function Composer({ append, onTyping, imageBytes }: { append: (message: MessageDTO) => void; onTyping: (value: boolean) => void; imageBytes: number }) {
   const [text, setText] = useState(""), [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null);
   const [palette, setPalette] = useState<"emoji" | "stickers" | null>(null), [picture, setPicture] = useState<File | null>(null);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const input = useRef<HTMLTextAreaElement | null>(null);
   const file = useRef<HTMLInputElement | null>(null), nonce = useRef({ identity: "", value: "" }), imageNonce = useRef("");
   const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => { const field = input.current; if (field) { field.style.height = "auto"; field.style.height = `${field.scrollHeight}px`; } }, [text]);
   useEffect(() => () => { clearTimeout(typingTimer.current); onTyping(false); }, [onTyping]);
   const edit = (value: string) => { setText(value); onTyping(Boolean(value)); clearTimeout(typingTimer.current); typingTimer.current = setTimeout(() => onTyping(false), 4000); };
   const send = async (kind: "TEXT" | "STICKER", body: string) => {
@@ -101,15 +114,19 @@ function Composer({ append, onTyping, imageBytes }: { append: (message: MessageD
     } catch (error) { setError(errorMessage(error)); }
     finally { setBusy(false); }
   };
-  return <div className="space-y-3">
+  return <div className="shrink-0 space-y-2 border-t border-line bg-elevated px-2 py-2 sm:px-5">
     {error ? <p role="alert" className="text-sm text-error">{error}</p> : null}
     {picture ? <div className="space-y-3 rounded-xl border border-line bg-surface p-3"><PhotoPreview file={picture} /><p className="truncate text-xs text-muted">{picture.name}</p><div className="flex gap-2"><Button size="sm" loading={busy} onClick={() => void sendImage()}>Send image</Button><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setPicture(null); imageNonce.current = ""; }}>Cancel image</Button></div></div> : null}
-    <form onSubmit={(event) => { event.preventDefault(); void send("TEXT", text.trim()); }} className="space-y-2 rounded-2xl border border-line bg-surface p-3">
-      <Textarea aria-label="Message your partner" placeholder="Message your partner…" maxLength={4000} rows={2} value={text} disabled={busy} onChange={(event) => edit(event.target.value)} />
-      <div className="flex flex-wrap items-center gap-2"><Button size="sm" variant="ghost" disabled={busy} onClick={() => setPalette("emoji")}>Emoji</Button><Button size="sm" variant="ghost" disabled={busy} onClick={() => setPalette("stickers")}>Stickers</Button>
+    <form onSubmit={(event) => { event.preventDefault(); void send("TEXT", text.trim()); }} className="space-y-1">
+      {toolsOpen ? <div className="flex flex-wrap items-center gap-1"><Button size="sm" variant="ghost" disabled={busy} onClick={() => setPalette("emoji")}>Emoji</Button><Button size="sm" variant="ghost" disabled={busy} onClick={() => setPalette("stickers")}>Stickers</Button>
         <Button size="sm" variant="ghost" disabled={busy || imageBytes >= CHAT_IMAGE_SPACE} onClick={() => file.current?.click()}>Photo</Button>
+        <span className="ml-auto text-2xs text-faint">{(imageBytes / 1024 / 1024).toFixed(1)} / {CHAT_IMAGE_SPACE / 1024 / 1024} MB</span>
+      </div> : null}
         <input ref={file} type="file" accept="image/*" aria-label="Choose a chat image" className="sr-only" tabIndex={-1} onChange={(event) => { const next = event.target.files?.[0]; if (next) { setPicture(next); imageNonce.current = ""; } event.target.value = ""; }} />
-        <Button className="ml-auto" size="sm" type="submit" loading={busy} disabled={!text.trim() || busy}>Send</Button>
+      <div className="flex items-end gap-2">
+        <Button size="icon" variant="ghost" aria-label={toolsOpen ? "Hide message tools" : "Emoji, stickers and photos"} aria-expanded={toolsOpen} onClick={() => setToolsOpen(!toolsOpen)} className="shrink-0"><Icon name={toolsOpen ? "x" : "plus"} /></Button>
+        <Textarea ref={input} aria-label="Message your partner" placeholder="Message…" className="max-h-28 min-h-11 flex-1 resize-none" maxLength={4000} rows={1} value={text} disabled={busy} onChange={(event) => edit(event.target.value)} />
+        <Button className="shrink-0" size="icon" aria-label="Send message" type="submit" loading={busy} disabled={!text.trim() || busy}><Icon name="arrowRight" /></Button>
       </div>
     </form>
     <BottomSheet open={palette != null} onClose={() => setPalette(null)} title={palette === "emoji" ? "Say it with an emoji" : "A little something for them"}>

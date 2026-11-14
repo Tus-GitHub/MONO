@@ -7,7 +7,7 @@ import { EnableBrowserNotifications } from "@/components/settings/enable-browser
 import { acquireCallMedia, acquireCameraMedia } from "@/lib/together/call-media";
 import { errorMessage } from "@/lib/together/client";
 
-export function CallSetup({ soundsReady, enableSounds }: { soundsReady: boolean; enableSounds: () => void }) {
+export function CallSetup({ soundsReady, enableSounds, compact = false }: { soundsReady: boolean; enableSounds: () => void; compact?: boolean }) {
   const [open, setOpen] = useState(false), [mic, setMic] = useState(false), [camera, setCamera] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null);
   const request = useRef<AbortController | null>(null);
@@ -24,7 +24,7 @@ export function CallSetup({ soundsReady, enableSounds }: { soundsReady: boolean;
     finally { if (request.current === controller) { request.current = null; setBusy(false); } }
   };
   return <>
-    <Button size="sm" variant="secondary" leadingIcon={<Icon name="phone" />} onClick={() => setOpen(true)}>Set up calling</Button>
+    <Button size={compact ? "icon" : "sm"} variant={compact ? "ghost" : "secondary"} aria-label="Set up calling" title="Set up calling" onClick={() => setOpen(true)}>{compact ? <Icon name="speaker" /> : "Set up calling"}</Button>
     <Modal open={open} onClose={close} title="Set up calling">
       <div className="space-y-4">
         <p className="text-sm text-muted">Both partners should do this on their own device before calling. These checks stop the microphone and camera immediately; they do not call your partner.</p>
