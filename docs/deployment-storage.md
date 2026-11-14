@@ -50,6 +50,13 @@ unique29.53MiB versus47.26MiB in the native-engine baseline, about37.5% smaller.
 These figures include the required WASM compiler and Windows Sharp libraries;
 Linux/Vercel packaging and billing must be checked separately.
 
+Published runtime commit `1e7a24f`, deployment `dpl_9PzErxQqAcph8654aBNkdMRyF9aF`,
+is READY. Its Linux build gate reports44.51MiB largest,599.48MiB summed and46.66MiB
+unique traces. Vercel Resources lists75 functions; common API packages show20MB
+versus52.3MB before, and page packages20.9MB versus53.2MB (about62% smaller).
+These resource sizes are not an exact team storage total. Live health confirms
+database up; home/login return200 and anonymous private sessions return401.
+
 492 unit tests,174 isolated PostgreSQL integration tests, lint, the production
 build/size gate and a compiled health-handler query using only171 traced files
 pass.11 online browser account checks pass, covering authentication, session

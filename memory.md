@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (function storage validation)
+Last updated: 2026-11-14 (smaller functions deployed and verified)
 
 ## Project Overview
 
@@ -9,7 +9,7 @@ people on their personal devices. Not public, not social, not a marketplace or r
 Every feature is backed by real persistence, authentication, server-side business logic,
 validation, and real data.
 
-**Stack:** Next.js 16 (App Router, Turbopack) · React 19 · TypeScript (strict) · Tailwind v4 ·
+**Stack:** Next.js 16 (App Router; Turbopack dev, Webpack production) · React 19 · TypeScript (strict) · Tailwind v4 ·
 PostgreSQL · Prisma ORM · hand-rolled secure cookie sessions (bcryptjs + jose) · zod ·
 storage & email driver abstractions. Deps kept minimal: `@prisma/client`, `prisma`,
 `bcryptjs`, `jose`, `zod`, `tsx`.
@@ -22,15 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Function storage optimization (2026-11-14)** — isolated Free-only release, preserving
-  source working tree and all published calling/UI changes through3dbceb3. Replace Prisma's
-  native query engine with the official version-matched PostgreSQL adapter/compiler; no
-  database schema changes. Local production build,492 unit tests,174 isolated PostgreSQL
-  tests, lint and packed health-handler database probe pass.80 runtime traces:26.81MiB
-  largest,529.36MiB summed,29.53MiB unique (baseline47.26MiB unique).11 online account
-  browser checks pass; offline/plan-edit/review-navigation failures reproduce on the native
-  baseline. Deployment verification pending; historical/team-wide10GB cannot be guaranteed.
 
 - **Responsive/mobile keyboard and two-way audio verification (2026-11-14)** — user asks
   full responsiveness check after full-screen release, including composer above mobile
@@ -167,6 +158,15 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Function storage optimization (2026-11-14)** — published1e7a24f, Vercel deployment
+  dpl_9PzErxQqAcph8654aBNkdMRyF9aF READY with all3 canonical aliases. Resources reports
+  75 functions: common APIs20MB vs52.3MB before; pages20.9MB vs53.2MB. Live database
+  health/home/login return200; anonymous private sessions returns401.492 unit tests,
+  174 isolated PostgreSQL tests,11 online browser checks, lint/build and packed query probe
+  pass. Three broader browser failures reproduce on the native baseline. Free-only,
+  no SQL migration; existing working tree/calling changes preserved. Build size guards
+  and documentation-only skip reduce future growth; no historical/team-wide10GB guarantee.
 
 - **Full-screen chat and call UI (2026-11-14)** — published 7e9a458 and correction
   ce814315ae69fba61fc72d0f1fa38d88f3427310; production dpl_D8DmGyVoNs8M6J9q7GpTAGh7Hqx2
@@ -1569,7 +1569,7 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
-### 2026-11-14 — Smaller runtime functions and deployment growth guards (IN PROGRESS)
+### 2026-11-14 — Smaller runtime functions and deployment growth guards (DONE)
 
 - Initial isolated checkout used c0b1754; synced published calling/layout changes through
   3dbceb3 without modifying the original workspace. Prisma Client/CLI/adapter pinned6.19.3,
@@ -1593,10 +1593,21 @@ components. Business rules never live only in React components — they live in
   GET reads and emulates offline networking on its own worker/profile.11 production-build
   online account checks pass, including password change/reset, deletion and all-device
   revocation. Corrected offline-worker test also fails on the unchanged native build at
-  the same assertion; do not report the whole browser suite as green. Release verification
-  pending. Temporary cache overrides are removed; local disk/OOM
+  the same assertion; do not report the whole browser suite as green. Temporary cache
+  overrides are removed; local disk/OOM
   interruptions did not affect production. Free limits are shared and historical GB-month
   readings remain after deletions; documentation explains retention and manual cleanup.
+- Published1e7a24f77da9e2e255916bd1021d53603c90a52f from the isolated branch onto current
+  main, preserving3dbceb3. Vercel dpl_9PzErxQqAcph8654aBNkdMRyF9aF READY; Linux build
+  size gate passes:80 traces,44.51MiB largest,599.48MiB summed,46.66MiB unique. Actual
+  Resources accessibility view reports75 functions, common API bundles20MB (formerly52.3MB)
+  and page bundles20.9MB (formerly53.2MB): approximately62% smaller packaged resources.
+  Canonical health200/database up proves remote TLS/database execution; home/login200 and
+  anonymous account sessions401. No production fixture data or billing change. Both local
+  browser DBs verified0 users/0 couples and owned PostgreSQL55463 stopped. Original source
+  workspace was clean at its last read and was never modified. Additional cleanup was
+  inspected but not executed in this release; older deployments remain subject to the
+  previously saved retention policy. Do not claim the historic10.25GB meter is erased.
 
 ### 2026-11-14 — Responsive layout, mobile keyboard and audio audit (IN PROGRESS)
 
