@@ -5,24 +5,26 @@ import type { CallDTO, SignalDTO } from "@/lib/together/types";
 import { useVisiblePoll } from "./use-visible-poll";
 import { acquireCallMedia, acquireCameraMedia, acquireScreenMedia } from "@/lib/together/call-media";
 import { offerCallTracks, answerCallTracks } from "@/lib/together/call-tracks";
+import { callDeadline } from "@/lib/together/call-deadline";
 
 type Phase = "idle" | "permission" | "ringing" | "connecting" | "connected" | "elsewhere";
 export function useCoupleCall(userId: string) {
   const [call, setCall] = useState<CallDTO | null>(null), [phase, setPhase] = useState<Phase>("idle");
   const [local, setLocal] = useState<MediaStream | null>(null), [remote, setRemote] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null), [unread, setUnread] = useState(0), [owned, setOwned] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [muted, setMuted] = useState(false), [cameraOff, setCameraOff] = useState(false);
   const active = useRef<CallDTO | null>(null), peer = useRef<RTCPeerConnection | null>(null), stream = useRef<MediaStream | null>(null);
   const generation = useRef(0), starting = useRef(false), cursor = useRef("0"), heartbeat = useRef(0);
   const pendingIce = useRef<RTCIceCandidateInit[]>([]), queue = useRef<Promise<unknown>>(Promise.resolve());
-  const deadline = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const deadline = useRef<ReturnType<typeof callDeadline> | null>(null);
   const mediaRequest = useRef<AbortController | null>(null);
   const videoRequest = useRef<AbortController | null>(null), videoSender = useRef<RTCRtpSender | null>(null);
   const screenStream = useRef<MediaStream | null>(null), cameraWasEnabled = useRef(false);
   const [sharing, setSharing] = useState(false), [screenPreview, setScreenPreview] = useState<MediaStream | null>(null), [mediaBusy, setMediaBusy] = useState(false);
 
   const release = useCallback(() => {
-    generation.current++; starting.current = false; clearTimeout(deadline.current); mediaRequest.current?.abort(); videoRequest.current?.abort();
+    generation.current++; starting.current = false; deadline.current?.stop(); deadline.current = null; mediaRequest.current?.abort(); videoRequest.current?.abort();
     for (const track of screenStream.current?.getTracks() ?? []) { track.onended = null; track.stop(); }
     screenStream.current = null; videoSender.current = null; videoRequest.current = null; setSharing(false); setScreenPreview(null); setMediaBusy(false);
     if (peer.current) { peer.current.onicecandidate = null; peer.current.onconnectionstatechange = null; peer.current.ontrack = null; peer.current.close(); peer.current = null; }
@@ -53,13 +55,18 @@ export function useCoupleCall(userId: string) {
       const incoming = event.streams[0];
       setRemote((current) => { if (incoming) return incoming; const next = current ?? new MediaStream(); if (!next.getTracks().includes(event.track)) next.addTrack(event.track); return next; });
     };
-    const fail = () => { if (generation.current === runId) { setError("The call couldn't connect on this network. Try again or switch networks."); void end(); } };
-    deadline.current = setTimeout(fail, 40_000);
+    deadline.current = callDeadline((reason) => {
+      if (generation.current !== runId) return;
+      if (reason === "unanswered") setNotice("No answer. Your partner may be away. Try calling again later.");
+      else setError("The call couldn't connect after answering. Try again or switch networks.");
+      void end();
+    });
+    deadline.current.observe(row);
     pc.onconnectionstatechange = () => {
       if (generation.current !== runId) return;
-      if (pc.connectionState === "connected") { clearTimeout(deadline.current); setPhase("connected"); }
-      if (pc.connectionState === "failed") fail();
-      if (pc.connectionState === "disconnected") { clearTimeout(deadline.current); deadline.current = setTimeout(fail, 15_000); }
+      deadline.current?.connection(pc.connectionState);
+      if (pc.connectionState === "connected") setPhase("connected");
+      if (pc.connectionState === "disconnected") setPhase("connecting");
     };
     return pc;
   }, [end, sendSignal, userId]);
@@ -73,7 +80,7 @@ export function useCoupleCall(userId: string) {
   };
   const start = async (kind: "AUDIO" | "VIDEO") => {
     if (starting.current || active.current) return;
-    starting.current = true; const runId = ++generation.current; setError(null); setPhase("permission");
+    starting.current = true; const runId = ++generation.current; setError(null); setNotice(null); setPhase("permission");
     try {
       const captured = await mediaFor(kind, runId); if (!captured) return;
       const row = await togetherFetch<CallDTO>("/api/together/calls", { body: { action: "start", kind, clientNonce: crypto.randomUUID() } });
@@ -87,7 +94,7 @@ export function useCoupleCall(userId: string) {
   const accept = async () => {
     const incoming = active.current;
     if (!incoming || incoming.calleeId !== userId || incoming.status !== "RINGING" || starting.current) return;
-    starting.current = true; const runId = ++generation.current; setError(null); setPhase("permission");
+    starting.current = true; const runId = ++generation.current; setError(null); setNotice(null); setPhase("permission");
     try {
       const captured = await mediaFor(incoming.kind, runId); if (!captured) return;
       const row = await togetherFetch<CallDTO>("/api/together/calls", { body: { action: "accept", id: incoming.id } });
@@ -109,15 +116,21 @@ export function useCoupleCall(userId: string) {
       active.current = next.call; setCall(next.call);
       setPhase(next.call ? next.call.status === "RINGING" && next.call.calleeId === userId ? "ringing" : "elsewhere" : "idle");
     } catch { /* Avoid disrupting unrelated screens if live status is temporarily offline. */ }
-  }, 10_000);
+  }, 5_000, true, true);
   useVisiblePoll(async (signal) => {
     const row = active.current, pc = peer.current, runId = generation.current;
     if (!row || !pc) return;
     try {
       const result = await togetherFetch<{ call: CallDTO; signals: SignalDTO[] }>(`/api/together/calls?id=${row.id}&after=${cursor.current}`, { signal });
       if (signal.aborted || generation.current !== runId) return;
-      if (!["RINGING", "ACCEPTED"].includes(result.call.status)) { release(); return; }
+      if (!["RINGING", "ACCEPTED"].includes(result.call.status)) {
+        if (result.call.status === "MISSED") setNotice("No answer. Your partner may be away. Try calling again later.");
+        if (result.call.status === "DECLINED") setNotice("Your partner declined the call.");
+        release(); return;
+      }
       active.current = result.call; setCall(result.call);
+      deadline.current?.observe(result.call);
+      if (result.call.status === "ACCEPTED" && pc.connectionState !== "connected") setPhase("connecting");
       for (const event of result.signals) {
         if (generation.current !== runId) return;
         if (event.kind === "ice") {
@@ -141,7 +154,7 @@ export function useCoupleCall(userId: string) {
     } catch (error) { if (!signal.aborted && generation.current === runId) setError(errorMessage(error)); }
   }, 1000, owned, true);
   useEffect(() => () => {
-    generation.current++; mediaRequest.current?.abort(); videoRequest.current?.abort(); clearTimeout(deadline.current); peer.current?.close(); stream.current?.getTracks().forEach((track) => track.stop());
+    generation.current++; mediaRequest.current?.abort(); videoRequest.current?.abort(); deadline.current?.stop(); peer.current?.close(); stream.current?.getTracks().forEach((track) => track.stop());
     screenStream.current?.getTracks().forEach((track) => { track.onended = null; track.stop(); });
     if (active.current && peer.current) void fetch("/api/together/calls", { method: "POST", keepalive: true, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "end", id: active.current.id }) }).catch(() => {});
   }, []);
@@ -206,6 +219,6 @@ export function useCoupleCall(userId: string) {
     } catch { if (generation.current === runId) setError("Couldn't turn off video. End the call to stop the camera."); }
     finally { if (videoRequest.current === controller) { videoRequest.current = null; setMediaBusy(false); } }
   };
-  return { call, phase, local, remote, error, unread, owned, muted, cameraOff, sharing, screenPreview, mediaBusy, start, accept, decline, end,
-    toggleMute, toggleCamera, shareScreen: () => changeVideo("screen"), stopSharing, cancelMediaChange: () => videoRequest.current?.abort(), dismissError: () => setError(null) };
+  return { call, phase, local, remote, error, notice, unread, owned, muted, cameraOff, sharing, screenPreview, mediaBusy, start, accept, decline, end,
+    toggleMute, toggleCamera, shareScreen: () => changeVideo("screen"), stopSharing, cancelMediaChange: () => videoRequest.current?.abort(), dismissError: () => { setError(null); setNotice(null); } };
 }

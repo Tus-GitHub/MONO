@@ -4,25 +4,27 @@ import { useCoupleCall } from "@/lib/hooks/use-couple-call";
 import { useCallRingtone } from "@/lib/hooks/use-call-ringtone";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 
-type CallContext = ReturnType<typeof useCoupleCall>;
+type CallContext = ReturnType<typeof useCoupleCall> & { soundsReady: boolean; enableCallSounds: () => void };
 const Context = createContext<CallContext | null>(null);
 export function useTogetherCall() { const value = useContext(Context); if (!value) throw new Error("Chat must be inside the shared-space layout."); return value; }
 export function TogetherProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const calling = useCoupleCall(userId), [hiddenFor, setHidden] = useState<string | null>(null);
   const id = calling.call?.id ?? (calling.phase === "permission" ? "permission" : null);
   const incoming = calling.call?.status === "RINGING" && calling.call.calleeId === userId && !calling.owned;
-  const { audioRef, blocked: ringtoneBlocked, play: playRingtone } = useCallRingtone(calling.call?.id, calling.call?.status === "RINGING" && calling.phase === "ringing" && (incoming || calling.owned));
-  const open = Boolean((id && hiddenFor !== id) || calling.error);
+  const { audioRef, blocked: ringtoneBlocked, ready: soundsReady, play: playRingtone, enable: enableCallSounds, stop: stopRingtone } = useCallRingtone(calling.call?.id, calling.call?.status === "RINGING" && calling.phase === "ringing" && (incoming || calling.owned));
+  const open = Boolean((id && hiddenFor !== id) || calling.error || calling.notice);
   const close = () => { calling.dismissError(); if (id) setHidden(id); };
-  return <Context.Provider value={calling}>
+  return <Context.Provider value={{ ...calling, soundsReady, enableCallSounds, start: (kind) => { enableCallSounds(); return calling.start(kind); } }}>
     <audio ref={audioRef} preload="none" aria-label="Call ringtone" />
     {children}
     {id && hiddenFor === id ? <div className="fixed right-4 bottom-[calc(var(--bottomnav-h)+1rem)] z-40 flex gap-2 lg:bottom-6"><Button className="shadow-lg" onClick={() => setHidden(null)}>Return to call</Button>{calling.sharing ? <Button variant="secondary" onClick={() => void calling.stopSharing()}>Stop sharing</Button> : null}</div> : null}
     <Modal open={open} onClose={close} title={incoming ? `Incoming ${calling.call?.kind === "VIDEO" ? "video" : "voice"} call` : calling.call?.kind === "VIDEO" ? "Your video call" : "Your call"}>
       <div className="space-y-4">
         {calling.error ? <p role="alert" className="text-sm text-error">{calling.error}</p> : null}
-        {ringtoneBlocked ? <Button variant="secondary" onClick={playRingtone}>Play ringtone</Button> : null}
+        {calling.notice ? <p role="status" className="text-sm text-muted">{calling.notice}</p> : null}
+        {ringtoneBlocked ? <div className="space-y-2"><p className="text-sm text-muted">Your browser paused call sounds. Tap to hear the ringtone.</p><Button variant="secondary" leadingIcon={<Icon name="speaker" />} onClick={playRingtone}>Play ringtone</Button></div> : null}
         {calling.phase === "permission" ? <p role="status" className="text-sm text-muted">Allow microphone access, and camera access for video, in your browser. You can cancel while you decide.</p> : null}
         {incoming && calling.phase !== "permission" ? <p className="text-sm text-muted">Your partner is calling. Answer when you&apos;re ready.</p> : null}
         {calling.phase === "elsewhere" ? <p className="text-sm text-muted">This call is open on another tab or device.</p> : null}
@@ -38,8 +40,8 @@ export function TogetherProvider({ userId, children }: { userId: string; childre
           {calling.sharing ? <p className="text-xs text-muted">Only the screen, window or tab you chose is shared. Screen audio is off; your microphone follows the mute control.</p> : null}
         </> : null}
         <div className="flex flex-wrap justify-end gap-2">
-          {incoming && calling.phase !== "permission" ? <><Button variant="secondary" onClick={() => void calling.decline()}>Decline</Button><Button onClick={() => void calling.accept()}>Answer call</Button></>
-            : calling.call || calling.phase === "permission" ? <Button onClick={() => void calling.end()}>{calling.phase === "permission" ? "Cancel call" : "End call"}</Button> : <Button variant="secondary" onClick={close}>Close</Button>}
+          {incoming && calling.phase !== "permission" ? <><Button variant="danger" leadingIcon={<Icon name="phoneEnd" />} onClick={() => { stopRingtone(); void calling.decline(); }}>Decline</Button><Button variant="success" leadingIcon={<Icon name="phone" />} onClick={() => { stopRingtone(); void calling.accept(); }}>Pick up</Button></>
+            : calling.call || calling.phase === "permission" ? <Button variant="danger" leadingIcon={<Icon name="phoneEnd" />} onClick={() => { stopRingtone(); void calling.end(); }}>{calling.phase === "permission" ? "Cancel call" : "End call"}</Button> : <Button variant="secondary" onClick={close}>Close</Button>}
         </div>
       </div>
     </Modal>

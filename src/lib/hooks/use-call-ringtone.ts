@@ -1,19 +1,29 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { CALL_TONE_URL, ringtonePlayer } from "@/lib/together/ringtone";
+import { ringtonePlayer } from "@/lib/together/ringtone";
 
 export function useCallRingtone(id: string | undefined, ringing: boolean) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const player = useRef<ReturnType<typeof ringtonePlayer> | null>(null);
-  const [blockedFor, setBlockedFor] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState(false), [ready, setReady] = useState(false);
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!id || !ringing || !audio) return;
-    audio.src = CALL_TONE_URL;
-    const tone = ringtonePlayer(audio, (blocked) => setBlockedFor(blocked ? id : null));
+    if (!audioRef.current) return;
+    const tone = ringtonePlayer(audioRef.current, (value) => { setBlocked(value); setReady(!value); });
     player.current = tone;
-    void tone.play();
-    return () => { tone.stop(); if (player.current === tone) player.current = null; };
+    return () => { tone.destroy(); if (player.current === tone) player.current = null; };
+  }, []);
+  useEffect(() => {
+    if (!id || !ringing) return;
+    void player.current?.play();
+    return () => player.current?.stop();
   }, [id, ringing]);
-  return { audioRef, blocked: ringing && blockedFor === id, play: () => void player.current?.play() };
+  useEffect(() => {
+    if (!ringing || !blocked) return;
+    const retry = (event: Event) => { if (event.isTrusted) void player.current?.play(); };
+    document.addEventListener("pointerdown", retry);
+    document.addEventListener("keydown", retry);
+    return () => { document.removeEventListener("pointerdown", retry); document.removeEventListener("keydown", retry); };
+  }, [ringing, blocked]);
+  return { audioRef, blocked: ringing && blocked, ready,
+    play: () => void player.current?.play(), enable: () => void player.current?.play(!ringing), stop: () => player.current?.stop() };
 }

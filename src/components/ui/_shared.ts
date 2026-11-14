@@ -41,6 +41,7 @@ export type ButtonVariant =
   | "outline"
   | "ghost"
   | "danger"
+  | "success"
   | "link";
 
 export type ButtonSize = "sm" | "md" | "lg" | "icon";
@@ -57,6 +58,7 @@ export const buttonVariants: Record<ButtonVariant, string> = {
   outline: "border border-line-strong text-ink hover:bg-surface",
   ghost: "text-ink hover:bg-ink/[0.06] active:bg-ink/[0.1]",
   danger: "bg-error text-primary-fg shadow-xs hover:brightness-95 active:brightness-90",
+  success: "bg-success text-primary-fg shadow-xs hover:brightness-95 active:brightness-90",
   link: "text-primary underline-offset-4 hover:underline",
 };
 

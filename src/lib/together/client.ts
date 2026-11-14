@@ -13,7 +13,7 @@ export async function togetherFetch<T>(path: string, options: { body?: unknown; 
     if (!response.ok) throw new Error(value.error ?? "Couldn't connect. Try again.");
     return value as T;
   } catch (error) {
-    if (controller.signal.aborted && !options.signal?.aborted) throw new Error("The request took too long. Try again; your message is kept.");
+    if (controller.signal.aborted && !options.signal?.aborted) throw new Error(path.startsWith("/api/together/calls") ? "The call service took too long to respond. Please try again." : "The request took too long. Try again; your message is kept.");
     throw error;
   } finally { clearTimeout(timer); options.signal?.removeEventListener("abort", cancel); }
 }

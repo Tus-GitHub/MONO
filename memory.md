@@ -23,6 +23,35 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
+- **Call timeout, ringtone and controls follow-up (2026-11-14)** — live Chrome caller
+  acquired its microphone and rang the Edge receiver. Verified the receiver's Incoming
+  voice call dialog with Answer/Decline; Edge autoplay was blocked and showed Play ringtone.
+  The caller's 40-second connection deadline incorrectly included unanswered ringing and
+  reported a network error. Fix that distinction, offer explicit sound setup/retry, and add
+  requested green pickup/red hang-up icons. Actual connected media and song audibility still
+  need verification; no completed voice/video/screen-share claim. User handles device prompts.
+  Implemented separate 61-second unanswered/40-second post-answer deadlines, 15-second
+  reconnection grace, neutral missed/declined notices and call-specific service timeouts.
+  Added same-element ringtone preview/setup, trusted-interaction retry, immediate sound
+  stop on pickup/end, green pickup and red hang-up/decline buttons with accessible labels.
+  Incoming status checks continue in background tabs (subject to browser suspension).
+  21 focused regressions, TypeScript, targeted ESLint and the production Webpack build pass.
+  Synced newer main 7fb2ff8 without changing upstream review/memory fixes; production
+  deployment and live media test pending.
+
+- **Actual live call verification requested (2026-11-14)** — user requests two-user voice,
+  video upgrade, screen sharing and ringtone playback at both ends. Chrome state capture
+  works again on this turn. Prepare isolated QA sessions; preserve real user sessions/data.
+  User is handling browser permission/display prompts and audible media verification.
+  Do not equate API signaling or generated media with a verified physical-device call.
+  Caller Chrome Incognito (1706342), receiver Edge InPrivate (8718318), both signed into
+  existing run d8e38499. Resumed after earlier Escape/URL-policy stops. Caller acquired
+  microphone and receiver showed Incoming voice call/Answer/Decline; unanswered call
+  exposed incorrect 40-second network timeout, now fixed locally. Receiver autoplay was
+  blocked. No connected audio/video/screen or audible-song success claim yet.
+  Only the two calling QA accounts had temporary passwords re-enabled; these sessions
+  remain available for the next test. Revoke their sessions/disable passwords after QA.
+
 - **Couple call device verification** — implementation and media-helper/backend signaling
   tests pass; the right-panel permission/cancel path passes without granting devices.
   Actual two-device audio/video, voice-to-video, screen sharing and restrictive-network TURN
@@ -1471,6 +1500,20 @@ updated expense totals/splits, memory covers/hearts/list updates and same-docume
 SQL read-back confirms author-specific scores/reflections and original submitted timestamps.
 Error/fatal production logs empty. Retained all synthetic records; no existing user data changed.
 Automated phone/PWA profiles only; no physical iPhone or installed-device claim.
+
+### 2026-11-14 — Live call follow-up (IN PROGRESS)
+- Resumed at user request; verified incoming pickup/decline UI in Edge InPrivate from Chrome
+  Incognito on production. Ringing expired before answer, incorrectly showing a network error.
+- User requests automatic song ringing plus green/red pickup/end controls. Browser autoplay
+  restriction is observed, not hypothetical; do not promise forced audio or closed-app ringing.
+
+- **2026-11-14 — IN PROGRESS: actual live voice/video/screen and both-end ringtone test.**
+  Rechecked Windows browser control after the earlier URL-policy block; Chrome accessibility
+  is now readable. Proceed with isolated test users, explicit capture and careful cleanup.
+  Both existing QA partners logged in through Chrome Incognito/Edge InPrivate. Browser
+  automation then stopped again because it could not determine the current URL with enough
+  confidence. Stopped UI input immediately; actual call/video/share/song remain untested.
+  Test windows/sessions retained for continuation; original real user browser session untouched.
 
 ### 2026-11-14 — Completion, expenses, reviews and memory live audit
 

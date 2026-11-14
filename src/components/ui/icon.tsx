@@ -8,6 +8,10 @@ import { cn } from "@/lib/utils/cn";
  * generic-SaaS glyph pack. Add glyphs to `GLYPHS` as needed.
  */
 const GLYPHS = {
+  phone: <path d="M7 3H4a1 1 0 0 0-1 1c0 9.4 7.6 17 17 17a1 1 0 0 0 1-1v-3l-5-2-2 2a15 15 0 0 1-7-7l2-2-2-5Z" />,
+  phoneEnd: <path d="M3 16H1v-4c6-6 16-6 22 0v4h-5v-4a17 17 0 0 0-12 0v4H3Z" />,
+  video: <><rect x="3" y="6" width="12" height="12" rx="2" /><path d="m15 10 6-3v10l-6-3" /></>,
+  speaker: <><path d="m11 4-6 5H2v6h3l6 5V4Z" /><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" /></>,
   message: <><path d="M20.5 11a8.5 8.5 0 0 1-8.5 8.5H5l-3 2v-7A8.5 8.5 0 1 1 20.5 11Z" /><path d="M7 10h8M7 14h5" /></>,
   gamepad: <><path d="M7 7h10c3 0 4 11 2 11-1 0-3-3-4-3H9c-1 0-3 3-4 3-2 0-1-11 2-11Z" /><path d="M8 9v5M5.5 11.5h5M16 10h.01M18 13h.01" /></>,
   home: (
