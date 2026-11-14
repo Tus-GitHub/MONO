@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (call controls and iPhone keyboard fix; browser testing prohibited)
+Last updated: 2026-11-14 (call controls and iPhone keyboard fix deployed; browser testing prohibited)
 
 ## Project Overview
 
@@ -23,25 +23,6 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Publish call controls and iPhone typing fix (2026-11-14)** — user authorizes code work,
-  documentation research and publishing, explicitly prohibits browser testing until told.
-  User will test phones themselves; iPhone typing moves messages upward, Android works.
-  Official WhatsApp calling pages used as design reference. Implementing full-viewport
-  video stage, circular labelled controls, real browser audio-output selection with honest
-  OS-managed fallback, screen capture pause/end/error feedback. iOS chat: skip generic
-  document focus nudge, remove extra body keyboard padding and inherited header scroll margin.
-  No desktop/browser interaction or browser-based automated testing permitted this turn.
-  Implemented controls, fit/fill video, persistent audio routing picker, capture errors and
-  paused/ended-source feedback; documented platform limits in docs/mobile-calling.md.
-  35 focused Node tests pass, including two iPhone focus regressions. TypeScript and targeted
-  ESLint pass. Initial production build passed after filesystem permission retry. Synced
-  concurrent function-size changes through 520f4f4 without losing either task's memory;
-  merged production build and size guards pass (80 traces, largest 26.82 MiB, summed
-  529.13 MiB, unique 29.13 MiB); publishing now. Exact lockfile install
-  succeeded after removing only this workspace's generated .next cache/output to recover
-  from disk exhaustion. No source, QA data or unrelated files removed. Actual phone behavior
-  is user-tested.
-
 - **Call controls and screen-sharing follow-up (2026-11-14; browser testing paused by user)**
   — User confirms another chat is using the desktop and explicitly says to stop our testing
   until they tell us to resume. Do not operate QA browsers or resume live tests meanwhile.
@@ -52,6 +33,7 @@ components. Business rules never live only in React components — they live in
   Exact Samsung permission remains unclear (previously notification, now screen sharing).
   Research supported browser/OS audio routing and capture before promising native behavior;
   physical-phone keyboard and two-way audio are still unverified.
+  Implementation published as 7d18288; actual device testing remains with the user.
 
 - **Responsive/mobile keyboard and two-way audio verification (2026-11-14)** — user asks
   full responsiveness check after full-screen release, including composer above mobile
@@ -193,6 +175,16 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Call controls and iPhone typing fix (2026-11-14)** — published 7d18288; production
+  dpl_d5hRLNswijv4znpi8frUtB9TEQiA READY with canonical mono-kappa-beryl.vercel.app alias.
+  WhatsApp-referenced circular controls and full-stage video, Fit/Fill, floating preview,
+  actual browser audio-output selection with OS-managed fallback, and screen capture
+  unsupported/error/pause/end messages. Fixed chat's double focus scroll on iOS by skipping
+  generic page nudging, removing extra body keyboard padding and composer scroll margin.
+  35 focused Node tests, TypeScript, targeted lint and production build/size guards pass.
+  Preserved concurrent function-size update through 520f4f4. No browser testing/calls/device
+  captures performed at user's explicit request. Phone audibility/appearance remain unverified.
 
 - **Function storage optimization (2026-11-14)** — published1e7a24f, Vercel deployment
   dpl_9PzErxQqAcph8654aBNkdMRyF9aF READY with all3 canonical aliases. Resources reports
@@ -1604,6 +1596,27 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
+### 2026-11-14 — Publish call controls and iPhone typing fix (DONE; device QA pending)
+
+User authorized code/research/publish but explicitly prohibited browser testing. Referenced
+WhatsApp's official calling pages for full-stage media, circular controls and prominent
+red/green buttons. Added browser-exposed audio output selection, Fit/Fill and screen-sharing
+capability/error/paused/ended feedback without inventing phone speaker routes or overriding
+capture restrictions. Samsung missing capture support is distinct from notification permission;
+iPhone capture source/lifecycle remains controlled by the OS/browser. docs/mobile-calling.md
+records constraints and device test steps. Fixed duplicate page focus scrolling for fixed chat,
+extra keyboard body padding and inherited scroll margin; two shifted-viewport regressions pass.
+
+All 35 focused Node tests, TypeScript, targeted ESLint and production build pass. Synced
+concurrent main changes through 520f4f4, preserving the storage reduction. npm ci initially
+failed from sandbox permissions/disk exhaustion; removed only this workspace's generated
+.next cache/output, then exact-lockfile install and merged build succeeded. Size guard:
+80 traces, largest 26.82 MiB, summed 529.13 MiB, unique 29.13 MiB. No source or QA data removed.
+Published 7d18288ae370b0e7675bb4ddb9e8101d71ea2c30; Vercel deployment
+dpl_d5hRLNswijv4znpi8frUtB9TEQiA READY with all three canonical aliases verified via API.
+Own merge stash removed after successful push; pre-existing stash retained. No desktop/browser
+operation, browser automated test or live call performed. User will test actual phones.
+
 ### 2026-11-14 — Smaller runtime functions and deployment growth guards (DONE)
 
 - Initial isolated checkout used c0b1754; synced published calling/layout changes through
@@ -1656,7 +1669,8 @@ for fixed chat and body keyboard padding there; cleared inherited composer scrol
 Merged current main through 520f4f4 (function-storage work retained), reinstalled the exact
 lockfile, reran all 35 focused tests and built successfully with size guards. Initial install
 hit disk exhaustion; only this workspace's generated .next cache/output was removed, then
-install/build succeeded. No source or QA fixture data removed. Publishing pending.
+install/build succeeded. No source or QA fixture data removed. Published 7d18288; production
+READY (dpl_d5hRLNswijv4znpi8frUtB9TEQiA). Physical QA remains pending with the user.
 
 Follow-up: user explicitly paused our browser testing because another chat is using it;
 wait for their resume instruction. Recorded requested WhatsApp-style voice/video controls,
