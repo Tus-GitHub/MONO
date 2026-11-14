@@ -6,14 +6,14 @@ vi.mock("@/lib/auth/current-user", async () => {
   return { requireUser: () => prisma.user.findUniqueOrThrow({ where: { id: testUser.getStore()! } }) };
 });
 import { prisma } from "@/lib/db/prisma";
-import { requireTogether } from "@/server/services/together-context";
-import { sendChatMessage, sendChatImage, togetherSnapshot, actOnGame, getGame, updateChatPresence } from "@/server/services/together-service";
+import { sendChatMessage, togetherSnapshot, actOnGame, getGame, updateChatPresence } from "@/server/services/together-service";
 import { actOnCall, getCall, togetherStatus } from "@/server/services/couple-call-service";
 import { GET as imageGET } from "@/app/api/together/images/[id]/route";
 import { GAME_LABEL, type GameKind, type GameMove } from "@/lib/together/games";
 import { legalArcadeMoves } from "@/lib/together/arcade-view";
 import { CHAT_IMAGE_SPACE } from "@/lib/together/catalog";
-import type { ProcessedImage } from "@/lib/images";
+import { sendEncryptedImage, registerChatKey } from "@/server/services/chat-security-service";
+const keyId = "ab".repeat(32);
 
 let owner: string, partner: string, outsider: string, otherPartner: string, couple: string, otherCouple: string;
 beforeEach(async () => {
@@ -25,13 +25,14 @@ beforeEach(async () => {
     return { a: a.id, b: b.id, space: space.id };
   };
   const own = await make("together"), other = await make("other"); owner = own.a; partner = own.b; couple = own.space; outsider = other.a; otherPartner = other.b; otherCouple = other.space;
+  await asUser(owner, () => registerChatKey(keyId));
 });
 afterEach(async () => {
   await prisma.couple.deleteMany({ where: { id: { in: [couple, otherCouple].filter(Boolean) } } });
   await prisma.user.deleteMany({ where: { id: { in: [owner, partner, outsider, otherPartner].filter(Boolean) } } });
 });
 afterAll(() => prisma.$disconnect());
-const text = (body = "Hello ❤️") => ({ kind: "TEXT", body, clientNonce: randomUUID() });
+const text = (body = "Hello ❤️") => ({ kind: "TEXT", body: JSON.stringify({ v: 1, keyId, iv: "AA".repeat(8), data: Buffer.from(body + "-ciphertext-fixture-padding").toString("base64") }), clientNonce: randomUUID() });
 
 it("stores exactly one message across concurrent retries and rejects forged ownership", async () => {
   const input = { ...text(), coupleId: otherCouple, senderId: outsider };
@@ -39,7 +40,7 @@ it("stores exactly one message across concurrent retries and rejects forged owne
   expect(sent[0].id).toBe(sent[1].id);
   expect(sent[0].senderId).toBe(owner);
   expect(await prisma.chatMessage.count({ where: { coupleId: couple } })).toBe(1);
-  expect((await asUser(partner, () => togetherSnapshot())).messages[0].body).toBe("Hello ❤️");
+  expect((await asUser(partner, () => togetherSnapshot())).messages[0].body).toBe(input.body);
   expect((await asUser(outsider, () => togetherSnapshot())).messages).toEqual([]);
   await expect(asUser(owner, () => sendChatMessage({ ...text(), kind: "STICKER", body: "forged" }))).rejects.toThrow();
 });
@@ -68,17 +69,17 @@ it("tracks monotonic, bounded read receipts and typing while keeping unread coun
   expect(String(read.lastRead)).toBe(sent.sequence);
 });
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j2ioAAAAASUVORK5CYII=", "base64");
-const image: ProcessedImage = { width: 1, height: 1, ext: "png", blurDataUrl: "", original: { buffer: png, bytes: png.length, contentType: "image/png", width: 1, height: 1 }, display: { buffer: png, bytes: png.length, contentType: "image/png", width: 1, height: 1 }, thumb: { buffer: png, bytes: png.length, contentType: "image/png", width: 1, height: 1 } };
+const image = { keyId, iv: "AA".repeat(8), data: png.toString("base64"), width: 1, height: 1, viewLimit: 0 };
 it("persists private images, deduplicates retries, excludes bytes from polling and rechecks access", async () => {
-  const context = await asUser(owner, requireTogether), nonce = randomUUID();
-  const sent = await asUser(owner, () => sendChatImage(context, nonce, image));
-  expect((await asUser(owner, () => sendChatImage(context, nonce, image))).id).toBe(sent.id);
+  const nonce = randomUUID();
+  const sent = await asUser(owner, () => sendEncryptedImage({ ...image, clientNonce: nonce }));
+  expect((await asUser(owner, () => sendEncryptedImage({ ...image, clientNonce: nonce }))).id).toBe(sent.id);
   expect(await prisma.chatImage.count({ where: { coupleId: couple } })).toBe(1);
   const snapshot = await asUser(partner, () => togetherSnapshot());
-  expect(snapshot.messages[0].image).toEqual({ url: `/api/together/images/${sent.id}`, width: 1, height: 1 });
+  expect(snapshot.messages[0].image).toMatchObject({ url: `/api/together/images/${sent.id}`, width: 1, height: 1, encrypted: true });
   expect(JSON.stringify(snapshot)).not.toContain(png.toString("base64"));
   const load = () => imageGET(new Request(`http://localhost/api/together/images/${sent.id}`), { params: Promise.resolve({ id: sent.id }) });
-  const allowed = await asUser(partner, load); expect(allowed.status).toBe(200); expect(Buffer.from(await allowed.arrayBuffer())).toEqual(png);
+  const allowed = await asUser(partner, load); expect(allowed.status).toBe(200); expect((await allowed.json()).data).toBe(png.toString("base64"));
   expect(allowed.headers.get("cache-control")).toBe("private, no-store");
   expect((await asUser(outsider, load)).status).toBe(404);
   await prisma.coupleMember.updateMany({ where: { userId: partner }, data: { status: "LEFT" } });
@@ -87,8 +88,7 @@ it("persists private images, deduplicates retries, excludes bytes from polling a
 it("rejects an image once the shared quota is full without leaving a partial message", async () => {
   // Simulate the existing usage total without allocating a full quota of image buffers.
   await prisma.chatMessage.create({ data: { coupleId: couple, senderId: owner, clientNonce: randomUUID(), kind: "IMAGE", image: { create: { coupleId: couple, byteLength: CHAT_IMAGE_SPACE, bytes: new Uint8Array(png), contentType: "image/png", width: 1, height: 1 } } } });
-  const context = await asUser(owner, requireTogether);
-  await expect(asUser(owner, () => sendChatImage(context, randomUUID(), image))).rejects.toThrow(/full/);
+  await expect(asUser(owner, () => sendEncryptedImage({ ...image, clientNonce: randomUUID() }))).rejects.toThrow(/full/);
   expect(await prisma.chatMessage.count({ where: { coupleId: couple } })).toBe(1);
 });
 it.each(Object.keys(GAME_LABEL) as GameKind[])("persists and plays a real shared %s match", async (kind) => {
@@ -119,6 +119,8 @@ it("counts a finished result once, even when the winning move is retried or a sc
   expect(scores.find((score) => score.userId === owner)).toMatchObject({ wins: 1, losses: 0, draws: 0 });
   expect(scores.find((score) => score.userId === partner)).toMatchObject({ wins: 0, losses: 1, draws: 0 });
   expect(await prisma.chatMessage.count({ where: { clientNonce: `game-result:${game.id}` } })).toBe(1);
+  const events = await prisma.chatMessage.findMany({ where: { coupleId: couple, kind: "GAME" } });
+  expect(events.every((event) => event.body === "")).toBe(true);
 });
 it("redacts actual stored game secrets and allows either partner to commit a private RPS choice", async () => {
   for (const kind of ["BATTLESHIP", "MEMORY", "HIGHER_LOWER", "ROCK_PAPER_SCISSORS"] as const) {
@@ -185,10 +187,9 @@ it("allows either connected partner to upgrade voice to video without another ca
   await expect(asUser(partner, () => actOnCall({ action: "video", id: call.id }))).rejects.toThrow(/ended/);
 });
 it("refuses chat, games and call writes after a member leaves", async () => {
-  const context = await asUser(owner, requireTogether);
   await prisma.coupleMember.updateMany({ where: { userId: partner }, data: { status: "LEFT" } });
   await expect(asUser(owner, () => sendChatMessage(text()))).rejects.toThrow();
-  await expect(asUser(owner, () => sendChatImage(context, randomUUID(), image))).rejects.toThrow();
+  await expect(asUser(owner, () => sendEncryptedImage({ ...image, clientNonce: randomUUID() }))).rejects.toThrow();
   await expect(asUser(owner, () => actOnGame({ action: "create", kind: "LUDO", clientNonce: randomUUID() }))).rejects.toThrow();
   await expect(asUser(owner, () => actOnCall({ action: "start", kind: "AUDIO", clientNonce: randomUUID() }))).rejects.toThrow();
   expect(await prisma.chatMessage.count({ where: { coupleId: couple } })).toBe(0);

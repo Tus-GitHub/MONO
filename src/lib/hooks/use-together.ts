@@ -3,7 +3,15 @@ import { useCallback, useRef, useState } from "react";
 import { togetherFetch, errorMessage } from "@/lib/together/client";
 import type { MessageDTO, TogetherSnapshot } from "@/lib/together/types";
 import { useVisiblePoll } from "./use-visible-poll";
-const merged = (old: MessageDTO[], next: MessageDTO[]) => !next.length ? old : [...new Map([...old, ...next].map((message) => [message.id, message])).values()].sort((a, b) => BigInt(a.sequence) < BigInt(b.sequence) ? -1 : 1);
+export const mergeMessages = (old: MessageDTO[], next: MessageDTO[]) => {
+  if (!next.length) return old;
+  const rows = new Map(old.map((message) => [message.id, message]));
+  for (const message of next) {
+    const previous = rows.get(message.id);
+    if (!previous || message.version >= previous.version) rows.set(message.id, message);
+  }
+  return [...rows.values()].sort((a, b) => BigInt(a.sequence) < BigInt(b.sequence) ? -1 : 1);
+};
 
 export function useTogether(initial: TogetherSnapshot, chatVisible: boolean) {
   const [data, setData] = useState(initial), [error, setError] = useState<string | null>(null), [hasOlder, setHasOlder] = useState(initial.hasMore);
@@ -18,7 +26,7 @@ export function useTogether(initial: TogetherSnapshot, chatVisible: boolean) {
       const changed = next.revision !== current.current.revision || next.messages.length > 0;
       current.current = { cursor: next.cursor, revision: next.revision };
       setData((previous) => ({ ...previous, ...next, games: next.games ?? previous.games, scores: next.scores ?? previous.scores,
-        imageBytes: next.imageBytes ?? previous.imageBytes, messages: merged(previous.messages, next.messages) }));
+        imageBytes: next.imageBytes ?? previous.imageBytes, messages: mergeMessages(previous.messages, [...next.messages, ...(next.updates ?? [])]) }));
       setError(null); setDelay((old) => changed ? 2500 : Math.min(10_000, old + 1500));
     } catch (error) { if (!signal?.aborted) { setError(errorMessage(error)); setDelay(10_000); } }
   }, []);
@@ -27,7 +35,7 @@ export function useTogether(initial: TogetherSnapshot, chatVisible: boolean) {
   const partnerTyping = Boolean(data.partner.typingUntil && new Date(data.partner.typingUntil).getTime() > observedAt);
   useVisiblePoll(refresh, partnerOnline || data.games?.some((game) => game.status === "ACTIVE") ? 2500 : delay);
   const append = useCallback((message: MessageDTO) => {
-    setData((previous) => ({ ...previous, messages: merged(previous.messages, [message]) }));
+    setData((previous) => ({ ...previous, messages: mergeMessages(previous.messages, [message]) }));
     setDelay(2500);
   }, []);
   const typingRef = useRef(false);
@@ -46,7 +54,7 @@ export function useTogether(initial: TogetherSnapshot, chatVisible: boolean) {
     if (!data.messages[0]) return;
     try {
       const page = await togetherFetch<TogetherSnapshot>(`/api/together?before=${data.messages[0].sequence}`);
-      setData((previous) => ({ ...previous, messages: merged(page.messages, previous.messages) })); setHasOlder(page.hasMore);
+      setData((previous) => ({ ...previous, messages: mergeMessages(previous.messages, page.messages) })); setHasOlder(page.hasMore);
     } catch (error) { setError(errorMessage(error)); }
   };
   return { data, error, refresh, append, older, hasOlder, onTyping, partnerOnline, partnerTyping };

@@ -22,7 +22,7 @@ export async function togetherStatus() {
     prisma.chatMemberState.findUnique({ where: { coupleId_userId: { coupleId: couple.id, userId: user.id } }, select: { lastRead: true } }),
     prisma.coupleCall.findMany({ where: { coupleId: couple.id, status: { in: ["RINGING", "ACCEPTED"] } }, orderBy: { createdAt: "desc" }, take: 5 }),
   ]);
-  const unread = await prisma.chatMessage.count({ where: { coupleId: couple.id, senderId: { not: user.id }, sequence: { gt: state?.lastRead ?? BigInt(0) } } });
+  const unread = await prisma.chatMessage.count({ where: { coupleId: couple.id, senderId: { not: user.id }, deletedAt: null, NOT: { hiddenFor: { has: user.id } }, sequence: { gt: state?.lastRead ?? BigInt(0) } } });
   // Expired signaling is not chat history. Purge network negotiation data on foreground checks.
   await prisma.callSignal.deleteMany({ where: { call: { coupleId: couple.id }, createdAt: { lt: new Date(Date.now() - 5 * 60_000) } } });
   const active = calls.find((call) => ["RINGING", "ACCEPTED"].includes(effectiveCallStatus(call)));

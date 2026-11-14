@@ -1,6 +1,8 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-15 (live crop/upload audit complete and deployed; deployment cleanup updates preserved)
+Last updated: 2026-11-15 (encrypted chat publication and live QA in progress)
+
+
 
 ## Project Overview
 
@@ -23,7 +25,19 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Free PWA audio-routing workaround (2026-11-14)** — user rejects native/store costs and
+- **Encrypted chat production release/live QA (2026-11-15)** — explicitly authorized to publish and deploy, then test photo view-once/twice, edits and both deletion modes on production using retained synthetic QA accounts. Refresh current main, build before commit/push, verify canonical deployment, exercise real client encryption and persisted limits. Do not migrate real user history or disclose recovery keys.
+
+- **Encrypted chat release/device verification (2026-11-15)** — implementation and automated verification complete locally; production build passed. User approved private recovery codes. Production has not been changed, no real recovery code generated and no production history migrated. Cross-device browser/PWA UI and physical iPhone/Samsung checks remain. PWA screenshot/recording blocking or detection is unavailable; no fabricated secret alerts. See docs/encrypted-chat.md.
+
+
+- **Live compatibility audio continuity QA (2026-11-15)** — user requests real live testing of
+  compatibility playback/output changes without microphone muting or call disconnection.
+  Use existing disposable QA sessions, verify production release, compare connected state and
+  microphone/media evidence before/during/after normal/compatibility changes. Actual audibility
+  needs listener confirmation; desktop results do not establish iPhone/Samsung hardware routing.
+
+- **Physical PWA audio-routing verification (2026-11-14)** — user rejects native/store costs and
+
   requests a workaround in the PWA. Research found Web Audio output selection as an alternate
   route and WebKit single-track WebRTC routing bug 320087 (fixed upstream; installed release
   availability not assumed). Implement opt-in compatibility playback with real exposed output
@@ -215,6 +229,13 @@ components. Business rules never live only in React components — they live in
   errors. Verified pixels, private access, persistence and updates without reloading.
   Navigation warnings and physical-device limits are documented in
   `docs/reports/live-crop-audit-2026-11-15.md`. Test data retained; sessions signed out.
+- **Encrypted chat implementation (2026-11-15)** — private recovery code approved by user;
+  client-side encrypted messages/stickers/photos, atomic view-once/twice, author-only edit and
+  delete-for-everyone, persistent delete-for-me, resumable verified legacy conversion. All529
+  unit and188 PostgreSQL integration checks passed; focused46 rechecked after final review;
+  TypeScript, full lint and production build passed. No production deployment/migration or
+  phone/UI verification claimed. See docs/encrypted-chat.md for recovery and security limits.
+
 
 - **Automatic deployment cleanup (2026-11-15)** — active on free GitHub Actions after
   successful main/Production releases. Retains canonical live plus one healthy rollback;
@@ -230,6 +251,15 @@ components. Business rules never live only in React components — they live in
   preview checks pass with zero page errors, including narrow/landscape layouts and cancel.
   No production photos changed; test sessions signed out. See the image-framing report for
   local WebKit navigation diagnostics and the limits of automated iOS/PWA coverage.
+- **Free PWA compatibility audio and notification recovery (2026-11-14)** — published code
+  commit 623f193; push to main succeeded. Production dpl_6NCt6phSPDnmq82pK4tiTuJXyGoz READY
+  and aliased to mono-kappa-beryl.vercel.app. Opt-in alternate local audio rendering, actual
+  browser output selection, normal-playback recovery, external notification permission recheck,
+  and transient call-sync feedback. 38 focused test cases across the exercised suites passed,
+  plus TypeScript, targeted ESLint and final production build/function-size guard (80 traces,
+  largest 26.82 MiB). Actual phone route and two-way audibility are not yet verified. No new
+  browser call made for this release; status/alias verified through Vercel API.
+
 
 - **Call controls and iPhone typing fix (2026-11-14)** — published 7d18288; production
   dpl_d5hRLNswijv4znpi8frUtB9TEQiA READY with canonical mono-kappa-beryl.vercel.app alias.
@@ -1760,6 +1790,14 @@ sessions signed out. The test account's saved photo was unchanged. Told the user
 is live. Automated profiles only; no physical iPhone or installed-device test is claimed.
 
 ### 2026-11-14 — Free PWA audio-routing workaround (IN PROGRESS)
+### 2026-11-15 — Live compatibility audio continuity QA (IN PROGRESS)
+
+Testing production call between disposable owner/partner accounts. Verify normal-to-compatibility
+and back, available output changes, microphone continuity and hangup cleanup. Do not treat a
+Connected badge alone as proof of transmitted or audible microphone sound.
+
+### 2026-11-14 — Free PWA audio-routing workaround (IMPLEMENTED AND DEPLOYED; phone QA pending)
+
 
 User explicitly wants to stay PWA and avoid native/store costs. Implemented opt-in compatibility
 playback using AudioContext.setSinkId when present; otherwise local Web Audio MediaStream into
@@ -1770,9 +1808,10 @@ audio-router suite now has 10 passing lifecycle tests including late fallback af
 (38 focused cases total). TypeScript,
 targeted ESLint and production build passed (80 traces, largest 26.82 MiB). Review found a
 notification focus-event race before React rerenders; use a synchronous operation ref instead
-of a captured busy state so the watcher cannot cancel the just-started enable request. Rebuilding
-the final playback-fallback cancellation refinement before publication. Physical iPhone/Samsung
-routing remains unverified. No source changes planned after the final build.
+of a captured busy state so the watcher cannot cancel the just-started enable request. Final
+build passed, commit 623f193 pushed, production dpl_6NCt6phSPDnmq82pK4tiTuJXyGoz READY on all
+three aliases including mono-kappa-beryl.vercel.app. Physical iPhone/Samsung routing remains
+unverified. No app source changes after final build.
 Included earlier notification recovery and transient call-sync feedback changes in this release.
 No claim that this adds an unexposed phone earpiece or guarantees a physical route change.
 My earlier blanket browser impossibility answer was too broad: browser/version capabilities and
@@ -1803,7 +1842,7 @@ can have costs even with open-source calling. Mac access remains unanswered. No 
 paid purchase, new deployment or browser test performed for this guidance. Earlier desktop QA
 was stopped by Computer Use URL-verification policy; do not claim screen-share/audibility pass.
 
-### 2026-11-14 — Samsung notification permission recovery (IN PROGRESS)
+### 2026-11-14 — Samsung notification permission recovery (DEPLOYED; physical Samsung QA pending)
 
 User needed manual Samsung permission settings because the internal enable flow did not work.
 Fix external settings state reconciliation without re-prompting denied users or cancelling
@@ -1817,7 +1856,7 @@ accepted a speaker selection. Voice-to-video upgrade delivered remote camera vid
 Physical audibility not yet confirmed. Screen picker is waiting for user consent. Found stale
 polling/heartbeat timeout text persisting during a connected call: separate transient sync
 feedback from call errors, clear it after successful poll and explain automatic retry.
-This does not fix network latency itself. Final build/deploy pending.
+This does not fix network latency itself. Included in verified production release 623f193.
 
 ### 2026-11-14 — Resume live QA and require working phone audio routing (IN PROGRESS)
 
@@ -3819,3 +3858,28 @@ before being used as a current tracker. Existing local memory edits are preserve
   reflections), `<ReviewStatus>` on `/dates/[id]`. Dropped every `overallRating*2`; aggregates
   now filter `submittedAt: { not: null }`. `tsc`/`eslint`/`next build` (40 routes)/`next dev`
   green; state machine + suggestion logic sanity-checked. Needs DB + login. **DONE**
+
+### 2026-11-15 — Encrypted chat and privacy controls — DONE (local implementation)
+User approved a private recovery code shared out of band. Synced latest main 31f5c95, preserving photo cropping/upload fixes and task notes. Existing chat stored plaintext; designing encrypted writes, safe migration and atomic limited views. Earlier live audio QA remains unverified; no new call test claimed.
+
+Implemented AES-256-GCM content encryption with a random recovery code, couple-scoped HKDF
+key derivation, nonextractable IndexedDB keys and fingerprint-only registration. Text/sticker
+and photo APIs reject plaintext. Added atomic recipient view-once/twice consumption, no-store
+media access, close/background URL cleanup, author-only encrypted edit, per-user deletion and
+author-only delete-for-everyone. Version-aware merges and revision pagination propagate old
+message changes without stale polling resurrection. Chat does not mark messages read while
+locked. Game system events store no new plaintext message body; game metadata remains visible.
+Existing history conversion verifies ciphertext locally and replaces body/photo bytes atomically;
+original image bytes and formats are preserved. Old database backups cannot be retroactively
+erased. No paid dependencies/services added. New additive SQL migration applied only to a fresh
+local mono_test_chat_security database on port55459.
+Validation: all529 unit checks and all188 integration checks passed, TypeScript and full ESLint
+passed; first build passed (82 routes; largest26.82MiB). Final build and focused46 integration
+checks are running after the final review removed plaintext game-result descriptions. No browser
+or actual phone UI testing performed for these changes. Do not describe this as independently
+audited, Signal protocol, forward-secret, screenshot-proof, or already live.
+
+Final production build passed:82 routes; largest26.82MiB; summed519.11MiB; unique29.18MiB. Focused46 integration checks also passed after final code review. Changes remain local and uncommitted. Live history remains unchanged and requires recovery-code setup plus Secure existing history after a future deployment.
+
+### 2026-11-15 — Publish encrypted chat and test production — IN PROGRESS
+User explicitly requests deployment and live verification. Synced main58136c4 preserving completed photo-audit notes. Release adds one additive migration; the configured Vercel build applies it before assigning production. Existing529 unit/188 integration tests passed; production build repeated for this publish. Tests target retained synthetic d8e38499 space, not real partner content.

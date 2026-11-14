@@ -7,7 +7,7 @@ export async function togetherFetch<T>(path: string, options: { body?: unknown; 
   const multipart = options.body instanceof FormData;
   // Images need time for the mobile upload, decoding and persistence, like the other
   // photo uploaders. A short chat deadline can report failure after the photo was saved.
-  const timer = setTimeout(cancel, multipart ? 120_000 : 15_000);
+  const timer = setTimeout(cancel, multipart || path.startsWith("/api/together/images") || path.startsWith("/api/together/encryption") ? 120_000 : 15_000);
   try {
     const response = await fetch(path, { method: options.body === undefined ? "GET" : "POST", cache: "no-store", signal: controller.signal,
       ...(options.body === undefined ? {} : multipart ? { body: options.body as FormData } : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(options.body) }) });

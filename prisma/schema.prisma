@@ -344,6 +344,7 @@ model Couple {
   // onboarding
   setupCompletedAt DateTime?
   togetherRevision BigInt @default(0)
+  chatKeyId        String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -435,6 +436,12 @@ model ChatMessage {
   clientNonce String
   kind        ChatMessageKind
   body        String @default("")
+  encrypted   Boolean @default(false)
+  version     Int @default(0)
+  revision    BigInt @default(0)
+  editedAt    DateTime?
+  deletedAt   DateTime?
+  hiddenFor   String[] @default([])
   gameId      String?
   createdAt   DateTime @default(now())
   couple      Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
@@ -443,10 +450,11 @@ model ChatMessage {
   image       ChatImage?
   @@unique([senderId, clientNonce])
   @@index([coupleId, sequence])
+  @@index([coupleId, revision])
   @@map("chat_messages")
 }
 
-// Compressed, bounded chat images persist without requiring a separate paid bucket.
+// Bounded encrypted chat images persist without requiring a separate paid bucket.
 // The bytes are selected only by the authenticated image endpoint, never by chat polling.
 model ChatImage {
   messageId   String @id
@@ -456,6 +464,10 @@ model ChatImage {
   contentType String
   width       Int
   height      Int
+  encrypted   Boolean @default(false)
+  iv          String?
+  viewLimit   Int @default(0)
+  viewsUsed   Int @default(0)
   message     ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
   couple      Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
   @@index([coupleId])

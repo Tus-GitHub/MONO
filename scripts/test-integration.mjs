@@ -30,4 +30,4 @@ function run(script, args) {
   });
 }
 await run("node_modules/prisma/build/index.js", ["migrate", "deploy"]);
-await run("node_modules/vitest/vitest.mjs", ["run", "--config", "vitest.integration.config.ts"]);
+await run("node_modules/vitest/vitest.mjs", ["run", "--config", "vitest.integration.config.ts", ...process.argv.slice(2)]);

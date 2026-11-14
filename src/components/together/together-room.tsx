@@ -13,7 +13,10 @@ import { useTogether } from "@/lib/hooks/use-together";
 import { togetherFetch, errorMessage } from "@/lib/together/client";
 import { CHAT_IMAGE_SPACE, EMOJI, STICKERS } from "@/lib/together/catalog";
 import type { MessageDTO, TogetherSnapshot } from "@/lib/together/types";
-import { downscaleImage } from "@/lib/images/client-resize";
+import { chatAAD, encryptText, type ChatKey } from "@/lib/together/chat-crypto";
+import { encryptPhoto } from "@/lib/together/secure-photo";
+import { ChatEncryption, SecureHistory } from "./chat-encryption";
+import { SecureMessage } from "./secure-message";
 import { cn } from "@/lib/utils/cn";
 import { useTogetherCall } from "./together-provider";
 import { CallSetup } from "./call-setup";
@@ -21,7 +24,8 @@ import { CallSetup } from "./call-setup";
 const GamesPanel = dynamic(() => import("./games-panel"), { loading: () => <div className="flex justify-center py-10"><Spinner /></div> });
 export function TogetherRoom({ initial, userId, userName }: { initial: TogetherSnapshot; userId: string; userName: string }) {
   const [tab, setTab] = useState<"chat" | "games" | "scores">("chat"), [selectedGame, setGame] = useState<string | null>(null);
-  const chat = useTogether(initial, tab === "chat"), calling = useTogetherCall();
+  const [chatKey, setChatKey] = useState<ChatKey | null>(null);
+  const chat = useTogether(initial, tab === "chat" && chatKey != null), calling = useTogetherCall();
   const { partner } = chat.data;
   const callBusy = Boolean(calling.call) || calling.phase !== "idle";
   return <div className="flex h-full min-h-0 w-full flex-col">
@@ -35,17 +39,20 @@ export function TogetherRoom({ initial, userId, userName }: { initial: TogetherS
     <div role="tablist" aria-label="Together" className="mono-chat-tabs flex shrink-0 gap-1 border-b border-line px-3 py-1 sm:px-5">{([['chat', 'Chat'], ['games', 'Games · 24'], ['scores', 'Scores']] as const).map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={tab === key} aria-controls={`together-${key}`} id={`tab-${key}`} onClick={() => setTab(key)} className={cn("min-h-9 rounded-lg px-3 py-1 text-sm font-medium", tab === key ? "bg-primary-tint text-primary" : "text-muted hover:bg-surface")}>{label}</button>)}</div>
     {chat.error ? <p role="alert" className="shrink-0 px-3 py-1 text-sm text-error">Live updates paused: {chat.error} <Button variant="link" onClick={() => void chat.refresh()}>Reconnect</Button></p> : null}
     {tab === "chat" ? <section role="tabpanel" id="together-chat" aria-labelledby="tab-chat" className="flex min-h-0 flex-1 flex-col">
-      <MessageList messages={chat.data.messages} userId={userId} lastRead={partner.lastRead} timezone={chat.data.timezone} older={chat.older} hasOlder={chat.hasOlder}
+      {!chatKey ? <div className="min-h-0 flex-1 overflow-y-auto"><ChatEncryption coupleId={chat.data.coupleId} userId={userId} keyId={chat.data.chatKeyId} onUnlock={setChatKey} refresh={chat.refresh} /></div> : <>
+      <SecureHistory chatKey={chatKey} coupleId={chat.data.coupleId} refresh={chat.refresh} />
+      <MessageList chatKey={chatKey} coupleId={chat.data.coupleId} append={chat.append} messages={chat.data.messages.filter((message) => !message.hidden)} userId={userId} lastRead={partner.lastRead} timezone={chat.data.timezone} older={chat.older} hasOlder={chat.hasOlder}
         openGame={(id) => { setGame(id); setTab("games"); }} />
-      <Composer append={chat.append} onTyping={chat.onTyping} imageBytes={chat.data.imageBytes ?? 0} />
+      <Composer chatKey={chatKey} coupleId={chat.data.coupleId} userId={userId} append={chat.append} onTyping={chat.onTyping} imageBytes={chat.data.imageBytes ?? 0} />
+      </>}
     </section> : <section role="tabpanel" id={`together-${tab}`} aria-labelledby={`tab-${tab}`} className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-6">
       <GamesPanel games={chat.data.games ?? []} scores={chat.data.scores ?? []} userId={userId} userName={userName} partnerName={partner.name}
         selectedId={selectedGame} onSelect={setGame} refresh={chat.refresh} mode={tab} />
     </section>}
   </div>;
 }
-function MessageList({ messages, userId, lastRead, timezone, hasOlder, older, openGame }: {
-  messages: MessageDTO[]; userId: string; lastRead: string; timezone: string; hasOlder: boolean; older: () => Promise<void>; openGame: (id: string) => void;
+function MessageList({ chatKey, coupleId, append, messages, userId, lastRead, timezone, hasOlder, older, openGame }: {
+  chatKey: ChatKey; coupleId: string; append: (row: MessageDTO) => void; messages: MessageDTO[]; userId: string; lastRead: string; timezone: string; hasOlder: boolean; older: () => Promise<void>; openGame: (id: string) => void;
 }) {
   const scroll = useRef<HTMLDivElement | null>(null), atBottom = useRef(true), first = useRef(true), [loading, setLoading] = useState(false);
   const last = messages[messages.length - 1];
@@ -71,13 +78,11 @@ function MessageList({ messages, userId, lastRead, timezone, hasOlder, older, op
     {hasOlder ? <div className="mb-4 text-center"><Button variant="ghost" size="sm" loading={loading} onClick={() => void loadOlder()}>Load earlier messages</Button></div> : null}
     {!messages.length ? <div className="grid h-full place-content-center text-center"><p className="font-display text-xl">A little space for the two of you</p><p className="mt-2 text-sm text-muted">Say hello, share a photo, or invite your partner to a game.</p></div> : null}
     <div role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions" className="space-y-1">{messages.map((message, index) => {
-      const mine = message.senderId === userId, sticker = message.kind === "STICKER" ? STICKERS.find((item) => item.id === message.body) : null;
+      const mine = message.senderId === userId;
       return <div key={message.id}>
         {index === 0 || day(messages[index - 1].createdAt) !== day(message.createdAt) ? <p className="my-3 text-center text-2xs text-faint">{day(message.createdAt)}</p> : null}
         <article aria-label={`${mine ? "You" : "Partner"} ${time(message.createdAt)}`} className={cn("w-fit max-w-[85%] space-y-0.5 rounded-lg px-3 py-1.5 sm:max-w-[65%]", mine ? "ml-auto bg-primary-tint text-ink" : "mr-auto border border-line bg-surface text-ink")}>
-          {message.image ? <a href={message.image.url} target="_blank" rel="noreferrer"><Image unoptimized src={message.image.url} alt="Shared chat image" width={message.image.width} height={message.image.height} className="max-h-80 w-auto max-w-full rounded-xl object-contain" /></a>
-            : sticker ? <div className="py-1 text-center"><span role="img" aria-label={sticker.label} className="block text-5xl">{sticker.emoji}</span><p className="mt-1 text-xs">{sticker.label}</p></div>
-            : <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{message.body}</p>}
+          <SecureMessage message={message} chatKey={chatKey} coupleId={coupleId} mine={mine} append={append} />
           {message.kind === "GAME" && message.gameId ? <Button variant="secondary" size="sm" onClick={() => openGame(message.gameId!)}>Open game</Button> : null}
           <p className="text-right text-2xs text-muted">{time(message.createdAt)}{mine ? ` · ${BigInt(lastRead) >= BigInt(message.sequence) ? "Read" : "Sent"}` : ""}</p>
         </article>
@@ -85,9 +90,10 @@ function MessageList({ messages, userId, lastRead, timezone, hasOlder, older, op
     })}</div>
   </div>;
 }
-function Composer({ append, onTyping, imageBytes }: { append: (message: MessageDTO) => void; onTyping: (value: boolean) => void; imageBytes: number }) {
+function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes }: { chatKey: ChatKey; coupleId: string; userId: string; append: (message: MessageDTO) => void; onTyping: (value: boolean) => void; imageBytes: number }) {
   const [text, setText] = useState(""), [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null);
   const [palette, setPalette] = useState<"emoji" | "stickers" | null>(null), [picture, setPicture] = useState<File | null>(null);
+  const [viewLimit, setViewLimit] = useState<0 | 1 | 2>(0);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [cropFiles, setCropFiles] = useState<File[] | null>(null);
   const input = useRef<HTMLTextAreaElement | null>(null);
@@ -101,7 +107,7 @@ function Composer({ append, onTyping, imageBytes }: { append: (message: MessageD
     const identity = `${kind}:${body}`;
     if (nonce.current.identity !== identity) nonce.current = { identity, value: crypto.randomUUID() };
     setBusy(true); setError(null);
-    try { const message = await togetherFetch<MessageDTO>("/api/together", { body: { kind, body, clientNonce: nonce.current.value } }); append(message); if (kind === "TEXT") { setText(""); onTyping(false); } nonce.current = { identity: "", value: "" }; setPalette(null); }
+    try { const message = await togetherFetch<MessageDTO>("/api/together", { body: { kind, body: await encryptText(chatKey, body, chatAAD(coupleId, userId, nonce.current.value, kind)), clientNonce: nonce.current.value } }); append(message); if (kind === "TEXT") { setText(""); onTyping(false); } nonce.current = { identity: "", value: "" }; setPalette(null); }
     catch (error) { setError(errorMessage(error)); }
     finally { setBusy(false); }
   };
@@ -110,8 +116,8 @@ function Composer({ append, onTyping, imageBytes }: { append: (message: MessageD
     setBusy(true); setError(null);
     try {
       imageNonce.current ||= crypto.randomUUID();
-      const form = new FormData(); form.set("file", await downscaleImage(picture));
-      const message = await togetherFetch<MessageDTO>(`/api/together/images?nonce=${imageNonce.current}`, { body: form });
+      const payload = await encryptPhoto(picture, chatKey, coupleId, userId, imageNonce.current, viewLimit);
+      const message = await togetherFetch<MessageDTO>("/api/together/images", { body: payload });
       append(message); setPicture(null); imageNonce.current = "";
     } catch (error) { setError(errorMessage(error)); }
     finally { setBusy(false); }
@@ -120,6 +126,8 @@ function Composer({ append, onTyping, imageBytes }: { append: (message: MessageD
     {error ? <p role="alert" className="text-sm text-error">{error}</p> : null}
     <BottomSheet open={picture != null} onClose={() => { if (!busy) { setPicture(null); imageNonce.current = ""; } }} title="Share a photo"
       footer={<div className="flex gap-2"><Button size="sm" loading={busy} onClick={() => void sendImage()}>Send image</Button><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setPicture(null); imageNonce.current = ""; }}>Cancel image</Button></div>}>
+      <label className="block space-y-2 text-sm">Photo access<select aria-label="Photo access" disabled={busy} value={viewLimit} onChange={(event) => { setViewLimit(Number(event.target.value) as 0 | 1 | 2); imageNonce.current = ""; }} className="block w-full rounded-lg border border-line bg-surface p-3"><option value={0}>Keep in chat</option><option value={1}>View once</option><option value={2}>View twice</option></select></label>
+      {viewLimit > 0 ? <p className="my-2 text-xs text-muted">Your partner can open this photo {viewLimit === 1 ? "once" : "twice"}. MONO cannot block screenshots or recordings, or warn you about them.</p> : null}
       {picture ? <div className="space-y-2"><PhotoPreview file={picture} /><p className="truncate text-xs text-muted">{picture.name}</p>{error ? <p role="alert" className="text-sm text-error">{error}</p> : null}</div> : null}
     </BottomSheet>
     <form onSubmit={(event) => { event.preventDefault(); void send("TEXT", text.trim()); }} className="space-y-1">

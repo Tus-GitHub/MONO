@@ -3,18 +3,21 @@ import { randomInt } from "node:crypto";
 import { Prisma, type ChatMessage, type GameMatch } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
-import { messageSchema, gameActionSchema, presenceSchema } from "@/lib/validation/together";
+import { gameActionSchema, presenceSchema } from "@/lib/validation/together";
 import { newGame, parseGame, playGame, GAME_LABEL } from "@/lib/together/games";
 import { publicArcade } from "@/lib/together/arcade";
-import { CHAT_IMAGE_LIMIT, CHAT_IMAGE_SPACE } from "@/lib/together/catalog";
-import type { ProcessedImage } from "@/lib/images";
+import { secureMessageSchema } from "@/lib/validation/chat-security";
+import { assertChatKey } from "./chat-security-service";
 import type { GameDTO, MessageDTO, ScoreDTO, TogetherSnapshot } from "@/lib/together/types";
-import { bumpTogether, requireTogether, withTogetherWrite, type TogetherContext } from "./together-context";
+import { bumpTogether, requireTogether, withTogetherWrite } from "./together-context";
 
-const imageSelect = { width: true, height: true } satisfies Prisma.ChatImageSelect;
-function messageDTO(row: ChatMessage & { image: { width: number; height: number } | null }): MessageDTO {
-  return { id: row.id, sequence: String(row.sequence), senderId: row.senderId, kind: row.kind, body: row.body, gameId: row.gameId,
-    createdAt: row.createdAt.toISOString(), image: row.image ? { ...row.image, url: `/api/together/images/${row.id}` } : null };
+export const imageSelect = { width: true, height: true, contentType: true, encrypted: true, viewLimit: true, viewsUsed: true } satisfies Prisma.ChatImageSelect;
+export function messageDTO(row: ChatMessage & { image: { width: number; height: number; contentType: string; encrypted: boolean; viewLimit: number; viewsUsed: number } | null }, userId: string): MessageDTO {
+  const hidden = row.hiddenFor.includes(userId), deleted = Boolean(row.deletedAt);
+  return { id: row.id, sequence: String(row.sequence), senderId: row.senderId, kind: row.kind,
+    body: hidden || deleted ? "" : row.body, gameId: hidden || deleted ? null : row.gameId,
+    clientNonce: row.clientNonce, encrypted: row.encrypted, version: row.version, editedAt: row.editedAt?.toISOString() ?? null, hidden, deleted,
+    createdAt: row.createdAt.toISOString(), image: !hidden && !deleted && row.image ? { ...row.image, url: `/api/together/images/${row.id}` } : null };
 }
 export function gameDTO(row: GameMatch, userId: string): GameDTO {
   const state = parseGame(row.kind, row.state);
@@ -31,7 +34,7 @@ export async function getGame(id: string): Promise<GameDTO> {
 export async function togetherSnapshot(options: { after?: bigint; before?: bigint; revision?: string } = {}): Promise<TogetherSnapshot> {
   const context = await requireTogether(), { couple, user, partner } = context;
   const changed = options.revision !== String(couple.togetherRevision) || options.after == null;
-  const [messages, peer, games, grouped, imageUsage] = await Promise.all([
+  const [messages, peer, games, grouped, imageUsage, updates] = await Promise.all([
     changed || options.after != null || options.before != null ? prisma.chatMessage.findMany({ where: { coupleId: couple.id,
       ...(options.before != null ? { sequence: { lt: options.before } } : options.after != null ? { sequence: { gt: options.after } } : {}) },
       orderBy: { sequence: options.after != null && options.before == null ? "asc" : "desc" }, take: 60, include: { image: { select: imageSelect } } }) : Promise.resolve([]),
@@ -42,6 +45,7 @@ export async function togetherSnapshot(options: { after?: bigint; before?: bigin
     ]).then((rows) => rows.flat()) : Promise.resolve(undefined),
     changed && options.before == null ? prisma.gameMatch.groupBy({ by: ["kind", "winnerId"], where: { coupleId: couple.id, status: "FINISHED" }, _count: { _all: true } }) : Promise.resolve(undefined),
     changed && options.before == null ? prisma.chatImage.aggregate({ where: { coupleId: couple.id }, _sum: { byteLength: true } }) : Promise.resolve(undefined),
+    options.revision != null && options.before == null ? prisma.chatMessage.findMany({ where: { coupleId: couple.id, revision: { gt: BigInt(options.revision), lte: couple.togetherRevision } }, orderBy: [{ revision: "asc" }, { sequence: "asc" }], take: 60, include: { image: { select: imageSelect } } }) : Promise.resolve([]),
   ]);
   if (!(options.after != null && options.before == null)) messages.reverse();
   const scores: ScoreDTO[] = [];
@@ -57,39 +61,25 @@ export async function togetherSnapshot(options: { after?: bigint; before?: bigin
     else if (row.winnerId === score.userId) score.wins += row._count._all;
     else score.losses += row._count._all;
   }
-  return { revision: String(couple.togetherRevision), cursor: messages.length ? String(messages[messages.length - 1].sequence) : String(options.after ?? 0),
-    messages: messages.map(messageDTO), games: games?.map((row) => gameDTO(row, user.id)), scores: grouped ? scores : undefined,
+  return { coupleId: couple.id, chatKeyId: couple.chatKeyId, revision: String(updates.length === 60 ? updates[59].revision : couple.togetherRevision), updates: updates.map((row) => messageDTO(row, user.id)), cursor: messages.length ? String(messages[messages.length - 1].sequence) : String(options.after ?? 0),
+    messages: messages.map((row) => messageDTO(row, user.id)), games: games?.map((row) => gameDTO(row, user.id)), scores: grouped ? scores : undefined,
     imageBytes: imageUsage?._sum.byteLength ?? (imageUsage ? 0 : undefined), hasMore: messages.length === 60,
     timezone: couple.timezone, observedAt: new Date().toISOString(), partner: { ...partner, lastRead: String(peer?.lastRead ?? 0), lastSeenAt: peer?.lastSeenAt.toISOString() ?? null, typingUntil: peer?.typingUntil?.toISOString() ?? null } };
 }
-async function checkMessageRate(tx: Prisma.TransactionClient, userId: string) {
+export async function checkMessageRate(tx: Prisma.TransactionClient, userId: string) {
   if (await tx.chatMessage.count({ where: { senderId: userId, createdAt: { gt: new Date(Date.now() - 60_000) } } }) >= 90) throw new ValidationError("Give your partner a moment before sending more messages.");
 }
 export async function sendChatMessage(value: unknown): Promise<MessageDTO> {
-  const input = messageSchema.parse(value), context = await requireTogether();
+  const input = secureMessageSchema.parse(value), context = await requireTogether();
   const row = await withTogetherWrite(context, async (tx) => {
     const existing = await tx.chatMessage.findUnique({ where: { senderId_clientNonce: { senderId: context.user.id, clientNonce: input.clientNonce } }, include: { image: { select: imageSelect } } });
     if (existing) { if (existing.coupleId !== context.couple.id) throw new ConflictError("Start a fresh message."); return existing; }
+    await assertChatKey(tx, context, JSON.parse(input.body).keyId);
     await checkMessageRate(tx, context.user.id);
-    const message = await tx.chatMessage.create({ data: { ...input, senderId: context.user.id, coupleId: context.couple.id }, include: { image: { select: imageSelect } } });
+    const message = await tx.chatMessage.create({ data: { ...input, encrypted: true, senderId: context.user.id, coupleId: context.couple.id }, include: { image: { select: imageSelect } } });
     await bumpTogether(tx, context.couple.id); return message;
   });
-  return messageDTO(row);
-}
-export async function sendChatImage(context: TogetherContext, clientNonce: string, processed: ProcessedImage): Promise<MessageDTO> {
-  const image = processed.display.bytes <= CHAT_IMAGE_LIMIT ? processed.display : processed.thumb;
-  if (image.bytes > CHAT_IMAGE_LIMIT || image.bytes !== image.buffer.byteLength) throw new ValidationError("Choose a smaller image (up to 512 KB after compression).");
-  const row = await withTogetherWrite(context, async (tx) => {
-    const existing = await tx.chatMessage.findUnique({ where: { senderId_clientNonce: { senderId: context.user.id, clientNonce } }, include: { image: { select: imageSelect } } });
-    if (existing) { if (existing.coupleId !== context.couple.id) throw new ConflictError("Start a fresh image message."); return existing; }
-    await checkMessageRate(tx, context.user.id);
-    const used = await tx.chatImage.aggregate({ where: { coupleId: context.couple.id }, _sum: { byteLength: true } });
-    if ((used._sum.byteLength ?? 0) + image.bytes > CHAT_IMAGE_SPACE) throw new ValidationError("Your shared chat image storage is full (25 MB).");
-    const message = await tx.chatMessage.create({ data: { senderId: context.user.id, coupleId: context.couple.id, clientNonce, kind: "IMAGE",
-      image: { create: { coupleId: context.couple.id, bytes: new Uint8Array(image.buffer), byteLength: image.bytes, contentType: image.contentType, width: image.width, height: image.height } } }, include: { image: { select: imageSelect } } });
-    await bumpTogether(tx, context.couple.id); return message;
-  });
-  return messageDTO(row);
+  return messageDTO(row, context.user.id);
 }
 export async function updateChatPresence(value: unknown) {
   const input = presenceSchema.parse(value), context = await requireTogether();
@@ -112,7 +102,7 @@ export async function actOnGame(value: unknown): Promise<GameDTO> {
       if (await tx.gameMatch.count({ where: { coupleId: context.couple.id, status: { in: ["WAITING", "ACTIVE"] } } }) >= 5) throw new ValidationError("Finish or cancel a game before starting another (up to five at once).");
       const match = await tx.gameMatch.create({ data: { coupleId: context.couple.id, playerOneId: context.user.id, playerTwoId: context.partner.id,
         clientNonce: input.clientNonce, kind: input.kind, state: json(newGame(input.kind, (max) => randomInt(max))) } });
-      await tx.chatMessage.create({ data: { coupleId: context.couple.id, senderId: context.user.id, clientNonce: `game-invite:${match.id}`, kind: "GAME", gameId: match.id, body: `Let's play ${GAME_LABEL[match.kind]}` } });
+      await tx.chatMessage.create({ data: { coupleId: context.couple.id, senderId: context.user.id, clientNonce: `game-invite:${match.id}`, kind: "GAME", encrypted: true, gameId: match.id, body: "" } });
       await bumpTogether(tx, context.couple.id); return match;
     }
     const match = await tx.gameMatch.findFirst({ where: { id: input.id, coupleId: context.couple.id } });
@@ -133,8 +123,8 @@ export async function actOnGame(value: unknown): Promise<GameDTO> {
         catch (error) { throw new ValidationError(error instanceof Error ? error.message : "Choose a legal move."); }
       }
       if (outcome !== undefined) { data = { ...data, status: "FINISHED", finishedAt: new Date(), ...(outcome !== "draw" ? { winner: { connect: { id: outcome === 0 ? match.playerOneId : match.playerTwoId } } } : {}) };
-        await tx.chatMessage.create({ data: { coupleId: context.couple.id, senderId: context.user.id, clientNonce: `game-result:${match.id}`, kind: "GAME", gameId: match.id,
-          body: `${GAME_LABEL[match.kind]} · ${outcome === "draw" ? "Draw" : `${outcome === (side === 0 ? 0 : 1) ? context.user.name : context.partner.name} won`}` } });
+        await tx.chatMessage.create({ data: { coupleId: context.couple.id, senderId: context.user.id, clientNonce: `game-result:${match.id}`, kind: "GAME", encrypted: true, gameId: match.id,
+          body: "" } });
       }
     }
     const updated = await tx.gameMatch.update({ where: { id: match.id }, data });

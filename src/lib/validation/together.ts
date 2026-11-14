@@ -2,13 +2,8 @@ import { z } from "zod";
 import { MiniGameKind } from "@prisma/client";
 import { arcadeMove } from "@/lib/together/arcade-state";
 import { idSchema } from "./common";
-import { STICKERS } from "@/lib/together/catalog";
 export const sequenceSchema = z.string().regex(/^\d{1,19}$/).transform(BigInt).refine((value) => value <= BigInt("9223372036854775807"));
 const nonce = z.string().uuid();
-export const messageSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("TEXT"), body: z.string().trim().min(1, "Write a message first.").max(4000), clientNonce: nonce }),
-  z.object({ kind: z.literal("STICKER"), body: z.string().refine((id) => STICKERS.some((sticker) => sticker.id === id), "Choose a sticker from the collection."), clientNonce: nonce }),
-]);
 export const gameMoveSchema = z.union([arcadeMove, z.object({ type: z.literal("token"), token: z.number().int().min(0).max(3) })]);
 export const gameActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("create"), kind: z.nativeEnum(MiniGameKind), clientNonce: nonce }),

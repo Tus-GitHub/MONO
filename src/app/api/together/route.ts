@@ -12,6 +12,6 @@ export async function GET(request: NextRequest) {
   })); } catch (error) { return togetherError(error); }
 }
 export async function POST(request: NextRequest) {
-  try { assertSameOrigin(request); return togetherJSON(await sendChatMessage(await readBoundedJson(request, 18_000))); }
+  try { assertSameOrigin(request); return togetherJSON(await sendChatMessage(await readBoundedJson(request, 26_000))); }
   catch (error) { return togetherError(error); }
 }
