@@ -23,19 +23,18 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Full-screen chat and call UI (2026-11-14)** — user requests mobile/PWA/laptop chat
-  and video calls use the whole screen, with smaller chat bubbles. Add route-aware chat
-  frame, compact header/composer, content-width bubbles and reduced vertical spacing.
-  Calls use full-viewport dialog with persistent controls and floating self-preview.
-  Respect safe areas and visual viewport/keyboard, retain existing games and media logic.
-  TypeScript, targeted ESLint and production Webpack build pass. Local preview could render
-  login but TCP to Neon is unavailable from this computer; stopped it and moved visual QA
-  to the deployed environment. Published 7e9a458, deployment dpl_EVEfAjT3hfjpK4U6AKj6bVfBUvk3
-  READY. Live review found the existing AppTemplate animation wrapper lacked height,
-  pushing composer below the viewport. Added scoped full-height/nonanimated wrapper for
-  chat; verifying correction before marking UI complete. Live disposable outgoing video call
-  confirmed full-window stage, real floating self-preview, and visible bottom controls; ended
-  immediately after inspection. Improved waiting-label contrast on the always-dark video stage.
+- **Responsive/mobile keyboard and two-way audio verification (2026-11-14)** — user asks
+  full responsiveness check after full-screen release, including composer above mobile
+  keyboard and audible media in both directions. Check live phone-sized portrait/landscape,
+  tablet/laptop layouts and long-message/tools behavior. User asked to independently test
+  Android/iPhone keyboard and voice-to-video audio; desktop emulation cannot prove these.
+  Keep physical-device results separate from browser layout and automated test evidence.
+  26 viewport/media regression tests pass. Live DevTools 320x568 and 390x844 portrait
+  layouts pass; 390x300 with long draft keeps composer visible. Found Send clipping at
+  844x190 with multiline draft. Cap input against visual height, compact header/tabs while
+  keyboard open/very short, and move photo preview to a sheet to avoid inflating composer.
+  Normal 844x390 landscape and 768x1024 tablet pass. Fix passes TypeScript, direct ESLint
+  and production Webpack build; publishing then retesting the failing short-height case.
 
 - **Mobile voice audio and Samsung notification follow-up (2026-11-14)** — user reports
   voice calls have no sound but video calls do; Samsung installed app notification enable
@@ -159,6 +158,16 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Full-screen chat and call UI (2026-11-14)** — published 7e9a458 and correction
+  ce814315ae69fba61fc72d0f1fa38d88f3427310; production dpl_D8DmGyVoNs8M6J9q7GpTAGh7Hqx2
+  READY on canonical URL. Chat owns the viewport, with compact header/composer, content-width
+  bubbles and reduced spacing. Full-screen calls have large video, floating self-preview and
+  persistent controls. Live QA caught/fixed AppTemplate's missing height, then verified composer
+  visible at normal zoom, 200% (~phone-width layout), and maximized desktop. Expanded message
+  tools remain above composer. Disposable outgoing video call confirmed real local preview
+  and full-window controls; ended after inspection. TypeScript, lint and final Webpack build
+  pass. Browser zoom restored; physical phone keyboard/safe-area checks remain unverified.
 
 - **Live partner edit audit (2026-11-14)** — deployed `ccfca96`. Both partners can edit their
   own revealed review while preserving submission/privacy boundaries. Fixed memory-heart
@@ -1551,7 +1560,13 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
-### 2026-11-14 — Full-screen chat and calls (IN PROGRESS)
+### 2026-11-14 — Responsive layout, mobile keyboard and audio audit (IN PROGRESS)
+
+User requests full responsiveness and real mobile keyboard/two-way audio confirmation.
+Reviewing live QA layouts and viewport/media regressions; requested Android/iPhone user
+observations in parallel. Do not claim physical-phone audio from a connected UI alone.
+
+### 2026-11-14 — Full-screen chat and calls (DONE)
 
 User explicitly authorized this UI redesign for mobile PWA and laptops. Chat now owns the
 viewport, with compact partner header, fixed composer, smaller content-width bubbles and
@@ -1561,6 +1576,9 @@ Existing journal pages keep their navigation. TypeScript, targeted lint and prod
 pass (first sandboxed build failed to create .next directories; escalated retry passed).
 Local authentication blocked by unavailable Neon TCP connection; use deployed QA session
 for visual review. No database changes, new dependencies or message writes.
+Live visual review found/fixed the AppTemplate wrapper height and video placeholder contrast.
+Final ce81431 deployment READY; desktop and 200% narrow-layout chat/composer verified, plus
+full-screen outgoing video/self-preview/controls. No claim of new physical-phone media QA.
 
 ### 2026-11-14 — Permission-first setup and incoming-call push (IN PROGRESS)
 - User prioritizes setup before ringing and Android/iPhone notifications while installed app

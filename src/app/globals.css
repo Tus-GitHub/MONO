@@ -403,6 +403,24 @@ html[data-kb="open"] body {
   min-height: 0;
   animation: none;
 }
+.mono-chat-input {
+  max-height: min(7rem, max(2.75rem, calc(var(--vvh, 100dvh) * 0.24)));
+  resize: none;
+}
+/* Retain usable controls when a landscape keyboard leaves little visible height. */
+html[data-kb="open"] .mono-chat-header {
+  padding-block: 0;
+}
+html[data-kb="open"] .mono-chat-presence {
+  display: none;
+}
+html[data-kb="open"] .mono-chat-tabs {
+  padding-block: 0;
+}
+@media (max-height: 20rem) {
+  .mono-chat-header, .mono-chat-tabs { padding-block: 0; }
+  .mono-chat-presence { display: none; }
+}
 .mono-fullscreen-wrap {
   padding: 0;
 }

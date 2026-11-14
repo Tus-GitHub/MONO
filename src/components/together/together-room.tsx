@@ -24,14 +24,14 @@ export function TogetherRoom({ initial, userId, userName }: { initial: TogetherS
   const { partner } = chat.data;
   const callBusy = Boolean(calling.call) || calling.phase !== "idle";
   return <div className="flex h-full min-h-0 w-full flex-col">
-    <header className="flex shrink-0 items-center gap-2 border-b border-line bg-elevated px-2 py-2 sm:gap-3 sm:px-5">
+    <header className="mono-chat-header flex shrink-0 items-center gap-2 border-b border-line bg-elevated px-2 py-2 sm:gap-3 sm:px-5">
       <Link href="/home" aria-label="Back to MONO" className="tap grid shrink-0 place-items-center rounded-lg text-muted hover:bg-surface"><Icon name="arrowLeft" /></Link>
       <div className="min-w-0 flex-1"><h1 className="truncate font-display text-xl font-medium text-ink">{partner.name}</h1>
-        <p className="truncate text-xs text-muted">{chat.partnerTyping ? "Typing…" : chat.partnerOnline ? "Online" : "Just us · private chat"}</p></div>
+        <p className="mono-chat-presence truncate text-xs text-muted">{chat.partnerTyping ? "Typing…" : chat.partnerOnline ? "Online" : "Just us · private chat"}</p></div>
       <div className="flex shrink-0 items-center gap-1"><Button size="icon" variant="ghost" aria-label="Voice call" title="Voice call" disabled={callBusy} onClick={() => void calling.start("AUDIO")}><Icon name="phone" /></Button><Button size="icon" variant="ghost" aria-label="Video call" title="Video call" disabled={callBusy} onClick={() => void calling.start("VIDEO")}><Icon name="video" /></Button>
         {!callBusy ? <CallSetup compact soundsReady={calling.soundsReady} enableSounds={calling.enableCallSounds} /> : null}</div>
     </header>
-    <div role="tablist" aria-label="Together" className="flex shrink-0 gap-1 border-b border-line px-3 py-1 sm:px-5">{([['chat', 'Chat'], ['games', 'Games · 24'], ['scores', 'Scores']] as const).map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={tab === key} aria-controls={`together-${key}`} id={`tab-${key}`} onClick={() => setTab(key)} className={cn("min-h-9 rounded-lg px-3 py-1 text-sm font-medium", tab === key ? "bg-primary-tint text-primary" : "text-muted hover:bg-surface")}>{label}</button>)}</div>
+    <div role="tablist" aria-label="Together" className="mono-chat-tabs flex shrink-0 gap-1 border-b border-line px-3 py-1 sm:px-5">{([['chat', 'Chat'], ['games', 'Games · 24'], ['scores', 'Scores']] as const).map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={tab === key} aria-controls={`together-${key}`} id={`tab-${key}`} onClick={() => setTab(key)} className={cn("min-h-9 rounded-lg px-3 py-1 text-sm font-medium", tab === key ? "bg-primary-tint text-primary" : "text-muted hover:bg-surface")}>{label}</button>)}</div>
     {chat.error ? <p role="alert" className="shrink-0 px-3 py-1 text-sm text-error">Live updates paused: {chat.error} <Button variant="link" onClick={() => void chat.refresh()}>Reconnect</Button></p> : null}
     {tab === "chat" ? <section role="tabpanel" id="together-chat" aria-labelledby="tab-chat" className="flex min-h-0 flex-1 flex-col">
       <MessageList messages={chat.data.messages} userId={userId} lastRead={partner.lastRead} timezone={chat.data.timezone} older={chat.older} hasOlder={chat.hasOlder}
@@ -116,7 +116,10 @@ function Composer({ append, onTyping, imageBytes }: { append: (message: MessageD
   };
   return <div className="shrink-0 space-y-2 border-t border-line bg-elevated px-2 py-2 sm:px-5">
     {error ? <p role="alert" className="text-sm text-error">{error}</p> : null}
-    {picture ? <div className="space-y-3 rounded-xl border border-line bg-surface p-3"><PhotoPreview file={picture} /><p className="truncate text-xs text-muted">{picture.name}</p><div className="flex gap-2"><Button size="sm" loading={busy} onClick={() => void sendImage()}>Send image</Button><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setPicture(null); imageNonce.current = ""; }}>Cancel image</Button></div></div> : null}
+    <BottomSheet open={picture != null} onClose={() => { if (!busy) { setPicture(null); imageNonce.current = ""; } }} title="Share a photo"
+      footer={<div className="flex gap-2"><Button size="sm" loading={busy} onClick={() => void sendImage()}>Send image</Button><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setPicture(null); imageNonce.current = ""; }}>Cancel image</Button></div>}>
+      {picture ? <div className="space-y-2"><PhotoPreview file={picture} /><p className="truncate text-xs text-muted">{picture.name}</p>{error ? <p role="alert" className="text-sm text-error">{error}</p> : null}</div> : null}
+    </BottomSheet>
     <form onSubmit={(event) => { event.preventDefault(); void send("TEXT", text.trim()); }} className="space-y-1">
       {toolsOpen ? <div className="flex flex-wrap items-center gap-1"><Button size="sm" variant="ghost" disabled={busy} onClick={() => setPalette("emoji")}>Emoji</Button><Button size="sm" variant="ghost" disabled={busy} onClick={() => setPalette("stickers")}>Stickers</Button>
         <Button size="sm" variant="ghost" disabled={busy || imageBytes >= CHAT_IMAGE_SPACE} onClick={() => file.current?.click()}>Photo</Button>
@@ -125,7 +128,7 @@ function Composer({ append, onTyping, imageBytes }: { append: (message: MessageD
         <input ref={file} type="file" accept="image/*" aria-label="Choose a chat image" className="sr-only" tabIndex={-1} onChange={(event) => { const next = event.target.files?.[0]; if (next) { setPicture(next); imageNonce.current = ""; } event.target.value = ""; }} />
       <div className="flex items-end gap-2">
         <Button size="icon" variant="ghost" aria-label={toolsOpen ? "Hide message tools" : "Emoji, stickers and photos"} aria-expanded={toolsOpen} onClick={() => setToolsOpen(!toolsOpen)} className="shrink-0"><Icon name={toolsOpen ? "x" : "plus"} /></Button>
-        <Textarea ref={input} aria-label="Message your partner" placeholder="Message…" className="max-h-28 min-h-11 flex-1 resize-none" maxLength={4000} rows={1} value={text} disabled={busy} onChange={(event) => edit(event.target.value)} />
+        <Textarea ref={input} aria-label="Message your partner" placeholder="Message…" className="mono-chat-input min-h-11 flex-1" maxLength={4000} rows={1} value={text} disabled={busy} onChange={(event) => edit(event.target.value)} />
         <Button className="shrink-0" size="icon" aria-label="Send message" type="submit" loading={busy} disabled={!text.trim() || busy}><Icon name="arrowRight" /></Button>
       </div>
     </form>
