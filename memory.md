@@ -1651,6 +1651,8 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-14 — Automatic post-release deployment cleanup (IN PROGRESS)
 
+- Published ab5a565; Vercel production READY. First automatic event skipped because Vercel uses SHA refs. Corrected event guard to validate live main-branch metadata plus expected SHA; manual runs still require main. First authenticated manual dry-run reached Vercel but failed closed at protected health; no deletion. Added credential-free diagnostic categories for the next check.34 safety tests pass;519 application tests, full lint and latest production build passed. Activation still off.
+
 - Existing size gate/docs-only skip stay. Native Vercel retention cannot enforce exactly
   live+one rollback, so use the existing public GitHub repository's free standard runner.
   Vercel API credential must be a repository secret, never source or chat. Plan protects

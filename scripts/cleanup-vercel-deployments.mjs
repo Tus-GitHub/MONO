@@ -54,6 +54,7 @@ export async function cleanupDeployments({ api, health, apply = false, expectedS
   const liveId = checkProject(await api.project());
   const live = await api.deployment(liveId);
   checkProduction(live);
+  assert(live.meta?.githubCommitRef === "main", "Live production is not a verified main-branch release.");
   if (expectedSha && live.meta?.githubCommitSha !== expectedSha) return { skipped: "A newer release is live; ignore this stale event.", deleted: [] };
   const inventory = await api.list();
   checkInventory(inventory);
@@ -160,7 +161,8 @@ export function createHealthCheck(run = spawnSync) {
     const result = run("vercel", ["curl", `https://${deployment.url}/api/health`, "--scope", SCOPE.slug, "--",
       "--silent", "--show-error", "--fail-with-body", "--max-time", "20", "--connect-timeout", "10", "--write-out", "\n%{http_code}"],
     { encoding: "utf8", timeout: 45_000, maxBuffer: 64 * 1024, windowsHide: true });
-    assert(!result.error && result.status === 0, "Protected deployment health request failed; cleanup stopped.");
+    const categories = [...new Set((result.stderr ?? "").toLowerCase().match(/forbidden|unauthorized|permission|not authorized|no existing credentials|scope|team|token|project|unknown option|invalid option|not found|timed out|\b40[13]\b|curl: \(\d+\)/g) ?? [])].join(", ");
+    assert(!result.error && result.status === 0, `Protected deployment health request failed; cleanup stopped. Exit ${result.status ?? "unknown"}; categories: ${categories || "unspecified"}.`);
     const lines = result.stdout.trim().split(/\r?\n/);
     const status = Number(lines.pop());
     let body;
@@ -169,15 +171,21 @@ export function createHealthCheck(run = spawnSync) {
   };
 }
 
+export function checkActionContext(env, expectedSha) {
+  if (env.GITHUB_ACTIONS !== "true") return;
+  assert(env.GITHUB_REPOSITORY === SCOPE.repository, "Cleanup may run only from MONO's trusted repository.");
+  assert((env.GITHUB_EVENT_NAME === "workflow_dispatch" && env.GITHUB_REF === "refs/heads/main")
+    || (env.GITHUB_EVENT_NAME === "deployment_status" && /^[a-f0-9]{40}$/i.test(expectedSha ?? "")),
+  "Cleanup requires a main-branch manual run or a verified deployment SHA.");
+}
+
 async function main() {
   const args = process.argv.slice(2);
   assert(args.length <= 1 && (args.length === 0 || ["--apply", "--dry-run"].includes(args[0])), "Use --dry-run (default) or --apply.");
   const apply = args[0] === "--apply";
   const expectedSha = process.env.MONO_EXPECTED_SHA || undefined;
   assert(!expectedSha || /^[a-f0-9]{40}$/i.test(expectedSha), "Invalid release SHA.");
-  if (process.env.GITHUB_ACTIONS === "true") {
-    assert(process.env.GITHUB_REPOSITORY === SCOPE.repository && process.env.GITHUB_REF === "refs/heads/main", "Cleanup may run only from MONO's trusted main branch.");
-  }
+  checkActionContext(process.env, expectedSha);
   const api = createApi(process.env.VERCEL_TOKEN);
   // Explicit local context for authenticated CLI curl; no interactive linking or auth change.
   const filename = path.resolve(".vercel/project.json");

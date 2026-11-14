@@ -31,6 +31,8 @@ cleanup run is observed, treat automatic cleanup as awaiting activation.
 `deployment_status` events for MONO's `main` branch and `Production` environment.
 The creator of both the deployment and its status must be `vercel[bot]`. Existing
 MONO deployment records use those exact values. Keep Vercel's Git setting for
+Vercel reports the deployed SHA as its Git ref; the script verifies that SHA
+against the current production deployment and checks its commit branch is `main`.
 `deployment_status` events enabled. Failed, canceled, skipped, preview and fork
 deployments cannot trigger destructive cleanup.
 

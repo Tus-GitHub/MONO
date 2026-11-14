@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFile } from "node:fs/promises";
-import { cleanupDeployments, createApi, createHealthCheck, SCOPE } from "../scripts/cleanup-vercel-deployments.mjs";
+import { cleanupDeployments, createApi, createHealthCheck, checkActionContext, SCOPE } from "../scripts/cleanup-vercel-deployments.mjs";
 
 const goodHealth = { status: 200, body: { status: "ok", database: "up" } };
 const deployment = (id, createdAt, extra = {}) => ({
   id, projectId: SCOPE.project, createdAt, readyState: "READY", target: "production",
-  url: `mono-${id.slice(4)}.vercel.app`, meta: { githubCommitSha: "a".repeat(40) }, ...extra,
+  url: `mono-${id.slice(4)}.vercel.app`, meta: { githubCommitSha: "a".repeat(40), githubCommitRef: "main" }, ...extra,
 });
 function fixture(extra = []) {
   const rows = [deployment("dpl_live", 300), deployment("dpl_rollback", 200), deployment("dpl_old", 100), ...extra];
@@ -44,6 +44,25 @@ test("apply removes only obsolete deployments, including canceled records, and r
 test("stale release event cannot clean a newer live deployment", async () => {
   const f = fixture(); const result = await run(f, { apply: true, expectedSha: "b".repeat(40) });
   assert.match(result.skipped, /stale event/); assert.deepEqual(f.state.deleted, []);
+});
+
+test("production from a different branch cannot authorize cleanup", async () => {
+  const f = fixture(); f.state.rows[0].meta.githubCommitRef = "feature";
+  await assert.rejects(run(f, { apply: true }), /main-branch release/); assert.deepEqual(f.state.deleted, []);
+});
+
+test("Vercel SHA refs are accepted only for deployment events with an expected SHA", () => {
+  const env = { GITHUB_ACTIONS: "true", GITHUB_REPOSITORY: SCOPE.repository, GITHUB_REF: "a".repeat(40), GITHUB_EVENT_NAME: "deployment_status" };
+  checkActionContext(env, "a".repeat(40));
+  assert.throws(() => checkActionContext(env), /verified deployment SHA/);
+  assert.throws(() => checkActionContext({ ...env, GITHUB_REPOSITORY: "other/repo" }, "a".repeat(40)), /trusted repository/);
+});
+
+test("manual cleanup cannot run from a feature branch or an unrelated event", () => {
+  const env = { GITHUB_ACTIONS: "true", GITHUB_REPOSITORY: SCOPE.repository, GITHUB_REF: "refs/heads/main", GITHUB_EVENT_NAME: "workflow_dispatch" };
+  checkActionContext(env);
+  assert.throws(() => checkActionContext({ ...env, GITHUB_REF: "refs/heads/feature" }), /main-branch manual run/);
+  assert.throws(() => checkActionContext({ ...env, GITHUB_EVENT_NAME: "pull_request" }), /main-branch manual run/);
 });
 test("rejects a foreign project before inspecting or deleting deployments", async () => {
   const f = fixture(); f.api.project = async () => ({ id: "another", accountId: SCOPE.team, name: "mono" });
