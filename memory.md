@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (automated iOS keyboard and landscape release underway)
+Last updated: 2026-11-14 (iOS keyboard/landscape fixes deployed and automated checks passed)
 
 ## Project Overview
 
@@ -22,20 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **iOS Safari/PWA keyboard and landscape (2026-11-14)** — user requests checking Safari
-  and installed PWA, fixing remaining keyboard/landscape issues with the same design and
-  deploying. Available surfaces are Windows/IAB; no connected iPhone or remote device
-  service found. User explicitly chose **automated checks only**. Use WebKit engine and
-  simulated visual-viewport/safe-area/standalone profiles; never claim native iPhone QA.
-  Confirmed live baseline failures for pinch/covered confirmation field. Implemented
-  offset-aware viewport geometry and focus scroll, safe-area layout/overlay gutters,
-  short-dialog scrolling, preserved sheet input focus, unrestricted manifest orientation
-  and a worker cache-version refresh. All 300 WebKit/Chromium browser/PWA + light/dark checks passed with no page errors;
-  27 targeted WebKit/PWA checks passed again after preserving 81694ed, with retained-focus
-  assertions. All 404 unit tests, full ESLint, TypeScript/production build and 25 tablet/desktop
-  samples passed; publishing and live HTTPS checks remain. Isolated
-  codex/ios-keyboard-landscape; unrelated root work remains untouched.
 
 - **Discovery, location feedback and explicit plan saving (2026-11-14)** — user reported
   location timing out, Jaipur appearing selected, sparse Explore results/missing Social, and
@@ -93,6 +79,19 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **iOS keyboard and landscape fixes (2026-11-14)** — deployed e14197b on READY Vercel
+  dpl_7iFGQchx2u3B6tvthNRrCsodStwt at https://mono-kappa-beryl.vercel.app. Preserved 81694ed.
+  Offset-aware viewport/focus handling, pinch exclusion, notch/home-indicator safe areas,
+  short-dialog scrolling, sheet focus preservation and landscape-enabled manifest; v4
+  worker cache refreshes the old manifest. Same design, no new dependencies/schema/keys.
+  All 404 unit tests, full ESLint, TypeScript/production build, 300 browser-matrix checks,
+  27 post-sync checks, 25 tablet/desktop samples and 17 live HTTPS/worker/offline checks passed.
+  No browser page errors or deployment error/fatal logs in the checked window. Dedicated
+  local test database/storage removed. User selected automated checks only: WebKit on
+  Windows and simulated keyboard/safe-area/standalone modes do not verify a physical iPhone.
+  Reopen/refresh the installed PWA to receive the update. Reports: docs/testing.md and ignored
+  .screenshots/ios-keyboard/{local,post-sync,live-results.json,desktop-regression.json}.
 
 - **Filter publication, live retest and Use my location (2026-11-14)** — initial a95439b
   pushed/deployed and migration 20261114060000 applied. Live testing found All + city omitted
@@ -1370,7 +1369,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-14 — Automated iOS keyboard and landscape remediation
 
-**IN PROGRESS.** User requests Safari and installed-PWA keyboard/landscape checks, fixes,
+**DONE.** User requests Safari and installed-PWA keyboard/landscape checks, fixes,
 same design and deployment. Inventory showed no connected iPhone; user selected automated
 checks only. Continue independently with WebKit and explicit synthetic viewport/safe-area
 profiles, preserving a clear distinction from physical iOS/Safari. Initial inspection:
@@ -1385,8 +1384,11 @@ passed 300 checks with no page errors, and 25 tablet/desktop public-page samples
 After preserving newly published 81694ed, all 27 targeted WebKit/PWA checks passed again
 against the merged optimized build with retained-focus assertions. All 404 unit tests,
 full ESLint, TypeScript and the production build passed. The worker activation test was
-updated to verify both v3 caches retire and v4 caches remain. Publishing/live HTTPS checks
-remain; no native device QA is claimed.
+updated to verify both v3 caches retire and v4 caches remain. Release e14197b pushed successfully; production deployment dpl_7iFGQchx2u3B6tvthNRrCsodStwt
+is READY and aliases the canonical site. All 17 read-only live WebKit/worker/offline checks
+passed, including the v4 cached manifest orientation and online recovery. Error/fatal logs
+were empty in the checked window. Dedicated local synthetic database and storage removed.
+No native device QA is claimed.
 No product credentials/dependencies or production test accounts required.
 
 - **2026-11-14 — IN PROGRESS: fix discovery and save semantics.** User screenshots show

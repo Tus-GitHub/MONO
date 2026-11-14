@@ -496,3 +496,14 @@ no page errors. The newer published plan release 81694ed was preserved before pu
 an explicit check that each keyboard target retained focus. All 404 unit tests, full ESLint,
 TypeScript and the production build passed. The existing worker activation test now also
 checks retirement of both v3 caches while retaining v4. No physical iOS result is claimed.
+
+Release e14197b is live at https://mono-kappa-beryl.vercel.app on READY deployment
+`dpl_7iFGQchx2u3B6tvthNRrCsodStwt`. Seventeen read-only live checks passed: public form
+focus within simulated keyboard bounds, safe-area widths, first-tap navigation, pinch zoom,
+production CSP retention, actual Chromium service-worker activation with v4 caches and the
+landscape-enabled cached manifest, offline fallback and online recovery. No page errors or
+error/fatal deployment logs were found in the checked window. Existing installations can
+reopen MONO and choose Refresh when the update banner appears. The dedicated local synthetic
+database and generated fixture storage were removed; reports/screenshots remain ignored.
+Native iOS Safari, its actual keyboard and a physical home-screen installation remain
+unverified, as agreed with the user.
