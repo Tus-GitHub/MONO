@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-15 (full live crop/upload audit in progress; deployment cleanup updates preserved)
+Last updated: 2026-11-15 (live crop/upload audit complete and deployed; deployment cleanup updates preserved)
 
 ## Project Overview
 
@@ -22,12 +22,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Full live photo crop/upload audit (2026-11-15)** — test real saves for profile, couple,
-  date and chat photos from both retained synthetic partners in phone-browser and standalone
-  PWA profiles. Verify protected saved pixels and framing across screens, partner updates
-  and persistence, fix confirmed bugs, then build and publish. Keep test records per the
-  user's earlier instruction; use isolated headless sessions, not the shared desktop.
 
 - **Free PWA audio-routing workaround (2026-11-14)** — user rejects native/store costs and
   requests a workaround in the PWA. Research found Web Audio output selection as an alternate
@@ -213,6 +207,14 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Full live crop/upload audit (2026-11-15)** — deployed saved-framing, partner-avatar
+  authorization/live-update and chat-upload timeout fixes in ef70e69 and 31f5c95. Completed
+  32 real upload checks and 40 flow checkpoints across both partners in Chromium/WebKit
+  browser/PWA profiles; eight additional viewer/rotation profiles passed without browser
+  errors. Verified pixels, private access, persistence and updates without reloading.
+  Navigation warnings and physical-device limits are documented in
+  `docs/reports/live-crop-audit-2026-11-15.md`. Test data retained; sessions signed out.
 
 - **Automatic deployment cleanup (2026-11-15)** — active on free GitHub Actions after
   successful main/Production releases. Retains canonical live plus one healthy rollback;
@@ -1651,29 +1653,36 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-15 — Full live crop and upload flow for both partners
 
-**IN PROGRESS.** User requests full production uploads for profile, couple, date and chat,
-both partners, phone browser and PWA; verify consistent saved framing, fix bugs and deploy.
-Working on codex/live-crop-audit from origin/main de2ff2a in the existing isolated photo
-worktree, preserving the other task's root memory changes. Follow the browser picker through
-the upload API, protected persisted file and rendered views; no new service or billing.
-Initial inspection suggests date/memory cards still crop the saved selection with object-cover;
-confirmed on live: a 600x800 portrait persisted correctly, but the finished-date hero used
-object-cover in a roughly 1.93:1 box. Fixed the private Photo primitive to preserve its saved
-crop by default, added explicit fill positioning for fixed card frames, removed hover zoom
-that clipped selected edges, and made memory-cover choices show the whole selection.
-Loading placeholders now disappear after the actual image loads. Building before release
-and the full live matrix. A separate live profile upload then exposed a partner GET 404:
-the private media route allowed only the avatar's owner. Added a narrowly scoped current-avatar
-exception for active partners, retaining 404s for unrelated/left/deleted users and retired keys.
-Avatar saves/removals now update the active couple timestamp so the existing revision poll
-refreshes partner views. Added real-database access, ETag, replacement and revision-isolation
-regressions before deploying ef70e69. Live profile, couple and date saves then passed;
-chat exposed a second boundary issue: its 15-second client deadline expired after the photo
-had persisted, leaving an erroneous failure sheet over the delivered message. Multipart
-uploads now get the existing photo-uploader 120-second deadline; ordinary messages and
-calls keep their fast deadline. Added slow-success, stalled-upload and cancellation coverage.
-Full matrix continues after publishing this additional fix. Physical iPhone/PWA hardware is not
-available; report browser-engine and standalone-display coverage accurately.
+**DONE.** Completed the live browser-picker → upload API → persisted private file → both
+partners' views audit in the isolated codex/live-crop-audit worktree. Preserved concurrent
+deployment-cleanup work and the root workspace. No billing, dependencies or migration added.
+
+- Published ef70e69: private photos preserve the confirmed crop; fixed card fill positioning,
+  removed edge-clipping hover scaling and cleared loaded placeholders. Partner avatar GETs
+  previously returned 404; added only the current-avatar exception for active same-couple
+  members, preserving all other private-media/retired-key restrictions. Avatar save/removal
+  now changes the couple revision so the partner refreshes automatically.
+- Published 31f5c95: live chat showed an error after its image had saved because the generic
+  15-second deadline expired. Multipart images now get the same 120-second allowance as
+  other uploaders, preserving ordinary chat/call deadlines and retry idempotency.
+- 18 focused unit tests, four real-PostgreSQL authorization/revision tests, targeted lint,
+  TypeScript/production build and the 80-route runtime-size gate passed. The dedicated
+  loopback PostgreSQL instance was stopped after testing.
+- 32 verified uploads and 40 flow checkpoints completed across both partners, Chromium and
+  WebKit, phone browser and standalone PWA. Compared crop preview/persisted pixels and both
+  partners' protected bytes; verified cancellation, shapes, Full photo, camera entry, chat
+  confirmation, persistence and partner updates without manual reload. Checked saved framing
+  across Home, couple/settings/onboarding, date/history/review and Memories views.
+- Eight further viewer profiles passed with zero browser errors: portrait/landscape full
+  views, zoom/reset, full chat photo and rotation of the crop dialog. WebKit's final matrix
+  logged background navigation access-control messages despite all ten checkpoints passing;
+  retain the raw strict-failure flag in local evidence. Instrumented follow-up had 19 API
+  successes, zero JavaScript/page errors and an expected aborted poll. Full details and
+  test-readiness corrections: `docs/reports/live-crop-audit-2026-11-15.md`.
+- Vercel dpl_rUthfQB2D9RDyq5aF4K6ceqHQnKh/31f5c95 is READY on the canonical MONO domain.
+  Synthetic test accounts/couple/dates/messages/photos retained as requested; all temporary
+  sessions signed out. These are automated engine/standalone profiles, not physical iPhone,
+  native camera or installed-device verification.
 
 ### 2026-11-14 — Automatic post-release deployment cleanup (DONE 2026-11-15)
 

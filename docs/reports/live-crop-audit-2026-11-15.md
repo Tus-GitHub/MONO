@@ -32,6 +32,8 @@ couple are not touched. Test records are retained, as requested.
 ## Verification before release
 
 - 14 crop, resize and upload-queue unit tests passed.
+- Four chat-client regression tests passed: a photo saving after 15 seconds, ordinary
+  request timeout, stalled-upload timeout and caller cancellation.
 - Four real-PostgreSQL integration tests passed for avatar owner/partner/stranger access,
   personal-file isolation, revoked/deleted membership, ETag invalidation, replacement and
   couple-revision isolation. Test data lives only in a dedicated loopback database.
@@ -39,15 +41,65 @@ couple are not touched. Test records are retained, as requested.
   checks passed for 80 traces (largest 3.29 MiB, summed 209.27 MiB, unique 5.40 MiB).
 - Baseline evidence is in the ignored `.postgres-test/live-crop-results/` directory:
   `baseline-report.json`, `baseline-date.png`, `baseline-memories.png` and
-  `avatar-baseline-report.json`.
+  `avatar-baseline-report.json`. `chat-timeout-baseline.png` captures the false failure
+  sheet over an already delivered message.
 
 ## Full production verification
 
-Pending deployment, followed by actual upload/save/read/render checks for both partners
-across the engine/mode matrix. The test compares saved pixels against the crop preview,
-checks both partners can read the same private file, checks fresh-page persistence and
-partner updates, and inspects framing on Home, couple/settings/onboarding, date result,
-history, reviews and Memories/detail/editor/photo-wall views.
+Published framing/access/synchronization fixes in `ef70e69` and the chat timeout fix in
+`31f5c95`. Vercel production deployment `dpl_rUthfQB2D9RDyq5aF4K6ceqHQnKh` is READY and
+serves the canonical MONO URL. No paid service or database migration was added.
+
+| Engine | Owner profile | Partner profile | Completed uploads | Flow checkpoints |
+| --- | --- | --- | --- | --- |
+| Chromium | Phone browser | Standalone PWA | 8 | 10/10 |
+| Chromium | Standalone PWA | Phone browser | 8 | 10/10 |
+| WebKit | Phone browser | Standalone PWA | 8 | 10/10 |
+| WebKit | Standalone PWA | Phone browser | 8 | 10/10 |
+
+Each partner uploaded profile, couple, date and chat photos in each engine/mode. These
+32 verified uploads used the actual UI pickers and APIs. Checks covered canceling without
+uploading, dragging/zooming, square/portrait/landscape crops, couple Fill frame/Full photo,
+the camera-picker entry point and chat's separate Send image confirmation. PWA profiles
+had the production service worker activated.
+
+Saved dimensions and sampled pixels were compared with the crop preview. Both partners
+received identical protected bytes. Profile/chat persistence was checked after navigation
+or reload; date persistence was checked through the partner's authenticated export.
+Partner avatars, covers, gallery photos and chat images updated without a manual reload.
+
+Framing checks covered Home, couple/settings/onboarding, finished date, history grid/list/
+timeline, review, Memories, memory detail/editor/timeline and photo wall. Couple images
+were checked at 320x568, 844x390 and 1440x900; the complete route sweep used 390x844.
+Explicit Memory cover choices remain independent of the date's best photo.
+
+An additional **eight-profile viewer pass** checked date/photo-wall lightboxes at 390x844
+and 844x390, original-image zoom/reset, full chat images in a new tab, and rotating the
+crop dialog without losing the selection or hiding confirmation controls. All eight
+passed with zero browser errors. Representative Chromium and WebKit screenshots were
+also inspected.
+
+### Browser diagnostics and test limitations
+
+Three matrix runs passed the strict zero-page-error gate. The last WebKit pairing completed
+all ten flow checkpoints but logged ten access-control messages for background status,
+presence and revision requests during navigation; the raw matrix report retains those
+messages and its strict failure flag. Canceled same-origin requests were recorded alongside
+them. A focused instrumented follow-up returned 19 successful API responses, zero page or
+application JavaScript errors and an expected aborted revision fetch. The separate viewer/
+rotation pass then completed in all eight profiles without browser errors. No reproducible
+photo upload, framing or partner-update failure remained.
+
+The harness was corrected to wait for visible active route content, scroll lazy-rendered
+gallery items into view and respect the photo wall's best-photo-only behavior. These were
+test-readiness/selection issues, not application changes. One interrupted authenticated
+image GET used a single read-only connection-reset retry.
+
+Evidence remains in the ignored local `live-crop-results` directory: four `matrix-*.json`
+reports, `viewers.json`, `webkit-navigation-diagnostic.json`, baseline reports and screenshots.
+Temporary synthetic sessions were revoked and signed out. Accounts, couple, dates, messages
+and test photos were retained as requested. The dedicated local PostgreSQL test instance
+was stopped.
 
 These are automated browser and standalone-display profiles. No physical iPhone, native
 camera hardware or installed-device behavior is claimed.
