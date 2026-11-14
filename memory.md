@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (chat release and live post-date audit)
+Last updated: 2026-11-14 (post-date audit fixes deployed and verified)
 
 ## Project Overview
 
@@ -40,14 +40,6 @@ components. Business rules never live only in React components — they live in
   passes. React review caught a ref-containing hook return access; destructured the audio
   ref from reactive ringtone state. Final lint and production build precede commit/push.
 
-- **Live completion, expenses, reviews and memory audit (2026-11-14)** — continue retained
-  synthetic Chromium/WebKit dates through completion and the post-date flow. Keep records as
-  requested. Found hard-coded dollar prefixes on INR expense, recap and activity-cost fields;
-  fixing currency propagation, including the existing saved-plan budget editor. Live tests
-  and build/deployment verification underway. Both engines saved recap, expenses, independent
-  reviews and memories successfully. Found a second display bug: Memories cards ignored the
-  saved memory title and linked to the date; fixing their memory title/link while preserving
-  date-card behavior elsewhere. No other users' records are in scope.
 
 
 - **Couple call device verification** — implementation and media-helper/backend signaling
@@ -86,6 +78,18 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Live completion-to-memory flow (2026-11-14)** — published dbe5936, Vercel
+  dpl_KfdgghnBSWnpeF5atwmNVZ38rHBs READY. Fixed hard-coded dollar prefixes in INR expense,
+  recap, actual-event cost and saved-plan budget fields. Memories/favourite cards now show
+  saved memory titles and open memory details. Integrated concurrent chat release 9b571a9.
+  Final build/TypeScript and targeted ESLint passed. Live UI + SQL verified completion,
+  INR 600/1200 expenses by different partners, two actual events, private-until-both reviews,
+  revealed reflections and favourite memories with cover photos. Final deployed read-back
+  passed for both users in Chromium and WebKit with phone/PWA roles swapped, including
+  320/390 widths and landscape. No production error/fatal logs in the verification window.
+  Synthetic records retained per user instruction. Automated profiles, not physical iOS.
+  Report: docs/reports/live-post-date-2026-11-14.md.
 
 - **Full live multiple-event partner audit (2026-11-14)** — complete on READY release 28cdeb0.
   Chromium and WebKit each passed planning café → movie, validation, start sync, uploads by
@@ -1439,6 +1443,12 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-14 — Completion, expenses, reviews and memory live audit
+
+**DONE.** Full live flow verified on retained synthetic dates. Fixed currency prefixes and
+saved memory cards; deployed dbe5936 and passed all four partner/engine read-back profiles.
+No existing user data changed. Keep synthetic test records. Build and targeted lint passed.
 
 - **2026-11-14 — IN PROGRESS: publish chat and games, song ringtone and expanded calls.**
   User supplied Anywhere With You (1).mp3.mpeg, requested it for both ringing ends, then added

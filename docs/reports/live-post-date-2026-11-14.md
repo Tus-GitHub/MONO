@@ -24,7 +24,16 @@ The live audit found two display defects:
 
 No schema or dependency change is needed by these fixes. Build/TypeScript and targeted ESLint
 passed before integrating concurrent main commit 9b571a9 (chat/calls/games); a fresh build
-and deployed read-back checks follow that integration.
+and the combined production build/TypeScript passed after that integration.
+
+Published `dbe59362be497df966a146bb2169cee7a6202145`; production deployment
+`dpl_KfdgghnBSWnpeF5atwmNVZ38rHBs` READY at https://mono-kappa-beryl.vercel.app.
+Final read-back passed for all four engine/user combinations: Chromium owner/partner and
+WebKit owner/partner, with phone/PWA roles swapped. Each verified completed status, both
+expenses, both revealed reflections, rupee symbols in expense/recap inputs, both actual
+events, memory title → detail navigation, story/photo loading, favourite listing, and mobile/
+landscape fit. Production error/fatal logs had no entries in the test window.
+Evidence: `.screenshots/live-post-date-7a9b30f6e0/deployed-readback.json`.
 
 Evidence: `.screenshots/live-post-date-7a9b30f6e0/` and the scoped production SQL read-back.
 Automated PWA/Safari profiles do not constitute physical iPhone or home-screen testing.
