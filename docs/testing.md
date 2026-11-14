@@ -633,3 +633,31 @@ The local synthetic two-peer media harness is prepared but not executed; neither
 camera/screen transmission is claimed as verified. Earlier local chat/game browser evidence
 above still applies, but post-release browser verification remains outstanding. Live HTTP/API
 verification is tracked separately below once the authorized deployment is ready.
+
+Published feature commit `9b571a9` to main. Production deployment
+`dpl_HcpK3nKmz69FLbFghQzEe5W2eo9F` reached READY on
+`https://mono-kappa-beryl.vercel.app`; its build applied the additive chat/arcade migration.
+Local webpack build and Vercel Turbopack build both passed, as did TypeScript and ESLint
+after correcting the ref-containing ringtone hook return usage.
+
+Live HTTP/API checks used four dedicated QA accounts in two isolated spaces, authenticated
+through normal live login requests. Passed: text/emoji delivery with retry deduplication,
+reverse-direction sticker, read receipts/unread clearing, cross-space denial, synthetic
+360x240 image upload/partner decoding/private no-store delivery, all 24 invitation/accept/
+legal-first-move/result paths, complete Tic-tac-toe win and draw rounds, and identical saved
+scores fetched separately by both partners. The other 23 games used resignation after a
+legal move to check persistence; they were not manually played to completion live.
+
+Live calling checks passed incoming status, offer/answer API roles, same-call video upgrade
+by either participant, pre-answer/outsider rejection, decline, hang-up and signal removal.
+Synthetic SDP was used only to test signaling; this does not prove WebRTC media transmission.
+No active calls or signals remained. The full 5,340,714-byte live MP3 matched the supplied
+file (SHA-256 `6f3ffe6f8f8060cef92d3cbcff78e00f4cfbca7a25d6b46cda1af12e4cbe34d9`),
+and a 64KiB HTTP206 range matched the source. An initial full download timed out; the
+separate range/full-file retry passed. Production error/fatal runtime-log scan was empty.
+
+Run `d8e38499` retains four QA accounts, two spaces, 53 messages, one generated image and
+25 finished matches across 24 games, including one draw. All eight QA sessions were revoked,
+QA password login disabled and generated credentials removed from the non-secret report.
+No existing user's space was used or removed. Report: `.postgres-test/chat-release-live-report.json`;
+logs: `chat-release-{unit,integration,build,live,tone}.log` in the same ignored directory.

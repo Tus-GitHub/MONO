@@ -23,28 +23,13 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Publish chat/arcade and expanded calling (2026-11-14)** — user explicitly authorizes
-  publish, production deployment and live testing. Add the provided Anywhere With You audio
-  on outgoing/incoming ringing, voice-to-video conversion and explicit screen sharing before
-  releasing. Preserve the newer 28cdeb0 upload, multi-event and iOS fixes pulled from main.
-  Verify call tone cleanup/autoplay fallback, camera/screen consent, private chat/game scope
-  and saved live scores. Do not use real user space for synthetic chat/call tests.
-  Resumed after desktop restart. Implemented supplied MP3 on both ringing ends, autoplay
-  fallback and cleanup; reserved video transceiver and answerer reuse enable in-call camera
-  and screen replacement. Capture consent is explicit; stopping sharing restores camera;
-  permission cancellation retains voice. All 169 local database integration tests pass.
-  Browser automation stopped because its Windows URL safety check could not identify Chrome;
-  no further browser input attempted. Right-panel opening is queued. Live API verification
-  can proceed, but synthetic peer media and actual device/browser testing are unverified.
-  Combined unit suite: 460 passed / 64 files. Integration: 169 passed / 16 files. TypeScript
-  passes. React review caught a ref-containing hook return access; destructured the audio
-  ref from reactive ringtone state. Final lint and production build precede commit/push.
-
-
-
 - **Couple call device verification** — implementation and media-helper/backend signaling
   tests pass; the right-panel permission/cancel path passes without granting devices.
-  Actual two-device audio/video and restrictive-network TURN still need a real-device check.
+  Actual two-device audio/video, voice-to-video, screen sharing and restrictive-network TURN
+  still need a real-device check. After the desktop restart, Windows browser automation
+  stopped because it could not confidently identify Chrome's URL; no further UI input was
+  attempted. Right-panel opening was queued. The synthetic peer harness was not executed.
+  Live API verification passed separately; do not describe it as browser/media verification.
   Do not claim universal relay-free calling or unlimited free provider resources.
 
 - **Earlier fixture cleanup needs fresh scope (2026-11-14)** — owner
@@ -102,6 +87,25 @@ components. Business rules never live only in React components — they live in
   users, four retained QA dates (including two interrupted attempts) and five photos.
   Do not delete them. Existing user data untouched; physical iPhone testing not claimed.
   Details: docs/reports/live-events-2026-11-14.md. Isolated checkout avoids unrelated root work.
+
+- **Published private chat, 24 games and expanded calls (2026-11-14)** — feature commit
+  9b571a9 pushed to main; Vercel dpl_HcpK3nKmz69FLbFghQzEe5W2eo9F READY on
+  https://mono-kappa-beryl.vercel.app. Migration applied successfully. Preserved upstream
+  28cdeb0 uploads, multi-event dates and iOS fixes. Supplied Anywhere With You MP3 rings on
+  both ends, with autoplay fallback and cleanup. Either partner can add camera video or
+  explicitly share a selected screen in the same call; Stop sharing restores prior camera.
+  Passed 460 unit tests / 64 files, 169 local DB tests / 16 files, TypeScript, ESLint after
+  the ref-return fix and webpack production build. Vercel Turbopack build also passed.
+  Live normal-login/API checks passed text/emoji, sticker, private 360x240 image delivery,
+  read receipts, space isolation, all 24 game invite/accept/move/result paths, complete
+  Tic-tac-toe win/draw and persisted matching scores, incoming calls, both-partner video
+  upgrades, decline, hang-up and signal cleanup. Live MP3 SHA-256 matches supplied source;
+  HTTP206 audio ranges pass. No error/fatal runtime logs in the checked release window.
+  Four isolated QA accounts and two spaces (run d8e38499) retained, with all 8 test sessions
+  revoked and password login disabled. Main test space ccbf2f017574245eebb2e9257 has 53
+  messages, one synthetic image and 25 finished matches across 24 games; foreign-access
+  space cb235946c35d04bffbc29829c remains empty. Existing user data untouched. Non-secret
+  evidence: .postgres-test/chat-release-live-report.json; browser/device limits above.
 
 - **Uploads, multi-event dates and partner updates (2026-11-14)** — published aa28a06,
   Vercel dpl_cCpjG32RrwM4k7zhoM5eBdBZSV1g READY on mono-kappa-beryl.vercel.app.
@@ -1450,10 +1454,15 @@ components. Business rules never live only in React components — they live in
 saved memory cards; deployed dbe5936 and passed all four partner/engine read-back profiles.
 No existing user data changed. Keep synthetic test records. Build and targeted lint passed.
 
-- **2026-11-14 — IN PROGRESS: publish chat and games, song ringtone and expanded calls.**
+- **2026-11-14 — DONE: publish chat and games, song ringtone and expanded calls; live APIs verified.**
   User supplied Anywhere With You (1).mp3.mpeg, requested it for both ringing ends, then added
-  voice-to-video conversion and screen sharing. Target existing MONO production project;
-  include these changes before build/commit/push/deploy and test with dedicated fixtures.
+  voice-to-video conversion and screen sharing. Published 9b571a9 to existing MONO production;
+  build/migration READY, all 24 game API paths and call upgrades verified in separate QA
+  spaces. Song served byte-for-byte with range support. Device/browser testing remains
+  pending because Windows browser automation's URL safety check stopped the run. No real
+  mic/camera/screen was captured. Local direct DB access failed; connected Neon provisioned
+  only dedicated fixtures, then live normal login produced valid revocable sessions.
+  Test sessions revoked and QA password login disabled; fixture rows retained for review.
 
 ### 2026-11-14 — Full live multiple-event flow for both partners
 
