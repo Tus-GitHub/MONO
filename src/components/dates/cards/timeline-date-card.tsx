@@ -24,7 +24,7 @@ export function TimelineDateCard({ item }: { item: DateHistoryItem }) {
               alt=""
               aspect="21 / 9"
               sizes="(min-width: 768px) 42rem, 100vw"
-              className="absolute inset-0 transition-transform duration-slow ease-out group-hover:scale-[1.02]"
+              fill
             />
           ) : (
             <div className="grid size-full place-items-center bg-linear-to-br from-primary-tint via-surface to-accent-tint">

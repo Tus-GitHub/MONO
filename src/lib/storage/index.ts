@@ -53,7 +53,7 @@ function slugStem(filename: string): string {
 /**
  * Object keys are namespaced by owner. The `/media` route parses the prefix and re-checks
  * access before streaming, so the key layout is itself part of the isolation story:
- *   users/<userId>/...            → only that user
+ *   users/<userId>/...            → owner; their current avatar also allows an active partner
  *   couples/<coupleId>/...        → only active members of that couple
  */
 export function buildDatePhotoKey(coupleId: string, dateId: string, filename: string): string {

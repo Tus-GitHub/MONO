@@ -142,7 +142,7 @@ export function MemoryForm({
                     src={photo.thumbUrl}
                     alt={photo.caption ?? ""}
                     loading="lazy"
-                    className="size-full object-cover"
+                    className="size-full bg-line object-contain"
                   />
                   {cover === photo.id ? (
                     <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-primary text-primary-fg">

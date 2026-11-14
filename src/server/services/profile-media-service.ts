@@ -20,6 +20,11 @@ export async function saveUserAvatar(input: ReadImage | null) {
     const current = await tx.user.findFirst({ where: { id: user.id, deletedAt: null }, select: { avatarKey: true } });
     if (!current) throw new NotFoundError();
     await tx.user.update({ where: { id: user.id }, data: { avatarKey: key, avatarUrl: key ? storage.publicUrl(key) : null } });
+    // CoupleSync watches this timestamp; avatar changes must refresh the partner's views too.
+    await tx.couple.updateMany({
+      where: { deletedAt: null, status: { in: ["PENDING", "ACTIVE"] }, members: { some: { userId: user.id, status: "ACTIVE" } } },
+      data: { updatedAt: new Date() },
+    });
     await queueStorageCleanup([current.avatarKey], undefined, tx);
     if (key) await tx.storageCleanup.deleteMany({ where: { key } });
   });

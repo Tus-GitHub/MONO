@@ -23,7 +23,7 @@ export function MemoryDateCard({ item, eyebrow, memory = false }: { item: DateHi
             priority
             aspect="2 / 1"
             sizes="(min-width: 768px) 44rem, 100vw"
-            className="absolute inset-0 transition-transform duration-slow ease-out group-hover:scale-[1.02]"
+            fill
           />
         ) : (
           <div className="grid size-full place-items-center bg-linear-to-br from-accent-tint via-surface to-primary-tint">

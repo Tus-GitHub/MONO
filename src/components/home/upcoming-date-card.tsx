@@ -26,7 +26,7 @@ export function UpcomingDateCard({ date }: { date: UpcomingDateView }) {
             priority
             aspect="16 / 9"
             sizes="(min-width: 1024px) 640px, 100vw"
-            className="absolute inset-0"
+            fill
           />
         ) : (
           <div className="grid size-full place-items-center bg-linear-to-br from-primary-tint via-surface to-accent-tint">

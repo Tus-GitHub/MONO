@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { requireUser } from "@/lib/auth";
-import { requireCoupleMembership } from "@/lib/authz";
+import { requireCoupleMembership, requireUserMediaAccess } from "@/lib/authz";
 import { isAppError } from "@/lib/errors";
 import { coupleIdFromKey, storage, userIdFromKey } from "@/lib/storage";
 import { isCanonicalStorageKey } from "@/lib/storage/key";
@@ -27,8 +26,9 @@ function contentTypeFor(key: string): string {
 
 /**
  * Streams a stored object, but only to someone allowed to see it. The key prefix is the
- * pivot — `users/<id>/…` is that user only, `couples/<id>/…` is active members only — and
- * access is re-checked here before the file is touched. Any failure returns 404 so the
+ * pivot — personal files are owner-only, current avatars also allow an active partner,
+ * and `couples/<id>/…` is active members only. Access is re-checked before the file is
+ * touched. Any failure returns 404 so the
  * existence of a file is never revealed.
  */
 export async function GET(
@@ -47,8 +47,7 @@ export async function GET(
     const coupleScope = coupleIdFromKey(key);
 
     if (userScope) {
-      const user = await requireUser();
-      if (user.id !== userScope) return new NextResponse(null, { status: 404 });
+      await requireUserMediaAccess(userScope, key);
     } else if (coupleScope) {
       await requireCoupleMembership(coupleScope);
     } else {

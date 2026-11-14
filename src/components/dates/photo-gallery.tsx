@@ -132,7 +132,6 @@ export function PhotoGallery({
                   aspect={layout === "single" ? undefined : layout === "pair" ? "1 / 1" : undefined}
                   alt={photo.caption ?? "Date photo"}
                   sizes={layout === "single" ? "100vw" : "(min-width: 640px) 33vw, 50vw"}
-                  className="transition-transform duration-slow ease-out group-hover:scale-[1.02]"
                 />
               </button>
 

@@ -21,7 +21,7 @@ export function GridDateCard({ item, memory = false }: { item: DateHistoryItem; 
           alt=""
           aspect="1 / 1"
           sizes="(min-width: 1024px) 20rem, (min-width: 640px) 33vw, 50vw"
-          className="absolute inset-0 transition-transform duration-slow ease-out group-hover:scale-105"
+          fill
         />
       ) : (
         <div className="grid size-full place-items-center bg-linear-to-br from-primary-tint via-surface to-accent-tint">

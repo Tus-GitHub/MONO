@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-15 (automatic deployment cleanup active and verified; live plus one working rollback retained)
+Last updated: 2026-11-15 (full live crop/upload audit in progress; deployment cleanup updates preserved)
 
 ## Project Overview
 
@@ -22,6 +22,12 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Full live photo crop/upload audit (2026-11-15)** — test real saves for profile, couple,
+  date and chat photos from both retained synthetic partners in phone-browser and standalone
+  PWA profiles. Verify protected saved pixels and framing across screens, partner updates
+  and persistence, fix confirmed bugs, then build and publish. Keep test records per the
+  user's earlier instruction; use isolated headless sessions, not the shared desktop.
 
 - **Free PWA audio-routing workaround (2026-11-14)** — user rejects native/store costs and
   requests a workaround in the PWA. Research found Web Audio output selection as an alternate
@@ -1643,6 +1649,27 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-15 — Full live crop and upload flow for both partners
+
+**IN PROGRESS.** User requests full production uploads for profile, couple, date and chat,
+both partners, phone browser and PWA; verify consistent saved framing, fix bugs and deploy.
+Working on codex/live-crop-audit from origin/main de2ff2a in the existing isolated photo
+worktree, preserving the other task's root memory changes. Follow the browser picker through
+the upload API, protected persisted file and rendered views; no new service or billing.
+Initial inspection suggests date/memory cards still crop the saved selection with object-cover;
+confirmed on live: a 600x800 portrait persisted correctly, but the finished-date hero used
+object-cover in a roughly 1.93:1 box. Fixed the private Photo primitive to preserve its saved
+crop by default, added explicit fill positioning for fixed card frames, removed hover zoom
+that clipped selected edges, and made memory-cover choices show the whole selection.
+Loading placeholders now disappear after the actual image loads. Building before release
+and the full live matrix. A separate live profile upload then exposed a partner GET 404:
+the private media route allowed only the avatar's owner. Added a narrowly scoped current-avatar
+exception for active partners, retaining 404s for unrelated/left/deleted users and retired keys.
+Avatar saves/removals now update the active couple timestamp so the existing revision poll
+refreshes partner views. Added real-database access, ETag, replacement and revision-isolation
+regressions before deploying. Physical iPhone/PWA hardware is not
+available; report browser-engine and standalone-display coverage accurately.
 
 ### 2026-11-14 — Automatic post-release deployment cleanup (DONE 2026-11-15)
 

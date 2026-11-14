@@ -21,6 +21,8 @@ interface PhotoProps {
   className?: string;
   imgClassName?: string;
   fit?: "cover" | "contain";
+  /** Fill an already-sized card without competing relative/absolute positioning. */
+  fill?: boolean;
 }
 
 /**
@@ -44,7 +46,8 @@ function PhotoContent({
   priority = false,
   className,
   imgClassName,
-  fit = "cover",
+  fit = "contain",
+  fill = false,
 }: PhotoProps) {
   const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
 
@@ -56,10 +59,10 @@ function PhotoContent({
 
   return (
     <div
-      className={cn("relative overflow-hidden bg-line", className)}
-      style={{ aspectRatio: ratio }}
+      className={cn(fill ? "absolute inset-0 size-full" : "relative", "overflow-hidden bg-line", className)}
+      style={fill ? undefined : { aspectRatio: ratio }}
     >
-      {blurDataUrl ? (
+      {status === "loading" ? blurDataUrl ? (
         <div
           aria-hidden="true"
           className="absolute inset-0 scale-110 bg-cover bg-center blur-xl"
@@ -67,7 +70,7 @@ function PhotoContent({
         />
       ) : (
         <div aria-hidden="true" className="skeleton absolute inset-0 rounded-none" />
-      )}
+      ) : null}
 
       {status === "error" ? (
         <div className="absolute inset-0 grid place-items-center text-faint">

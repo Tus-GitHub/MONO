@@ -99,7 +99,6 @@ export function PhotoWall({
               height={photo.height}
               alt={photo.caption ?? photo.dateTitle}
               sizes="(min-width: 1024px) 22vw, (min-width: 640px) 33vw, 50vw"
-              className="transition-transform duration-slow ease-out group-hover:scale-[1.03]"
             />
             <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t from-black/65 to-transparent p-2 pt-8 text-left text-2xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
               {photo.dateTitle}

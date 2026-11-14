@@ -16,3 +16,4 @@ export {
   type CoupleContext,
 } from "@/lib/authz/couple";
 export { requireCoupleOrOnboard, redirectIfHasCouple } from "@/lib/authz/guards";
+export { requireUserMediaAccess } from "@/lib/authz/media";
