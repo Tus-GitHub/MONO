@@ -26,6 +26,10 @@ import type { PlaceSearchResult } from "@/server/services/place-search-service";
 import { DATE_IDEAS } from "@/lib/explore/date-ideas";
 import { addActivityAction } from "@/server/actions/plan";
 import type { PlanActivityDTO } from "@/server/services/plan-service";
+import { getBrowserLocation } from "@/lib/places/browser-location";
+import { NEARBY_RADIUS_KM, type GeoPoint } from "@/lib/places/types";
+import { Icon } from "@/components/ui/icon";
+import { formatDistanceKm } from "@/lib/utils/geo";
 
 const BROWSE = EXPLORE_CATEGORIES.filter((category) => category.kind === "category" && !["adventure", "nature"].includes(category.key));
 
@@ -47,13 +51,17 @@ export function PlacePickerSheet({
   const router = useRouter();
   const [q, setQ] = useState("");
   const [city, setCity] = useState("");
+  const [near, setNear] = useState<GeoPoint | null>(null);
+  const locationTask = useAsyncTask<GeoPoint, "locating">();
+  const { reset: resetLocation } = locationTask;
+  const locating = locationTask.state.status === "pending";
   const [search, setSearch] = useState<TaskState<{ key: string; results: PlaceSearchResult[] }>>({ status: "idle" });
   const selectionTask = useAsyncTask<void, "choosing">();
   const { reset: resetSelection } = selectionTask;
   const choosing = selectionTask.state.status === "pending";
   const error = selectionTask.state.status === "error" ? selectionTask.state.message : search.status === "error" ? search.message : null;
   const [retry, setRetry] = useState(0);
-  const searchKey = JSON.stringify([q, city, categoryKey, retry]);
+  const searchKey = JSON.stringify([q, city, near, categoryKey, retry]);
   const results = search.status === "success" && search.data.key === searchKey ? search.data.results : [];
   const loading = search.status === "pending" || (open && search.status !== "error" && !(search.status === "success" && search.data.key === searchKey));
   const selectedCategory = BROWSE.find((category) => category.key === categoryKey);
@@ -71,6 +79,7 @@ export function PlacePickerSheet({
         const params = new URLSearchParams();
         if (q.trim()) params.set("q", q.trim());
         if (city.trim()) params.set("city", city.trim());
+        if (near) { params.set("lat", String(near.latitude)); params.set("lng", String(near.longitude)); }
         if (categoryKey) params.set("category", categoryKey);
         const response = await fetch(`/api/places/search?${params.toString()}`, {
           signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]), cache: "no-store",
@@ -86,9 +95,14 @@ export function PlacePickerSheet({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [open, q, city, categoryKey, retry, searchKey]);
+  }, [open, q, city, near, categoryKey, retry, searchKey]);
 
-  useEffect(() => { if (!open) resetSelection(); }, [open, resetSelection]);
+  useEffect(() => { if (!open) { resetSelection(); resetLocation(); } }, [open, resetSelection, resetLocation]);
+
+  const locate = async () => {
+    const outcome = await locationTask.run("locating", getBrowserLocation);
+    if (outcome) { setCity(""); setNear(outcome.data); }
+  };
 
   const choose = async (body: Record<string, string>) => {
     const outcome = await selectionTask.run("choosing", async () => {
@@ -111,8 +125,18 @@ export function PlacePickerSheet({
         <TabsContent value="find" className="space-y-3">
           <SearchInput value={q} onValueChange={setQ} placeholder="Venue name, or cafés in your city" />
           <Field label="City or area" htmlFor="place-city" optional>
-            <Input id="place-city" value={city} onChange={(event) => setCity(event.target.value)} placeholder="e.g. Jaipur" />
+            <Input id="place-city" value={city} onChange={(event) => { resetLocation(); setNear(null); setCity(event.target.value); }} placeholder="e.g. Jaipur" />
           </Field>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" size="sm" loading={locating} disabled={busy || locating}
+              leadingIcon={<Icon name="mapPin" size="sm" />} onClick={() => void locate()}>
+              {locating ? "Finding your location…" : "Use my location"}
+            </Button>
+            {near ? <Button variant="ghost" size="sm" onClick={() => { resetLocation(); setNear(null); }}>Use city instead</Button> : null}
+          </div>
+          {near ? <p role="status" className="text-xs text-muted">Using your approximate location · Within {NEARBY_RADIUS_KM} km.</p>
+            : <p className="text-xs text-muted">Allow location access to find places near you, or enter a city above.</p>}
+          {locationTask.state.status === "error" ? <p role="alert" className="text-sm text-error">{locationTask.state.message}</p> : null}
           <div className="scroll-x no-scrollbar -mx-1 flex gap-2 px-1">
             <Chip size="sm" selected={!categoryKey} onClick={() => onCategoryChange(null)}>All</Chip>
             {BROWSE.map((category) => (
@@ -148,7 +172,7 @@ export function PlacePickerSheet({
           </section> : null}
 
           <h3 className="text-sm font-medium text-ink">{selectedCategory ? `${PLACE_CATEGORY_LABEL[selectedCategory.match[0]]} places` : "Places"}</h3>
-          {categoryKey && !q.trim() && !city.trim() ? <p className="text-xs text-muted">Showing saved places. Enter a city or area to find more matching venues.</p> : null}
+          {categoryKey && !q.trim() && !city.trim() && !near ? <p className="text-xs text-muted">Showing saved places. Enter a city or use your location to find more matching venues.</p> : null}
 
           {error ? (
             <p className="flex flex-wrap items-center gap-x-2 text-sm text-error">
@@ -169,7 +193,7 @@ export function PlacePickerSheet({
             </div>
           ) : results.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted">
-              {q || categoryKey
+              {q || city || near || categoryKey
                 ? "No matching places found. Try another city or search, or add a custom place."
                 : "Search your saved places, or add a custom one."}
             </p>
@@ -188,6 +212,7 @@ export function PlacePickerSheet({
                       <p className="truncate text-xs text-muted">
                         {PLACE_CATEGORY_LABEL[place.category ?? PlaceCategory.OTHER]}
                         {place.city ? ` · ${place.city}` : ""}
+                        {place.distanceKm != null ? ` · ${formatDistanceKm(place.distanceKm)}` : ""}
                       </p>
                       <div className="mt-1 flex gap-1.5">
                         <PublicRating rating={place.externalRating} count={place.externalRatingCount} />

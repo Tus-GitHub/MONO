@@ -27,6 +27,16 @@ components. Business rules never live only in React components — they live in
   publishing/deploying the completed all-category filter changes and testing them live.
   Run the established Webpack build gate, commit/push main, confirm the exact Vercel
   deployment and additive migration, then test with disposable data in the right panel.
+  a95439b was pushed and READY deployment dpl_2fc3eXHgHQv9FkEsbgAs5d2jo9PH applied the
+  migration. Live Adventure/Café browsing and Add Bowling passed. Live All + city exposed
+  missing external browsing; correcting that gap before the final publication/test result.
+  New QA draft cmwg2h9kg0001jt076tb15r6d is explicitly named MONO filters QA
+  20261114-a95439b; the pre-existing draft cmwg0fvze0005l207xwg5gne0 is untouched.
+  User additionally requested a Use my location option beside City or area. Adding an
+  explicit permission-triggering button, approximate in-memory coordinates, bounded/abortable
+  acquisition, manual fallback and nearby category/All browsing. No location acquisition on load.
+  Follow-up validation passed: 389 unit tests, 122 isolated database tests, TypeScript,
+  full ESLint and the production Webpack build. Ready to publish the location/All follow-up.
 
 - **Next update: private couple messenger** — explicitly deferred until filters are finished
   (2026-11-14). Requested text, images, stickers, emoji, voice and video calls, using free

@@ -1,5 +1,8 @@
 import type { PlaceCategory } from "@prisma/client";
 
+export interface GeoPoint { latitude: number; longitude: number }
+export const NEARBY_RADIUS_KM = 20;
+
 /**
  * External place-provider contract. MONO's UI and business logic depend only on this shape,
  * so a provider (Google Places, Foursquare, a local dataset …) can be added later by

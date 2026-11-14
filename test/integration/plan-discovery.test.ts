@@ -55,6 +55,36 @@ it("keeps explicit venue text separate from the city and discards provider categ
   expect(results.map((result) => result.name)).toEqual(["External café", "Our café"]);
   expect(provider.search).toHaveBeenCalledWith(expect.objectContaining({ text: "café", city: "Jaipur", category: "CAFE" }));
 });
+it("keeps external city browsing active when All is selected", async () => {
+  provider.search.mockResolvedValue([{ provider: "fixture", providerPlaceId: "all-cafe", name: "External café", category: PlaceCategory.CAFE }]);
+  const results = await asUser(owner, () => searchPlaces({ city: "Jaipur" }));
+  expect(results.map((result) => result.name)).toEqual(["External café", "Our bowling alley", "Our café"]);
+  expect(provider.search).toHaveBeenCalledWith(expect.objectContaining({ text: "places in Jaipur", category: null }));
+});
+it("matches a comma-separated city and region across saved city/address fields", async () => {
+  await prisma.place.updateMany({ where: { coupleId: couple, name: "Our café" }, data: { address: "Jaipur, Rajasthan, India" } });
+  await prisma.place.create({ data: { coupleId: couple, createdById: owner, name: "Other Jaipur café", category: "CAFE", city: "Jaipur", address: "Jaipur, Telangana, India" } });
+  const results = await asUser(owner, () => searchPlaces({ categories: [PlaceCategory.CAFE], city: "Jaipur, Rajasthan" }));
+  expect(results.map((result) => result.name)).toEqual(["Our café"]);
+});
+it("browses the selected category near a point and excludes far-away or unknown-location results", async () => {
+  const near = { latitude: 26.915, longitude: 75.819 };
+  await prisma.place.updateMany({ where: { coupleId: couple, name: "Our café" }, data: near });
+  provider.search.mockResolvedValue([
+    { provider: "fixture", providerPlaceId: "near", name: "Nearby café", category: PlaceCategory.CAFE, latitude: 26.916, longitude: 75.819 },
+    { provider: "fixture", providerPlaceId: "far", name: "Far-away café", category: PlaceCategory.CAFE, latitude: 28.6, longitude: 77.2 },
+    { provider: "fixture", providerPlaceId: "unknown", name: "Unknown-location café", category: PlaceCategory.CAFE },
+  ]);
+  const results = await asUser(owner, () => searchPlaces({ categories: [PlaceCategory.CAFE], near }));
+  expect(results.map((result) => result.name)).toEqual(["Our café", "Nearby café"]);
+  expect(results.every((result) => result.distanceKm != null && result.distanceKm <= 20)).toBe(true);
+  expect(provider.search).toHaveBeenCalledWith(expect.objectContaining({ text: "cafes near me", near, category: "CAFE" }));
+});
+it("browses All near a point without guessing a city", async () => {
+  const near = { latitude: 26.915, longitude: 75.819 };
+  await asUser(owner, () => searchPlaces({ near }));
+  expect(provider.search).toHaveBeenCalledWith(expect.objectContaining({ text: "places near me", near, category: null }));
+});
 it("persists a manual category independently of the title, returns it on reopen, and preserves it when copying", async () => {
   const draft = await asUser(owner, () => startDraft());
   const input = dateBasicsSchema.parse({ title: "Our anniversary", discoveryCategory: "adventure" });

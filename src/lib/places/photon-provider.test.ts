@@ -41,6 +41,25 @@ it("uses an explicitly supplied near point for cafes near me", async () => {
   await new PhotonPlacesProvider().search({ text: "cafes near me", near: { latitude: 28.6, longitude: 77.2 } });
   expect(fetcher).toHaveBeenCalledTimes(1); expect(fetcher.mock.calls[0][0].pathname).toBe("/reverse");
 });
+it("browses all nearby venue categories directly from a consented point", async () => {
+  fetcher.mockResolvedValue(collection([cafe]));
+  const near = { latitude: 28.6, longitude: 77.2 };
+  await new PhotonPlacesProvider().search({ text: "places near me", near });
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(fetcher.mock.calls[0][0].pathname).toBe("/reverse");
+  expect(fetcher.mock.calls[0][0].searchParams.get("radius")).toBe("20");
+});
+it("browses All places around a city using venue tags rather than street/address results", async () => {
+  fetcher.mockResolvedValueOnce(collection([
+    { properties: { name: "Jaipur", osm_key: "place", osm_value: "city" }, geometry: { type: "Point", coordinates: [75.8, 26.9] } },
+  ])).mockResolvedValueOnce(collection([cafe, { ...cafe, properties: { ...cafe.properties, osm_id: 2, osm_value: "restaurant", name: "Restaurant" } }]));
+  const results = await settle(new PhotonPlacesProvider().search({ text: "places in Jaipur" }));
+  expect(results.map((place) => place.category)).toEqual([PlaceCategory.CAFE, PlaceCategory.RESTAURANT]);
+  const lookup = fetcher.mock.calls[1][0];
+  expect(lookup.pathname).toBe("/reverse");
+  expect(lookup.searchParams.get("include")).toContain("osm.amenity.cafe");
+  expect(lookup.searchParams.get("include")).toContain("osm.amenity.restaurant");
+});
 it.each([
   ["activities", PlaceCategory.ACTIVITY, "leisure", "bowling_alley"],
   ["shops", PlaceCategory.SHOPPING, "shop", "mall"],

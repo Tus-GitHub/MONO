@@ -1,5 +1,6 @@
 import { PlaceCategory } from "@prisma/client";
 import type { PlaceProvider, PlaceSearchQuery, ProviderPlace } from "./types";
+import { NEARBY_RADIUS_KM } from "./types";
 
 const ORIGIN = "https://photon.komoot.io";
 const TAGS: Partial<Record<PlaceCategory, string[]>> = {
@@ -41,8 +42,9 @@ function mapPlace(feature: Feature): ProviderPlace | null {
     externalRating: null, externalRatingCount: null, priceLevel: null,
   };
 }
-const AREA_QUERY = /^(caf[eé]s?|coffee(?: shops?)?|restaurants?|bars?|pubs?|parks?|museums?|cinemas?|activities|adventures?|shops?|hotels?)\s+(?:in|near|around)\s+(.+)$/iu;
-function wordCategory(word: string): PlaceCategory {
+const AREA_QUERY = /^(caf[eé]s?|coffee(?: shops?)?|restaurants?|bars?|pubs?|parks?|museums?|cinemas?|activities|adventures?|shops?|hotels?|places?)\s+(?:in|near|around)\s+(.+)$/iu;
+function wordCategory(word: string): PlaceCategory | null {
+  if (/^place/i.test(word)) return null;
   if (/^(caf|coffee)/i.test(word)) return PlaceCategory.CAFE;
   if (/^(bar|pub)/i.test(word)) return PlaceCategory.BAR;
   if (/^park/i.test(word)) return PlaceCategory.PARK;
@@ -84,7 +86,9 @@ export class PhotonPlacesProvider implements PlaceProvider {
   }
   private parameters(category: PlaceCategory | null | undefined, limit: number): URLSearchParams {
     const params = new URLSearchParams({ limit: String(limit), lang: "en" });
-    const tags = TAGS[category ?? PlaceCategory.OTHER];
+    const tags = !category || category === PlaceCategory.OTHER
+      ? [...new Set(Object.values(TAGS).flatMap((tags) => tags ?? []))]
+      : TAGS[category];
     // Photon ORs comma-separated categories; repeated include parameters mean AND.
     if (tags?.length) params.set("include", tags.map((tag) => `osm.${tag}`).join(","));
     return params;
@@ -111,7 +115,7 @@ export class PhotonPlacesProvider implements PlaceProvider {
       }
       if (!point) return [];
       const params = this.parameters(category, limit);
-      params.set("lat", String(point.latitude)); params.set("lon", String(point.longitude)); params.set("radius", "20");
+      params.set("lat", String(point.latitude)); params.set("lon", String(point.longitude)); params.set("radius", String(NEARBY_RADIUS_KM));
       features = await this.get("/reverse", params);
     } else {
       const params = this.parameters(category, limit);

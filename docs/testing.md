@@ -380,3 +380,25 @@ depend on upstream coverage; no exhaustive worldwide listing is promised.
 382 unit tests, all 118 isolated database integration tests, TypeScript, full ESLint and the
 Webpack production build passed. No live account, plan, migration,
 provider credentials or deployment was changed. Couple messaging is explicitly the next update.
+
+### Publication and location follow-up (2026-11-14)
+
+Initial release a95439b deployed successfully and applied the nullable category migration.
+Live real-venue Adventure and Café searches passed, as did Add Bowling in a separately named
+QA draft. Testing All with a selected city exposed missing external browsing; the follow-up
+uses a combined venue-category query for All and keeps city/region matching across saved city
+and address fields. Real public-provider All searches returned mixed café, restaurant and
+hotel categories in Jaipur, Rajasthan.
+
+User additionally requested Use my location beside City or area. The explicit button uses
+the browser permission flow, rounds coordinates to three decimals, and holds them only in
+the current picker. Manual city entry cancels location acquisition and switches modes.
+Denial, unsupported browsers, ignored permission prompts (12-second fallback), and late
+callbacks after cancellation have unit coverage. Search uses the selected category or All
+within 20 km and displays distances; distant and unknown-location results are excluded.
+No real device location was acquired during agent testing. Synthetic points exercise the
+nearby provider and database path. Native device permission remains a device/browser check.
+
+The follow-up passed all 389 unit and 122 isolated database integration tests, TypeScript,
+full ESLint and the Webpack production build before publication. The initial location-helper
+lint finding (prefer-const) was corrected before the final clean lint/build gate.
