@@ -30,7 +30,12 @@ components. Business rules never live only in React components — they live in
   Respect safe areas and visual viewport/keyboard, retain existing games and media logic.
   TypeScript, targeted ESLint and production Webpack build pass. Local preview could render
   login but TCP to Neon is unavailable from this computer; stopped it and moved visual QA
-  to the deployed environment. Publishing; live layout review pending.
+  to the deployed environment. Published 7e9a458, deployment dpl_EVEfAjT3hfjpK4U6AKj6bVfBUvk3
+  READY. Live review found the existing AppTemplate animation wrapper lacked height,
+  pushing composer below the viewport. Added scoped full-height/nonanimated wrapper for
+  chat; verifying correction before marking UI complete. Live disposable outgoing video call
+  confirmed full-window stage, real floating self-preview, and visible bottom controls; ended
+  immediately after inspection. Improved waiting-label contrast on the always-dark video stage.
 
 - **Mobile voice audio and Samsung notification follow-up (2026-11-14)** — user reports
   voice calls have no sound but video calls do; Samsung installed app notification enable

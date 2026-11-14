@@ -398,6 +398,11 @@ html[data-kb="open"] body {
   padding: var(--safe-top) var(--safe-right) var(--safe-bottom-visible) var(--safe-left);
   overflow: hidden;
 }
+.mono-chat-page > .anim-rise {
+  height: 100%;
+  min-height: 0;
+  animation: none;
+}
 .mono-fullscreen-wrap {
   padding: 0;
 }
