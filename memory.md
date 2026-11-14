@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (photo adjustment published and verified live; latest PWA audio and notification work preserved)
+Last updated: 2026-11-14 (automatic deployment cleanup ready for authenticated dry-run; latest releases preserved)
 
 ## Project Overview
 
@@ -22,6 +22,18 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Automatic post-release deployment cleanup (2026-11-14)** — user requests free cleanup
+  after releases, preserving live and a verified working rollback, no billing. Build a small
+  GitHub Actions job and scoped Node REST cleanup with dry-run/default-safe behaviour,
+  health/alias/scope/race safeguards and focused tests. Work in an isolated checkout based
+  on latest ccb5027; preserve the original workspace's notification edits. No local/browser QA.
+  31 safety tests,519 existing unit tests, lint, YAML parse and production build pass.
+  User explicitly said to handle credential setup; MONO-only90-day Vercel token stored
+  directly as GitHub Actions VERCEL_TOKEN, expiry12February2027, without logging its value.
+  Non-expiring token option rejected by automatic review; used bounded90days instead.
+  Initial automatic runs remain dry-run until the activation variable is enabled after
+  live validation. Publication, real dry-run and activation verification remain pending.
 
 - **Free PWA audio-routing workaround (2026-11-14)** — user rejects native/store costs and
   requests a workaround in the PWA. Research found Web Audio output selection as an alternate
@@ -1636,6 +1648,25 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-14 — Automatic post-release deployment cleanup (IN PROGRESS)
+
+- Existing size gate/docs-only skip stay. Native Vercel retention cannot enforce exactly
+  live+one rollback, so use the existing public GitHub repository's free standard runner.
+  Vercel API credential must be a repository secret, never source or chat. Plan protects
+  healthy current/previous production, aliased and in-flight versions; rechecks before each
+  recoverable deletion and stops safely on uncertainty. No billing or app schema changes.
+- All31 injected API/health/race safety checks and519 existing tests pass. Full lint and
+  production build/typecheck pass; YAML parsing and pinned Vercel65.16.0 curl help verified.
+  Native curl flags use the required separator. Standard public-repository Ubuntu runners
+  are free; workflow actions pinned to reviewed v7 SHAs. No extra runtime dependencies.
+- User's “DO it yourself” authorizes one-time credential setup in the signed-in service
+  pages. Created mono-automatic-deployment-cleanup restricted to this project,90days,
+  expires12February2027, stored as GitHub Actions VERCEL_TOKEN by direct UI clipboard
+  transfer. No value in source/history/logs. Automatic review rejected unlimited lifetime;
+  bounded expiration was accepted. Active clipboard replaced with public settings URL;
+  one-time token display dismissed. Initial automatic runs default to dry-run until
+  MONO_DEPLOYMENT_CLEANUP_ENABLED=true, to be enabled only after real dry-run succeeds.
 
 ### 2026-11-14 — Crop uploads and preserve couple-photo framing
 

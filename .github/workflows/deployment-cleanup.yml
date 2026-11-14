@@ -1,0 +1,56 @@
+name: Keep live deployment and one working rollback
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Review with dry-run before applying manual cleanup
+        type: choice
+        options: [dry-run, apply]
+        default: dry-run
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mono-vercel-deployment-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: >-
+      github.repository == 'Tus-GitHub/MONO' && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.deployment_status.state == 'success' &&
+        github.event.deployment.environment == 'Production' &&
+        github.event.deployment.creator.login == 'vercel[bot]' &&
+        github.event.deployment_status.creator.login == 'vercel[bot]'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require the cleanup credential without exposing it
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo '::error::Add repository Actions secret VERCEL_TOKEN to enable cleanup. No deployments were deleted.'
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+      - name: Test cleanup safety without network credentials
+        run: node --test test/deployment-cleanup.test.mjs
+      - name: Install the pinned authenticated health-check CLI
+        run: npm install --global --ignore-scripts vercel@65.16.0
+      - name: Clean obsolete deployments after a successful production release
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          MONO_EXPECTED_SHA: ${{ github.event.deployment.sha }}
+          CLEANUP_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (vars.MONO_DEPLOYMENT_CLEANUP_ENABLED == 'true' && 'apply' || 'dry-run') }}
+        run: node scripts/cleanup-vercel-deployments.mjs "--$CLEANUP_MODE"
