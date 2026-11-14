@@ -22,7 +22,7 @@ const healthy = (value) => value?.status === 200 && value.body?.status === "ok" 
 
 function checkProject(project) {
   assert(project.id === SCOPE.project && project.accountId === SCOPE.team && project.name === "mono", "Project/team mismatch; no cleanup permitted.");
-  const liveId = project.targets?.production?.id;
+  const liveId = project.liveDeploymentId;
   assert(validId(liveId), "Cannot determine the current production deployment.");
   return liveId;
 }
@@ -130,7 +130,17 @@ export function createApi(token, fetcher = fetch) {
     return response.json();
   }
   return {
-    project: () => request(`/v9/projects/${SCOPE.project}`),
+    async project() {
+      const project = await request(`/v9/projects/${SCOPE.project}`);
+      assert(project.id === SCOPE.project && project.accountId === SCOPE.team && project.name === "mono", "Project/team mismatch; no cleanup permitted.");
+      // targets.production can describe an ignored/canceled attempt. The live alias is authoritative.
+      const alias = await request(`/v4/aliases/${SCOPE.domain}`, { query: { projectId: SCOPE.project } });
+      assert(alias.projectId === SCOPE.project && alias.alias === SCOPE.domain && !alias.redirect && !alias.deletedAt,
+        "Canonical alias ownership or routing changed; cleanup stopped.");
+      const liveDeploymentId = alias.deploymentId;
+      assert(validId(liveDeploymentId) && (!alias.deployment || alias.deployment.id === liveDeploymentId), "Canonical alias deployment is uncertain.");
+      return { id: project.id, accountId: project.accountId, name: project.name, liveDeploymentId };
+    },
     async healthToken(deployment) {
       checkProduction(deployment);
       const current = await this.deployment(idOf(deployment));

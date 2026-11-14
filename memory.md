@@ -214,7 +214,7 @@ components. Business rules never live only in React components — they live in
 
 ### Done
 
-- **Automatic deployment cleanup (2026-11-15)** — published e3e52d2; free GitHub Actions
+- **Automatic deployment cleanup (2026-11-15)** — free GitHub Actions
   cleanup is active after successful main/Production releases. Five obsolete deployments
   deleted; live e3e52d2 and rollback49987ce both READY/database healthy. Automatic event
   replay confirms apply=true. MONO-only Actions credential expires12February2027.
@@ -1672,6 +1672,13 @@ regressions before deploying. Physical iPhone/PWA hardware is not
 available; report browser-engine and standalone-display coverage accurately.
 
 ### 2026-11-14 — Automatic post-release deployment cleanup (DONE 2026-11-15)
+
+- Post-documentation follow-up: a safely ignored/CANCELED deployment can become the
+  project production target while the canonical domain still serves its READY deployment.
+  Changed production identity to the fixed canonical alias assignment, checked against
+  MONO project/team and redirect/deletion/ID consistency.43 safety tests cover this case
+  and hostile/ambiguous aliases. Preserved concurrent photo/avatar release ef70e69.
+  No weakening of READY or health guards.
 
 - Published workflow/tooling through e3e52d2, based on latest ccb5027 without changing
   application source or original workspace edits. GitHub repository secret VERCEL_TOKEN

@@ -13,7 +13,7 @@ function fixture(extra = []) {
   const state = { current: "dpl_live", rows, deleted: [], healthCalls: [], reads: 0, detailReads: new Map(), aliases: new Map(), hook: () => {} };
   state.aliases.set("dpl_live", [{ alias: SCOPE.domain }]);
   const api = {
-    async project() { state.hook("project"); return { id: SCOPE.project, accountId: SCOPE.team, name: "mono", targets: { production: { id: state.current } } }; },
+    async project() { state.hook("project"); return { id: SCOPE.project, accountId: SCOPE.team, name: "mono", liveDeploymentId: state.current, targets: { production: { id: state.current } } }; },
     async list() { state.reads++; state.hook("list"); return structuredClone(state.rows); },
     async deployment(id) {
       state.detailReads.set(id, (state.detailReads.get(id) ?? 0) + 1);
@@ -240,6 +240,17 @@ test("a keeper that changes before temporary access is not modified", async () =
 test("temporary access revocation only revokes the generated keeper secret without regeneration",async()=>{
   const api=createApi("fixture-only",async(url,options)=>{assert.equal(url.pathname,"/aliases/dpl_live/protection-bypass");assert.equal(options.method,"PATCH");assert.deepEqual(JSON.parse(options.body),{revoke:{secret:"fixture-private",regenerate:false}});return Response.json({protectionBypass:{}});});
   await api.releaseHealthToken(deployment("dpl_live",300),{secret:"fixture-private"});
+});
+
+test("live alias wins over a canceled project production target",async()=>{
+  const calls=[];const api=createApi("fixture-only",async(url)=>{calls.push(url.pathname);assert.equal(url.searchParams.get("teamId"),SCOPE.team);if(url.pathname.startsWith("/v9/"))return Response.json({id:SCOPE.project,accountId:SCOPE.team,name:"mono",targets:{production:{id:"dpl_canceled",readyState:"CANCELED"}}});assert.equal(url.pathname,`/v4/aliases/${SCOPE.domain}`);assert.equal(url.searchParams.get("projectId"),SCOPE.project);return Response.json({alias:SCOPE.domain,projectId:SCOPE.project,deploymentId:"dpl_live",deployment:{id:"dpl_live"}});});
+  assert.equal((await api.project()).liveDeploymentId,"dpl_live");assert.equal(calls.length,2);
+});
+test("foreign, redirected, deleted and ambiguous canonical aliases stop production resolution",async()=>{
+  for(const extra of [{projectId:"other"},{redirect:"https://elsewhere.invalid"},{deletedAt:123},{deployment:{id:"dpl_other"}}]){
+    const api=createApi("fixture-only",async url=>Response.json(url.pathname.startsWith("/v9/")?{id:SCOPE.project,accountId:SCOPE.team,name:"mono"}:{alias:SCOPE.domain,projectId:SCOPE.project,deploymentId:"dpl_live",...extra}));
+    await assert.rejects(api.project(),/Canonical alias/);
+  }
 });
 
 test("workflow accepts only trusted successful main production events and standard free runners", async () => {

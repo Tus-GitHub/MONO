@@ -51,9 +51,10 @@ or change which app is live.
 
 ## What is preserved
 
-The script resolves the live deployment from Vercel's project production target,
-checks ownership against fixed MONO project/team IDs, and verifies the canonical
-domain still belongs to it. It selects the most recent earlier READY production
+The script resolves the live deployment from the canonical domain's alias
+assignment and checks fixed MONO project/team ownership. Vercel's project
+production target can point to a newer ignored/canceled attempt, so it is not
+used as the live identity. The alias assignment is rechecked before deletion. It selects the most recent earlier READY production
 deployment as rollback. Both must return HTTP 200 and application JSON containing
 `status: ok` and `database: up` before anything is removed.
 
