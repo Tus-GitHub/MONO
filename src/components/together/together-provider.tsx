@@ -11,12 +11,26 @@ const Context = createContext<CallContext | null>(null);
 export function useTogetherCall() { const value = useContext(Context); if (!value) throw new Error("Chat must be inside the shared-space layout."); return value; }
 export function TogetherProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const calling = useCoupleCall(userId), [hiddenFor, setHidden] = useState<string | null>(null);
-  const id = calling.call?.id ?? (calling.phase === "permission" ? "permission" : null);
+  const preparing = calling.phase === "permission" || calling.phase === "preparing";
+  const id = calling.call?.id ?? (preparing ? "permission" : null);
   const incoming = calling.call?.status === "RINGING" && calling.call.calleeId === userId && !calling.owned;
   const { audioRef, blocked: ringtoneBlocked, ready: soundsReady, play: playRingtone, enable: enableCallSounds, stop: stopRingtone } = useCallRingtone(calling.call?.id, calling.call?.status === "RINGING" && calling.phase === "ringing" && (incoming || calling.owned));
   const open = Boolean((id && hiddenFor !== id) || calling.error || calling.notice);
   const close = () => { calling.dismissError(); if (id) setHidden(id); };
-  return <Context.Provider value={{ ...calling, soundsReady, enableCallSounds, start: (kind) => { enableCallSounds(); return calling.start(kind); } }}>
+  const previousCall = useRef<string | null>(null);
+  useEffect(() => {
+    const previous = previousCall.current;
+    if (previous && (previous !== calling.call?.id || calling.call?.status !== "RINGING")) {
+      navigator.serviceWorker?.controller?.postMessage({ type: "CLOSE_CALL_NOTIFICATION", callId: previous });
+    }
+    previousCall.current = calling.call?.id ?? null;
+  }, [calling.call?.id, calling.call?.status]);
+  useEffect(() => {
+    const receive = (event: MessageEvent) => { if (event.data?.type === "OPEN_CALL_NOTIFICATION") setHidden(null); };
+    navigator.serviceWorker?.addEventListener("message", receive);
+    return () => navigator.serviceWorker?.removeEventListener("message", receive);
+  }, []);
+  return <Context.Provider value={{ ...calling, soundsReady, enableCallSounds }}>
     <audio ref={audioRef} preload="none" aria-label="Call ringtone" />
     {children}
     {id && hiddenFor === id ? <div className="fixed right-4 bottom-[calc(var(--bottomnav-h)+1rem)] z-40 flex gap-2 lg:bottom-6"><Button className="shadow-lg" onClick={() => setHidden(null)}>Return to call</Button>{calling.sharing ? <Button variant="secondary" onClick={() => void calling.stopSharing()}>Stop sharing</Button> : null}</div> : null}
@@ -25,8 +39,9 @@ export function TogetherProvider({ userId, children }: { userId: string; childre
         {calling.error ? <p role="alert" className="text-sm text-error">{calling.error}</p> : null}
         {calling.notice ? <p role="status" className="text-sm text-muted">{calling.notice}</p> : null}
         {ringtoneBlocked ? <div className="space-y-2"><p className="text-sm text-muted">Your browser paused call sounds. Tap to hear the ringtone.</p><Button variant="secondary" leadingIcon={<Icon name="speaker" />} onClick={playRingtone}>Play ringtone</Button></div> : null}
-        {calling.phase === "permission" ? <p role="status" className="text-sm text-muted">Allow microphone access, and camera access for video, in your browser. You can cancel while you decide.</p> : null}
-        {incoming && calling.phase !== "permission" ? <p className="text-sm text-muted">Your partner is calling. Answer when you&apos;re ready.</p> : null}
+        {calling.phase === "permission" ? <p role="status" className="text-sm text-muted">{incoming ? "Allow microphone access, and camera access for video, before answering." : "Allow microphone access, and camera access for video. Your partner has not been called yet."} You can cancel while you decide.</p> : null}
+        {calling.phase === "preparing" ? <p role="status" className="text-sm text-muted">Devices ready. {incoming ? "Answering your partner…" : "Preparing your call…"}</p> : null}
+        {incoming && !preparing ? <p className="text-sm text-muted">Your partner is calling. Answer when you&apos;re ready.</p> : null}
         {calling.phase === "elsewhere" ? <p className="text-sm text-muted">This call is open on another tab or device.</p> : null}
         {calling.owned ? <>
           <p role="status" className="text-sm text-muted">{calling.phase === "connected" ? "Connected · media is not recorded" : calling.phase === "ringing" ? "Calling your partner…" : "Connecting…"}</p>
@@ -40,8 +55,8 @@ export function TogetherProvider({ userId, children }: { userId: string; childre
           {calling.sharing ? <p className="text-xs text-muted">Only the screen, window or tab you chose is shared. Screen audio is off; your microphone follows the mute control.</p> : null}
         </> : null}
         <div className="flex flex-wrap justify-end gap-2">
-          {incoming && calling.phase !== "permission" ? <><Button variant="danger" leadingIcon={<Icon name="phoneEnd" />} onClick={() => { stopRingtone(); void calling.decline(); }}>Decline</Button><Button variant="success" leadingIcon={<Icon name="phone" />} onClick={() => { stopRingtone(); void calling.accept(); }}>Pick up</Button></>
-            : calling.call || calling.phase === "permission" ? <Button variant="danger" leadingIcon={<Icon name="phoneEnd" />} onClick={() => { stopRingtone(); void calling.end(); }}>{calling.phase === "permission" ? "Cancel call" : "End call"}</Button> : <Button variant="secondary" onClick={close}>Close</Button>}
+          {incoming && !preparing ? <><Button variant="danger" leadingIcon={<Icon name="phoneEnd" />} onClick={() => { stopRingtone(); void calling.decline(); }}>Decline</Button><Button variant="success" leadingIcon={<Icon name="phone" />} onClick={() => { stopRingtone(); void calling.accept(); }}>Pick up</Button></>
+            : calling.call || preparing ? <Button variant="danger" leadingIcon={<Icon name="phoneEnd" />} onClick={() => { stopRingtone(); void calling.end(); }}>{preparing ? "Cancel call" : "End call"}</Button> : <Button variant="secondary" onClick={close}>Close</Button>}
         </div>
       </div>
     </Modal>

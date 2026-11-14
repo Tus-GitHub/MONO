@@ -1,9 +1,28 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { acquireCallMedia, acquireCameraMedia, acquireScreenMedia } from "./call-media";
+import { acquireCallMedia, acquireCameraMedia, acquireScreenMedia, prepareCallMedia } from "./call-media";
 let getMedia: ReturnType<typeof vi.fn>;
 beforeEach(() => { vi.useFakeTimers(); getMedia = vi.fn(); vi.stubGlobal("window", { isSecureContext: true }); vi.stubGlobal("navigator", { mediaDevices: { getUserMedia: getMedia } }); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 const stream = () => { const stop = vi.fn(); return { stop, value: { getTracks: () => [{ stop }] } as unknown as MediaStream }; };
+it("makes no call-service request while permission is pending or denied", async () => {
+  let fail!: (error: Error) => void;
+  getMedia.mockImplementation(() => new Promise((_, reject) => { fail = reject; }));
+  const configure = vi.fn(), pending = prepareCallMedia("AUDIO", new AbortController().signal, configure);
+  expect(configure).not.toHaveBeenCalled(); fail(new DOMException("Denied", "NotAllowedError"));
+  await expect(pending).rejects.toThrow("Allow microphone"); expect(configure).not.toHaveBeenCalled();
+});
+it("releases approved devices if call-service configuration fails or is cancelled", async () => {
+  const media = stream(); getMedia.mockResolvedValue(media.value);
+  await expect(prepareCallMedia("AUDIO", new AbortController().signal, async () => { throw new Error("offline"); })).rejects.toThrow("offline");
+  expect(media.stop).toHaveBeenCalledOnce();
+  const abort = new AbortController();
+  await expect(prepareCallMedia("VIDEO", abort.signal, async () => { abort.abort(); })).rejects.toMatchObject({ name: "AbortError" });
+  expect(media.stop).toHaveBeenCalledTimes(2);
+});
+it("distinguishes a busy camera from denied permission", async () => {
+  getMedia.mockRejectedValue(new DOMException("Device busy", "NotReadableError"));
+  await expect(acquireCameraMedia(new AbortController().signal)).rejects.toThrow("already in use");
+});
 it("does not access devices before a call and keeps voice calls audio-only", async () => {
   expect(getMedia).not.toHaveBeenCalled(); const media = stream(); getMedia.mockResolvedValue(media.value);
   await expect(acquireCallMedia("AUDIO", new AbortController().signal)).resolves.toBe(media.value);

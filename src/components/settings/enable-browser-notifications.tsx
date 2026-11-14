@@ -49,7 +49,7 @@ function isStandalone(): boolean {
  * Degrades quietly where push can't work: no broken control, and in-app notifications keep
  * carrying everything.
  */
-export function EnableBrowserNotifications() {
+export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?: "reminders" | "calls" }) {
   const { toast } = useToast();
   const [state, setState] = useState<State>("loading");
   const scope = useRef(new TaskScope());
@@ -123,7 +123,7 @@ export function EnableBrowserNotifications() {
         return;
       }
       setState("on");
-      toast({ title: "Reminders on — even when MONO is closed.", variant: "success" });
+      toast({ title: "Notifications enabled on this device.", variant: "success" });
     } catch {
       if (signal.aborted) return;
       toast({ title: "Couldn't turn on reminders. Try again.", variant: "error" });
@@ -171,8 +171,8 @@ export function EnableBrowserNotifications() {
     "ios-needs-install":
       "On iPhone, add MONO to your Home Screen first — then you can turn on reminders here.",
     denied: "Notifications are blocked in your browser settings. Re-enable them there to use this.",
-    off: "Want MONO to remind you about your next date, and when your partner adds something — even when MONO is closed?",
-    on: "On. Reminders will reach you even when MONO isn't open.",
+    off: purpose === "calls" ? "Allow notifications for incoming calls, even when MONO is closed. Tap the alert to open MONO and answer." : "Want MONO to remind you about your next date, and when your partner adds something — even when MONO is closed?",
+    on: "Enabled on this device. Delivery depends on your connection and phone notification settings.",
   };
 
   return (
@@ -182,17 +182,20 @@ export function EnableBrowserNotifications() {
           <Icon name="bell" size="sm" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-ink">Reminders when MONO is closed</p>
+          <p className="text-sm font-medium text-ink">{purpose === "calls" ? "Incoming-call notifications" : "Notifications when MONO is closed"}</p>
           <p className="mt-0.5 text-sm text-muted">{message[displayState]}</p>
           {displayState === "off" ? (
             <Button size="sm" variant="secondary" className="mt-3" loading={busy} onClick={enable}>
-              Turn on reminders
+              Enable notifications
             </Button>
           ) : null}
           {displayState === "on" ? (
-            <Button size="sm" variant="ghost" className="mt-3" loading={busy} onClick={disable}>
+            <div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" className="mt-3" onClick={() => {
+              void navigator.serviceWorker.ready.then((reg) => reg.showNotification("MONO test notification", { body: "Popups are enabled. Incoming-call alerts open MONO to answer.", icon: "/icons/icon-192.png", tag: "mono_popup_test", data: { url: "/chat" } }))
+                .catch(() => toast({ title: "Couldn't show the popup. Check this device's notification settings.", variant: "error" }));
+            }}>Test notification popup</Button><Button size="sm" variant="ghost" className="mt-3" loading={busy} onClick={disable}>
               Turn off
-            </Button>
+            </Button></div>
           ) : null}
         </div>
       </div>

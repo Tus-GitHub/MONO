@@ -7,6 +7,7 @@ import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { callActionSchema } from "@/lib/validation/together";
 import type { CallDTO, SignalDTO } from "@/lib/together/types";
 import { requireTogether, withTogetherWrite } from "./together-context";
+import { enqueueNotification } from "./notification-delivery-service";
 
 export function effectiveCallStatus(call: CoupleCall, now = Date.now()): CallDTO["status"] {
   if (call.status === "RINGING" && now - call.createdAt.getTime() > 60_000) return "MISSED";
@@ -56,7 +57,10 @@ export async function actOnCall(value: unknown): Promise<CallDTO> {
         await tx.callSignal.deleteMany({ where: { callId: call.id } });
       }
       if (await tx.coupleCall.count({ where: { callerId: context.user.id, createdAt: { gt: new Date(Date.now() - 60_000) } } }) >= 6) throw new ValidationError("Wait a moment before calling again.");
-      return tx.coupleCall.create({ data: { coupleId: context.couple.id, callerId: context.user.id, calleeId: context.partner.id, kind: input.kind, clientNonce: input.clientNonce } });
+      const call = await tx.coupleCall.create({ data: { coupleId: context.couple.id, callerId: context.user.id, calleeId: context.partner.id, kind: input.kind, clientNonce: input.clientNonce } });
+      await enqueueNotification(tx, context.partner.id, { type: "SYSTEM", title: `Incoming ${input.kind === "VIDEO" ? "video" : "voice"} call`,
+        body: "Your partner is calling. Open MONO to answer.", entityType: "CoupleCall", entityId: call.id }, context.couple.id);
+      return call;
     }
     const call = await tx.coupleCall.findFirst({ where: { id: input.id, coupleId: context.couple.id } });
     if (!call || ![call.callerId, call.calleeId].includes(context.user.id)) throw new NotFoundError();

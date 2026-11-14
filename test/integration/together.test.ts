@@ -155,6 +155,15 @@ it("enforces a single call and keeps signaling scoped to the two participants", 
   expect(await prisma.callSignal.count({ where: { callId: call.id } })).toBe(0);
   await expect(asUser(call.calleeId, () => actOnCall({ action: "signal", id: call.id, signal: offer }))).rejects.toThrow();
 });
+it("creates one recipient notification for retried call starts and no push without opt-in", async () => {
+  const input = { action: "start", kind: "AUDIO", clientNonce: randomUUID() };
+  const first = await asUser(owner, () => actOnCall(input));
+  const again = await asUser(owner, () => actOnCall(input));
+  expect(again.id).toBe(first.id);
+  const notes = await prisma.notification.findMany({ where: { entityType: "CoupleCall", entityId: first.id } });
+  expect(notes).toHaveLength(1); expect(notes[0].userId).toBe(partner); expect(notes[0].coupleId).toBe(couple);
+  expect(await prisma.notificationDelivery.count({ where: { notificationId: notes[0].id } })).toBe(0);
+});
 it("expires unanswered calls and clears their signals before starting another", async () => {
   const call = await asUser(owner, () => actOnCall({ action: "start", kind: "VIDEO", clientNonce: randomUUID() }));
   await asUser(owner, () => actOnCall({ action: "signal", id: call.id, signal: { kind: "offer", payload: { type: "offer", sdp: "v=0\r\n" } } }));

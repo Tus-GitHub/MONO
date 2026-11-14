@@ -43,6 +43,17 @@ async function stillEligible(notification: Notification, userId: string): Promis
     where: { userId, coupleId: notification.coupleId, status: "ACTIVE", couple: { deletedAt: null, status: { in: ["PENDING", "ACTIVE"] } } },
     select: { id: true },
   })) return false;
+  if (notification.entityType === "CoupleCall") {
+    if (!notification.entityId || !notification.coupleId) return false;
+    const call = await prisma.coupleCall.findFirst({ where: {
+      id: notification.entityId, coupleId: notification.coupleId, calleeId: userId, status: "RINGING",
+      createdAt: { gt: new Date(Date.now() - 60_000) },
+    }, select: { callerId: true, calleeId: true } });
+    return Boolean(call && await prisma.coupleMember.count({ where: {
+      coupleId: notification.coupleId, userId: { in: [call.callerId, call.calleeId] }, status: "ACTIVE",
+      user: { deletedAt: null }, couple: { deletedAt: null, status: "ACTIVE" },
+    } }) === 2);
+  }
   if (notification.entityType === "Date" && notification.entityId) {
     const date = await prisma.date.findFirst({
       where: {
@@ -70,12 +81,13 @@ async function stillEligible(notification: Notification, userId: string): Promis
 }
 
 /** Leased, at-least-once push delivery with bounded retry; provider acceptance is not proof of device display. */
-export async function processNotificationDeliveries(options: { userId?: string; now?: Date; limit?: number } = {}) {
+export async function processNotificationDeliveries(options: { userId?: string; now?: Date; limit?: number; callId?: string } = {}) {
   const now = options.now ?? new Date();
   const report = { processed: 0, delivered: 0, failed: 0, cancelled: 0 };
   if (!getPushChannel().configured) return report;
+  const scope = { userId: options.userId, ...(options.callId ? { notification: { entityType: "CoupleCall", entityId: options.callId } } : {}) };
   const expired = await prisma.notificationDelivery.updateMany({
-    where: { userId: options.userId, status: "PROCESSING", OR: [{ leaseUntil: null }, { leaseUntil: { lte: now } }], attempts: { gte: MAX_ATTEMPTS } },
+    where: { ...scope, status: "PROCESSING", OR: [{ leaseUntil: null }, { leaseUntil: { lte: now } }], attempts: { gte: MAX_ATTEMPTS } },
     data: { status: "FAILED", leaseToken: null, leaseUntil: null, lastError: "lease_expired" },
   });
   report.failed += expired.count;
@@ -87,7 +99,7 @@ export async function processNotificationDeliveries(options: { userId?: string; 
     ],
   };
   const candidates = await prisma.notificationDelivery.findMany({
-    where: { ...claimable, userId: options.userId }, orderBy: [{ nextAttemptAt: "asc" }, { id: "asc" }],
+    where: { ...claimable, ...scope }, orderBy: [{ nextAttemptAt: "asc" }, { id: "asc" }],
     take: Math.min(Math.max(options.limit ?? 12, 1), 24), select: { id: true },
   });
   async function deliver(id: string) {
@@ -118,9 +130,12 @@ export async function processNotificationDeliveries(options: { userId?: string; 
         return;
       }
       try {
+        const callId = job.notification.entityType === "CoupleCall" ? job.notification.entityId : null;
+        const expiresAt = job.notification.createdAt.getTime() + 60_000;
         await getPushChannel().send(parsed.data, {
           title: job.notification.title, body: job.notification.body ?? "",
           url: notificationHref(job.notification), tag: `mono_${job.notification.id}`,
+          ...(callId ? { callId, expiresAt, tag: `call_${callId}`, ttl: Math.max(0, Math.floor((expiresAt - Date.now()) / 1000)), urgency: "high" as const } : {}),
         });
       } catch (error) {
         if (error instanceof PushSubscriptionGoneError) {

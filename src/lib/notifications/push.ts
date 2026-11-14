@@ -11,6 +11,10 @@ export interface PushMessage {
   body: string;
   url?: string;
   tag?: string;
+  ttl?: number;
+  urgency?: "normal" | "high";
+  callId?: string;
+  expiresAt?: number;
 }
 
 export interface PushChannel {

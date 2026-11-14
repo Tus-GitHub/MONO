@@ -23,6 +23,24 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
+- **Permission-first calling and closed-app alerts (2026-11-14)** — user uses Android +
+  iPhone and asks for maximum supported background calling plus working notification
+  popups. Implement pre-call device setup and permission-before-config/start; remove the
+  misleading pre-permission ringtone preview. Add short-lived incoming-call Web Push and
+  safe notification-to-call routing using existing outbox/subscriptions. Installed PWA
+  notifications cannot provide native CallKit/Android Telecom ringing or powered-off calls;
+  explained this boundary. Native distribution is not configured/claimed. Live screen-share
+  test is deferred until this requested update is handled. User handles permission prompts.
+  Implemented Set up calling with stopped-after-check devices, explicit ringtone preview,
+  notification opt-in/popup test; call config and start now both follow media permission.
+  Removed outgoing preview-before-permission and clarified busy-device versus denial errors.
+  Incoming calls atomically create one recipient outbox alert; after-response delivery checks
+  both active members, opt-in/session and live RINGING status, with high urgency and <=60s TTL.
+  Worker v6 routes exact call URLs, handles stale alerts and blocks external navigation.
+  Configured previously missing production VAPID keys securely (private key sensitive;
+  public key mirrored to NEXT_PUBLIC). 47 focused tests and 174 isolated PostgreSQL tests
+  pass; TypeScript/lint pass. Final build, deployment and physical popup verification pending.
+
 - **Call timeout, ringtone and controls follow-up (2026-11-14)** — live Chrome caller
   acquired its microphone and rang the Edge receiver. Verified the receiver's Incoming
   voice call dialog with Answer/Decline; Edge autoplay was blocked and showed Play ringtone.
@@ -36,8 +54,22 @@ components. Business rules never live only in React components — they live in
   stop on pickup/end, green pickup and red hang-up/decline buttons with accessible labels.
   Incoming status checks continue in background tabs (subject to browser suspension).
   21 focused regressions, TypeScript, targeted ESLint and the production Webpack build pass.
-  Synced newer main 7fb2ff8 without changing upstream review/memory fixes; production
-  deployment and live media test pending.
+  Synced newer main 7fb2ff8 without changing upstream review/memory fixes. Published
+  38f861e; production dpl_ELUgcXG1S8Xa4bHnxHJbfCATBMCi READY on canonical MONO URL.
+  Live Edge confirmed green Pick up/red Decline handset controls, successful song preview
+  (Audio playing/Call sounds ready), then automatic incoming-call playback with no fallback.
+  Pick up displayed Edge's real microphone permission popup. User has not handled it yet;
+  capture timed out after 30 seconds. Call cmwggcpzv0001l208wu6rf8rh acceptedAt remains null.
+  Required async questions pending: allow microphone and confirm hearing the song. Do not
+  claim connected voice/video/screen or audible playback at both ends. Keep QA sessions
+  for continuation; revoke only after finishing. Runtime error/fatal logs empty in 15m check.
+  Follow-up: user confirmed hearing the Edge song and allowed microphone access. Actual call
+  cmwggwl0g0003l208398wbz45 connected in both browsers, upgraded AUDIO to VIDEO with real
+  Edge camera preview and incoming Chrome feed, then ended (13:54:57–13:56:11 UTC).
+  Chrome's simultaneous webcam attempt failed despite permission Allowed (likely shared
+  device contention; error cause unconfirmed); voice connection survived. Need reverse
+  camera after releasing Edge's device, screen-share checks, and audible voice/Chrome-song
+  confirmation. User moving/minimizing QA windows interrupted input; ready question pending.
 
 - **Actual live call verification requested (2026-11-14)** — user requests two-user voice,
   video upgrade, screen sharing and ringtone playback at both ends. Chrome state capture
@@ -1483,6 +1515,13 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-14 — Permission-first setup and incoming-call push (IN PROGRESS)
+- User prioritizes setup before ringing and Android/iPhone notifications while installed app
+  is closed/phone locked. Chose “Max you can do”; deliver supported PWA capability honestly.
+- Existing caller already waits for media before start POST; receiver first-use permission
+  and outgoing preview before permission caused confusion. Add explicit setup and remove
+  early preview. Verify short expiry, membership, opt-in and stale-call handling for push.
 
 ### 2026-11-14 — Both-partner edits to expenses, revealed reviews and memories
 

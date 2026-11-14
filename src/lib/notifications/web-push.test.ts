@@ -166,6 +166,17 @@ describe("WebPushChannel", () => {
       globalThis.fetch = realFetch;
     }
   });
+  it("uses short high-priority delivery for calls and preserves expiry in the encrypted payload", async () => {
+    const { pub, priv } = makeVapidKeys(), { sub, ecdh, auth } = makeClientSubscription();
+    const channel = new WebPushChannel(pub, priv, "https://mono.test"), realFetch = globalThis.fetch;
+    let headers: Record<string, string> | undefined, payload: unknown;
+    const expiresAt = Date.now() + 60_000;
+    globalThis.fetch = (async (_url: string, init: RequestInit) => { headers = init.headers as Record<string, string>; payload = JSON.parse(decryptAsClient(Buffer.from(init.body as Uint8Array), ecdh, auth).toString()); return new Response(null, { status: 201 }); }) as typeof fetch;
+    try { await channel.send(sub, { title: "Incoming call", body: "Open MONO", callId: "fixture-call", expiresAt, ttl: 59, urgency: "high" }); }
+    finally { globalThis.fetch = realFetch; }
+    expect(headers).toMatchObject({ TTL: "59", Urgency: "high" });
+    expect(payload).toMatchObject({ callId: "fixture-call", expiresAt });
+  });
 
   it("rejects a malformed subscription as gone", async () => {
     const { pub, priv } = makeVapidKeys();

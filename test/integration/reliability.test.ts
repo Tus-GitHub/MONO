@@ -93,6 +93,35 @@ it("persists one delivery per browser and disabling one preserves the other", as
   expect(transport.send).toHaveBeenCalledOnce();
   expect((transport.send.mock.calls[0][0] as { endpoint: string }).endpoint).toBe(laptop.endpoint);
 });
+it("sends opted-in incoming calls urgently, isolates their queue and cancels stale or answered calls", async () => {
+  await setPushSubscription(users[0], subscription("call"));
+  const create = async (age = 0, status: "RINGING" | "ACCEPTED" = "RINGING") => {
+    const call = await prisma.coupleCall.create({ data: { coupleId, callerId: users[1], calleeId: users[0], kind: "AUDIO", clientNonce: randomUUID(), status, createdAt: new Date(Date.now() - age) } });
+    const note = await prisma.$transaction((tx) => enqueueNotification(tx, users[0], { type: "SYSTEM", title: "Incoming voice call", entityType: "CoupleCall", entityId: call.id }, coupleId));
+    await prisma.notificationDelivery.updateMany({ where: { notificationId: note.id }, data: { nextAttemptAt: new Date(Date.now() - 1000) } });
+    return call;
+  };
+  await queue(); const live = await create();
+  expect(await processNotificationDeliveries({ userId: users[0], callId: live.id })).toMatchObject({ delivered: 1 });
+  expect(transport.send).toHaveBeenCalledOnce();
+  expect(transport.send.mock.calls[0][1]).toMatchObject({ callId: live.id, urgency: "high", url: `/chat?call=${live.id}` });
+  expect(transport.send.mock.calls[0][1].ttl).toBeLessThanOrEqual(60);
+  expect(await prisma.notificationDelivery.count({ where: { userId: users[0], status: "PENDING" } })).toBe(1);
+  for (const call of [await create(61_000), await create(0, "ACCEPTED")]) {
+    expect(await processNotificationDeliveries({ userId: users[0], callId: call.id })).toMatchObject({ cancelled: 1 });
+  }
+  expect(transport.send).toHaveBeenCalledOnce();
+});
+
+it("cancels incoming-call push after the caller leaves the shared space", async () => {
+  await setPushSubscription(users[0], subscription("call-left"));
+  const call = await prisma.coupleCall.create({ data: { coupleId, callerId: users[1], calleeId: users[0], kind: "AUDIO", clientNonce: randomUUID() } });
+  const note = await prisma.$transaction((tx) => enqueueNotification(tx, users[0], { type: "SYSTEM", title: "Incoming call", entityType: "CoupleCall", entityId: call.id }, coupleId));
+  await prisma.notificationDelivery.updateMany({ where: { notificationId: note.id }, data: { nextAttemptAt: new Date(Date.now() - 1000) } });
+  await prisma.coupleMember.updateMany({ where: { coupleId, userId: users[1] }, data: { status: "LEFT" } });
+  try { expect(await processNotificationDeliveries({ userId: users[0], callId: call.id })).toMatchObject({ cancelled: 1 }); expect(transport.send).not.toHaveBeenCalled(); }
+  finally { await prisma.coupleMember.updateMany({ where: { coupleId, userId: users[1] }, data: { status: "ACTIVE" } }); }
+});
 
 it("retries a transient error without recreating or losing the in-app notification", async () => {
   await setPushSubscription(users[0], subscription("retry"));

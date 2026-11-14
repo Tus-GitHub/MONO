@@ -3,11 +3,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { togetherFetch, errorMessage } from "@/lib/together/client";
 import type { CallDTO, SignalDTO } from "@/lib/together/types";
 import { useVisiblePoll } from "./use-visible-poll";
-import { acquireCallMedia, acquireCameraMedia, acquireScreenMedia } from "@/lib/together/call-media";
+import { prepareCallMedia, acquireCameraMedia, acquireScreenMedia } from "@/lib/together/call-media";
 import { offerCallTracks, answerCallTracks } from "@/lib/together/call-tracks";
 import { callDeadline } from "@/lib/together/call-deadline";
 
-type Phase = "idle" | "permission" | "ringing" | "connecting" | "connected" | "elsewhere";
+type Phase = "idle" | "permission" | "preparing" | "ringing" | "connecting" | "connected" | "elsewhere";
 export function useCoupleCall(userId: string) {
   const [call, setCall] = useState<CallDTO | null>(null), [phase, setPhase] = useState<Phase>("idle");
   const [local, setLocal] = useState<MediaStream | null>(null), [remote, setRemote] = useState<MediaStream | null>(null);
@@ -72,9 +72,10 @@ export function useCoupleCall(userId: string) {
   }, [end, sendSignal, userId]);
   const mediaFor = async (kind: "AUDIO" | "VIDEO", runId: number) => {
     const controller = new AbortController(); mediaRequest.current?.abort(); mediaRequest.current = controller;
-    const config = await togetherFetch<{ iceServers: RTCIceServer[] }>("/api/together/calls?config=1", { signal: controller.signal });
-    if (generation.current !== runId) return null;
-    const media = await acquireCallMedia(kind, controller.signal);
+    const { media, config } = await prepareCallMedia(kind, controller.signal, () => {
+      if (generation.current === runId) setPhase("preparing");
+      return togetherFetch<{ iceServers: RTCIceServer[] }>("/api/together/calls?config=1", { signal: controller.signal });
+    });
     if (generation.current !== runId) { media.getTracks().forEach((track) => track.stop()); return null; }
     stream.current = media; return { media, iceServers: config.iceServers };
   };
@@ -107,6 +108,26 @@ export function useCoupleCall(userId: string) {
     const id = active.current?.id; release();
     if (id) try { await togetherFetch("/api/together/calls", { body: { action: "decline", id } }); } catch (error) { setError(errorMessage(error)); }
   };
+  useEffect(() => {
+    const controller = new AbortController();
+    const openCall = async (id: unknown) => {
+      if (typeof id !== "string" || !id || id.length > 100 || peer.current || starting.current) return;
+      const runId = generation.current;
+      try {
+        const result = await togetherFetch<{ call: CallDTO }>(`/api/together/calls?id=${encodeURIComponent(id)}`, { signal: controller.signal });
+        if (controller.signal.aborted || generation.current !== runId || peer.current || starting.current || (active.current && active.current.id !== id)) return;
+        if (result.call.status === "RINGING" && result.call.calleeId === userId) {
+          active.current = result.call; setCall(result.call); setNotice(null); setPhase("ringing");
+        } else if (!["RINGING", "ACCEPTED"].includes(result.call.status) && !active.current) {
+          setNotice("This call has ended. You can start a new call from Chat.");
+        }
+      } catch { if (!controller.signal.aborted && !active.current) setNotice("This call is no longer available. Open Chat to call your partner."); }
+    };
+    void openCall(new URL(window.location.href).searchParams.get("call"));
+    const receive = (event: MessageEvent) => { if (event.data?.type === "OPEN_CALL_NOTIFICATION") void openCall(event.data.callId); };
+    navigator.serviceWorker?.addEventListener("message", receive);
+    return () => { controller.abort(); navigator.serviceWorker?.removeEventListener("message", receive); };
+  }, [userId]);
   useVisiblePoll(async (signal) => {
     try {
       const next = await togetherFetch<{ unread: number; call: CallDTO | null }>("/api/together/status", { signal });

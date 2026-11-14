@@ -14,7 +14,7 @@
  * Updating: bump VERSION. The new worker precaches, `skipWaiting()`s on the page's nudge, and
  * on activate deletes every cache whose name doesn't start with the current VERSION.
  */
-const VERSION = "mono-v5";
+const VERSION = "mono-v6";
 const PRECACHE = VERSION + "-precache";
 const STATIC = VERSION + "-static";
 
@@ -52,6 +52,9 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("message", (event) => {
   if (event.data === "SKIP_WAITING") self.skipWaiting();
+  if (event.data?.type === "CLOSE_CALL_NOTIFICATION" && typeof event.data.callId === "string") {
+    event.waitUntil(self.registration.getNotifications({ tag: `call_${event.data.callId}` }).then((items) => items.forEach((item) => item.close())));
+  }
 });
 
 // --- Web Push -------------------------------------------------------------
@@ -64,28 +67,36 @@ self.addEventListener("push", (event) => {
   } catch {
     data = { title: "MONO", body: event.data ? event.data.text() : "" };
   }
-  const title = data.title || "MONO";
+  const incomingCall = typeof data.callId === "string" && Number.isFinite(data.expiresAt);
+  const expired = incomingCall && data.expiresAt <= Date.now();
+  const title = expired ? "Missed MONO call" : data.title || "MONO";
   event.waitUntil(
     self.registration.showNotification(title, {
-      body: data.body || "",
+      body: expired ? "This call has ended. Open MONO to call your partner back." : data.body || "",
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
       tag: data.tag || undefined,
       renotify: Boolean(data.tag),
-      data: { url: data.url || "/notifications" },
+      data: { url: data.url || "/notifications", callId: data.callId },
+      ...(incomingCall && !expired ? { actions: [{ action: "open-call", title: "Open MONO" }], requireInteraction: true } : {}),
     }),
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = new URL(event.notification.data?.url || "/notifications", self.location.origin);
+  let target;
+  try { target = new URL(event.notification.data?.url || "/notifications", self.location.origin); } catch { target = new URL("/notifications", self.location.origin); }
+  if (target.origin !== self.location.origin) target = new URL("/notifications", self.location.origin);
   event.waitUntil(
     (async () => {
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       for (const client of windows) {
         const url = new URL(client.url);
-        if (url.pathname === target.pathname && "focus" in client) return client.focus();
+        if (url.href === target.href && "focus" in client) {
+          client.postMessage({ type: "OPEN_CALL_NOTIFICATION", callId: event.notification.data?.callId });
+          return client.focus();
+        }
       }
       const anyClient = windows.find((c) => "focus" in c);
       if (anyClient) {

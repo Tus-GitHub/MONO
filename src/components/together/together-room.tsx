@@ -14,6 +14,7 @@ import type { MessageDTO, TogetherSnapshot } from "@/lib/together/types";
 import { downscaleImage } from "@/lib/images/client-resize";
 import { cn } from "@/lib/utils/cn";
 import { useTogetherCall } from "./together-provider";
+import { CallSetup } from "./call-setup";
 
 const GamesPanel = dynamic(() => import("./games-panel"), { loading: () => <div className="flex justify-center py-10"><Spinner /></div> });
 export function TogetherRoom({ initial, userId, userName }: { initial: TogetherSnapshot; userId: string; userName: string }) {
@@ -25,7 +26,7 @@ export function TogetherRoom({ initial, userId, userName }: { initial: TogetherS
     <div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="font-display text-3xl font-medium text-ink">Just us</h1>
       <p className="mt-1 text-sm text-muted">{partner.name} · {chat.partnerTyping ? "Typing…" : chat.partnerOnline ? "Online" : "Your private conversation and arcade"}</p></div>
       <div className="flex gap-2"><Button size="sm" variant="secondary" leadingIcon={<Icon name="phone" />} disabled={callBusy} onClick={() => void calling.start("AUDIO")}>Voice call</Button><Button size="sm" variant="secondary" leadingIcon={<Icon name="video" />} disabled={callBusy} onClick={() => void calling.start("VIDEO")}>Video call</Button></div></div>
-    {!callBusy ? <div className="flex flex-wrap items-center gap-2"><Button variant="secondary" size="sm" leadingIcon={<Icon name="speaker" />} onClick={calling.enableCallSounds}>{calling.soundsReady ? "Test ringtone" : "Enable call sounds"}</Button><p role="status" className="text-xs text-muted">{calling.soundsReady ? "Call sounds ready in this tab. Keep MONO open to receive calls." : "Play a short preview to enable the song for incoming calls."}</p></div> : null}
+    {!callBusy ? <div className="flex flex-wrap items-center gap-2"><CallSetup soundsReady={calling.soundsReady} enableSounds={calling.enableCallSounds} /><p className="text-xs text-muted">Prepare permissions, your ringtone and incoming-call notifications before calling.</p></div> : null}
     <div role="tablist" aria-label="Together" className="flex gap-2 border-b border-line pb-3">{([['chat', 'Chat'], ['games', 'Games · 24'], ['scores', 'Scores']] as const).map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={tab === key} aria-controls={`together-${key}`} id={`tab-${key}`} onClick={() => setTab(key)} className={cn("rounded-lg px-4 py-2 text-sm font-medium", tab === key ? "bg-primary-tint text-primary" : "text-muted hover:bg-surface")}>{label}</button>)}</div>
     {chat.error ? <p role="alert" className="text-sm text-error">Live updates paused: {chat.error} <Button variant="link" onClick={() => void chat.refresh()}>Reconnect</Button></p> : null}
     {tab === "chat" ? <section role="tabpanel" id="together-chat" aria-labelledby="tab-chat" className="space-y-3">

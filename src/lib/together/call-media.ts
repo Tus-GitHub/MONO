@@ -10,7 +10,7 @@ function capture(request: () => Promise<MediaStream>, signal: AbortSignal, denie
     signal.addEventListener("abort", cancel, { once: true });
     try {
       void request().then((stream) => { if (finished) stream.getTracks().forEach((track) => track.stop()); else settle(() => resolve(stream)); })
-        .catch(() => settle(() => reject(new Error(denied))));
+        .catch((error) => settle(() => reject(new Error(error?.name === "NotReadableError" ? "Your camera or microphone is unavailable or already in use. Close other calls or camera apps, then try again." : error?.name === "NotFoundError" ? "No suitable camera or microphone was found. Connect a device and try again." : denied))));
     } catch (error) { settle(() => reject(error instanceof Error ? error : new Error(denied))); }
   });
 }
@@ -21,6 +21,17 @@ export function acquireCallMedia(kind: "AUDIO" | "VIDEO", signal: AbortSignal) {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error("Calling needs a supported browser and a secure connection.");
     return navigator.mediaDevices.getUserMedia({ audio: true, video: kind === "VIDEO" ? camera : false });
   }, signal, "Allow microphone access, and camera access for video, to start the call.", waiting);
+}
+
+/** No service request is made until the browser supplies media. Release it on any failure. */
+export async function prepareCallMedia<T>(kind: "AUDIO" | "VIDEO", signal: AbortSignal, configure: () => Promise<T>) {
+  const media = await acquireCallMedia(kind, signal);
+  try {
+    signal.throwIfAborted();
+    const config = await configure();
+    signal.throwIfAborted();
+    return { media, config };
+  } catch (error) { media.getTracks().forEach((track) => track.stop()); throw error; }
 }
 export function acquireCameraMedia(signal: AbortSignal) {
   return capture(() => {
