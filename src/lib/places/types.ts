@@ -2,6 +2,10 @@ import type { PlaceCategory } from "@prisma/client";
 
 export interface GeoPoint { latitude: number; longitude: number }
 export const NEARBY_RADIUS_KM = 20;
+export const NEARBY_RADII_KM = [1, 5, 10, 20, 50, 100] as const;
+export function venueRadius(value?: number): number {
+  return Number.isFinite(value) ? Math.min(100, Math.max(1, Math.round(value!))) : NEARBY_RADIUS_KM;
+}
 
 /**
  * External place-provider contract. MONO's UI and business logic depend only on this shape,
@@ -9,6 +13,7 @@ export const NEARBY_RADIUS_KM = 20;
  * implementing `PlaceProvider` — nothing above this layer changes.
  */
 export interface PlaceSearchQuery {
+  radiusKm?: number;
   /** Free text: place name, area, activity, "coffee near the river", … */
   text?: string;
   category?: PlaceCategory | null;
@@ -20,6 +25,7 @@ export interface PlaceSearchQuery {
 }
 
 export interface ProviderPlace {
+  distanceKm?: number | null;
   provider: string; // e.g. "google"
   providerPlaceId: string;
   name: string;
@@ -42,6 +48,7 @@ export interface ProviderPlace {
 
 export interface PlaceProvider {
   readonly name: string;
+  resolveArea?(area: string): Promise<GeoPoint | null>;
   search(query: PlaceSearchQuery): Promise<ProviderPlace[]>;
   details(providerPlaceId: string): Promise<ProviderPlace | null>;
 }

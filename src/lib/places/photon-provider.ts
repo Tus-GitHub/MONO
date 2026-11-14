@@ -1,6 +1,7 @@
 import { PlaceCategory } from "@prisma/client";
 import type { PlaceProvider, PlaceSearchQuery, ProviderPlace } from "./types";
-import { NEARBY_RADIUS_KM } from "./types";
+import { venueRadius } from "./types";
+import { haversineKm } from "@/lib/utils/geo";
 
 const ORIGIN = "https://photon.komoot.io";
 const TAGS: Partial<Record<PlaceCategory, string[]>> = {
@@ -85,7 +86,7 @@ export class PhotonPlacesProvider implements PlaceProvider {
     return work;
   }
   private parameters(category: PlaceCategory | null | undefined, limit: number): URLSearchParams {
-    const params = new URLSearchParams({ limit: String(limit), lang: "en" });
+    const params = new URLSearchParams({ limit: String(limit), lang: "en", dedupe: "0" });
     const tags = !category || category === PlaceCategory.OTHER
       ? [...new Set(Object.values(TAGS).flatMap((tags) => tags ?? []))]
       : TAGS[category];
@@ -93,38 +94,60 @@ export class PhotonPlacesProvider implements PlaceProvider {
     if (tags?.length) params.set("include", tags.map((tag) => `osm.${tag}`).join(","));
     return params;
   }
+  async resolveArea(area: string) {
+    const places = await this.get("/api/", new URLSearchParams({ q: area.trim(), limit: "5", lang: "en" }));
+    const location = places.find((place) => coordinates(place) && (
+      (place.properties?.osm_key === "place" && ["city", "town", "village", "hamlet", "suburb", "quarter", "neighbourhood"].includes(place.properties.osm_value ?? ""))
+      || (place.properties?.osm_key === "boundary" && place.properties.osm_value === "administrative")
+    ));
+    return location ? coordinates(location) : null;
+  }
   async search(query: PlaceSearchQuery): Promise<ProviderPlace[]> {
     const text = query.text?.trim().slice(0, 120) ?? "";
     if (text.length < 2 || query.category === PlaceCategory.HOME) return [];
-    const limit = Math.min(Math.max(query.limit ?? 12, 1), 20);
+    const limit = Math.min(Math.max(query.limit ?? 12, 1), 40);
     const area = text.match(AREA_QUERY);
     let category: PlaceCategory | null | undefined = query.category;
     let features: Feature[];
+    let point = query.near;
     if (area) {
       category ??= wordCategory(area[1]);
-      let point = query.near;
       if (!/^(me|here)$/i.test(area[2].trim())) {
         // Some installations classify large cities outside layer=city (live Jaipur did).
         // Keep upstream relevance, but never mistake a same-named venue for a city/area.
-        const places = await this.get("/api/", new URLSearchParams({ q: area[2].trim(), limit: "5", lang: "en" }));
-        const location = places.find((place) => coordinates(place) && (
-          (place.properties?.osm_key === "place" && ["city", "town", "village", "hamlet", "suburb", "quarter", "neighbourhood"].includes(place.properties.osm_value ?? ""))
-          || (place.properties?.osm_key === "boundary" && place.properties.osm_value === "administrative")
-        ));
-        point = location ? coordinates(location) : null;
+        point ??= await this.resolveArea(area[2]);
       }
       if (!point) return [];
       const params = this.parameters(category, limit);
-      params.set("lat", String(point.latitude)); params.set("lon", String(point.longitude)); params.set("radius", String(NEARBY_RADIUS_KM));
+      params.set("lat", String(point.latitude)); params.set("lon", String(point.longitude)); params.set("radius", String(venueRadius(query.radiusKm)));
       features = await this.get("/reverse", params);
     } else {
+      if (query.city?.trim() && !point) {
+        point = await this.resolveArea(query.city);
+        if (!point) return [];
+      }
       const params = this.parameters(category, limit);
-      params.set("q", [text, query.city].filter(Boolean).join(" "));
-      if (query.near) { params.set("lat", String(query.near.latitude)); params.set("lon", String(query.near.longitude)); }
+      params.set("q", text);
+      if (point) {
+        params.set("lat", String(point.latitude)); params.set("lon", String(point.longitude));
+        const latitudeDelta = venueRadius(query.radiusKm) / 111;
+        const longitudeDelta = Math.min(180, latitudeDelta / Math.max(0.01, Math.cos(point.latitude * Math.PI / 180)));
+        if (Math.abs(point.longitude) + longitudeDelta < 180) params.set("bbox", [point.longitude - longitudeDelta, Math.max(-90, point.latitude - latitudeDelta), point.longitude + longitudeDelta, Math.min(90, point.latitude + latitudeDelta)].join(","));
+      }
       features = await this.get("/api/", params);
     }
-    const results = features.map(mapPlace).filter((place): place is ProviderPlace => place !== null && (!category || category === PlaceCategory.OTHER || place.category === category));
-    return [...new Map(results.map((place) => [place.providerPlaceId, place])).values()].slice(0, limit);
+    const results = features.map(mapPlace).filter((place): place is ProviderPlace => place !== null && (!category || category === PlaceCategory.OTHER || place.category === category))
+      .map((place) => point ? { ...place, distanceKm: haversineKm(point, { latitude: place.latitude!, longitude: place.longitude! }) } : place)
+      .filter((place) => !point || (place.distanceKm ?? Infinity) <= venueRadius(query.radiusKm));
+    const words = (value: string) => value.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+    const terms = words(text);
+    const exact = !area && terms.length ? results.filter((place) => {
+      const name = new Set(words(place.name));
+      return terms.every((term) => name.has(term));
+    }) : [];
+    // Keep fuzzy spelling fallback when there is no exact name, but don't mix
+    // unrelated partial-word matches into a brand's actual outlet results.
+    return [...new Map((exact.length ? exact : results).map((place) => [place.providerPlaceId, place])).values()].slice(0, limit);
   }
   async details(id: string): Promise<ProviderPlace | null> {
     if (id.length > 200) return null;

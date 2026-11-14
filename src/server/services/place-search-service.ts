@@ -12,7 +12,7 @@ import { getExternalPlaceProvider } from "@/lib/places";
 import { getPlaceHistoryMap, score10 } from "@/server/services/place-history";
 import { haversineKm } from "@/lib/utils/geo";
 import { CATEGORY_SEARCH_TEXT, providerCategoryFor } from "@/lib/date/plan-discovery";
-import { NEARBY_RADIUS_KM } from "@/lib/places/types";
+import { venueRadius } from "@/lib/places/types";
 
 export interface PlaceSearchResult {
   /** Present when this is (or matches) a place already saved in MONO. */
@@ -42,6 +42,7 @@ export interface PlaceSearchResult {
 }
 
 interface Options {
+  radiusKm?: number;
   text?: string;
   city?: string;
   categories?: PlaceCategory[];
@@ -52,9 +53,12 @@ interface Options {
 
 export async function searchPlaces(options: Options = {}): Promise<PlaceSearchResult[]> {
   const { couple } = await requireCoupleContext();
+  const radiusKm = venueRadius(options.radiusKm);
   const limit = Math.min(options.limit ?? 24, 40);
   const text = options.text?.trim() || undefined;
   const city = options.city?.trim().slice(0, 80) || undefined;
+  const provider = getExternalPlaceProvider();
+  const origin = options.near ?? (city && provider?.resolveArea ? await provider.resolveArea(city).catch(() => null) : null);
   const providerCategory = providerCategoryFor(options.categories);
   const browseText = providerCategory ? CATEGORY_SEARCH_TEXT[providerCategory] : "places";
   const areaParts = city?.split(",").map((part) => part.trim()).filter(Boolean).slice(0, 3) ?? [];
@@ -114,17 +118,16 @@ export async function searchPlaces(options: Options = {}): Promise<PlaceSearchRe
       visitCount: entry?.visits ?? 0,
       lastRevisit: entry?.lastRevisit ?? null,
       distanceKm:
-        options.near && place.latitude != null && place.longitude != null
-          ? haversineKm(options.near, { latitude: place.latitude, longitude: place.longitude })
+        origin && place.latitude != null && place.longitude != null
+          ? haversineKm(origin, { latitude: place.latitude, longitude: place.longitude })
           : null,
     };
   });
 
   // Merge in external provider results (deduped against saved places).
-  const provider = getExternalPlaceProvider();
   if (provider && (text || ((city || options.near) && browseText)) && !options.curated) {
     const external = await provider
-      .search({ text: text ?? (city ? `${browseText} in ${city}` : `${browseText} near me`), city, category: providerCategory, near: options.near, limit })
+      .search({ text: text ?? (city ? `${browseText} in ${city}` : `${browseText} near me`), city, category: providerCategory, near: origin, radiusKm, limit })
       .catch(() => []);
     for (const place of external) {
       if (options.categories?.length && (!place.category || !options.categories.includes(place.category))) continue;
@@ -147,14 +150,14 @@ export async function searchPlaces(options: Options = {}): Promise<PlaceSearchRe
         visitCount: 0,
         lastRevisit: null,
         distanceKm:
-          options.near && place.latitude != null && place.longitude != null
-            ? haversineKm(options.near, { latitude: place.latitude, longitude: place.longitude })
-            : null,
+          origin && place.latitude != null && place.longitude != null
+            ? haversineKm(origin, { latitude: place.latitude, longitude: place.longitude })
+            : place.distanceKm ?? null,
       });
     }
   }
 
-  const nearby = options.near ? results.filter((place) => place.distanceKm != null && place.distanceKm <= NEARBY_RADIUS_KM) : results;
+  const nearby = origin ? results.filter((place) => place.distanceKm != null && place.distanceKm <= radiusKm) : results;
   const ranked = nearby.sort((a, b) => {
     if (options.curated) {
       return (b.coupleScore10 ?? -1) - (a.coupleScore10 ?? -1) || a.visitCount - b.visitCount;
@@ -171,6 +174,7 @@ export async function searchPlaces(options: Options = {}): Promise<PlaceSearchRe
   const photos = await lookupVenuePhotos(selected.filter((place) => !place.imageUrl && place.external?.provider === "photon").map((place) => ({ ...place, providerPlaceId: place.external!.providerPlaceId })));
   return selected.map((place) => {
     const photo = !place.imageUrl && place.external?.provider === "photon" ? photos.get(place.external.providerPlaceId) : null;
-    return photo ? { ...place, imageUrl: photo.url, photo } : place;
+    return photo ? { ...place, imageUrl: photo.url, photo,
+      address: photo.source === "indiarestros" ? photo.venueAddress ?? place.address : place.address } : place;
   });
 }

@@ -2,9 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { ZodError } from "zod";
 
 import { isPlanStep, planGotoHref, planStepHref } from "@/lib/date/plan-steps";
 import { errorState, successState, type ActionState } from "@/lib/utils/result";
+import { localPlanSchema } from "@/lib/validation/new-plan";
+import { saveNewPlan } from "@/server/services/new-plan-service";
 import { idSchema, toFieldErrors } from "@/lib/validation/common";
 import {
   dateBasicsSchema,
@@ -17,10 +20,8 @@ import {
   cancelDate,
   deleteActivity,
   deleteDatePlan,
-  duplicateDate,
   finalizePlan,
   reorderActivities,
-  startDraft,
   updateActivity,
   updateBasics,
   updateBudget,
@@ -32,11 +33,29 @@ import { formValues, toActionError } from "@/server/actions/_helpers";
 export async function startPlanAction(formData: FormData): Promise<void> {
   const place = formData.get("place");
   const idea = formData.get("idea");
-  const draft = await startDraft({
-    plannedPlaceId: typeof place === "string" && place ? place : undefined,
-    title: typeof idea === "string" && idea ? idea : undefined,
-  });
-  redirect(planStepHref(draft.id, "basics"));
+  const params = new URLSearchParams();
+  if (typeof place === "string" && idSchema.safeParse(place).success) params.set("place", place);
+  if (typeof idea === "string" && idea) params.set("idea", idea.slice(0, 160));
+  redirect(`/plan/new${params.size ? `?${params}` : ""}`);
+}
+
+export async function saveNewPlanAction(_previous: ActionState<{ id: string; href: string }>, form: FormData): Promise<ActionState<{ id: string; href: string }>> {
+  const raw = form.get("payload");
+  if (typeof raw !== "string" || raw.length > 50_000) return { status: "error", message: "This plan is too large to save." };
+  const mode = form.get("mode");
+  const goto = String(form.get("goto") ?? "review");
+  if (!["draft", "plan"].includes(String(mode)) || !isPlanStep(goto)) return { status: "error", message: "Choose Save draft or Save date." };
+  try {
+    const input = localPlanSchema.extend({ key: localPlanSchema.shape.key.uuid() }).parse(JSON.parse(raw));
+    const saved = await saveNewPlan(input, mode === "plan");
+    revalidatePath("/plan");
+    revalidatePath("/dates");
+    return successState({ id: saved.id, href: saved.status === "DRAFT" ? planStepHref(saved.id, goto) : `/dates/${saved.id}` }, "Saved.");
+  } catch (error) {
+    if (error instanceof ZodError) return errorState(error.issues[0]?.message ?? "Check your plan details.", toFieldErrors(error));
+    const result = toActionError(error);
+    return result.status === "error" ? result : { status: "error", message: "Couldn't save that plan." };
+  }
 }
 
 // --- step saves (basics + budget share one action) -------------------------
@@ -174,13 +193,7 @@ export async function duplicateDateAction(
   formData: FormData,
 ): Promise<ActionState> {
   const id = dateId(formData);
-  let copy: { id: string };
-  try {
-    copy = await duplicateDate(id);
-  } catch (error) {
-    return toActionError(error);
-  }
-  redirect(planStepHref(copy.id, "basics"));
+  redirect(`/plan/new?copy=${encodeURIComponent(id)}`);
 }
 
 export async function cancelDateAction(

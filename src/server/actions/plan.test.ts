@@ -6,9 +6,20 @@ vi.mock("next/navigation", () => ({ redirect: (href: string) => { throw new Erro
 vi.mock("@/server/services/plan-service", () => ({
   updateBasics: mocks.updateBasics, updateBudget: mocks.updateBudget,
 }));
-import { saveStepAction } from "./plan";
+vi.mock("@/server/services/new-plan-service", () => ({ saveNewPlan: vi.fn() }));
+import { saveStepAction, startPlanAction, duplicateDateAction } from "./plan";
 
 beforeEach(() => vi.resetAllMocks());
+
+it("opens a local new-plan editor without creating a date record", async () => {
+ const form = new FormData(); form.set("idea", "Dinner");
+ await expect(startPlanAction(form)).rejects.toThrow("redirect:/plan/new?idea=Dinner");
+ expect(mocks.updateBasics).not.toHaveBeenCalled();
+});
+it("prepares a local copy without immediately saving a duplicate", async () => {
+ const form = new FormData(); form.set("dateId", "date");
+ await expect(duplicateDateAction({status:"idle"},form)).rejects.toThrow("redirect:/plan/new?copy=date");
+});
 
 it.each([
   { dateId: "", step: "basics", goto: "budget" },

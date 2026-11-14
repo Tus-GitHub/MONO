@@ -9,6 +9,10 @@ const headers = { "Cache-Control": "private, no-store" };
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
+  const radiusKm = Number(params.get("radius") ?? "20");
+  if (!Number.isFinite(radiusKm) || radiusKm < 1 || radiusKm > 100) {
+    return NextResponse.json({ error: "Choose a radius between 1 and 100 km." }, { status: 400, headers });
+  }
   const category = exploreCategoryByKey(params.get("category") ?? undefined);
   const lat = Number(params.get("lat"));
   const lng = Number(params.get("lng"));
@@ -24,7 +28,8 @@ export async function GET(request: NextRequest) {
       categories: category?.kind === "category" ? category.match : undefined,
       curated: params.get("view") === "hidden" || category?.kind === "curated",
       near,
-      limit: 24,
+      radiusKm,
+      limit: params.get("q")?.trim() ? 40 : 24,
     });
     return NextResponse.json({ results }, { headers });
   } catch (error) {

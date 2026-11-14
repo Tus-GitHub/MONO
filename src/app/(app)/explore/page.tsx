@@ -5,6 +5,7 @@ import { CategoryRail } from "@/components/explore/category-rail";
 import { CustomPlaceForm } from "@/components/explore/custom-place-form";
 import { ExploreHome } from "@/components/explore/explore-home";
 import { ExploreSearch } from "@/components/explore/explore-search";
+import { ExploreDiscovery } from "@/components/explore/explore-discovery";
 import { PlaceCard } from "@/components/explore/place-card";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
@@ -56,13 +57,9 @@ export default async function ExplorePage({
         }
       />
 
-      <div className="space-y-4">
-        <ExploreSearch initialQuery={q ?? ""} />
-        <CategoryRail activeKey={category} forDate={forDate} />
-      </div>
-
       <div className="mt-6">
-        {isBrowse ? (
+        {view === "hidden" ? (
+          <><ExploreSearch initialQuery={q ?? ""} /><CategoryRail activeKey={category} forDate={forDate} />
           <BrowseResults
             coupleId={couple.id}
             q={q}
@@ -70,9 +67,12 @@ export default async function ExplorePage({
             view={view}
             forDate={forDate}
             suffix={suffix}
-          />
+          /></>
         ) : (
-          <ExploreHome data={await getExploreHome(couple.id, user.id)} />
+          <ExploreDiscovery initialQuery={q ?? ""} initialCategory={category ?? null} forDate={forDate}
+            feedback={Object.fromEntries(await getRecommendationFeedbackMap(couple.id))}>
+            {!isBrowse ? <ExploreHome data={await getExploreHome(couple.id, user.id)} /> : null}
+          </ExploreDiscovery>
         )}
       </div>
     </PageContainer>

@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-14 (responsive photo fixes deployed and verified)
+Last updated: 2026-11-14 (SOCIAL/radius/explicit Save release; responsive photo fixes preserved)
 
 ## Project Overview
 
@@ -23,20 +23,24 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Publish filters and verify production (2026-11-14)** — user explicitly authorized
-  publishing/deploying the completed all-category filter changes and testing them live.
-  Run the established Webpack build gate, commit/push main, confirm the exact Vercel
-  deployment and additive migration, then test with disposable data in the right panel.
-  a95439b was pushed and READY deployment dpl_2fc3eXHgHQv9FkEsbgAs5d2jo9PH applied the
-  migration. Live Adventure/Café browsing and Add Bowling passed. Live All + city exposed
-  missing external browsing; correcting that gap before the final publication/test result.
-  New QA draft cmwg2h9kg0001jt076tb15r6d is explicitly named MONO filters QA
-  20261114-a95439b; the pre-existing draft cmwg0fvze0005l207xwg5gne0 is untouched.
-  User additionally requested a Use my location option beside City or area. Adding an
-  explicit permission-triggering button, approximate in-memory coordinates, bounded/abortable
-  acquisition, manual fallback and nearby category/All browsing. No location acquisition on load.
-  Follow-up validation passed: 389 unit tests, 122 isolated database tests, TypeScript,
-  full ESLint and the production Webpack build. Ready to publish the location/All follow-up.
+- **Discovery, location feedback and explicit plan saving (2026-11-14)** — user reported
+  location timing out, Jaipur appearing selected, sparse Explore results/missing Social, and
+  unwanted unfinished dates being created before Save. Implemented shared city/location/radius
+  discovery, distinct provider-ID branch results, and a device-only four-step new-plan editor
+  with atomic, idempotent explicit Save. SOCIAL means the venue chain; user also requested
+  branch addresses, real photos, and 5 km or wider nearby searches. Found and fixed Noida's
+  restaurant-versus-bar photo mismatch. Local browser returned five SOCIAL outlets in a
+  20 km Noida search, including matched real photos. All 396 unit tests, 128 full DB tests plus
+  two later radius regressions (130 distinct integration cases), final 53 targeted tests and
+  TypeScript and full ESLint passed. Browser proved zero dates/places through all four steps, restored the
+  device draft after reconnection, then Save date created exactly one planned date/place/activity.
+  Explore and picker both returned 1 km/20 km branch results and matched real photos. Added
+  exact-word brand preference to exclude an unrelated “socially conscious store” when actual
+  SOCIAL outlets match. Final Webpack production build, TypeScript and ESLint passed. Publishing
+  to existing MONO production next, then live verification. Read-only baseline: run92 space has
+  five undeleted drafts, with versions 0/4/0/0/2 in creation order; preserve them all.
+  Browser reconnected after user said “check again”.
+  Preserve existing user drafts; no broad deletion is authorized by the complaint.
 
 - **Next update: private couple messenger** — explicitly deferred until filters are finished
   (2026-11-14). Requested text, images, stickers, emoji, voice and video calls, using free
@@ -44,10 +48,12 @@ components. Business rules never live only in React components — they live in
   networks; do not promise unlimited free hosting or universal relay-free connectivity.
   No messaging/call implementation, new provider account, subscription or billing change yet.
 
-- **Live latency fixture cleanup (2026-11-14)** — live run 92e6bc63ca passed on 5bd1a57.
-  Exact owner cmwfhrmd70000jn085kxe763q, partner cmwfi1sjy0002js08zbkat7yu and empty
-  space cmwfhz08d0001jn073z348rlf await the requested permanent-cleanup approval. Both
-  temporary inboxes and private state remain until that approval; preserve real data.
+- **Earlier fixture cleanup needs fresh scope (2026-11-14)** — owner
+  cmwfhrmd70000jn085kxe763q, partner cmwfi1sjy0002js08zbkat7yu and space
+  cmwfhz08d0001jn073z348rlf remain. The space is no longer empty: it contains the
+  pre-existing user-created draft cmwg0fvze0005l207xwg5gne0 plus the separately named filter
+  QA draft/selected café. Do not use the old empty-space cleanup request to purge this space.
+  Preserve all existing data; any permanent cleanup needs a fresh, exact approved scope.
 
 
 
@@ -73,6 +79,27 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Filter publication, live retest and Use my location (2026-11-14)** — initial a95439b
+  pushed/deployed and migration 20261114060000 applied. Live testing found All + city omitted
+  provider results; fixed that and comma-separated saved city/region matching. User then
+  requested Use my location: added an explicit permission button, approximate coordinates,
+  bounded/cancellable acquisition, manual city fallback, distances and a 20 km nearby radius
+  for selected categories or All. Published final 7554357 to main; production deployment
+  dpl_7kB1rqiupAw7qQ84ZsUtBkm34xSJ is READY on the canonical MONO alias in sin1.
+  389 unit + 122 isolated PostgreSQL tests, TypeScript, full lint and production Webpack build
+  passed; Vercel's normal build passed. Health is 200/database up and location Permissions-Policy
+  permits self. Right-panel live checks passed Adventure/Activities, Café, Restaurant, All city
+  results, Add Bowling once, actual café selection, save and reopen. Synthetic Jaipur point:
+  20 mixed nearby venues across eight categories, max 0.370 km; 20 cafés, max 1.280 km.
+  Native device location was not acquired; permission/timeout/cancellation paths use unit mocks.
+  PostgreSQL confirmed QA category cafe, selected Cafe Coffee Day and one Bowling activity.
+  Existing draft remained version 0/unmodified. No runtime error/fatal logs found. QA draft
+  cmwg2h9kg0001jt076tb15r6d (MONO filters QA 20261114-a95439b) and its selected café were
+  retained separately for review; no destructive cleanup or account removal was performed.
+  Screenshot .screenshots/live-filter-location-7554357.jpg and non-secret JSON evidence
+  .postgres-test/live-filter-results-7554357.json retained. Local test cluster stopped/removed.
+  Couple messenger remains the next update, as explicitly requested.
 
 - **Responsive photo fixes (2026-11-14)** — published 3a2332b; production deployment
   dpl_5n2nZMZvj9ENNMX3Y4dA5ugSothY is READY on the canonical MONO alias, Singapore.
@@ -1327,6 +1354,22 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
+- **2026-11-14 — IN PROGRESS: fix discovery and save semantics.** User screenshots show
+  a location timeout and Explore showing the QA-saved Jaipur café. Explain the fixture source,
+  make discovery searchable beyond saved places, improve location fallback, and create a date
+  only on explicit Save. Implemented separate SOCIAL branches, source-matched photos and
+  addresses, shared city/location/radius controls, and atomic idempotent explicit Save. Local
+  browser and SQL verified no premature records and exactly one final save. 396 unit/130
+  distinct DB cases, targeted regressions and TypeScript passed. Preparing release; existing
+  production user drafts remain untouched. Chat remains deferred.
+
+- **2026-11-14 — DONE: publish/deploy filters and live test.** Published a95439b, then
+  7554357 with the live-discovered All correction and user's requested Use my location option.
+  Final production deployment READY; migration applied. All 511 automated tests, TypeScript,
+  full lint, local production build and Vercel build passed. Live category/city, All, synthetic
+  nearby, selection, activity and save/reopen checks passed; existing draft unchanged. QA data
+  retained for review. Native GPS permission remains a device check; no real location acquired.
+
 ### 2026-11-14 — Fix responsive photo captions and viewer contrast
 
 **DONE.** User authorizes all three fixes, same design, viewport verification and
@@ -1360,9 +1403,6 @@ Physical native-device QA remains distinct from browser/PWA emulation.
 
 **DONE.** User asks to check the complete site, clarified every screen size. Audited production 5bd1a57 (sin1); final live-alias inspection confirmed the same version. Isolated codex/mobile-layout-audit preserves unrelated primary work. 25 main viewport configurations cover 320–3840px, responsive breakpoint boundaries, phones/tablets/desktops/ultrawide/4K and landscape. Recorded 1,971 samples: 290 public live; 1,593 main local synthetic-data samples across 67 named states; 88 focused samples across 11 additional variants. Checked all page groups, seven settings subpages, all planning steps and date statuses, populated and empty histories, galleries/details, review/recap/memory editors, onboarding/invitations/unverified gates, confirmation/modal/sheet/menu/photo viewer, standalone/PWA, desktop pointer/light theme and archive file preview (without approvals or restore). No measured horizontal page overflow, clipped control labels, unexpected primary-nav blockers or uncaught browser errors. Confirmed two real clipping defects: DateResult's fixed 2:1 hero clips the result label and long title at 320px (label still clipped at 360px), and MemoryDetailView's fixed 3:2 hero clips the ordinal at 320px. Narrow evidence captures measured the result label 32.5px above its card at 320px and memory ordinal ~5.3px above its card. Also observed photo-wall lightbox white controls on a pale background in dark mode; bg-ink/95 changes with the theme while controls stay white (date lightbox shares the pattern). Report: docs/reports/responsive-audit-2026-11-14.md; summary/raw JSON and screenshots retained under .screenshots/responsive-audit-*. No product code changes or deployment made. Physical native-device behavior is outside Chromium/standalone emulation coverage. Authenticated audit used the supported local development server because production deliberately rejects loopback databases. A Turbopack cache panic was avoided using Next's documented --webpack mode; harness waits for hydration/redirect/dismissal settling. Prisma client was made independent in the isolated checkout to avoid another task's generated-schema changes. Normal signed, database-backed local synthetic sessions were used for layout setup after login had already been checked. All temporary synthetic rows/database, private preview/server log and generated image storage removed; servers and idle test cluster stopped. No production accounts changed.
 
-- **2026-11-14 — IN PROGRESS: publish/deploy filters and live test.** Publishing the tested
-  plan-category/city discovery changes; no messaging work is included. Preserve real plans
-  during live verification and retain the earlier fixture until cleanup is explicitly approved.
 
 - **2026-11-14 — DONE: all-category plan discovery.** User clarified Café and every other
   category must auto-filter too, then explicitly deferred private couple messaging to the next

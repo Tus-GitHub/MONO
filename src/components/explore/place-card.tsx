@@ -66,7 +66,7 @@ export function PlaceCard({
         <PhotoCredit photo={place.photo} />
         <div>
           <p className="truncate text-sm font-medium text-ink">{place.name}</p>
-          <p className="truncate text-xs text-muted">
+          <p className="line-clamp-3 text-xs text-muted">
             {PLACE_CATEGORY_LABEL[category]}
             {location ? ` · ${location}` : ""}
           </p>

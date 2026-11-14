@@ -2,6 +2,15 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { IndiaRestrosPhotos } from "./indiarestros-photos";
 import type { PhotoVenue } from "./venue-photo";
 
+it("matches the SOCIAL branch photo when OSM calls it a restaurant and the listing calls it a bar", async () => {
+ const social:PhotoVenue={providerPlaceId:"W1327158990:28.5672108:77.3206033:amenity:restaurant",name:"Social",category:"RESTAURANT",latitude:28.5672108,longitude:77.3206033};
+ fetcher.mockResolvedValue(response([{id:"IRR-YB11PWFHDC",name:"Social",kind:"bar",lat:28.567225,lon:77.320585,photo_count:1,
+  address:"DLF Mall Of India, Sector 18, Noida",url:"https://indiarestros.com/r/social-noida-yb11pwfhdc",photos:[{thumb:"/img/IRR-YB11PWFHDC/7841aa79f8f0-480.webp",alt:"Social Noida"}]}]));
+ const photos=await new IndiaRestrosPhotos().lookup([social]);
+ expect(photos.get(social.providerPlaceId)?.url).toContain("IRR-YB11PWFHDC");
+ expect(photos.get(social.providerPlaceId)?.venueAddress).toBe("DLF Mall Of India, Sector 18, Noida");
+});
+
 const place:PhotoVenue={providerPlaceId:"N6957678134:28.6022338:77.1861298:amenity:cafe",name:"Starbucks",category:"CAFE",latitude:28.6022338,longitude:77.1861298};
 const record=()=>({id:"IRR-8SPCQG2J88",name:"Starbucks",kind:"cafe",lat:28.602234,lon:77.18613,photo_count:1,url:"https://indiarestros.com/r/starbucks-new-delhi-8spcqg2j88",photos:[{thumb:"/img/IRR-8SPCQG2J88/37acc41ca6c9-480.webp",alt:"Starbucks in New Delhi"}]});
 const response=(rows:unknown[]= [record()],control="public, max-age=86400")=>Response.json({results:rows},{headers:{"Cache-Control":control}});

@@ -482,6 +482,7 @@ model Date {
   createdById String
   status      DateStatus @default(DRAFT)
   version     Int        @default(0) // conditional plan saves reject stale browser drafts
+  clientDraftKey String? // idempotency for the first explicit Save
 
   // --- Planning ---
   title                  String
@@ -538,6 +539,7 @@ model Date {
   reminders       DateReminder[]
 
   @@index([coupleId, status])
+  @@unique([createdById, clientDraftKey])
   @@index([coupleId, scheduledFor])
   @@index([createdById])
   @@index([deletedAt])

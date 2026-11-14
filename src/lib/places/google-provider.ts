@@ -1,6 +1,7 @@
 import { PlaceCategory } from "@prisma/client";
 
 import type { PlaceProvider, PlaceSearchQuery, ProviderPlace } from "@/lib/places/types";
+import { venueRadius } from "@/lib/places/types";
 
 /**
  * Google Places (new) provider. Wired for `places:searchText` / `places/{id}` but only runs
@@ -104,7 +105,7 @@ export class GooglePlacesProvider implements PlaceProvider {
                 locationBias: {
                   circle: {
                     center: { latitude: query.near.latitude, longitude: query.near.longitude },
-                    radius: 20000,
+                    radius: venueRadius(query.radiusKm) * 1000,
                   },
                 },
               }

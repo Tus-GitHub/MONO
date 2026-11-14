@@ -12,6 +12,7 @@ export interface IndiaRestrosVenuePhoto {
   source: "indiarestros";
   url: string;
   sourceUrl: string;
+  venueAddress?: string;
 }
 
 export type VenuePhoto = CommonsVenuePhoto | IndiaRestrosVenuePhoto;

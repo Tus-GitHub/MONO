@@ -1,5 +1,39 @@
 # MONO regression testing
 
+## SOCIAL branches, radius and explicit plan saves (2026-11-14)
+
+New plans now use `/plan/new`: opening, changing steps, choosing a venue and adding activities
+perform no shared date/place writes. Explicit Save commits the date, venue, activities and
+creation event atomically. A nullable per-user draft key makes concurrent/retried saves
+idempotent. Existing saved plans retain their editing flow; old user drafts were preserved.
+
+Local right-panel verification used an isolated PostgreSQL database and two disposable local
+accounts. A plan with Noida SOCIAL, INR 1500 and Coffee reached Review with **zero dates and
+zero places** in SQL. Its device draft survived browser disconnection/restart. Save date then
+opened the planned-date details; SQL confirmed exactly one date, one place and one activity.
+
+The real Photon/IndiaRestros path returned five SOCIAL branches in a 20 km Noida search, with
+separate IDs, addresses and distances. A 1 km search returned only Noida SOCIAL at 749 m.
+Its real DLF Mall of India photo and full source address rendered; restaurant/bar classification
+no longer blocks matching. Wider results also had matched Hauz Khas and Vasant Kunj photos.
+Explore shares the same search controls, keeps a blank initial city, labels saved-only results,
+and applies radius/distance to saved venues as well. Jaipur was a previously saved QA café,
+not a default city. Photon still controls public venue coverage; missing photos are not invented.
+
+Location is requested only from the button. Rounded coordinates stay in component state;
+denial/unsupported/late callbacks and high-accuracy retry have unit coverage. The request has
+a 30-second hard deadline plus Cancel location/manual-city fallback. Actual device GPS was
+not acquired during agent testing.
+
+Exact-word name matches keep actual SOCIAL outlets together; unrelated partial-word results
+are excluded when actual brand matches exist. Fuzzy spelling remains a fallback.
+
+Validation: 396 unit tests; full isolated DB suite 128 passed, then all 10 discovery regressions
+passed after two additional radius tests (130 distinct integration tests total). Final targeted
+53 photo/provider/location/action tests, TypeScript, full ESLint and final Webpack production
+build passed. Local screenshots are
+`.postgres-test/social-radius-preview.png` and `.postgres-test/social-explore-preview.png`.
+
 ## Full live invitation flow (2026-11-14)
 
 Passed on bc0bc2c / production deployment dpl_GLtRwnxUBeqizLGJ7ZfsAJ7hpgYD using two disposable
@@ -402,3 +436,19 @@ nearby provider and database path. Native device permission remains a device/bro
 The follow-up passed all 389 unit and 122 isolated database integration tests, TypeScript,
 full ESLint and the Webpack production build before publication. The initial location-helper
 lint finding (prefer-const) was corrected before the final clean lint/build gate.
+
+Final 7554357 is live on READY deployment dpl_7kB1rqiupAw7qQ84ZsUtBkm34xSJ. Production
+health returned 200/database up; error/fatal logs were empty during the test window. Live
+All + Jaipur/Rajasthan returned mixed categories, Café and Restaurant each returned 20
+matching venues, and the location button appeared beside the manual city field. Requests
+with the synthetic point 26.915/75.819 returned 20 mixed nearby venues (eight categories,
+maximum distance 0.370 km) and 20 cafés (maximum distance 1.280 km), with no distant results.
+
+QA draft cmwg2h9kg0001jt076tb15r6d retained the custom QA title, cafe category, actual Cafe
+Coffee Day selection and exactly one Bowling activity through save/reopen. PostgreSQL
+independently confirmed these fields and showed the pre-existing draft was still version 0
+with no added activity/place. The separately named QA draft/café remain available for review;
+there was no permanent deletion. The old whole-space fixture cleanup request is stale because
+this space now contains a pre-existing user-created draft. Final screenshot and non-secret
+result JSON are `.screenshots/live-filter-location-7554357.jpg` and
+`.postgres-test/live-filter-results-7554357.json`. Actual device GPS consent was not exercised.

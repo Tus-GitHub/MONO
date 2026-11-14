@@ -22,8 +22,8 @@ it("gives useful manual-entry feedback when permission is denied", async () => {
   expect(vi.getTimerCount()).toBe(0);
 });
 it("releases a request even if the permission prompt never produces a callback", async () => {
-  const result = expect(getBrowserLocation(new AbortController().signal)).rejects.toThrow("too long");
-  await vi.advanceTimersByTimeAsync(12_000);
+  const result = expect(getBrowserLocation(new AbortController().signal)).rejects.toThrow("browser hasn't supplied");
+  await vi.advanceTimersByTimeAsync(30_000);
   await result;
   expect(vi.getTimerCount()).toBe(0);
 });
@@ -38,4 +38,10 @@ it("ignores a late position after cancellation when the picker closes or manual 
 it("supports manual fallback in browsers without geolocation", async () => {
   vi.stubGlobal("navigator", {});
   await expect(getBrowserLocation(new AbortController().signal)).rejects.toThrow("Enter a city or area");
+});
+it("tries a fresh, more accurate fix when the first location attempt times out", async () => {
+  position.mockImplementationOnce((_success, failure: PositionErrorCallback) => failure({ code: 3 } as GeolocationPositionError))
+    .mockImplementationOnce((success: PositionCallback) => success({ coords: { latitude: 28.56, longitude: 77.32 } } as GeolocationPosition));
+  await expect(getBrowserLocation(new AbortController().signal)).resolves.toEqual({ latitude: 28.56, longitude: 77.32 });
+  expect(position.mock.calls[1][2].enableHighAccuracy).toBe(true);
 });

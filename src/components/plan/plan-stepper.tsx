@@ -10,9 +10,10 @@ interface PlanStepperProps {
   /** "buttons" renders submit buttons (name="goto") for use inside a step form. */
   variant?: "links" | "buttons";
   disabled?: boolean;
+  onStepChange?: (step: PlanStep) => void;
 }
 
-export function PlanStepper({ dateId, current, variant = "links", disabled = false }: PlanStepperProps) {
+export function PlanStepper({ dateId, current, variant = "links", disabled = false, onStepChange }: PlanStepperProps) {
   const currentIndex = PLAN_STEPS.indexOf(current);
 
   return (
@@ -42,9 +43,12 @@ export function PlanStepper({ dateId, current, variant = "links", disabled = fal
           <li key={step} className="flex flex-1 items-center gap-1.5">
             {variant === "buttons" ? (
               <button
-                type="submit"
+                type={onStepChange ? "button" : "submit"}
+                onClick={onStepChange ? () => onStepChange(step) : undefined}
                 name="goto"
                 value={step}
+                aria-label={`${PLAN_STEP_META[step].index} ${PLAN_STEP_META[step].label}`}
+                aria-current={active ? "step" : undefined}
                 disabled={disabled}
                 className="flex items-center gap-1.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
@@ -52,10 +56,12 @@ export function PlanStepper({ dateId, current, variant = "links", disabled = fal
                 {label}
               </button>
             ) : disabled ? (
-              <span role="link" aria-disabled="true" className="flex items-center gap-1.5 rounded-lg opacity-55">{dot}{label}</span>
+              <span role="link" aria-disabled="true" aria-label={PLAN_STEP_META[step].label} className="flex items-center gap-1.5 rounded-lg opacity-55">{dot}{label}</span>
             ) : (
               <Link
                 href={planStepHref(dateId, step)}
+                aria-label={`${PLAN_STEP_META[step].index} ${PLAN_STEP_META[step].label}`}
+                aria-current={active ? "step" : undefined}
                 className="flex items-center gap-1.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {dot}

@@ -27,7 +27,7 @@ export default async function PlanPage({
     <div className="mx-auto max-w-xl">
       <PageHeader
         title="Plan a date"
-        description="Shape it in a few steps — everything saves as you go, so you can stop and come back."
+        description="Plan on this device first. A shared date or draft is created only when you choose Save."
       />
 
       <form action={startPlanAction}>
@@ -41,12 +41,12 @@ export default async function PlanPage({
       </form>
 
       <section className="mt-8">
-        <h2 className="mb-3 font-display text-lg font-medium text-ink">Continue a draft</h2>
+        <h2 className="mb-3 font-display text-lg font-medium text-ink">Saved drafts</h2>
         {drafts.length === 0 ? (
           <EmptyState
             icon={<Icon name="pencil" size="md" />}
             title="Nothing half-planned right now"
-            description="Start above — every step saves as you go, so you can always come back to it."
+            description="Start above. Your new plan stays on this device until you choose Save."
           />
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">

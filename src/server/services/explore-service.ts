@@ -422,7 +422,7 @@ export async function getExploreHome(
     sectionMap.ideas = {
       key: "ideas",
       title: "Date ideas",
-      subtitle: "Plan-anywhere ideas — pick one and it becomes a draft date.",
+      subtitle: "Plan-anywhere ideas — choose one to start planning, then save when you're ready.",
       places: [],
       ideas: ordered,
     };

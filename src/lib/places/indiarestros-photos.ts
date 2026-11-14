@@ -2,7 +2,7 @@ import { haversineKm } from "@/lib/utils/geo";
 import type { IndiaRestrosVenuePhoto, PhotoVenue } from "./venue-photo";
 
 const ORIGIN = "https://indiarestros.com";
-type Candidate = { id?: string; name?: string; url?: string; kind?: string; lat?: number; lon?: number; photo_count?: number;
+type Candidate = { id?: string; name?: string; url?: string; address?: string; kind?: string; lat?: number; lon?: number; photo_count?: number;
   photos?: { thumb?: string; alt?: string; kind?: string; representative?: boolean }[] };
 type Venue = PhotoVenue & { latitude: number; longitude: number };
 const normalize = (name: string) => name.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}\p{M}]+/gu, " ").trim();
@@ -12,7 +12,7 @@ function eligible(place: PhotoVenue): place is Venue {
     // Broad region prefilter only; a matching Indian API record is still required.
     && place.latitude >= 6 && place.latitude <= 38 && place.longitude >= 68 && place.longitude <= 98
     && Math.abs(Number(match[1]) - place.latitude) < 0.00001 && Math.abs(Number(match[2]) - place.longitude) < 0.00001
-    && ["CAFE", "RESTAURANT"].includes(place.category ?? "") && normalize(place.name).length >= 3
+    && ["CAFE", "RESTAURANT", "BAR"].includes(place.category ?? "") && normalize(place.name).length >= 3
     && !/^(cafe|coffee|restaurant|food|tea|hotel)$/i.test(normalize(place.name)));
 }
 function sameName(a: string, b: string): boolean {
@@ -28,7 +28,8 @@ function image(candidate: Candidate): IndiaRestrosVenuePhoto | null {
       const source = new URL(candidate.url ?? "", ORIGIN);
       if (url.origin !== ORIGIN || url.username || url.password || !new RegExp(`^/img/${candidate.id}/[a-f0-9]{8,64}-(?:480|1200)\\.webp$`).test(url.pathname) || url.search || url.hash) continue;
       if (source.origin !== ORIGIN || source.username || source.password || source.search || source.hash || !new RegExp(`^/r/[a-z0-9-]+-${candidate.id!.slice(4).toLowerCase()}$`).test(source.pathname)) continue;
-      return { source: "indiarestros", url: url.href, sourceUrl: source.href };
+      return { source: "indiarestros", url: url.href, sourceUrl: source.href,
+        ...(typeof candidate.address === "string" && candidate.address.trim() ? { venueAddress: candidate.address.trim().slice(0, 500) } : {}) };
     } catch { /* Ignore malformed public photo URLs. */ }
   }
   return null;
@@ -66,7 +67,7 @@ export class IndiaRestrosPhotos {
       for (const place of places) {
         const candidates = data.results.slice(0, 50).filter((row) => row && typeof row.name === "string" && sameName(place.name, row.name)
           && Number.isFinite(row.lat) && Number.isFinite(row.lon) && Math.abs(row.lat!) <= 90 && Math.abs(row.lon!) <= 180
-          && ["cafe", "restaurant", "fast-food", "food-court", "dhaba"].includes(row.kind ?? "")
+          && ["cafe", "restaurant", "bar", "pub", "fast-food", "food-court", "dhaba"].includes(row.kind ?? "")
           && (place.category === "CAFE" ? row.kind === "cafe" : row.kind !== "cafe"))
           .map((row) => ({ row, distance: haversineKm(place, { latitude: row.lat!, longitude: row.lon! }) })).filter((row) => row.distance <= 0.12)
           .sort((a, b) => a.distance - b.distance);
@@ -84,7 +85,7 @@ export class IndiaRestrosPhotos {
   }
 
   async lookup(input: PhotoVenue[]): Promise<Map<string, IndiaRestrosVenuePhoto>> {
-    const places = input.slice(0, 24).filter(eligible);
+    const places = input.slice(0, 40).filter(eligible);
     if (!places.length) return new Map();
     const missing = places.filter((place) => (this.cache.get(this.key(place))?.until ?? 0) <= Date.now());
     if (missing.length && !this.pending && Date.now() >= this.nextRequest) {

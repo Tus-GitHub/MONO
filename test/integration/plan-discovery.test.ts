@@ -8,7 +8,7 @@ vi.mock("@/lib/auth/current-user", async () => {
   const { testUser } = await import("./auth-context");
   return { requireUser: () => prisma.user.findUniqueOrThrow({ where: { id: testUser.getStore()! } }) };
 });
-const provider = vi.hoisted(() => ({ search: vi.fn() }));
+const provider = vi.hoisted(() => ({ search: vi.fn(), resolveArea: vi.fn() }));
 vi.mock("@/lib/places", () => ({ getExternalPlaceProvider: () => provider }));
 vi.mock("@/lib/places/venue-photos", () => ({ lookupVenuePhotos: async () => new Map() }));
 
@@ -20,6 +20,7 @@ import { dateBasicsSchema } from "@/lib/validation/date";
 let owner: string, outsider: string, couple: string, otherCouple: string;
 beforeEach(async () => {
   provider.search.mockReset().mockResolvedValue([]);
+  provider.resolveArea.mockReset().mockResolvedValue(null);
   const run = randomUUID();
   const make = async (role: string) => {
     const user = await prisma.user.create({ data: { name: `${role} ${run}`, email: `${role}-${run}@example.invalid`, emailVerified: new Date() } });
@@ -84,6 +85,28 @@ it("browses All near a point without guessing a city", async () => {
   const near = { latitude: 26.915, longitude: 75.819 };
   await asUser(owner, () => searchPlaces({ near }));
   expect(provider.search).toHaveBeenCalledWith(expect.objectContaining({ text: "places near me", near, category: null }));
+});
+it("preserves separate same-name outlets and changes the results with the requested radius", async () => {
+  const near = { latitude: 28.6, longitude: 77.2 };
+  provider.search.mockResolvedValue([
+    { provider: "fixture", providerPlaceId: "social-one", name: "Social", address: "First street", category: PlaceCategory.BAR, latitude: 28.61, longitude: 77.2 },
+    { provider: "fixture", providerPlaceId: "social-two", name: "Social", address: "Second street", category: PlaceCategory.BAR, latitude: 28.68, longitude: 77.2 },
+  ]);
+  const narrow = await asUser(owner, () => searchPlaces({ text: "Social", near, radiusKm: 5 }));
+  expect(narrow.map((place) => place.address)).toEqual(["First street"]);
+  const wider = await asUser(owner, () => searchPlaces({ text: "Social", near, radiusKm: 10 }));
+  expect(wider.map((place) => place.address)).toEqual(["First street", "Second street"]);
+  expect(provider.search).toHaveBeenLastCalledWith(expect.objectContaining({ radiusKm: 10, near }));
+});
+it("applies a typed city's radius and distance to saved places as well as external venues", async () => {
+  const center = { latitude: 26.9, longitude: 75.8 };
+  provider.resolveArea.mockResolvedValue(center);
+  await prisma.place.updateMany({ where: { coupleId: couple, name: "Our café" }, data: { latitude: 26.91, longitude: 75.8 } });
+  await prisma.place.updateMany({ where: { coupleId: couple, name: "Our bowling alley" }, data: { latitude: 27, longitude: 75.8 } });
+  const results = await asUser(owner, () => searchPlaces({ city: "Jaipur", radiusKm: 5 }));
+  expect(results.map((place) => place.name)).toEqual(["Our café"]);
+  expect(results[0].distanceKm).toBeGreaterThan(1);
+  expect(results[0].distanceKm).toBeLessThan(2);
 });
 it("persists a manual category independently of the title, returns it on reopen, and preserves it when copying", async () => {
   const draft = await asUser(owner, () => startDraft());

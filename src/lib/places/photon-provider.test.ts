@@ -52,7 +52,10 @@ it("browses all nearby venue categories directly from a consented point", async 
 it("browses All places around a city using venue tags rather than street/address results", async () => {
   fetcher.mockResolvedValueOnce(collection([
     { properties: { name: "Jaipur", osm_key: "place", osm_value: "city" }, geometry: { type: "Point", coordinates: [75.8, 26.9] } },
-  ])).mockResolvedValueOnce(collection([cafe, { ...cafe, properties: { ...cafe.properties, osm_id: 2, osm_value: "restaurant", name: "Restaurant" } }]));
+  ])).mockResolvedValueOnce(collection([
+    { ...cafe, geometry: { type: "Point", coordinates: [75.81, 26.91] } },
+    { ...cafe, geometry: { type: "Point", coordinates: [75.82, 26.92] }, properties: { ...cafe.properties, osm_id: 2, osm_value: "restaurant", name: "Restaurant" } },
+  ]));
   const results = await settle(new PhotonPlacesProvider().search({ text: "places in Jaipur" }));
   expect(results.map((place) => place.category)).toEqual([PlaceCategory.CAFE, PlaceCategory.RESTAURANT]);
   const lookup = fetcher.mock.calls[1][0];
@@ -65,7 +68,7 @@ it.each([
   ["shops", PlaceCategory.SHOPPING, "shop", "mall"],
   ["hotels", PlaceCategory.TRAVEL, "tourism", "hotel"],
 ])("browses %s in the selected city instead of treating it as a venue name", async (word, category, key, value) => {
-  const venue = { ...cafe, properties: { ...cafe.properties, name: "Selected venue", osm_key: key, osm_value: value } };
+  const venue = { ...cafe, geometry: { type: "Point", coordinates: [75.81, 26.91] }, properties: { ...cafe.properties, name: "Selected venue", osm_key: key, osm_value: value } };
   fetcher.mockResolvedValueOnce(collection([{ properties: { name: "Jaipur", osm_key: "place", osm_value: "city" }, geometry: { type: "Point", coordinates: [75.8, 26.9] } }])).mockResolvedValueOnce(collection([venue]));
   const results = await settle(new PhotonPlacesProvider().search({ text: `${word} in Jaipur`, category }));
   expect(results).toHaveLength(1);
@@ -75,6 +78,43 @@ it.each([
 });
 it("does not guess an area for near-me searches without coordinates", async () => {
   expect(await new PhotonPlacesProvider().search({ text: "cafes near me" })).toEqual([]); expect(fetcher).not.toHaveBeenCalled();
+});
+it("keeps same-name outlets with distinct addresses and applies the selected circular radius", async () => {
+  const outlet = (id: number, latitude: number, street: string) => ({
+    properties: { ...cafe.properties, name: "Social", osm_id: id, osm_value: "restaurant", street },
+    geometry: { type: "Point", coordinates: [77.2, latitude] },
+  });
+  fetcher.mockImplementation(async () => collection([outlet(1, 28.61, "First street"), outlet(2, 28.63, "Second street"), outlet(3, 28.68, "Third street")]));
+  const provider = new PhotonPlacesProvider();
+  const near = { latitude: 28.6, longitude: 77.2 };
+  const narrow = await provider.search({ text: "Social", near, radiusKm: 5, limit: 40 });
+  expect(narrow).toHaveLength(2);
+  expect(narrow.map((place) => place.address)).toEqual([expect.stringContaining("First street"), expect.stringContaining("Second street")]);
+  expect(narrow.every((place) => place.distanceKm! <= 5)).toBe(true);
+  const url = fetcher.mock.calls[0][0];
+  expect(url.searchParams.get("dedupe")).toBe("0");
+  expect(url.searchParams.get("limit")).toBe("40");
+  expect(url.searchParams.has("bbox")).toBe(true);
+  expect(await settle(provider.search({ text: "Social", near, radiusKm: 10 }))).toHaveLength(3);
+});
+it("geocodes a typed city and searches the brand within its radius", async () => {
+  fetcher.mockResolvedValueOnce(collection([{ properties: { osm_key: "place", osm_value: "city" }, geometry: { type: "Point", coordinates: [77.2, 28.6] } }]))
+    .mockResolvedValueOnce(collection([cafe]));
+  const results = await settle(new PhotonPlacesProvider().search({ text: "Starbucks", city: "Delhi", radiusKm: 5 }));
+  expect(results).toHaveLength(1);
+  expect(fetcher.mock.calls[0][0].searchParams.get("q")).toBe("Delhi");
+  const query = fetcher.mock.calls[1][0].searchParams;
+  expect(query.get("q")).toBe("Starbucks");
+  expect(query.get("lat")).toBe("28.6");
+  expect(query.has("bbox")).toBe(true);
+});
+it("keeps actual brand outlets together instead of unrelated partial-word matches", async () => {
+  fetcher.mockResolvedValue(collection([
+    { ...cafe, properties: { ...cafe.properties, osm_id: 1, name: "Social" } },
+    { ...cafe, properties: { ...cafe.properties, osm_id: 2, name: "Nehru Place Social" } },
+    { ...cafe, properties: { ...cafe.properties, osm_id: 3, name: "A socially conscious store" } },
+  ]));
+  expect((await new PhotonPlacesProvider().search({ text: "Social" })).map((place) => place.name)).toEqual(["Social", "Nehru Place Social"]);
 });
 it("filters address matches, malformed coordinates, wrong categories and duplicate venues", async () => {
   fetcher.mockResolvedValue(collection([cafe, cafe, { ...cafe, properties: { ...cafe.properties, osm_value: "restaurant" } }, { ...cafe, geometry: { type: "Point", coordinates: [200, 28] } }, { properties: { name: "Delhi", osm_key: "place", osm_value: "city" }, geometry: cafe.geometry }, null]));
