@@ -18,6 +18,10 @@ composer that stays inside the visible area without moving the whole document.
 - Focus correction may reveal a field inside Chat's own scroller, but never scrolls the
   chat shell or document. The short encryption status line joins the existing compact
   keyboard header treatment; encryption warnings/actions stay available.
+- The first production check exposed another short-screen case: an older-history security
+  notice consumed 105px of the 190px viewport. Keep the composer within a reserved height,
+  let the history notice scroll independently, and remove message-list vertical padding
+  while typing so that padding cannot force the shell to overflow.
 - No new dependencies, database changes, authentication changes or encryption changes.
 
 ## Automated evidence before deployment
@@ -30,7 +34,9 @@ composer that stays inside the visible area without moving the whole document.
   small/large phones, tablet, a real short browser viewport, blur/dismissal and route exit.
 - In the regression case, the corrected chat/header top is 200; composer bottom is 592
   within the visible bottom of 600. The chat shell scroll offset remains zero.
-- No JavaScript errors or failed requests in the passing runs. Draft text was cleared.
+- Added a local synthetic legacy message and repeated all 48 checks with the history
+  warning present. All passed; no JavaScript errors. One chat GET was cancelled normally
+  when navigating Home. Drafts were cleared and these four sessions were revoked.
 
 ## Scope of evidence
 

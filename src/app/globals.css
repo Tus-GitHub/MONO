@@ -436,6 +436,10 @@ body:has(.mono-chat-page) {
   max-height: min(7rem, max(2.75rem, calc(var(--vvh, 100dvh) * 0.24)));
   resize: none;
 }
+.mono-chat-composer {
+  /* Reserve the header and tabs; large drafts/errors scroll inside the composer. */
+  max-height: max(var(--touch-target), calc(var(--vvh, 100dvh) - var(--touch-target) * 2));
+}
 /* Retain usable controls when a landscape keyboard leaves little visible height. */
 html[data-kb="open"] .mono-chat-header {
   padding-block: 0;
@@ -445,6 +449,10 @@ html[data-kb="open"] .mono-chat-encryption-status {
   display: none;
 }
 html[data-kb="open"] .mono-chat-tabs {
+  padding-block: 0;
+}
+html[data-kb="open"] .mono-chat-messages {
+  /* Padding otherwise imposes a minimum height even when the keyboard needs that space. */
   padding-block: 0;
 }
 @media (max-height: 20rem) {

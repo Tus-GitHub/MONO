@@ -1706,7 +1706,12 @@ preserve keyboard offsets, anchor Chat's document, prevent shell scrolling with 
 and constrain focus correction to nested scroll areas. Composer overflow stays inside itself;
 the short encryption status compacts with the existing keyboard header. 13 focused unit tests,
 ESLint, production build and 48 Chromium/WebKit browser/standalone layout checks passed.
-Deployment and live verification are next. Prior authorization remains automated checks only;
+Initial fix deployed as 1e06c8c. The live synthetic chat exposed an additional 190px landscape
+case: its older-history security notice squeezed the composer out of view. The notice now
+scrolls independently, the composer keeps a reserved/capped height, and keyboard message-list
+padding no longer forces overflow. Seeded one local synthetic legacy message and repeated all
+48 checks successfully with that notice present; test sessions revoked. Publishing this final
+adjustment and repeating live checks next. Prior authorization remains automated checks only;
 no physical iPhone result is claimed. See docs/reports/ios-chat-keyboard-2026-11-15.md.
 
 ### 2026-11-15 — Adjust crops of already uploaded photos

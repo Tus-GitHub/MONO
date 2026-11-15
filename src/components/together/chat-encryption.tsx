@@ -84,9 +84,9 @@ export function SecureHistory({ chatKey, coupleId, refresh }: { chatKey: ChatKey
   };
   if (!checked && !error) return <p className="mono-chat-encryption-status px-3 py-1 text-center text-2xs text-muted">Checking history encryption…</p>;
   if (!remaining && !error) return <p className="mono-chat-encryption-status px-3 py-1 text-center text-2xs text-muted">End-to-end encrypted messages and photos · Keep your recovery code safe</p>;
-  return <div className="space-y-1 border-b border-line p-3 text-sm">
+  return <div className="min-h-0 overflow-y-auto overscroll-contain"><div className="space-y-1 border-b border-line p-3 text-sm">
     <p>Older messages are still stored without end-to-end encryption. Secure them from this device; keep chat open until it finishes. Previous backups may retain older copies.</p>
     <Button size="sm" loading={busy} onClick={() => void migrate()}>Secure existing history{count ? ` · ${count} secured` : ""}</Button>
     {error ? <p role="alert" className="text-error">{error}</p> : null}
-  </div>;
+  </div></div>;
 }
