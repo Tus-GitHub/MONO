@@ -13,5 +13,7 @@ export function databaseSqlState(error: Prisma.PrismaClientKnownRequestError) {
 }
 
 export function databaseConstraintTarget(error: Prisma.PrismaClientKnownRequestError) {
-  return error.meta?.target ?? record(adapterCause(error)?.constraint)?.fields;
+  const target = error.meta?.target ?? record(adapterCause(error)?.constraint)?.fields;
+  // PostgreSQL quotes mixed-case identifiers in its constraint detail.
+  return Array.isArray(target) ? target.map((field) => typeof field === "string" ? field.replace(/^"|"$/g, "") : field) : target;
 }

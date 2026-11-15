@@ -1,11 +1,23 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { ringtonePlayer } from "@/lib/together/ringtone";
+import { CALL_TONE_URL, ringtonePlayer } from "@/lib/together/ringtone";
+import { AUDIO_CHANGED, type AudioSettings } from "@/lib/audio/client";
+import { togetherFetch } from "@/lib/together/client";
 
 export function useCallRingtone(id: string | undefined, ringing: boolean) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const player = useRef<ReturnType<typeof ringtonePlayer> | null>(null);
   const [blocked, setBlocked] = useState(false), [ready, setReady] = useState(false);
+  const [customTone, setCustomTone] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    const apply = (value: AudioSettings) => { if (live) setCustomTone(value.ringtoneVersion ? `/api/audio?kind=ringtone&v=${encodeURIComponent(value.ringtoneVersion)}` : null); };
+    void togetherFetch<AudioSettings>("/api/audio").then(apply).catch(() => {});
+    const receive = (event: Event) => apply((event as CustomEvent<AudioSettings>).detail);
+    window.addEventListener(AUDIO_CHANGED, receive);
+    return () => { live = false; window.removeEventListener(AUDIO_CHANGED, receive); };
+  }, []);
+  useEffect(() => { if (audioRef.current && !ringing) audioRef.current.src = customTone ?? CALL_TONE_URL; }, [customTone, ringing]);
   useEffect(() => {
     if (!audioRef.current) return;
     const tone = ringtonePlayer(audioRef.current, (value) => { setBlocked(value); setReady(!value); });

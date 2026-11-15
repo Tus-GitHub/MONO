@@ -15,6 +15,7 @@ const env = {
   ...process.env,
   NODE_ENV: "test", DATABASE_URL: value,
   AUTH_SECRET: randomBytes(48).toString("base64url"), APP_URL: "http://localhost:3000",
+  DATA_ENCRYPTION_KEY: randomBytes(32).toString("base64"),
   STORAGE_DRIVER: "local", STORAGE_LOCAL_ROOT: "./.postgres-test/storage", IMAGE_PROCESSOR: "noop",
   EMAIL_DRIVER: "console", PLACE_PROVIDER: "none", GOOGLE_OAUTH_ENABLED: "false",
   GOOGLE_CLIENT_ID: "", GOOGLE_CLIENT_SECRET: "", GOOGLE_PLACES_API_KEY: "",

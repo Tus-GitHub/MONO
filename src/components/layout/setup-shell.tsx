@@ -6,6 +6,7 @@ import { Icon } from "@/components/ui/icon";
 import { logoutAction } from "@/server/actions/auth";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { EmailVerificationNotice } from "@/components/auth/email-verification-notice";
+import Link from "@/components/ui/app-link";
 
 /** Minimal chrome for the pre-couple onboarding step — no full navigation yet. */
 export async function SetupShell({ children }: { children: ReactNode }) {
@@ -32,6 +33,7 @@ export async function SetupShell({ children }: { children: ReactNode }) {
         <div className="m-auto w-full max-w-xl">
           {user ? <EmailVerificationNotice verified={Boolean(user.emailVerified)} /> : null}
           {children}
+          {user?.emailVerified ? <p className="mt-6 text-center text-sm"><Link href="/report-account" className="text-muted hover:text-ink">Report a previous partner</Link></p> : null}
         </div>
       </main>
     </div>

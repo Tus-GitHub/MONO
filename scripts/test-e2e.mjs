@@ -19,8 +19,10 @@ if (!url.searchParams.has("connection_limit")) url.searchParams.set("connection_
 const engine = process.env.MONO_E2E_BROWSER ?? "chrome";
 if (!["chrome", "firefox"].includes(engine)) throw new Error("MONO_E2E_BROWSER must be chrome or firefox.");
 const suites = { journey: ["journey.mjs", "runJourney"], account: ["account.mjs", "runAccountControls"], pagination: ["pagination.mjs", "runPagination"], workflows: ["workflows.mjs", "runWorkflows"], compatibility: ["compatibility.mjs", "runCompatibility"], settings: ["settings.mjs", "runSettings"], registration: ["registration.mjs", "runRegistration"], states: ["state-machines.mjs", "runStateMachines"] };
+suites.moderation = ["moderation.mjs", "runModeration"];
+suites.chatPlanner = ["chat-planner.mjs", "runChatPlanner"];
 const selected = process.argv.slice(2).length ? process.argv.slice(2) : engine === "firefox" ? ["compatibility"] : Object.keys(suites);
-if (selected.some((name) => !suites[name])) throw new Error("Choose journey, account, pagination, workflows, compatibility, settings, registration, or states.");
+if (selected.some((name) => !suites[name])) throw new Error("Choose journey, account, pagination, workflows, compatibility, settings, registration, states, or moderation.");
 // The original suites use CDP-only timezone/offline emulation. Never count a skipped
 // emulation check as Firefox coverage; its separate suite uses native BiDi operations.
 if (engine === "firefox" && selected.some((name) => name !== "compatibility")) throw new Error("Firefox runs compatibility; the other suites require Chromium CDP emulation.");
@@ -44,12 +46,15 @@ await mkdir(storageRoot, { recursive: true });
 
 Object.assign(process.env, {
   NODE_ENV: "development", DATABASE_URL: url.toString(), AUTH_SECRET: randomBytes(48).toString("base64url"),
+  DATA_ENCRYPTION_KEY: randomBytes(32).toString("base64"),
   APP_URL: baseUrl, SESSION_COOKIE_NAME: "mono_e2e_session", SESSION_MAX_AGE_DAYS: "30", CRON_SECRET: "",
   STORAGE_DRIVER: "local", STORAGE_LOCAL_ROOT: storageRoot, STORAGE_PUBLIC_PREFIX: "/media", IMAGE_PROCESSOR: "sharp",
   EMAIL_DRIVER: "console", EMAIL_FROM: "MONO E2E <no-reply@example.invalid>", SMTP_HOST: "", SMTP_USER: "", SMTP_PASSWORD: "",
   S3_BUCKET: "", S3_ACCESS_KEY_ID: "", S3_SECRET_ACCESS_KEY: "", S3_ENDPOINT: "",
   PLACE_PROVIDER: "none", GOOGLE_OAUTH_ENABLED: "false", GOOGLE_CLIENT_ID: "", GOOGLE_CLIENT_SECRET: "", GOOGLE_PLACES_API_KEY: "",
   VAPID_PUBLIC_KEY: "", VAPID_PRIVATE_KEY: "", NEXT_PUBLIC_VAPID_PUBLIC_KEY: "", NEXT_TELEMETRY_DISABLED: "1",
+  MONO_DISABLE_BUILD_CACHE: "1",
+  MONO_QA_DIST_DIR: `.next-qa/${runId}`,
 });
 const serverEnv = { ...process.env };
 const trackedGeneratedFiles = ["next-env.d.ts", "tsconfig.json"];
@@ -90,10 +95,10 @@ async function assertFreePort() {
   }
 }
 async function ready(child) {
-  const deadline = Date.now() + 120_000;
+  const deadline = Date.now() + 300_000;
   while (Date.now() < deadline) {
     if (child.exitCode !== null) throw new Error("Local test server exited; inspect the fixture server log.");
-    try { if ((await fetch(`${baseUrl}/api/health`, { signal: AbortSignal.timeout(2000) })).ok) return; } catch { /* warming */ }
+    try { if ((await fetch(`${baseUrl}/api/health`, { signal: AbortSignal.timeout(30_000) })).ok) return; } catch { /* warming */ }
     await new Promise((resolve) => setTimeout(resolve, 400));
   }
   throw new Error("Local test server did not become ready.");
@@ -103,6 +108,9 @@ async function cleanupFixtures() {
   if (!prisma) return;
   const users = await prisma.user.findMany({ where: { email: { startsWith: `e2e-${runId}-` } }, select: { id: true } });
   const ids = users.map((user) => user.id);
+  await prisma.moderationAudit.deleteMany({ where: { actorId: { in: ids } } });
+  await prisma.accountReport.deleteMany({ where: { reporterId: { in: ids } } });
+  await prisma.emailBlock.deleteMany({ where: { accountId: { in: ids } } });
   const couples = await prisma.couple.findMany({ where: { createdById: { in: ids } }, select: { id: true } });
   const prefixes = [...ids.map((id) => `users/${id}/`), ...couples.map((couple) => `couples/${couple.id}/`)];
   if (prefixes.length) await prisma.storageCleanup.deleteMany({ where: { OR: prefixes.map((prefix) => ({ key: { startsWith: prefix } })) } });
@@ -134,7 +142,7 @@ try {
   }
   for (const name of selected) {
     await assertFreePort();
-    server = launch(["node_modules/next/dist/bin/next", "dev", "--hostname", "127.0.0.1", "--port", String(port)]);
+    server = launch(["node_modules/next/dist/bin/next", "dev", ...(process.env.MONO_E2E_BUNDLER === "webpack" ? ["--webpack"] : []), "--hostname", "127.0.0.1", "--port", String(port)]);
     await ready(server);
     console.log(`RUN ${name} (${baseUrl}, isolated fixtures)`);
     const [file, entry] = suites[name];
@@ -165,6 +173,9 @@ try {
   const expectedParent = path.resolve(".postgres-test", "e2e");
   if (path.dirname(artifactDir) !== expectedParent || storageRoot !== path.join(expectedParent, runId, "storage")) throw new Error("Unsafe test cleanup path.");
   await rm(storageRoot, { recursive: true, force: true });
+  const generated = path.resolve(process.env.MONO_QA_DIST_DIR);
+  if (path.dirname(generated) !== path.resolve(".next-qa") || path.basename(generated) !== runId) throw new Error("Unsafe generated build cleanup path.");
+  await rm(generated, { recursive: true, force: true });
   for (const [file, original] of originals) {
     if (original === null) await rm(file, { force: true });
     else await writeFile(file, original);

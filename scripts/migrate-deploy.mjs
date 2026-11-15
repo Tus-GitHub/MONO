@@ -4,6 +4,10 @@ import { migrationDatabaseUrl } from "./migration-url.mjs";
 
 try { loadEnvFile(".env"); } catch (error) { if (error.code !== "ENOENT") throw error; }
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required for deployment migrations.");
+const privateKey = Buffer.from(process.env.DATA_ENCRYPTION_KEY ?? "", "base64");
+if (privateKey.length !== 32 || privateKey.toString("base64") !== process.env.DATA_ENCRYPTION_KEY) {
+  throw new Error("Configure DATA_ENCRYPTION_KEY before deploying private-data storage. Existing data requires the same key.");
+}
 const databaseUrl = migrationDatabaseUrl(process.env.DATABASE_URL, process.env.DIRECT_DATABASE_URL);
 // Only the migration child receives the direct URL. The running app keeps its configured pool.
 const child = spawn(process.execPath, ["node_modules/prisma/build/index.js", "migrate", "deploy"], {

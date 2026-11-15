@@ -3,6 +3,8 @@ import { randomToken } from "@/lib/utils/crypto";
 import { LocalStorageDriver } from "@/lib/storage/local";
 import { S3StorageDriver } from "@/lib/storage/s3";
 import type { StorageDriver } from "@/lib/storage/types";
+import { EncryptedStorageDriver } from "@/lib/storage/encrypted";
+import { privateCrypto } from "@/lib/privacy/server";
 
 export type { StorageDriver, StoredObject, PutObjectInput } from "@/lib/storage/types";
 export { IMAGE_UPLOAD, validateImageUpload } from "@/lib/storage/image-rules";
@@ -19,35 +21,17 @@ function createDriver(): StorageDriver {
 
 const globalForStorage = globalThis as unknown as { storage?: StorageDriver };
 
-export const storage: StorageDriver = globalForStorage.storage ?? createDriver();
+export const storage: StorageDriver = globalForStorage.storage ?? new EncryptedStorageDriver(createDriver(), privateCrypto);
 
 if (!isProduction) globalForStorage.storage = storage;
 
 function safeName(filename: string): string {
   const dot = filename.lastIndexOf(".");
-  const base = (dot > 0 ? filename.slice(0, dot) : filename)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
   const ext = (dot > 0 ? filename.slice(dot + 1) : "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "")
     .slice(0, 8);
-  return ext ? `${base || "file"}.${ext}` : base || "file";
-}
-
-/** Slugified filename stem (no extension) — used as the shared base for a photo's variants. */
-function slugStem(filename: string): string {
-  const dot = filename.lastIndexOf(".");
-  const stem = dot > 0 ? filename.slice(0, dot) : filename;
-  return (
-    stem
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 48) || "photo"
-  );
+  return `${randomToken(24)}.${ext || "bin"}`;
 }
 
 /**
@@ -57,7 +41,7 @@ function slugStem(filename: string): string {
  *   couples/<coupleId>/...        → only active members of that couple
  */
 export function buildDatePhotoKey(coupleId: string, dateId: string, filename: string): string {
-  return `couples/${coupleId}/dates/${dateId}/photos/${randomToken(8)}-${safeName(filename)}`;
+  return `couples/${coupleId}/dates/${dateId}/photos/${safeName(filename)}`;
 }
 
 /**
@@ -69,9 +53,9 @@ export function buildDatePhotoKey(coupleId: string, dateId: string, filename: st
 export function buildDatePhotoBaseKey(
   coupleId: string,
   dateId: string,
-  filename: string,
+  _filename: string,
 ): string {
-  return `couples/${coupleId}/dates/${dateId}/photos/${randomToken(9)}-${slugStem(filename)}`;
+  return `couples/${coupleId}/dates/${dateId}/photos/${randomToken(24)}`;
 }
 
 export type PhotoVariant = "original" | "display" | "thumb";
@@ -86,11 +70,11 @@ export function datePhotoVariantKey(
 }
 
 export function buildUserAvatarKey(userId: string, filename: string): string {
-  return `users/${userId}/avatar/${randomToken(8)}-${safeName(filename)}`;
+  return `users/${userId}/avatar/${safeName(filename)}`;
 }
 
 export function buildCoupleCoverKey(coupleId: string, filename: string): string {
-  return `couples/${coupleId}/cover/${randomToken(8)}-${safeName(filename)}`;
+  return `couples/${coupleId}/cover/${safeName(filename)}`;
 }
 
 export function coupleIdFromKey(key: string): string | null {

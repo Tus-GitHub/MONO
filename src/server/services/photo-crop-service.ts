@@ -22,13 +22,13 @@ function unchanged(expected: string, identity: string, crop: unknown) {
   if (expected !== revision(identity, crop)) throw new ConflictError("This photo changed. Close the editor and open it again to keep the latest changes.");
 }
 const activeCouple = (id: string, userId: string) => ({ id, deletedAt: null, status: { in: ["PENDING", "ACTIVE"] as ("PENDING" | "ACTIVE")[] },
-  members: { some: { userId, status: "ACTIVE" as const, user: { deletedAt: null } } } });
+  members: { some: { userId, status: "ACTIVE" as const, user: { deletedAt: null, blockedAt: null } } } });
 
 export async function getSavedPhotoCrop(value: unknown): Promise<SavedCropInfo> {
   const target = cropTargetSchema.parse(value);
   if (target.kind === "avatar") {
     const user = await requireUser();
-    const current = await prisma.user.findFirst({ where: { id: user.id, deletedAt: null }, select: { avatarKey: true, avatarCrop: true } });
+    const current = await prisma.user.findFirst({ where: { id: user.id, deletedAt: null, blockedAt: null }, select: { avatarKey: true, avatarCrop: true } });
     if (!current?.avatarKey) throw new NotFoundError("Upload a profile photo before adjusting it.");
     return info(storage.publicUrl(current.avatarKey), current.avatarKey, current.avatarCrop);
   }
@@ -43,7 +43,7 @@ export async function getSavedPhotoCrop(value: unknown): Promise<SavedCropInfo> 
     return info(storage.publicUrl(resource.storageKey), resource.storageKey, resource.crop);
   }
   const { couple, user } = await requireTogether();
-  const message = await prisma.chatMessage.findFirst({ where: { id: target.id, coupleId: couple.id, senderId: user.id, deletedAt: null, NOT: { hiddenFor: { has: user.id } } }, include: { image: { select: imageSelect } } });
+  const message = await prisma.chatMessage.findFirst({ where: { id: target.id, coupleId: couple.id, senderId: user.id, kind: "IMAGE", deletedAt: null, NOT: { hiddenFor: { has: user.id } } }, include: { image: { select: imageSelect } } });
   if (!message?.image) throw new NotFoundError();
   return info(`/api/together/images/${message.id}`, `${message.id}:${message.version}`, message.image.crop);
 }
@@ -56,7 +56,7 @@ export async function savePhotoCrop(value: unknown) {
     const user = await requireUser();
     return serializable(async (tx) => {
       await tx.$queryRaw`SELECT id FROM users WHERE id = ${user.id} FOR UPDATE`;
-      const current = await tx.user.findFirst({ where: { id: user.id, deletedAt: null } });
+      const current = await tx.user.findFirst({ where: { id: user.id, deletedAt: null, blockedAt: null } });
       if (!current?.avatarKey) throw new NotFoundError();
       unchanged(expected, current.avatarKey, current.avatarCrop);
       const url = croppedUrl(storage.publicUrl(current.avatarKey), crop);
@@ -89,7 +89,7 @@ export async function savePhotoCrop(value: unknown) {
   }
   const context = await requireTogether();
   return withTogetherWrite(context, async (tx) => {
-    const message = await tx.chatMessage.findFirst({ where: { id: target.id, coupleId: context.couple.id, senderId: context.user.id, deletedAt: null, NOT: { hiddenFor: { has: context.user.id } } }, include: { image: { select: imageSelect } } });
+    const message = await tx.chatMessage.findFirst({ where: { id: target.id, coupleId: context.couple.id, senderId: context.user.id, kind: "IMAGE", deletedAt: null, NOT: { hiddenFor: { has: context.user.id } } }, include: { image: { select: imageSelect } } });
     if (!message?.image) throw new NotFoundError();
     unchanged(expected, `${message.id}:${message.version}`, message.image.crop);
     await tx.chatImage.update({ where: { messageId: message.id }, data: { crop: data } });

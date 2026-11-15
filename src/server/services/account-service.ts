@@ -158,7 +158,11 @@ export async function exportCoupleData(): Promise<CoupleExport> {
 
 export async function deleteAccount(userId: string): Promise<void> {
   await requireSelf(userId);
-  await serializable(async (tx) => {
+  await serializable((tx) => deleteAccountInTransaction(tx, userId));
+}
+
+/** Internal transaction helper. Callers must authorise self-deletion or admin moderation. */
+export async function deleteAccountInTransaction(tx: Prisma.TransactionClient, userId: string): Promise<void> {
     await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
     const user = await tx.user.findUnique({ where: { id: userId }, select: { deletedAt: true } });
     if (!user) throw new AuthenticationError();
@@ -174,6 +178,7 @@ export async function deleteAccount(userId: string): Promise<void> {
     // Credentials and delivery capabilities disappear in the same commit as access.
     await tx.authSession.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } });
     await tx.account.deleteMany({ where: { userId } });
+      await tx.userAudio.deleteMany({ where: { userId } });
     await tx.passwordResetToken.deleteMany({ where: { userId } });
     await tx.emailVerificationToken.deleteMany({ where: { userId } });
     await tx.pushSubscription.deleteMany({ where: { userId } });
@@ -191,5 +196,4 @@ export async function deleteAccount(userId: string): Promise<void> {
     await tx.user.update({
       where: { id: userId }, data: { deletedAt: now, name: "Deleted account", nickname: null, passwordHash: null, tokenVersion: { increment: 1 } },
     });
-  });
 }

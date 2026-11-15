@@ -92,7 +92,7 @@ export async function loginAction(
   redirect(postAuthDestination(formData));
 }
 
-export async function logoutAction(_formData?: FormData): Promise<void> {
+export async function logoutAction(formData?: FormData): Promise<void> {
   const cookieStore = await cookies();
   const deviceId = cookieStore.get("mono_push_device")?.value;
   let user: Awaited<ReturnType<typeof getCurrentUser>> = null;
@@ -108,7 +108,7 @@ export async function logoutAction(_formData?: FormData): Promise<void> {
   cookieStore.delete("mono_push_device");
   await clearPendingInvitation();
   await clearSessionCookie();
-  redirect("/login");
+  redirect(formData?.get("next") === "/admin/login" ? "/admin/login" : "/login");
 }
 
 export async function requestPasswordResetAction(

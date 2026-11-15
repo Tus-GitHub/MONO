@@ -6,6 +6,8 @@ import { serializable } from "@/lib/db/serializable";
 import { sendVerificationEmail, sendWelcomeEmail } from "@/lib/email";
 import { ValidationError } from "@/lib/errors";
 import { randomToken, sha256 } from "@/lib/utils/crypto";
+import { resolveLoginEmail } from "@/lib/auth/registration-policy";
+import { privateCrypto } from "@/lib/privacy/server";
 
 const TOKEN_LIFETIME_MS = 24 * 60 * 60_000;
 const RESEND_COOLDOWN_MS = 60_000;
@@ -13,12 +15,13 @@ const INVALID_LINK = "This verification link is invalid, expired or already used
 
 /** A shared database cooldown applies across tabs, server instances and registration's after callback. */
 export async function beginEmailVerification(email: string): Promise<void> {
-  const user = await prisma.user.findFirst({ where: { email, deletedAt: null }, select: { id: true } });
+  email = await resolveLoginEmail(email);
+  const user = await prisma.user.findFirst({ where: { email, deletedAt: null, blockedAt: null }, select: { id: true } });
   if (!user) return;
   const delivery = await serializable(async (tx) => {
     await tx.$queryRaw`SELECT id FROM users WHERE id = ${user.id} FOR UPDATE`;
     const current = await tx.user.findFirst({
-      where: { id: user.id, email, deletedAt: null, emailVerified: null },
+      where: { id: user.id, email, deletedAt: null, blockedAt: null, emailVerified: null },
       select: { id: true, email: true, name: true },
     });
     if (!current) return null;
@@ -42,7 +45,7 @@ export async function beginEmailVerification(email: string): Promise<void> {
 
 /** Called once after a successful registration; one provider failure does not suppress the other email. */
 export async function sendRegistrationEmails(userId: string): Promise<void> {
-  const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null }, select: { email: true, name: true } });
+  const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null, blockedAt: null }, select: { email: true, name: true } });
   if (!user) return;
   const outcomes = await Promise.allSettled([
     sendWelcomeEmail({ to: user.email, name: user.name, appUrl: new URL("/onboarding", env.APP_URL).toString() }),
@@ -59,12 +62,15 @@ export async function completeEmailVerification(raw: string): Promise<void> {
   await serializable(async (tx) => {
     // Lock the account first, as resend/deletion do. Read the token and mailbox in that same
     // round trip; the conditional claim below remains authoritative after lock contention.
-    const [record] = await tx.$queryRaw<{ id: string }[]>`
-      SELECT t.id FROM users u JOIN email_verification_tokens t ON t."userId" = u.id
-      WHERE t."tokenHash" = ${sha256(raw)} AND t.email = u.email AND u."deletedAt" IS NULL
+    const [record] = await tx.$queryRaw<{ id: string; userEmail: string; tokenEmail: string }[]>`
+      SELECT t.id, u.email AS "userEmail", t.email AS "tokenEmail"
+      FROM users u JOIN email_verification_tokens t ON t."userId" = u.id
+      WHERE t."tokenHash" = ${sha256(raw)}
+        AND u."deletedAt" IS NULL AND u."blockedAt" IS NULL
       FOR UPDATE OF u
     `;
-    if (!record) throw new ValidationError(INVALID_LINK);
+    if (!record || privateCrypto().decryptText(record.userEmail, "User.email") !==
+      privateCrypto().decryptText(record.tokenEmail, "EmailVerificationToken.email")) throw new ValidationError(INVALID_LINK);
     const now = new Date();
     // Each CTE writes disjoint rows. Claim, confirm and retire sibling links atomically,
     // rather than paying for a network round trip for each individual write.

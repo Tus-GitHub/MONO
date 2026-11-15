@@ -159,29 +159,8 @@ export async function getDateHistory(query: HistoryQuery): Promise<DateHistoryRe
       ],
     });
   }
-  if (query.activity) {
-    and.push({
-      activities: { some: { title: { contains: query.activity, mode: "insensitive" } } },
-    });
-  }
   if (query.revisit) {
     and.push({ revisitDecision: { is: { choice: query.revisit } } });
-  }
-  if (query.q) {
-    const q = query.q;
-    and.push({
-      OR: [
-        { title: { contains: q, mode: "insensitive" } },
-        { actualLocationText: { contains: q, mode: "insensitive" } },
-        { actualPlace: { is: { name: { contains: q, mode: "insensitive" } } } },
-        { plannedPlace: { is: { name: { contains: q, mode: "insensitive" } } } },
-        { actualPlace: { is: { city: { contains: q, mode: "insensitive" } } } },
-        { plannedPlace: { is: { city: { contains: q, mode: "insensitive" } } } },
-        { activities: { some: { title: { contains: q, mode: "insensitive" } } } },
-        { memory: { is: { deletedAt: null, title: { contains: q, mode: "insensitive" } } } },
-        { memory: { is: { deletedAt: null, body: { contains: q, mode: "insensitive" } } } },
-      ],
-    });
   }
   if (and.length) where.AND = and;
 
@@ -196,6 +175,12 @@ export async function getDateHistory(query: HistoryQuery): Promise<DateHistoryRe
       take: HISTORY_TAKE, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), include: HISTORY_INCLUDE,
     });
     for (const row of rows) {
+      // Private text is decrypted only after couple authorization, then searched in bounded batches.
+      const contains = (value: string | null | undefined, query: string) => value?.toLocaleLowerCase().includes(query.toLocaleLowerCase());
+      if (query.activity && !row.activities.some((activity) => contains(activity.title, query.activity!))) continue;
+      if (query.q && ![row.title, row.actualLocationText, row.actualPlace?.name, row.plannedPlace?.name,
+        row.actualPlace?.city, row.plannedPlace?.city, row.memory?.title, row.memory?.body,
+        ...row.activities.map((activity) => activity.title)].some((value) => contains(value, query.q!))) continue;
       const item = mapDateRowToItem(row, { userId: user.id, hasPartner });
       if (query.month && !query.year && Number(item.dateYmd?.slice(5, 7)) !== query.month) continue;
       if (query.minScore != null && (item.coupleScore == null || item.coupleScore < query.minScore)) continue;

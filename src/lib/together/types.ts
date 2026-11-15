@@ -1,6 +1,6 @@
-import type { GameKind, GameState } from "./games";
 import type { SavedCrop } from "@/lib/images/saved-crop";
-export interface MessageDTO { id: string; sequence: string; senderId: string; kind: "TEXT" | "STICKER" | "IMAGE" | "GAME"; body: string; gameId: string | null; createdAt: string; clientNonce: string; encrypted: boolean; version: number; editedAt: string | null; deleted: boolean; hidden: boolean; image: { url: string; width: number; height: number; contentType: string; encrypted: boolean; viewLimit: number; viewsUsed: number; crop?: SavedCrop | null } | null }
+import type { GameKind, GameState } from "./games";
+export interface MessageDTO { id: string; sequence: string; senderId: string; kind: "TEXT" | "STICKER" | "IMAGE" | "DOCUMENT" | "GAME"; body: string; gameId: string | null; createdAt: string; clientNonce: string; encrypted: boolean; version: number; editedAt: string | null; deleted: boolean; hidden: boolean; image: { url: string; width: number; height: number; contentType: string; encrypted: boolean; viewLimit: number; viewsUsed: number; crop?: SavedCrop | null } | null }
 export interface GameDTO { id: string; kind: GameKind; status: "WAITING" | "ACTIVE" | "FINISHED" | "DECLINED" | "CANCELLED"; playerOneId: string; playerTwoId: string; winnerId: string | null; state: GameState; version: number; createdAt: string }
 export interface ScoreDTO { kind: GameKind; userId: string; wins: number; losses: number; draws: number }
 export interface ChatPeer { id: string; name: string; avatarUrl: string | null; lastRead: string; lastSeenAt: string | null; typingUntil: string | null }

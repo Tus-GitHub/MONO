@@ -15,7 +15,7 @@ const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.googleusercontent.com https://upload.wikimedia.org https://thumb.wikimedia.org https://indiarestros.com",
+  "img-src 'self' data: blob: https://*.googleusercontent.com https://upload.wikimedia.org https://thumb.wikimedia.org https://indiarestros.com https://tile.openstreetmap.org",
   "font-src 'self' data:",
   `connect-src 'self'${isDev ? " ws:" : ""}`,
   "media-src 'self' blob:",
@@ -50,6 +50,16 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Isolated browser suites must not overwrite a running preview's build files.
+  ...(process.env.MONO_QA_DIST_DIR ? { distDir: process.env.MONO_QA_DIST_DIR, devIndicators: false } : {}),
+  // Optional for disposable local QA/builds on low-disk hosts; normal builds keep caching.
+  ...(process.env.MONO_DISABLE_BUILD_CACHE === "1" ? {
+    experimental: {
+      turbopackFileSystemCacheForDev: false, turbopackFileSystemCacheForBuild: false,
+      webpackMemoryOptimizations: true, webpackBuildWorker: true, cpus: 1,
+    },
+    webpack(config) { config.cache = false; return config; },
+  } satisfies Partial<NextConfig> : {}),
   // Keep native/server-only packages out of the bundler; they run as-is on the server.
   serverExternalPackages: ["@prisma/client", "bcryptjs", "sharp", "@aws-sdk/client-s3", "nodemailer"],
   // The compiler loads this binary through config.dirname, which static tracing

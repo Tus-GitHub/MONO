@@ -9,6 +9,8 @@ import { SESSION_COOKIE_NAME, verifySession } from "@/lib/auth/session";
  * protected layout, server actions, and the authorization layer. No database access here.
  */
 const PROTECTED_PREFIXES = [
+  "/admin",
+  "/report-account",
   "/home",
   "/dashboard",
   "/onboarding",
@@ -24,6 +26,7 @@ const PROTECTED_PREFIXES = [
 ];
 
 function isProtected(pathname: string): boolean {
+  if (pathname === "/admin/login") return false;
   return PROTECTED_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
@@ -36,7 +39,7 @@ export async function proxy(request: NextRequest) {
 
   if (isProtected(pathname) && !session) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = pathname === "/admin" || pathname.startsWith("/admin/") ? "/admin/login" : "/login";
     url.search = "";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);

@@ -61,7 +61,7 @@ export async function searchPlaces(options: Options = {}): Promise<PlaceSearchRe
   const origin = options.near ?? (city && provider?.resolveArea ? await provider.resolveArea(city).catch(() => null) : null);
   const providerCategory = providerCategoryFor(options.categories);
   const browseText = providerCategory ? CATEGORY_SEARCH_TEXT[providerCategory] : "places";
-  const areaParts = city?.split(",").map((part) => part.trim()).filter(Boolean).slice(0, 3) ?? [];
+  const areaParts = origin ? [] : city?.split(",").map((part) => part.trim()).filter(Boolean).slice(0, 3) ?? [];
 
   const [saved, history] = await Promise.all([
     prisma.place.findMany({

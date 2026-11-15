@@ -12,6 +12,7 @@ import { randomToken, sha256 } from "@/lib/utils/crypto";
 import { capabilityState } from "@/lib/state/access";
 import { assertNameAvailable, isNameConstraint, nameTakenError } from "@/server/services/name-service";
 import { emailRegisteredError } from "@/server/services/email-availability-service";
+import { assertEmailCanRegister, resolveLoginEmail } from "@/lib/auth/registration-policy";
 import type {
   LoginInput,
   RegisterInput,
@@ -32,9 +33,15 @@ export async function registerUser(input: RegisterInput): Promise<AuthedUser> {
   const passwordHash = await hashPassword(input.password);
 
   try {
-    const user = await prisma.user.create({
-      data: { name: input.name, email: input.email, passwordHash },
-      select: { id: true, email: true, name: true, tokenVersion: true },
+    const user = await serializable(async (tx) => {
+      const identity = await assertEmailCanRegister(tx, input.email);
+      // Legacy rows do not have blind indexes until backfilled. Preserve uniqueness
+      // while both representations coexist, under the same registration lock.
+      if (await tx.user.findFirst({ where: { email: identity.email }, select: { id: true } })) throw emailRegisteredError();
+      return tx.user.create({
+        data: { name: input.name, ...identity, passwordHash },
+        select: { id: true, email: true, name: true, tokenVersion: true },
+      });
     });
     return user;
   } catch (error) {
@@ -48,7 +55,7 @@ export async function registerUser(input: RegisterInput): Promise<AuthedUser> {
 
 export async function authenticate(input: LoginInput): Promise<AuthedUser> {
   const user = await prisma.user.findFirst({
-    where: { email: input.email, deletedAt: null },
+    where: { email: await resolveLoginEmail(input.email), deletedAt: null, blockedAt: null },
     select: { id: true, email: true, name: true, tokenVersion: true, passwordHash: true },
   });
 
@@ -72,8 +79,9 @@ export async function authenticate(input: LoginInput): Promise<AuthedUser> {
  * Start password recovery. Always resolves without revealing whether the email is registered.
  */
 export async function beginPasswordReset(email: string): Promise<void> {
+  email = await resolveLoginEmail(email);
   const user = await prisma.user.findFirst({
-    where: { email, deletedAt: null },
+    where: { email, deletedAt: null, blockedAt: null },
     select: { id: true, email: true, name: true },
   });
   if (!user) return;
@@ -83,7 +91,7 @@ export async function beginPasswordReset(email: string): Promise<void> {
 
   const allowed = await serializable(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${user.id} FOR UPDATE`;
-    if (!await tx.user.findFirst({ where: { id: user.id, deletedAt: null }, select: { id: true } })) return false;
+    if (!await tx.user.findFirst({ where: { id: user.id, deletedAt: null, blockedAt: null }, select: { id: true } })) return false;
     await tx.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } });
     await tx.passwordResetToken.create({ data: { userId: user.id, tokenHash: sha256(rawToken), expiresAt } });
     return true;
@@ -117,7 +125,7 @@ export async function completePasswordReset(input: ResetPasswordInput): Promise<
 
   await serializable(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${record.userId} FOR UPDATE`;
-    if (!await tx.user.findFirst({ where: { id: record.userId, deletedAt: null }, select: { id: true } })) {
+    if (!await tx.user.findFirst({ where: { id: record.userId, deletedAt: null, blockedAt: null }, select: { id: true } })) {
       throw new ValidationError("This reset link is invalid or has expired.");
     }
     const claimed = await tx.passwordResetToken.updateMany({

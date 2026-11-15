@@ -10,6 +10,7 @@ import { sendChatMessage, togetherSnapshot } from "@/server/services/together-se
 import { changeChatMessage, legacyChatPage, migrateChatMessage, readChatImage, registerChatKey, sendEncryptedImage } from "@/server/services/chat-security-service";
 import { chatAAD, decryptBytes, decryptText, encryptBytes, encryptText, newRecoveryCode, recoverChatKey, type ChatKey } from "@/lib/together/chat-crypto";
 import { POST as consumePOST } from "@/app/api/together/images/[id]/route";
+import { sendEncryptedDocument } from "@/server/services/chat-document-service";
 let owner: string, partner: string, outsider: string, otherPartner: string, couple: string, otherCouple: string, key: ChatKey;
 beforeEach(async () => {
   const run = randomUUID();
@@ -37,6 +38,20 @@ async function photo(viewLimit: 0 | 1 | 2) {
   const payload = { ...await encryptBytes(key, bytes, chatAAD(couple, owner, clientNonce, `IMAGE_BYTES:${viewLimit}`)), keyId: key.id, clientNonce, width: 1, height: 1, viewLimit };
   const row = await asUser(owner, () => sendEncryptedImage(payload)); return { row, bytes, payload };
 }
+it("encrypts document content and filename, deduplicates sends, isolates readers and deletes bytes", async () => {
+  const clientNonce = randomUUID(), aad = (kind: string) => chatAAD(couple, owner, clientNonce, kind);
+  const bytes = new TextEncoder().encode("%PDF-1.4 private itinerary");
+  const payload = { ...await encryptBytes(key, bytes, aad("DOCUMENT_BYTES")), keyId: key.id, clientNonce,
+    body: await encryptText(key, JSON.stringify({ name: "private itinerary.pdf", size: bytes.length }), aad("DOCUMENT")) };
+  const row = await asUser(owner, () => sendEncryptedDocument(payload));
+  expect(row.kind).toBe("DOCUMENT"); expect(row.body).not.toContain("itinerary.pdf");
+  expect((await asUser(owner, () => sendEncryptedDocument(payload))).id).toBe(row.id);
+  const media = await asUser(partner, () => readChatImage(row.id, false));
+  expect(await decryptBytes(key, { iv: media.iv!, data: Buffer.from(media.bytes).toString("base64") }, aad("DOCUMENT_BYTES"))).toEqual(bytes);
+  await expect(asUser(outsider, () => readChatImage(row.id, false))).rejects.toThrow();
+  await asUser(owner, () => changeChatMessage({ action: "delete-everyone", id: row.id }));
+  await expect(asUser(partner, () => readChatImage(row.id, false))).rejects.toThrow();
+});
 it("persists only encrypted text and rejects plaintext/downgrade writes and key replacement", async () => {
   const row = await send("a secret sentence");
   const stored = await prisma.chatMessage.findUniqueOrThrow({ where: { id: row.id } });

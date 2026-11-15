@@ -13,6 +13,7 @@ import { useEscapeKey } from "@/components/ui/_dialog-primitives";
 import { logoutAction } from "@/server/actions/auth";
 import { cn } from "@/lib/utils/cn";
 import { ChatLink } from "@/components/together/chat-link";
+import { MusicButton } from "@/components/settings/background-music";
 
 interface AppHeaderProps {
   user: { name: string; avatarUrl?: string | null };
@@ -49,6 +50,7 @@ export function AppHeader({ user, unreadCount }: AppHeaderProps) {
         <Icon name="compass" size="md" />
       </Link>
 
+      <MusicButton />
       <ChatLink />
       <NotificationsBell unreadCount={unreadCount} />
       <AccountMenu user={user} />

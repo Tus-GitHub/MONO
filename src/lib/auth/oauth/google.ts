@@ -7,6 +7,7 @@ import { serializable } from "@/lib/db/serializable";
 import { AuthenticationError } from "@/lib/errors";
 import { randomToken } from "@/lib/utils/crypto";
 import { isNameConstraint } from "@/server/services/name-service";
+import { assertEmailCanRegister } from "@/lib/auth/registration-policy";
 
 /**
  * Google sign-in — architecture seam.
@@ -60,6 +61,7 @@ export async function upsertUserFromOAuthProfile(profile: OAuthProfile) {
 
   for (let attempt = 0; attempt < 3; attempt++) {
   try { return await serializable(async (tx) => {
+    const identity = await assertEmailCanRegister(tx, email);
     const linked = await tx.account.findUnique({
       where: {
         provider_providerAccountId: {
@@ -72,7 +74,7 @@ export async function upsertUserFromOAuthProfile(profile: OAuthProfile) {
     if (linked) {
       await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${linked.userId} FOR UPDATE`;
       const current = await tx.user.findUniqueOrThrow({ where: { id: linked.userId } });
-      if (current.deletedAt) throw new AuthenticationError("This account is unavailable.");
+      if (current.deletedAt || current.blockedAt) throw new AuthenticationError("This account is unavailable.");
       return current;
     }
 
@@ -83,7 +85,7 @@ export async function upsertUserFromOAuthProfile(profile: OAuthProfile) {
       const name = taken ? `${base.slice(0, 65)} ${randomToken(6)}` : base;
       user = await tx.user.create({
         data: {
-          email,
+          ...identity,
           name,
           avatarUrl: profile.avatarUrl ?? null,
           emailVerified: new Date(),
@@ -93,7 +95,7 @@ export async function upsertUserFromOAuthProfile(profile: OAuthProfile) {
 
     await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${user.id} FOR UPDATE`;
     const current = await tx.user.findUniqueOrThrow({ where: { id: user.id } });
-    if (current.deletedAt) throw new AuthenticationError("This account is unavailable.");
+    if (current.deletedAt || current.blockedAt) throw new AuthenticationError("This account is unavailable.");
     await tx.account.create({
       data: {
         userId: user.id,

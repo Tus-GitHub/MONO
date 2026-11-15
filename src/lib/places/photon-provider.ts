@@ -4,6 +4,8 @@ import { venueRadius } from "./types";
 import { haversineKm } from "@/lib/utils/geo";
 
 const ORIGIN = "https://photon.komoot.io";
+// Common transposition: without this, the geocoder matches an unrelated City Mall abroad.
+export const locationQuery = (value: string) => value.trim().slice(0, 120).replace(/\bguar city\b/gi, "Gaur City");
 const TAGS: Partial<Record<PlaceCategory, string[]>> = {
   RESTAURANT: ["amenity.restaurant", "amenity.fast_food", "amenity.food_court"],
   CAFE: ["amenity.cafe", "amenity.ice_cream"], BAR: ["amenity.bar", "amenity.pub", "amenity.biergarten"],
@@ -94,12 +96,23 @@ export class PhotonPlacesProvider implements PlaceProvider {
     if (tags?.length) params.set("include", tags.map((tag) => `osm.${tag}`).join(","));
     return params;
   }
+  async locations(query: string) {
+    const places = await this.get("/api/", new URLSearchParams({ q: locationQuery(query), limit: "8", lang: "en" }));
+    return places.flatMap((place) => {
+      const point = coordinates(place), p = place.properties;
+      if (!point || !p?.name) return [];
+      const label = [...new Set([p.name, p.street, p.district, p.city ?? p.county, p.state, p.country].filter(Boolean))].join(", ");
+      return [{ ...point, label }];
+    });
+  }
   async resolveArea(area: string) {
-    const places = await this.get("/api/", new URLSearchParams({ q: area.trim(), limit: "5", lang: "en" }));
-    const location = places.find((place) => coordinates(place) && (
-      (place.properties?.osm_key === "place" && ["city", "town", "village", "hamlet", "suburb", "quarter", "neighbourhood"].includes(place.properties.osm_value ?? ""))
-      || (place.properties?.osm_key === "boundary" && place.properties.osm_value === "administrative")
-    ));
+    const places = await this.get("/api/", new URLSearchParams({ q: locationQuery(area), limit: "8", lang: "en" }));
+    // Prefer an exact city/area name over an unrelated same-named business, but
+    // allow landmarks when there is no such administrative match.
+    const exactArea = places.find((place) => coordinates(place) &&
+      (!place.properties?.name || place.properties.name.toLowerCase() === area.trim().toLowerCase()) &&
+      (place.properties?.osm_key === "place" || place.properties?.osm_key === "boundary"));
+    const location = exactArea ?? places.find((place) => coordinates(place));
     return location ? coordinates(location) : null;
   }
   async search(query: PlaceSearchQuery): Promise<ProviderPlace[]> {
@@ -113,8 +126,7 @@ export class PhotonPlacesProvider implements PlaceProvider {
     if (area) {
       category ??= wordCategory(area[1]);
       if (!/^(me|here)$/i.test(area[2].trim())) {
-        // Some installations classify large cities outside layer=city (live Jaipur did).
-        // Keep upstream relevance, but never mistake a same-named venue for a city/area.
+        // Resolve landmarks as well as cities; a mall is a useful search centre.
         point ??= await this.resolveArea(area[2]);
       }
       if (!point) return [];

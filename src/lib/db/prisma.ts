@@ -2,6 +2,8 @@ import { PrismaClient } from "@prisma/client";
 
 import { env, isProduction } from "@/config/env";
 import { createDatabaseAdapter } from "./pg-adapter.mjs";
+import { withPrivateData } from "@/lib/privacy/prisma-extension";
+import { privateCrypto } from "@/lib/privacy/server";
 
 /**
  * A single PrismaClient per process. In development the module graph is re-evaluated on every
@@ -11,10 +13,10 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 export const prisma =
   globalForPrisma.prisma ??
-  new PrismaClient({
+  withPrivateData(new PrismaClient({
     adapter: createDatabaseAdapter(env.DATABASE_URL),
-    log: isProduction ? ["error"] : ["warn", "error"],
-  });
+    log: [],
+  }), privateCrypto);
 
 if (!isProduction) {
   globalForPrisma.prisma = prisma;

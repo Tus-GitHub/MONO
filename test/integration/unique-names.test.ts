@@ -18,7 +18,7 @@ let run:string;
 const email=(label:string)=>`names-${run}-${label}@example.invalid`;
 const account=(label:string,name:string)=>registerUser({name,email:email(label),password:"abcdef",confirmPassword:"abcdef"});
 beforeEach(()=>{run=randomUUID()});
-afterEach(async()=>{await prisma.user.deleteMany({where:{email:{startsWith:`names-${run}-`}}})});
+afterEach(async()=>{await prisma.user.deleteMany({where:{email:{in:["email","unused","email-race","a","duplicate","b","c","direct","race-a","race-b","first","second","old","replacement","existing","oauth"].map(email)}}})});
 afterAll(()=>prisma.$disconnect());
 
 it("normalizes registration email checks, reports duplicate field errors and honors reserved closed-account emails", async () => {

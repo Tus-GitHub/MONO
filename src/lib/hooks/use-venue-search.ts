@@ -47,12 +47,13 @@ export function useVenueSearch({ active = true, categoryKey, initialQuery = "" }
   useEffect(() => { if (!active) reset(); }, [active, reset]);
   const changeCity = useCallback((value: string) => { reset(); setNear(null); setCity(value); }, [reset]);
   const clearLocation = useCallback(() => { reset(); setNear(null); }, [reset]);
+  const chooseLocation = useCallback((point: GeoPoint, radius: number) => { reset(); setCity(""); setNear(point); setRadius(radius); }, [reset]);
   const locate = async () => {
     const result = await location.run("locating", getBrowserLocation);
     if (result) { setCity(""); setNear(result.data); }
   };
   return {
-    q, setQ, city, changeCity, near, radiusKm, setRadius, locate, clearLocation,
+    q, setQ, city, changeCity, near, radiusKm, setRadius, locate, clearLocation, chooseLocation,
     locating: location.state.status === "pending",
     locationError: location.state.status === "error" ? location.state.message : null,
     results: current ? search.results : [], loading: active && !current,

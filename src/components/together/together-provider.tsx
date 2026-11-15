@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/icon";
 import { useRemoteCallAudio } from "@/components/together/remote-call-audio";
 import { CallControl } from "./call-control";
 import { CallAudioOutput } from "./call-audio-output";
+import { BackgroundMusic } from "@/components/settings/background-music";
 
 type CallContext = ReturnType<typeof useCoupleCall> & { soundsReady: boolean; enableCallSounds: () => void };
 const Context = createContext<CallContext | null>(null);
@@ -48,7 +49,7 @@ export function TogetherProvider({ userId, children }: { userId: string; childre
     {incoming && !preparing ? <><div className="col-start-2"><CallControl icon="phoneEnd" label="Decline" tone="danger" onClick={() => { stopRingtone(); void calling.decline(); }} /></div><div className="col-start-4"><CallControl icon="phone" label="Pick up" tone="success" onClick={() => { stopRingtone(); void calling.accept(); }} /></div></>
       : calling.call || preparing ? <div className={calling.owned ? "" : "col-start-3"}><CallControl icon="phoneEnd" label={preparing ? "Cancel call" : "End call"} tone="danger" onClick={() => { stopRingtone(); void calling.end(); }} /></div> : <Button variant="secondary" onClick={close}>Close</Button>}
   </div>;
-  return <Context.Provider value={{ ...calling, soundsReady, enableCallSounds }}>
+  return <Context.Provider value={{ ...calling, soundsReady, enableCallSounds }}><BackgroundMusic pausedForCall={Boolean(id) || calling.phase !== "idle"}>
     <audio ref={audioRef} preload="none" aria-label="Call ringtone" />
     <audio ref={partnerAudioRef} autoPlay aria-label="Partner call audio" />
     {children}
@@ -79,7 +80,7 @@ export function TogetherProvider({ userId, children }: { userId: string; childre
         </div>
       </div>
     </Modal>
-  </Context.Provider>;
+  </BackgroundMusic></Context.Provider>;
 }
 function CallMedia({ stream, muted = false, partner = false, fill = false }: { stream: MediaStream; muted?: boolean; partner?: boolean; fill?: boolean }) {
   const element = useRef<HTMLVideoElement | null>(null), [needsPlay, setNeedsPlay] = useState(false), [cover, setCover] = useState(false);

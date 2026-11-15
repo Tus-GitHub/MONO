@@ -15,27 +15,32 @@ import { CHAT_IMAGE_SPACE, EMOJI, STICKERS } from "@/lib/together/catalog";
 import type { MessageDTO, TogetherSnapshot } from "@/lib/together/types";
 import { chatAAD, encryptText, type ChatKey } from "@/lib/together/chat-crypto";
 import { encryptPhoto } from "@/lib/together/secure-photo";
+import { DOCUMENT_ACCEPT, DOCUMENT_LIMIT, encryptDocument } from "@/lib/together/attachments";
 import { ChatEncryption, SecureHistory } from "./chat-encryption";
 import { SecureMessage } from "./secure-message";
 import { cn } from "@/lib/utils/cn";
 import { useTogetherCall } from "./together-provider";
+import { MusicControls } from "@/components/settings/background-music";
 import { CallSetup } from "./call-setup";
 
 const GamesPanel = dynamic(() => import("./games-panel"), { loading: () => <div className="flex justify-center py-10"><Spinner /></div> });
 export function TogetherRoom({ initial, userId, userName }: { initial: TogetherSnapshot; userId: string; userName: string }) {
   const [tab, setTab] = useState<"chat" | "games" | "scores">("chat"), [selectedGame, setGame] = useState<string | null>(null);
   const [chatKey, setChatKey] = useState<ChatKey | null>(null);
+  const [soundsOpen, setSoundsOpen] = useState(false);
   const chat = useTogether(initial, tab === "chat" && chatKey != null), calling = useTogetherCall();
   const { partner } = chat.data;
   const callBusy = Boolean(calling.call) || calling.phase !== "idle";
   return <div className="flex h-full min-h-0 w-full flex-col">
     <header className="mono-chat-header flex shrink-0 items-center gap-2 border-b border-line bg-elevated px-2 py-2 sm:gap-3 sm:px-5">
       <Link href="/home" aria-label="Back to MONO" className="tap grid shrink-0 place-items-center rounded-lg text-muted hover:bg-surface"><Icon name="arrowLeft" /></Link>
+      <span aria-hidden="true" className="relative grid size-9 shrink-0 place-items-center rounded-full bg-primary-tint font-display text-lg text-primary">{partner.name.slice(0, 1)}{chat.partnerOnline ? <span className="absolute right-0 bottom-0 size-2.5 rounded-full border-2 border-elevated bg-success" /> : null}</span>
       <div className="min-w-0 flex-1"><h1 className="truncate font-display text-xl font-medium text-ink">{partner.name}</h1>
         <p className="mono-chat-presence truncate text-xs text-muted">{chat.partnerTyping ? "Typing…" : chat.partnerOnline ? "Online" : "Just us · private chat"}</p></div>
       <div className="flex shrink-0 items-center gap-1"><Button size="icon" variant="ghost" aria-label="Voice call" title="Voice call" disabled={callBusy} onClick={() => void calling.start("AUDIO")}><Icon name="phone" /></Button><Button size="icon" variant="ghost" aria-label="Video call" title="Video call" disabled={callBusy} onClick={() => void calling.start("VIDEO")}><Icon name="video" /></Button>
-        {!callBusy ? <CallSetup compact soundsReady={calling.soundsReady} enableSounds={calling.enableCallSounds} /> : null}</div>
+        {!callBusy ? <Button variant="ghost" size="icon" aria-label="Chat sound settings" onClick={() => setSoundsOpen(true)}><Icon name="settings" /></Button> : null}</div>
     </header>
+    <BottomSheet open={soundsOpen} onClose={() => setSoundsOpen(false)} title="Sounds & notifications"><div className="space-y-5"><CallSetup soundsReady={calling.soundsReady} enableSounds={calling.enableCallSounds} /><MusicControls /><Link href="/settings/profile" className="text-sm text-primary underline">Change your ringtone in your profile</Link></div></BottomSheet>
     <div role="tablist" aria-label="Together" className="mono-chat-tabs flex shrink-0 gap-1 border-b border-line px-3 py-1 sm:px-5">{([['chat', 'Chat'], ['games', 'Games · 24'], ['scores', 'Scores']] as const).map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={tab === key} aria-controls={`together-${key}`} id={`tab-${key}`} onClick={() => setTab(key)} className={cn("min-h-9 rounded-lg px-3 py-1 text-sm font-medium", tab === key ? "bg-primary-tint text-primary" : "text-muted hover:bg-surface")}>{label}</button>)}</div>
     {chat.error ? <p role="alert" className="shrink-0 px-3 py-1 text-sm text-error">Live updates paused: {chat.error} <Button variant="link" onClick={() => void chat.refresh()}>Reconnect</Button></p> : null}
     {tab === "chat" ? <section role="tabpanel" id="together-chat" aria-labelledby="tab-chat" className="flex min-h-0 flex-1 flex-col">
@@ -83,7 +88,7 @@ function MessageList({ chatKey, coupleId, append, messages, userId, lastRead, ti
   };
   const day = (value: string) => new Intl.DateTimeFormat("en-GB", { timeZone: timezone, day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
   const time = (value: string) => new Intl.DateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit" }).format(new Date(value));
-  return <div ref={scroll} className="mono-chat-messages min-h-0 flex-1 overflow-y-auto overscroll-contain [overflow-anchor:none] bg-paper px-3 py-2 sm:px-6" onScroll={() => {
+  return <div ref={scroll} className="mono-chat-messages mono-conversation min-h-0 flex-1 overflow-y-auto overscroll-contain [overflow-anchor:none] bg-paper px-3 py-2 sm:px-6" onScroll={() => {
     const el = scroll.current;
     if (!el) return;
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
@@ -92,13 +97,14 @@ function MessageList({ chatKey, coupleId, append, messages, userId, lastRead, ti
     if (nearBottom || el.scrollTop < lastScrollTop.current) atBottom.current = nearBottom;
     lastScrollTop.current = el.scrollTop;
   }}>
+    <p className="mx-auto mb-3 w-fit rounded-full border border-line bg-paper px-3 py-1 text-center text-2xs text-muted">Only you two · Hold a message for options</p>
     {hasOlder ? <div className="mb-4 text-center"><Button variant="ghost" size="sm" loading={loading} onClick={() => void loadOlder()}>Load earlier messages</Button></div> : null}
     {!messages.length ? <div className="grid h-full place-content-center text-center"><p className="font-display text-xl">A little space for the two of you</p><p className="mt-2 text-sm text-muted">Say hello, share a photo, or invite your partner to a game.</p></div> : null}
     <div ref={content} role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions" className="space-y-1">{messages.map((message, index) => {
       const mine = message.senderId === userId;
       return <div key={message.id}>
         {index === 0 || day(messages[index - 1].createdAt) !== day(message.createdAt) ? <p className="my-3 text-center text-2xs text-faint">{day(message.createdAt)}</p> : null}
-        <article aria-label={`${mine ? "You" : "Partner"} ${time(message.createdAt)}`} className={cn("w-fit max-w-[85%] space-y-0.5 rounded-lg px-3 py-1.5 sm:max-w-[65%]", mine ? "ml-auto bg-primary-tint text-ink" : "mr-auto border border-line bg-surface text-ink")}>
+        <article aria-label={`${mine ? "You" : "Partner"} ${time(message.createdAt)}`} className={cn("w-fit max-w-[85%] space-y-0.5 rounded-2xl px-3 py-1.5 sm:max-w-[65%]", mine ? "ml-auto rounded-br-sm bg-primary-tint text-ink" : "mr-auto rounded-bl-sm border border-line bg-surface text-ink")}>
           <SecureMessage message={message} chatKey={chatKey} coupleId={coupleId} mine={mine} append={append} />
           {message.kind === "GAME" && message.gameId ? <Button variant="secondary" size="sm" onClick={() => openGame(message.gameId!)}>Open game</Button> : null}
           <p className="text-right text-2xs text-muted">{time(message.createdAt)}{mine ? ` · ${BigInt(lastRead) >= BigInt(message.sequence) ? "Read" : "Sent"}` : ""}</p>
@@ -116,6 +122,8 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes }: {
   const [cropFiles, setCropFiles] = useState<File[] | null>(null);
   const input = useRef<HTMLTextAreaElement | null>(null), composer = useRef<HTMLDivElement | null>(null);
   const sending = useRef(false), draftVersion = useRef(0);
+  const [pendingDocument, setDocument] = useState<File | null>(null);
+  const documentFile = useRef<HTMLInputElement | null>(null), documentNonce = useRef("");
   const file = useRef<HTMLInputElement | null>(null), nonce = useRef({ identity: "", value: "" }), imageNonce = useRef("");
   const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useLayoutEffect(() => {
@@ -176,6 +184,17 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes }: {
     } catch (error) { setError(errorMessage(error)); }
     finally { sending.current = false; setBusy(false); }
   };
+  const sendDocument = async () => {
+    if (sending.current || failedText || !pendingDocument) return;
+    sending.current = true;
+    setBusy(true); setError(null);
+    try {
+      documentNonce.current ||= crypto.randomUUID();
+      const payload = await encryptDocument(pendingDocument, chatKey, coupleId, userId, documentNonce.current);
+      append(await togetherFetch<MessageDTO>("/api/together/documents", { body: payload }));
+      setDocument(null); documentNonce.current = ""; setToolsOpen(false);
+    } catch (error) { setError(errorMessage(error)); } finally { sending.current = false; setBusy(false); }
+  };
   return <div ref={composer} className="mono-chat-composer min-h-0 shrink-0 space-y-2 overflow-y-auto overscroll-contain border-t border-line bg-elevated px-2 py-2 sm:px-5">
     {error ? <p role="alert" className="text-sm text-error">{error}</p> : null}
     {failedText ? <div className="space-y-1 text-sm">
@@ -184,6 +203,9 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes }: {
       <div className="flex flex-wrap gap-2"><Button size="sm" disabled={busy} onPointerDown={keepComposerFocus} onClick={() => void send("TEXT", failedText.body, failedText)}>Retry message</Button>
         <Button size="sm" variant="ghost" disabled={busy} onPointerDown={keepComposerFocus} onClick={() => { setFailedText(null); setError(null); }}>Dismiss retry</Button></div>
     </div> : null}
+    <BottomSheet open={pendingDocument != null} title="Share a document" onClose={() => { if (!busy) { setDocument(null); documentNonce.current = ""; } }} footer={<Button loading={busy} onClick={() => void sendDocument()}>Send document</Button>}>
+      <div className="flex items-center gap-3"><Icon name="document" /><p className="break-all">{pendingDocument?.name}</p></div><p className="mt-3 text-sm text-muted">End-to-end encrypted · up to 2 MB. Your partner can save a copy.</p>{error ? <p role="alert" className="mt-2 text-sm text-error">{error}</p> : null}
+    </BottomSheet>
     <BottomSheet open={picture != null} onClose={() => { if (!busy) { setPicture(null); imageNonce.current = ""; } }} title="Share a photo"
       footer={<div className="flex gap-2"><Button size="sm" loading={busy} onClick={() => void sendImage()}>Send image</Button><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setPicture(null); imageNonce.current = ""; }}>Cancel image</Button></div>}>
       <label className="block space-y-2 text-sm">Photo access<select aria-label="Photo access" disabled={busy} value={viewLimit} onChange={(event) => { setViewLimit(Number(event.target.value) as 0 | 1 | 2); imageNonce.current = ""; }} className="block w-full rounded-lg border border-line bg-surface p-3"><option value={0}>Keep in chat</option><option value={1}>View once</option><option value={2}>View twice</option></select></label>
@@ -191,13 +213,15 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes }: {
       {picture ? <div className="space-y-2"><PhotoPreview file={picture} /><p className="truncate text-xs text-muted">{picture.name}</p>{error ? <p role="alert" className="text-sm text-error">{error}</p> : null}</div> : null}
     </BottomSheet>
     <form onSubmit={(event) => { event.preventDefault(); void send("TEXT", text.trim()); }} className="space-y-1">
-      {toolsOpen ? <div className="flex flex-wrap items-center gap-1"><Button size="sm" variant="ghost" disabled={busy || !!failedText} onClick={() => setPalette("emoji")}>Emoji</Button><Button size="sm" variant="ghost" disabled={busy || !!failedText} onClick={() => setPalette("stickers")}>Stickers</Button>
-        <Button size="sm" variant="ghost" disabled={busy || !!failedText || imageBytes >= CHAT_IMAGE_SPACE} onClick={() => file.current?.click()}>Photo</Button>
+      {toolsOpen ? <div className="flex flex-wrap items-center gap-1"><Button size="sm" variant="ghost" disabled={busy || !!failedText} onClick={() => setPalette("emoji")}><Icon name="smile" size="sm" />Emoji</Button><Button size="sm" variant="ghost" disabled={busy || !!failedText} onClick={() => setPalette("stickers")}><Icon name="heart" size="sm" />Stickers</Button>
+        <Button size="sm" variant="ghost" disabled={busy || !!failedText || imageBytes >= CHAT_IMAGE_SPACE} onClick={() => file.current?.click()}><Icon name="images" size="sm" />Photo</Button>
+        <Button size="sm" variant="ghost" disabled={busy || !!failedText || imageBytes >= CHAT_IMAGE_SPACE} onClick={() => documentFile.current?.click()}><Icon name="document" size="sm" />Document</Button>
         <span className="ml-auto text-2xs text-faint">{(imageBytes / 1024 / 1024).toFixed(1)} / {CHAT_IMAGE_SPACE / 1024 / 1024} MB</span>
       </div> : null}
         <input ref={file} type="file" accept="image/*" aria-label="Choose a chat image" className="sr-only" tabIndex={-1} onChange={(event) => { const next = event.target.files?.[0]; if (next && !busy && !cropFiles) setCropFiles([next]); event.target.value = ""; }} />
+      <input ref={documentFile} type="file" accept={DOCUMENT_ACCEPT} aria-label="Choose a chat document" className="sr-only" tabIndex={-1} onChange={(event) => { const next = event.target.files?.[0]; event.target.value = ""; if (!next || sending.current || failedText) return; if (!next.size || next.size > DOCUMENT_LIMIT) { setError("Choose a document up to 2 MB."); return; } documentNonce.current = ""; setError(null); setDocument(next); }} />
       <div className="flex items-end gap-2">
-        <Button size="icon" variant="ghost" aria-label={toolsOpen ? "Hide message tools" : "Emoji, stickers and photos"} aria-expanded={toolsOpen} onClick={() => setToolsOpen(!toolsOpen)} className="shrink-0"><Icon name={toolsOpen ? "x" : "plus"} /></Button>
+        <Button size="icon" variant="ghost" aria-label={toolsOpen ? "Hide message tools" : "Emoji, stickers, photos and documents"} aria-expanded={toolsOpen} onClick={() => setToolsOpen(!toolsOpen)} className="shrink-0"><Icon name={toolsOpen ? "x" : "plus"} /></Button>
         <Textarea ref={input} aria-label="Message your partner" placeholder="Message…" className="mono-chat-input min-h-11 flex-1" maxLength={4000} rows={1} value={text} onChange={(event) => edit(event.target.value)} />
         <span className="inline-flex shrink-0 touch-manipulation" onPointerDown={keepComposerFocus}>
           <Button size="icon" aria-label="Send message" type="submit" loading={busy} disabled={!text.trim() || busy || !!failedText}><Icon name="arrowRight" /></Button>

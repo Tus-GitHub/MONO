@@ -19,8 +19,8 @@ export function EmailFormatField({ errors, incorrect = false, feedbackId }: {
 
   return <Field label="Email" htmlFor="email" errors={messages}>
     <Input id="email" name="email" type="email" autoComplete="email" required maxLength={320}
-      value={value} onChange={(event) => { setValue(event.target.value); setTouched(true); }}
-      onBlur={() => setTouched(true)} invalid={incorrect || Boolean(messages?.length)}
+      defaultValue="" onChange={(event) => { setValue(event.target.value); setTouched(true); }}
+      onBlur={(event) => { setValue(event.target.value); setTouched(true); }} invalid={incorrect || Boolean(messages?.length)}
       aria-describedby={messages?.length ? "email-error" : incorrect ? feedbackId : undefined} />
   </Field>;
 }

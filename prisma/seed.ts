@@ -12,13 +12,16 @@ import { resolve } from "node:path";
 
 import { PrismaClient } from "@prisma/client";
 import { createDatabaseAdapter } from "../src/lib/db/pg-adapter.mjs";
+import { createPrivateCrypto } from "../src/lib/privacy/crypto";
+import { withPrivateData } from "../src/lib/privacy/prisma-extension";
 
 import { DEFAULT_REVIEW_CATEGORIES } from "../src/lib/review/default-categories";
 
 // Minimal .env loader so the script works under plain `tsx` (no dotenv dependency).
 function loadDotEnv(): void {
+  for (const filename of [".env.local", ".env"]) {
   try {
-    const raw = readFileSync(resolve(process.cwd(), ".env"), "utf8");
+    const raw = readFileSync(resolve(process.cwd(), filename), "utf8");
     for (const line of raw.split("\n")) {
       const match = /^\s*([\w.-]+)\s*=\s*(.*)?\s*$/.exec(line);
       if (!match) continue;
@@ -36,6 +39,7 @@ function loadDotEnv(): void {
   } catch {
     // no .env file — rely on the ambient environment
   }
+  }
 }
 
 loadDotEnv();
@@ -49,7 +53,8 @@ if (process.env.NODE_ENV === "production" && !process.argv.includes("--force")) 
   process.exit(1);
 }
 
-const prisma = new PrismaClient({ adapter: createDatabaseAdapter(process.env.DATABASE_URL!) });
+const crypto = createPrivateCrypto(process.env.DATA_ENCRYPTION_KEY ?? "");
+const prisma = withPrivateData(new PrismaClient({ adapter: createDatabaseAdapter(process.env.DATABASE_URL!), log: [] }), () => crypto);
 
 async function main() {
   const couples = await prisma.couple.findMany({ select: { id: true } });

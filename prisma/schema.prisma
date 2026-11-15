@@ -189,6 +189,8 @@ enum RecommendationSignal {
 model User {
   id            String    @id @default(cuid())
   email         String    @unique // stored lower-cased by the app layer
+  emailLookup   String?   @unique // HMAC lookup; plaintext email is encrypted in email
+  nameLookup    String? // active exact-case uniqueness via partial SQL index
   emailVerified DateTime?
   passwordHash  String? // null for OAuth-only accounts
   name          String // active exact-case uniqueness: users_active_name_key partial index (SQL migration)
@@ -211,6 +213,11 @@ model User {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
+
+  blockedAt DateTime?
+  moderationEmailHash String?
+  adminAccess AdminAccess?
+  audio UserAudio?
 
   accounts            Account[]
   sessions            AuthSession[]
@@ -246,7 +253,79 @@ model User {
   callSignals            CallSignal[]
 
   @@index([deletedAt])
+  @@index([moderationEmailHash])
   @@map("users")
+}
+
+/// Granted only by the operator CLI, never by public signup or profile updates.
+model UserAudio {
+  userId String @id
+  ringtone Bytes?
+  contentType String?
+  filename String?
+  musicVolume Float @default(0.2)
+  musicEnabled Boolean @default(false)
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("user_audio")
+}
+
+model SiteAudio {
+  id String @id
+  bytes Bytes
+  contentType String
+  title String
+  updatedById String
+  updatedAt DateTime @updatedAt
+  @@map("site_audio")
+}
+
+model AdminAccess {
+  userId String @id
+  loginAlias String? @unique
+  aliasLookup String? @unique
+  grantedAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("admin_access")
+}
+
+/// Email fingerprints stay after account deletion. Never returned in dashboard DTOs.
+model EmailBlock {
+  emailHash String @id
+  accountId String
+  blockedById String
+  reason String
+  createdAt DateTime @default(now())
+  @@map("email_blocks")
+}
+
+/// Independent identifiers preserve moderation history after account removal.
+model AccountReport {
+  id String @id @default(cuid())
+  reporterId String
+  targetId String
+  category String
+  details String
+  status String @default("OPEN")
+  reviewedById String?
+  reviewedAt DateTime?
+  reviewNote String?
+  createdAt DateTime @default(now())
+  @@index([status, createdAt, id])
+  @@index([reporterId, createdAt])
+  @@map("account_reports")
+}
+
+model ModerationAudit {
+  id String @id @default(cuid())
+  actorId String
+  targetId String
+  action String
+  reason String
+  reportId String?
+  createdAt DateTime @default(now())
+  @@index([createdAt, id])
+  @@map("moderation_audit")
 }
 
 /// OAuth / external identities. Present so Google sign-in can be added without a schema change.
@@ -312,6 +391,7 @@ model EmailVerificationToken {
   id        String    @id @default(cuid())
   userId    String
   email     String
+  emailLookup String?
   tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
@@ -376,6 +456,7 @@ model Couple {
 }
 
 enum ChatMessageKind {
+  DOCUMENT
   TEXT
   STICKER
   IMAGE

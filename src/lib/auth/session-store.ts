@@ -17,8 +17,8 @@ export function sessionDeviceLabel(agent: string | null): string {
 export async function createAuthSession(identity: Pick<SessionPayload, "userId" | "tokenVersion">, remember: boolean, agent: string | null = null, pushDeviceId?: string) {
   return serializable(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${identity.userId} FOR UPDATE`;
-    const user = await tx.user.findUnique({ where: { id: identity.userId }, select: { deletedAt: true, tokenVersion: true } });
-    if (!user || user.deletedAt || user.tokenVersion !== identity.tokenVersion) throw new AuthenticationError("Sign in again to continue.");
+    const user = await tx.user.findUnique({ where: { id: identity.userId }, select: { deletedAt: true, blockedAt: true, tokenVersion: true } });
+    if (!user || user.deletedAt || user.blockedAt || user.tokenVersion !== identity.tokenVersion) throw new AuthenticationError("Sign in again to continue.");
     const now = new Date();
     await tx.authSession.deleteMany({ where: { userId: identity.userId, OR: [{ expiresAt: { lte: now } }, { revokedAt: { not: null } }] } });
     const sessions = await tx.authSession.findMany({ where: { userId: identity.userId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], skip: 19, select: { id: true } });
@@ -37,7 +37,7 @@ export async function resolveSessionUser(payload: SessionPayload) {
   const now = new Date();
   const session = await prisma.authSession.findFirst({ where: {
     id: payload.sessionId, userId: payload.userId, tokenVersion: payload.tokenVersion,
-    revokedAt: null, expiresAt: { gt: now }, user: { deletedAt: null, tokenVersion: payload.tokenVersion },
+    revokedAt: null, expiresAt: { gt: now }, user: { deletedAt: null, blockedAt: null, tokenVersion: payload.tokenVersion },
   }, select: {
     lastSeenAt: true,
     user: { select: { id: true, email: true, name: true, avatarUrl: true, emailVerified: true, createdAt: true } },

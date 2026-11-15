@@ -22,5 +22,5 @@ export async function assertNameAvailable(name: string, currentUserId?: string):
 export function isNameConstraint(error: unknown): boolean {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") return false;
   const target = databaseConstraintTarget(error);
-  return Array.isArray(target) ? target.includes("name") : typeof target === "string" && /users_active_name_key|\bname\b/.test(target);
+  return Array.isArray(target) ? target.includes("name") || target.includes("nameLookup") : typeof target === "string" && /users_active_name(?:Lookup)?_key|\bname(?:Lookup)?\b/.test(target);
 }

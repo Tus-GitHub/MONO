@@ -79,6 +79,13 @@ it.each([
 it("does not guess an area for near-me searches without coordinates", async () => {
   expect(await new PhotonPlacesProvider().search({ text: "cafes near me" })).toEqual([]); expect(fetcher).not.toHaveBeenCalled();
 });
+it("accepts Gaur City Mall as a landmark centre and keeps separate location candidates", async () => {
+  const mall = { properties: { name: "Gaur City Mall", osm_key: "shop", osm_value: "mall", city: "Greater Noida" }, geometry: { type: "Point", coordinates: [77.43, 28.6] } };
+  fetcher.mockImplementation(async () => collection([mall, { ...mall, geometry: { type: "Point", coordinates: [77.5, 28.7] } }]));
+  const provider = new PhotonPlacesProvider();
+  expect(await provider.resolveArea("Gaur City Mall")).toEqual({ latitude: 28.6, longitude: 77.43 });
+  expect(await provider.locations("Gaur City Mall")).toHaveLength(2);
+});
 it("keeps same-name outlets with distinct addresses and applies the selected circular radius", async () => {
   const outlet = (id: number, latitude: number, street: string) => ({
     properties: { ...cafe.properties, name: "Social", osm_id: id, osm_value: "restaurant", street },

@@ -10,6 +10,7 @@ export const encryptedBodySchema = z.string().max(24000).superRefine((body, ctx)
 });
 export const secureMessageSchema = z.object({ kind: z.enum(["TEXT", "STICKER"]), body: encryptedBodySchema, clientNonce: z.string().uuid() });
 export const encryptedImageSchema = z.object({ clientNonce: z.string().uuid(), keyId: chatKeyIdSchema, iv: encoded.length(16), data: encoded.min(24).max(710000), width: z.number().int().min(1).max(4096), height: z.number().int().min(1).max(4096), viewLimit: z.union([z.literal(0), z.literal(1), z.literal(2)]) });
+export const encryptedDocumentSchema = z.object({ clientNonce: z.string().uuid(), keyId: chatKeyIdSchema, iv: encoded.length(16), data: encoded.min(24).max(2800000), body: encryptedBodySchema });
 export const chatActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("edit"), id: idSchema, version: z.number().int().nonnegative(), body: encryptedBodySchema }),
   z.object({ action: z.literal("delete-me"), id: idSchema }),

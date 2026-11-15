@@ -19,6 +19,7 @@ const schema = z.object({
   SHADOW_DATABASE_URL: z.string().optional(),
 
   AUTH_SECRET: z.string().min(32, "AUTH_SECRET must be at least 32 characters"),
+  DATA_ENCRYPTION_KEY: z.string().default(""),
   SESSION_COOKIE_NAME: z.string().min(1).default("mono_session"),
   SESSION_MAX_AGE_DAYS: z.coerce.number().int().positive().default(30),
 
@@ -80,6 +81,12 @@ const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
  * Dev/test — and the build — are left permissive.
  */
 const productionSafe = schema.superRefine((v, ctx) => {
+  if (v.NODE_ENV === "production") {
+    const key = Buffer.from(v.DATA_ENCRYPTION_KEY, "base64");
+    if (key.length !== 32 || key.toString("base64") !== v.DATA_ENCRYPTION_KEY) {
+      ctx.addIssue({ code: "custom", path: ["DATA_ENCRYPTION_KEY"], message: "requires a separate base64-encoded 32-byte secret" });
+    }
+  }
   if (!isBuildPhase && v.EMAIL_DRIVER === "smtp") {
     for (const key of ["SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD"] as const) {
       if (!v[key]) ctx.addIssue({ code: "custom", path: [key], message: "required when EMAIL_DRIVER=smtp" });

@@ -1,6 +1,18 @@
+## Continued authorization (2026-11-15)
+User explicitly approved storing the existing DATA_ENCRYPTION_KEY in this MONO Vercel project's production and preview environments and using it for the privacy migration. Both sensitive environment targets are configured; do not regenerate the key. Browser release checks and production rollout continue.
+Final merged validation: 546 unit tests (82 files), lint, and 36 focused integration tests (5 files) passed; initial full integration run passed 213 tests before the published crop/keyboard merge. Browser checks have verified two-device encryption, long-press edit, delete controls, documents and mobile/desktop chat. Completing photos/audio/maps/itinerary checks before build and deployment. Isolated test helpers now wait for transitions and post-login redirects; QA hides the Next.js badge so it cannot intercept composer taps.
+Synced the newly published chat focus/latest-message fix 11f8dde during release preparation. Preserved its retry state and keyboard behavior alongside documents and compact UI, including shared send locking. Rebuilding after this merge. A local production-server attempt correctly refused loopback production credentials; those guards remain unchanged, and live checks will use disposable production fixtures after deployment.
+
+User asks to deploy and keep testing while away, granting device access and broader responsive/usability checks across planning, chat and memories. Continue independently with isolated fixtures, preserve real user data, and report actual validation limits. First pass:539 unit and213 database checks passed. Synced main a2bcb65 and preserved published iPhone keyboard/crop fixes; testing the combined release.
+
+## Active release update (2026-11-15)
+User explicitly requested complete implementation and production deployment: polished long-press chat, E2EE documents, normal attachment saving, personal ringtone/admin music, venue-first timeline planner, Leaflet landmark/map/radius picker in Explore and every date stop. Gaur City Mall was rejected by city-only resolver; now accept landmarks. Existing admin/privacy work must deploy with protected key provisioning and migration. Validation in progress; not yet published.
+
 # Project Memory — MONO
 
 Last updated: 2026-11-15 (chat typing and sending keyboard follow-up in progress)
+
+Last updated: 2026-11-15 (admin panel and private data encryption)
 
 
 
@@ -29,6 +41,10 @@ components. Business rules never live only in React components — they live in
   sending and incoming messages in phone browser/standalone simulations; retain focus and
   latest-message visibility without moving Chat. Fix and deploy, preserving design. Use the
   retained synthetic QA couple and keep its records; physical iPhone testing remains unavailable.
+
+- **Chat interaction, attachments, sound and visual date planning (2026-11-15)** — implemented long-press actions, encrypted documents, normal photo saving, personal ringtone/admin music and venue-first itinerary with Leaflet. User authorized publication and live testing; release checks in progress. Preserve ₹0 services constraint, E2EE and limited-view restrictions.
+
+- **Admin/privacy production rollout (2026-11-15)** — local implementation validated; user approved the existing key for production/preview and the privacy migration. Sensitive Vercel variables are configured. Deployment, backfill and existing verified admin grant/alias follow this release. Follow docs/private-data-encryption.md and docs/admin-panel.md. Preserve existing credentials. admin@mono.com is an alias for the verified mailbox-backed account.
 
 - **Physical encrypted-chat phone verification (2026-11-15)** — live Chromium two-user flows and emulated phone widths passed. Actual iPhone/Samsung PWA, native keyboard and independent cryptographic review remain outside that evidence. Screenshot/recording blocking and attempt detection remain unavailable in a PWA.
 
@@ -236,6 +252,8 @@ components. Business rules never live only in React components — they live in
   encrypted-chat photos can be reframed without another upload. Original sources and record
   references stay intact. Automated local and live two-partner checks passed; WebKit required
   an HTTP transport relay after native TLS failures. See docs/reports/saved-photo-crops-2026-11-15.md.
+
+- **Admin panel and private text/photo encryption — local implementation (2026-11-15)** — standalone verified-admin login/dashboard with IDs/counts/reports, reviewed delete/email-block actions and audit history; no partner setup. Server-managed AES-GCM protects account names/emails, private prose/JSON and uploaded photo bytes with opaque filenames and keyed exact identity indexes. Existing chat E2EE remains separate; scheduling metadata/public venue catalog stay usable. Resumable migration preflights/authenticates and audits existing data. Passed534 unit tests,209 full integration tests,21 final focused integration checks,7 browser checkpoints with desktop/mobile screenshot inspection, TypeScript/full and final lint, and final production build (85 routes; largest26.85MiB; summed538.09MiB; unique29.37MiB). All synthetic browser fixtures cleaned. No new paid service/dependency; production rollout remains pending above.
 
 - **Encrypted chat production release and live QA (2026-11-15)** — pushed `6810807`; Vercel
   dpl_AthShWpFLnhxwWLnDpVDDazjm94o READY on mono-kappa-beryl.vercel.app. Two synthetic partners
@@ -1785,6 +1803,26 @@ Preserved the concurrent encrypted-chat release and verification documentation.
   encrypted-photo fixture was added before the edit tests. Real user data was untouched.
 
 Details: docs/saved-photo-crops.md and docs/reports/saved-photo-crops-2026-11-15.md.
+
+### 2026-11-15 — Private text and uploaded-photo encryption — DONE (local implementation)
+- Latest scope confirmation: calendar/date metadata remains usable; encrypt names/emails, private written content and uploaded photo bytes. Kept existing client chat E2EE and recovery code independent from the server-managed at-rest layer.
+- Added AES-256-GCM with field/file-key context, separate HKDF lookup key, keyed email/name indexes, nested Prisma write/read codec, protected storage wrapper and opaque upload filenames. Preserved ID-only admin DTOs and mailbox-backed admin alias.
+- Added an operator-only resumable field/file migration with preflight authentication, row locks, reference-safe photo replacement and aggregate-only post-audit. Documented server decryption boundaries, email delivery, metadata, key backup and historical-copy limitations in docs/private-data-encryption.md.
+- Fixed migration compatibility for mixed verification tokens/mailboxes, legacy signup uniqueness, quoted name-lookup constraints and Prisma Bytes return shape. Private history searches operate after authorized decryption. Admin deletion queues avatar cleanup before removing its reference.
+- Validation: all534 unit tests and all209 integration tests across20 files passed on isolated local PostgreSQL; TypeScript and focused ESLint passed. Browser admin flow and production build in progress. Production content is unchanged; no new migration, admin grant, key configuration or deployment has run there.
+- Production build subsequently passed:85 routes, largest26.85MiB, summed538.07MiB, unique29.37MiB; full ESLint passed. Missing/malformed DATA_ENCRYPTION_KEY now fails deployment before migrations and production env validation. Local constrained-resource flag enables Webpack memory optimizations, a build worker and one static-generation worker; normal deployment settings remain unchanged.
+- Browser runs61e4598c9ebc9abe,3b66b917f32dc5d3,9237591846fe2d9c,e77748a89cf063e1 were partial/failed, not full passes. Two admin sign-in/ID-only/no-partner checkpoints passed; captured ordinary-login failure showed Puppeteer direct filling cleared a controlled email input. Test now uses stable real keystrokes and retained-value assertions. Local compilation also exceeded navigation timeout under resource pressure. Each run cleaned its own3 synthetic accounts/1 space; no real moderation actions.
+- Final browser run5983ccd2591fc028 passed all7 checkpoints: verified-only admin alias login, direct ID-only admin dashboard without partner setup, ordinary-user denial and partner report, escaped text/375px layout, typed-ID confirmation and blocking, persisted manual report review, confirmed deletion preserving partner and archiving space; zero JavaScript errors. Run6622fca36d6e9479 passed5 checkpoints before a test-only ElementHandle.select misuse, corrected before the successful run. All synthetic accounts/spaces cleaned. Desktop and mobile screenshots inspected.
+- Final codec review fixed negative exact lookup semantics on legacy rows with null indexes and sanitized fallback query failures. Focused21 database tests passed after that change. Repeating the production build/final touched-file lint; production rollout and verified admin grant remain pending, with no live private data migrated.
+- Final production build and touched-file lint exited0 after the last codec/test fixes;85 routes, largest26.85MiB, summed538.09MiB, unique29.37MiB. git diff --check passed. Implementation remains uncommitted and undeployed; no claim that live data or old backups are now encrypted by this new layer.
+
+### 2026-11-15 — Private admin panel — DONE (local implementation; production activation pending)
+- Inspect existing session, signup/OAuth and soft-deletion contracts; preserve encrypted-chat isolation.
+- Latest steering: user cannot receive mail at admin@mono.com but wants a special admin sign-in. Use an alias for the Gmail-backed account with shared password and recovery; do not invent mailbox ownership.
+- Created the requested live Gmail-backed account through normal signup; account ID `cmwgyejzl000008k05sknwekh`. Revoked only the automation signup session. User confirmed mailbox verification and the production read-only check confirmed verified=true. Admin grant/alias require the new schema and provisioning; not yet enabled in production.
+- Latest request: `/admin` must be admin-only with no partner/profile/couple setup. Added dedicated `/admin/login`, direct dashboard redirect and admin sign-out destination; dashboard is outside the couple app layout.
+- Privacy scope added: encrypt account names/emails and private text/photo content at rest. User clarified calendar/date metadata may remain usable; photos and written text must be encrypted. Preserve chat E2EE, explain server-managed identity/media encryption separately. Hold publication while implementing encryption and an existing-data migration. Admin-only release tests before privacy expansion: 530 unit tests expected (529 baseline passed + new proxy case), all 203 integration tests passed on clean local PostgreSQL. Browser QA interrupted by host disk/memory pressure, not accepted as a pass; run checks sequentially, cache disabled.
+- Add account-ID-only dashboard, reports, review confirmations, delete/email-block actions and durable audit records. Validate using isolated local PostgreSQL.
 
 ### 2026-11-15 — Full live crop and upload flow for both partners
 

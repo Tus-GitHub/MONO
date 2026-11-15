@@ -30,7 +30,8 @@ export function ChatEncryption({ coupleId, userId, keyId, onUnlock, refresh }: {
   };
   return <div className="space-y-3 border-b border-line bg-surface p-4">
     <h2 className="font-display text-lg">{keyId ? "Unlock encrypted chat" : "Secure your chat"}</h2>
-    <p className="text-sm text-muted">Messages, stickers and chat photos are encrypted on your device. Keep the recovery code somewhere safe and share it privately with your partner, outside MONO. MONO cannot recover it.</p>
+    <p className="text-sm text-muted">Messages, stickers, photos and documents are encrypted on your device. This browser remembers your key and unlocks automatically next time.</p>
+    <p className="text-sm text-muted">The recovery code connects your partner’s device and restores access on a new phone or after browser data is cleared. Keep it safe and share it privately, outside MONO. MONO cannot recover it.</p>
     {keyId ? <Input aria-label="Private recovery code" type="password" autoComplete="off" value={code} onChange={(event) => setCode(event.target.value)} placeholder="MONO1-…" /> : <>
       {!generated ? <Button size="sm" onClick={() => { setCode(newRecoveryCode()); setGenerated(true); }}>Generate recovery code</Button> : <>
         <p className="break-all rounded-lg bg-paper p-3 font-mono text-sm select-all">{code}</p>

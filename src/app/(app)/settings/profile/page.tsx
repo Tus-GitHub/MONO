@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { requireOnboarded } from "@/lib/onboarding";
 import { getProfile } from "@/server/services/profile-service";
+import { AudioSettingsCard } from "@/components/settings/audio-settings";
 
 export const metadata: Metadata = { title: "Your profile" };
 
@@ -27,6 +28,7 @@ export default async function ProfileSettingsPage() {
           avatarUrl: profile.avatarUrl,
         }}
       />
+      <AudioSettingsCard />
     </div>
   );
 }

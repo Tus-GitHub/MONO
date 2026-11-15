@@ -12,14 +12,16 @@ import { requireCoupleOrOnboard } from "@/lib/authz";
 import { getCoupleMembersLite } from "@/server/services/couple-service";
 import { getUserSettings } from "@/server/services/user-settings-service";
 import { logoutAction } from "@/server/actions/auth";
+import { hasAdminAccess } from "@/lib/auth/admin";
 
 export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const { user, couple } = await requireCoupleOrOnboard();
-  const [settings, members] = await Promise.all([
+  const [settings, members, admin] = await Promise.all([
     getUserSettings(user.id),
     getCoupleMembersLite(couple.id),
+    hasAdminAccess(user.id),
   ]);
   const partner = members.find((m) => m.id !== user.id) ?? null;
 
@@ -38,6 +40,8 @@ export default async function SettingsPage() {
           <Row href="/settings/profile" label="Personal profile" hint="Your name, nickname, pronouns, photo" />
           <Row href="/settings/notifications" label="Reminders & notifications" hint="What MONO nudges you about, and how" />
           <Row href="/settings/privacy" label="Privacy" hint="What's private, what we collect, and what we don't" />
+          <Row href="/report-account" label="Report an account" hint="Send a concern for private, manual review" />
+          {admin ? <Row href="/admin" label="Admin panel" hint="Account IDs, reports and moderation" /> : null}
         </div>
       </section>
 

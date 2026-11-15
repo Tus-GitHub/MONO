@@ -12,14 +12,14 @@ export async function requireSelf(userId: string): Promise<void> {
 /** Lock before creating account-owned capabilities or memberships; deletion uses the same lock. */
 export async function lockLivingUser(tx: Prisma.TransactionClient, userId: string): Promise<void> {
   await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
-  const user = await tx.user.findFirst({ where: { id: userId, deletedAt: null }, select: { id: true } });
+  const user = await tx.user.findFirst({ where: { id: userId, deletedAt: null, blockedAt: null }, select: { id: true } });
   if (!user) throw new AuthenticationError();
 }
 
 /** Check mailbox ownership under the same lock as membership/account writes. */
 export async function lockVerifiedUser(tx: Prisma.TransactionClient, userId: string): Promise<void> {
   const [user] = await tx.$queryRaw<{ emailVerified: Date | null }[]>`
-    SELECT "emailVerified" FROM users WHERE id = ${userId} AND "deletedAt" IS NULL FOR UPDATE
+    SELECT "emailVerified" FROM users WHERE id = ${userId} AND "deletedAt" IS NULL AND "blockedAt" IS NULL FOR UPDATE
   `;
   if (!user) throw new AuthenticationError();
   if (!user.emailVerified) {
