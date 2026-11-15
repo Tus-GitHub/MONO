@@ -2,7 +2,7 @@
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Textarea } from "@/components/ui/input";
@@ -54,17 +54,26 @@ export function TogetherRoom({ initial, userId, userName }: { initial: TogetherS
 function MessageList({ chatKey, coupleId, append, messages, userId, lastRead, timezone, hasOlder, older, openGame }: {
   chatKey: ChatKey; coupleId: string; append: (row: MessageDTO) => void; messages: MessageDTO[]; userId: string; lastRead: string; timezone: string; hasOlder: boolean; older: () => Promise<void>; openGame: (id: string) => void;
 }) {
-  const scroll = useRef<HTMLDivElement | null>(null), atBottom = useRef(true), first = useRef(true), [loading, setLoading] = useState(false);
+  const scroll = useRef<HTMLDivElement | null>(null), content = useRef<HTMLDivElement | null>(null), atBottom = useRef(true), lastScrollTop = useRef(0), first = useRef(true), [loading, setLoading] = useState(false);
   const last = messages[messages.length - 1];
-  useEffect(() => {
+  useLayoutEffect(() => {
     const list = scroll.current;
-    if (list && (first.current || atBottom.current || last?.senderId === userId)) { list.scrollTo({ top: list.scrollHeight, behavior: first.current ? "auto" : "smooth" }); first.current = false; }
+    if (list && (first.current || atBottom.current || last?.senderId === userId)) {
+      atBottom.current = true;
+      list.scrollTop = list.scrollHeight;
+      lastScrollTop.current = list.scrollTop;
+      first.current = false;
+    }
   }, [last?.id, last?.senderId, userId]);
   useEffect(() => {
     const list = scroll.current;
     if (!list) return;
-    const resize = new ResizeObserver(() => { if (atBottom.current) list.scrollTop = list.scrollHeight; });
+    const resize = new ResizeObserver(() => {
+      if (atBottom.current) { list.scrollTop = list.scrollHeight; lastScrollTop.current = list.scrollTop; }
+    });
     resize.observe(list);
+    // Decryption and photo loading can grow bubbles without resizing the scrollport.
+    if (content.current) resize.observe(content.current);
     return () => resize.disconnect();
   }, []);
   const loadOlder = async () => {
@@ -74,10 +83,18 @@ function MessageList({ chatKey, coupleId, append, messages, userId, lastRead, ti
   };
   const day = (value: string) => new Intl.DateTimeFormat("en-GB", { timeZone: timezone, day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
   const time = (value: string) => new Intl.DateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit" }).format(new Date(value));
-  return <div ref={scroll} className="mono-chat-messages min-h-0 flex-1 overflow-y-auto overscroll-contain bg-paper px-3 py-2 sm:px-6" onScroll={() => { const el = scroll.current; if (el) atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100; }}>
+  return <div ref={scroll} className="mono-chat-messages min-h-0 flex-1 overflow-y-auto overscroll-contain [overflow-anchor:none] bg-paper px-3 py-2 sm:px-6" onScroll={() => {
+    const el = scroll.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    // A queued scroll event can arrive after bubbles decrypt and grow. Only an
+    // upward move leaves the pinned position; content growth is not reader intent.
+    if (nearBottom || el.scrollTop < lastScrollTop.current) atBottom.current = nearBottom;
+    lastScrollTop.current = el.scrollTop;
+  }}>
     {hasOlder ? <div className="mb-4 text-center"><Button variant="ghost" size="sm" loading={loading} onClick={() => void loadOlder()}>Load earlier messages</Button></div> : null}
     {!messages.length ? <div className="grid h-full place-content-center text-center"><p className="font-display text-xl">A little space for the two of you</p><p className="mt-2 text-sm text-muted">Say hello, share a photo, or invite your partner to a game.</p></div> : null}
-    <div role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions" className="space-y-1">{messages.map((message, index) => {
+    <div ref={content} role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions" className="space-y-1">{messages.map((message, index) => {
       const mine = message.senderId === userId;
       return <div key={message.id}>
         {index === 0 || day(messages[index - 1].createdAt) !== day(message.createdAt) ? <p className="my-3 text-center text-2xs text-faint">{day(message.createdAt)}</p> : null}
@@ -92,27 +109,64 @@ function MessageList({ chatKey, coupleId, append, messages, userId, lastRead, ti
 }
 function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes }: { chatKey: ChatKey; coupleId: string; userId: string; append: (message: MessageDTO) => void; onTyping: (value: boolean) => void; imageBytes: number }) {
   const [text, setText] = useState(""), [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null);
+  const [failedText, setFailedText] = useState<{ body: string; clientNonce: string } | null>(null);
   const [palette, setPalette] = useState<"emoji" | "stickers" | null>(null), [picture, setPicture] = useState<File | null>(null);
   const [viewLimit, setViewLimit] = useState<0 | 1 | 2>(0);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [cropFiles, setCropFiles] = useState<File[] | null>(null);
-  const input = useRef<HTMLTextAreaElement | null>(null);
+  const input = useRef<HTMLTextAreaElement | null>(null), composer = useRef<HTMLDivElement | null>(null);
+  const sending = useRef(false), draftVersion = useRef(0);
   const file = useRef<HTMLInputElement | null>(null), nonce = useRef({ identity: "", value: "" }), imageNonce = useRef("");
   const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  useEffect(() => { const field = input.current; if (field) { field.style.height = "auto"; field.style.height = `${field.scrollHeight}px`; } }, [text]);
+  useLayoutEffect(() => {
+    const field = input.current, host = composer.current;
+    if (!field || !host) return;
+    const focused = document.activeElement === field;
+    const atEnd = field.selectionStart === field.value.length && field.selectionEnd === field.value.length;
+    const previousScroll = field.scrollTop;
+    field.style.height = "auto";
+    field.style.height = `${field.scrollHeight}px`;
+    // WebKit can reset the textarea's own scroll while sizing it. Keep the caret
+    // visible at the end, and preserve the reader's position when editing earlier text.
+    field.scrollTop = focused && atEnd ? field.scrollHeight : previousScroll;
+    if (!focused) return;
+    const rect = field.getBoundingClientRect(), bounds = host.getBoundingClientRect(), style = getComputedStyle(host);
+    const top = bounds.top + parseFloat(style.paddingTop), bottom = bounds.bottom - parseFloat(style.paddingBottom);
+    // Error/retry controls can grow above the field. Reveal it only inside this
+    // scrollport; never refocus it asynchronously or scroll the page/chat shell.
+    if (rect.bottom > bottom) host.scrollTop += rect.bottom - bottom;
+    else if (rect.top < top) host.scrollTop += rect.top - top;
+  }, [text, error, failedText]);
   useEffect(() => () => { clearTimeout(typingTimer.current); onTyping(false); }, [onTyping]);
-  const edit = (value: string) => { setText(value); onTyping(Boolean(value)); clearTimeout(typingTimer.current); typingTimer.current = setTimeout(() => onTyping(false), 4000); };
-  const send = async (kind: "TEXT" | "STICKER", body: string) => {
-    if (busy || !body.trim()) return;
+  const edit = (value: string) => { draftVersion.current++; setText(value); onTyping(Boolean(value)); clearTimeout(typingTimer.current); if (value) typingTimer.current = setTimeout(() => onTyping(false), 4000); };
+  const keepComposerFocus = (event: PointerEvent<HTMLElement>) => {
+    // Keep the existing keyboard session; asynchronous focus() cannot reliably reopen it on iOS.
+    if (event.isPrimary && event.button === 0 && document.activeElement === input.current) event.preventDefault();
+  };
+  const send = async (kind: "TEXT" | "STICKER", body: string, retry?: NonNullable<typeof failedText>) => {
+    if (sending.current || !body.trim() || (failedText && !retry)) return;
     const identity = `${kind}:${body}`;
-    if (nonce.current.identity !== identity) nonce.current = { identity, value: crypto.randomUUID() };
+    if (!retry && nonce.current.identity !== identity) nonce.current = { identity, value: crypto.randomUUID() };
+    const clientNonce = retry?.clientNonce ?? nonce.current.value;
+    const submittedDraft = text;
+    sending.current = true;
     setBusy(true); setError(null);
-    try { const message = await togetherFetch<MessageDTO>("/api/together", { body: { kind, body: await encryptText(chatKey, body, chatAAD(coupleId, userId, nonce.current.value, kind)), clientNonce: nonce.current.value } }); append(message); if (kind === "TEXT") { setText(""); onTyping(false); } nonce.current = { identity: "", value: "" }; setPalette(null); }
-    catch (error) { setError(errorMessage(error)); }
-    finally { setBusy(false); }
+    if (kind === "TEXT" && !retry) edit("");
+    const clearedVersion = draftVersion.current;
+    try {
+      const message = await togetherFetch<MessageDTO>("/api/together", { body: { kind, body: await encryptText(chatKey, body, chatAAD(coupleId, userId, clientNonce, kind)), clientNonce } });
+      append(message); setFailedText(null); nonce.current = { identity: "", value: "" }; setPalette(null);
+    } catch (error) {
+      setError(errorMessage(error));
+      if (kind === "TEXT" && !retry) {
+        if (draftVersion.current === clearedVersion) edit(submittedDraft);
+        else setFailedText({ body, clientNonce });
+      }
+    } finally { sending.current = false; setBusy(false); }
   };
   const sendImage = async () => {
-    if (busy || !picture) return;
+    if (sending.current || failedText || !picture) return;
+    sending.current = true;
     setBusy(true); setError(null);
     try {
       imageNonce.current ||= crypto.randomUUID();
@@ -120,10 +174,16 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes }: {
       const message = await togetherFetch<MessageDTO>("/api/together/images", { body: payload });
       append(message); setPicture(null); imageNonce.current = "";
     } catch (error) { setError(errorMessage(error)); }
-    finally { setBusy(false); }
+    finally { sending.current = false; setBusy(false); }
   };
-  return <div className="mono-chat-composer min-h-0 shrink-0 space-y-2 overflow-y-auto overscroll-contain border-t border-line bg-elevated px-2 py-2 sm:px-5">
+  return <div ref={composer} className="mono-chat-composer min-h-0 shrink-0 space-y-2 overflow-y-auto overscroll-contain border-t border-line bg-elevated px-2 py-2 sm:px-5">
     {error ? <p role="alert" className="text-sm text-error">{error}</p> : null}
+    {failedText ? <div className="space-y-1 text-sm">
+      <p className="text-muted">Your previous send wasn’t confirmed. Your new draft is kept below.</p>
+      <p className="line-clamp-2 text-ink">{failedText.body}</p>
+      <div className="flex flex-wrap gap-2"><Button size="sm" disabled={busy} onPointerDown={keepComposerFocus} onClick={() => void send("TEXT", failedText.body, failedText)}>Retry message</Button>
+        <Button size="sm" variant="ghost" disabled={busy} onPointerDown={keepComposerFocus} onClick={() => { setFailedText(null); setError(null); }}>Dismiss retry</Button></div>
+    </div> : null}
     <BottomSheet open={picture != null} onClose={() => { if (!busy) { setPicture(null); imageNonce.current = ""; } }} title="Share a photo"
       footer={<div className="flex gap-2"><Button size="sm" loading={busy} onClick={() => void sendImage()}>Send image</Button><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setPicture(null); imageNonce.current = ""; }}>Cancel image</Button></div>}>
       <label className="block space-y-2 text-sm">Photo access<select aria-label="Photo access" disabled={busy} value={viewLimit} onChange={(event) => { setViewLimit(Number(event.target.value) as 0 | 1 | 2); imageNonce.current = ""; }} className="block w-full rounded-lg border border-line bg-surface p-3"><option value={0}>Keep in chat</option><option value={1}>View once</option><option value={2}>View twice</option></select></label>
@@ -131,15 +191,17 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes }: {
       {picture ? <div className="space-y-2"><PhotoPreview file={picture} /><p className="truncate text-xs text-muted">{picture.name}</p>{error ? <p role="alert" className="text-sm text-error">{error}</p> : null}</div> : null}
     </BottomSheet>
     <form onSubmit={(event) => { event.preventDefault(); void send("TEXT", text.trim()); }} className="space-y-1">
-      {toolsOpen ? <div className="flex flex-wrap items-center gap-1"><Button size="sm" variant="ghost" disabled={busy} onClick={() => setPalette("emoji")}>Emoji</Button><Button size="sm" variant="ghost" disabled={busy} onClick={() => setPalette("stickers")}>Stickers</Button>
-        <Button size="sm" variant="ghost" disabled={busy || imageBytes >= CHAT_IMAGE_SPACE} onClick={() => file.current?.click()}>Photo</Button>
+      {toolsOpen ? <div className="flex flex-wrap items-center gap-1"><Button size="sm" variant="ghost" disabled={busy || !!failedText} onClick={() => setPalette("emoji")}>Emoji</Button><Button size="sm" variant="ghost" disabled={busy || !!failedText} onClick={() => setPalette("stickers")}>Stickers</Button>
+        <Button size="sm" variant="ghost" disabled={busy || !!failedText || imageBytes >= CHAT_IMAGE_SPACE} onClick={() => file.current?.click()}>Photo</Button>
         <span className="ml-auto text-2xs text-faint">{(imageBytes / 1024 / 1024).toFixed(1)} / {CHAT_IMAGE_SPACE / 1024 / 1024} MB</span>
       </div> : null}
         <input ref={file} type="file" accept="image/*" aria-label="Choose a chat image" className="sr-only" tabIndex={-1} onChange={(event) => { const next = event.target.files?.[0]; if (next && !busy && !cropFiles) setCropFiles([next]); event.target.value = ""; }} />
       <div className="flex items-end gap-2">
         <Button size="icon" variant="ghost" aria-label={toolsOpen ? "Hide message tools" : "Emoji, stickers and photos"} aria-expanded={toolsOpen} onClick={() => setToolsOpen(!toolsOpen)} className="shrink-0"><Icon name={toolsOpen ? "x" : "plus"} /></Button>
-        <Textarea ref={input} aria-label="Message your partner" placeholder="Message…" className="mono-chat-input min-h-11 flex-1" maxLength={4000} rows={1} value={text} disabled={busy} onChange={(event) => edit(event.target.value)} />
-        <Button className="shrink-0" size="icon" aria-label="Send message" type="submit" loading={busy} disabled={!text.trim() || busy}><Icon name="arrowRight" /></Button>
+        <Textarea ref={input} aria-label="Message your partner" placeholder="Message…" className="mono-chat-input min-h-11 flex-1" maxLength={4000} rows={1} value={text} onChange={(event) => edit(event.target.value)} />
+        <span className="inline-flex shrink-0 touch-manipulation" onPointerDown={keepComposerFocus}>
+          <Button size="icon" aria-label="Send message" type="submit" loading={busy} disabled={!text.trim() || busy || !!failedText}><Icon name="arrowRight" /></Button>
+        </span>
       </div>
     </form>
     {cropFiles ? <ImageCropDialog files={cropFiles} onCancel={() => setCropFiles(null)}

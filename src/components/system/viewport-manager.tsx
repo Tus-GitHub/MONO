@@ -99,7 +99,7 @@ export function ViewportManager() {
     };
     const onFocusOut = () => { allowFocusScroll = false; cancelFocusScroll(); schedule(); };
     const onPointerDown = (event: PointerEvent) => {
-      if (event.target !== document.activeElement) { allowFocusScroll = false; cancelFocusScroll(); }
+      if (!event.defaultPrevented && event.target !== document.activeElement) { allowFocusScroll = false; cancelFocusScroll(); }
     };
 
     apply();

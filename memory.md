@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-15 (iPhone PWA chat keyboard fix deployed and automated checks passed)
+Last updated: 2026-11-15 (chat typing and sending keyboard follow-up in progress)
 
 
 
@@ -24,6 +24,11 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Chat typing/send keyboard continuity (2026-11-15)** — verify both partners' typing,
+  sending and incoming messages in phone browser/standalone simulations; retain focus and
+  latest-message visibility without moving Chat. Fix and deploy, preserving design. Use the
+  retained synthetic QA couple and keep its records; physical iPhone testing remains unavailable.
 
 - **Physical encrypted-chat phone verification (2026-11-15)** — live Chromium two-user flows and emulated phone widths passed. Actual iPhone/Samsung PWA, native keyboard and independent cryptographic review remain outside that evidence. Screenshot/recording blocking and attempt detection remain unavailable in a PWA.
 
@@ -1697,6 +1702,34 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-15 — Keep the keyboard and latest message visible while typing/sending
+
+**IN PROGRESS.** User requests full typing/send verification on phone browser and installed PWA,
+remaining fixes and deployment. Inspect Send's focus transfer/disabled textarea, in-flight draft
+handling and message scrolling after asynchronous decryption. Work isolated in
+`codex/chat-send-keyboard`; automated checks only, with physical-device limits reported accurately.
+Live baseline reproduced one Send tap causing one blur, disabling the input and losing focus.
+Send now prevents pointer focus transfer, leaves the composer editable and clears only the
+submitted draft. Failed requests restore untouched drafts or retain the previous message for
+explicit retry/dismissal alongside a newer draft; a synchronous guard and retained nonce protect
+against duplicate sends. Observe decrypted content growth as well as the scrollport, pin own
+sends immediately, preserve intentional history reading, and reserve space for the newest bubble.
+First local Chromium two-partner run passed 26 checks including slow replies, next-draft typing,
+ambiguous retry and landscape; both sessions revoked. Adding safe-area bounds and a prevented-
+pointer focus regression before final Chromium/WebKit checks and deployment. WebKit exposed
+the long-draft caret resetting to its beginning while autosizing; preserve earlier editing
+positions and reveal the end caret locally. Keep focus on repeated taps in the disabled Send
+area. User requested an update: explained that 16 focused tests and lint pass, but the release
+is not yet live while the local production build and final browser verification are pending.
+Production build passed, followed by 28 WebKit checks with zero blurs. Chromium caught a
+queued-scroll/decryption race in longer history: content growth incorrectly cleared bottom
+pinning. Track upward scroll movement and disable native message-list anchoring; include
+initial history pinning in the final two-engine verification.
+Final local production-build checks pass: Chromium 30 and WebKit 30; zero page errors,
+zero composer blurs, newest bubbles pinned and document/Chat scrolling zero. Real service
+worker active in Chromium standalone mode. All four final-run QA sessions revoked; test
+records retained. Release ready for production deployment and live repetition.
 
 ### 2026-11-15 — iPhone PWA chat shifts upward when the keyboard opens
 

@@ -5,9 +5,9 @@ const lifecycle = vi.hoisted(() => ({ cleanup: undefined as undefined | (() => v
 vi.mock("react", () => ({ useEffect: (effect: () => (() => void)) => { lifecycle.cleanup = effect(); } }));
 afterEach(() => { lifecycle.cleanup?.(); lifecycle.cleanup = undefined; vi.useRealTimers(); vi.unstubAllGlobals(); });
 
-function keyboardFixture(chat: boolean, innerHeight = 844, nested = false) {
+function keyboardFixture(chat: boolean, innerHeight = 844, nested = false, keepFocus = false) {
   vi.useFakeTimers();
-  const events = new Map<string, () => void>();
+  const events = new Map<string, (event?: { target: unknown; defaultPrevented: boolean }) => void>();
   const root = { clientHeight: 844, style: { setProperty: vi.fn(), removeProperty: vi.fn(), scrollBehavior: "" }, setAttribute: vi.fn(), removeAttribute: vi.fn() };
   const scroller = { style: { scrollBehavior: "" }, parentElement: null, scrollHeight: 1000, clientHeight: 300, scrollTop: 100,
     scrollBy: vi.fn(({ top }: { top: number }) => { scroller.scrollTop += top; }) };
@@ -30,6 +30,7 @@ function keyboardFixture(chat: boolean, innerHeight = 844, nested = false) {
   vi.stubGlobal("cancelAnimationFrame", vi.fn());
   ViewportManager();
   events.get("focusin")!();
+  if (keepFocus) events.get("pointerdown")!({ target: {}, defaultPrevented: true });
   vi.advanceTimersByTime(300);
   return { root, scrollBy, scroller };
 }
@@ -56,5 +57,10 @@ it("reveals a covered chat field inside its nested scroller without moving the d
   const { scrollBy, scroller } = keyboardFixture(true, 844, true);
   expect(scroller.scrollBy).toHaveBeenCalledWith({ top: -58, behavior: "auto" });
   expect(scroller.scrollTop).toBe(42);
+  expect(scrollBy).not.toHaveBeenCalled();
+});
+it("keeps focus correction active when Send prevents pointer focus transfer", () => {
+  const { scrollBy, scroller } = keyboardFixture(true, 844, true, true);
+  expect(scroller.scrollBy).toHaveBeenCalledWith({ top: -58, behavior: "auto" });
   expect(scrollBy).not.toHaveBeenCalled();
 });

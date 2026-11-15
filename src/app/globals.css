@@ -83,6 +83,7 @@
   --content-wide: 84rem;
   --prose-max: 42rem;
   --crop-frame-max-height: min(22rem, 42dvh);
+  --chat-message-min: min(3rem, calc(var(--vvh, 100dvh) * 0.2));
 }
 
 .image-crop-frame {
@@ -437,8 +438,11 @@ body:has(.mono-chat-page) {
   resize: none;
 }
 .mono-chat-composer {
-  /* Reserve the header and tabs; large drafts/errors scroll inside the composer. */
-  max-height: max(var(--touch-target), calc(var(--vvh, 100dvh) - var(--touch-target) * 2));
+  /* Reserve the header, tabs and newest message; large drafts/errors scroll inside. */
+  max-height: max(var(--touch-target), calc(var(--vvh, 100dvh) - var(--safe-top) - var(--safe-bottom-visible) - var(--touch-target) * 2 - var(--chat-message-min)));
+}
+.mono-chat-messages {
+  min-height: var(--chat-message-min);
 }
 /* Retain usable controls when a landscape keyboard leaves little visible height. */
 html[data-kb="open"] .mono-chat-header {
