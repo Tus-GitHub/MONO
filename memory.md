@@ -10,7 +10,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (chat typing and sending fixes deployed and verified live)
+Last updated: 2026-11-16 (planner popup and privacy rollout)
 
 Last updated: 2026-11-15 (admin panel and private data encryption)
 
@@ -36,6 +36,9 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Planner icon popup (2026-11-16)** — user requests Add a stop below compact route cards, category icon popup and direct matching venues; implementing and validating before deployment.
+
 
 - **Chat interaction, attachments, sound and visual date planning (2026-11-15)** — implemented long-press actions, encrypted documents, normal photo saving, personal ringtone/admin music and venue-first itinerary with Leaflet. User authorized publication and live testing; release checks in progress. Preserve ₹0 services constraint, E2EE and limited-view restrictions.
 
@@ -243,6 +246,8 @@ components. Business rules never live only in React components — they live in
   Final four QA sessions revoked and records retained. Physical iPhone keyboard remains
   unverified; browser/PWA layouts and keyboard geometry were simulated.
   See docs/reports/chat-send-keyboard-2026-11-15.md.
+- **Planner popup implementation (2026-11-16)** — compact route cards, collapsed chosen day, Add a stop beneath the route, 12 icon tiles and direct matching venue search; per-stop editing retained. Local Chromium E2E passed 11 checks covering this flow, map radius, explicit Save, encrypted chat attachments/actions and personal/admin audio controls. Production deployment and final live check pending. Synced upstream chat scroll-measurement fix 536ed60 before rebuilding.
+
 
 - **iPhone PWA chat keyboard shift (2026-11-15)** — deployed in 1e06c8c + 45c57e1.
   Corrected viewport offsets and chat/document scroll containment; keep the composer visible
@@ -1723,6 +1728,14 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-16 — Planner popup and release follow-up
+- Replaced the crowded inline activity palette with a MONO-styled icon sheet. Category selection creates a local stop and opens matching venues after the previous sheet releases its browser history entry. Each route card expands for details; Add remains beneath the route. Only explicit Save buttons submit.
+- Existing b698dac release is live. Live disposable-account checks passed encrypted messages/documents/photo view limits/edit/delete/ringtone plus map/itinerary/memory flows and seven pages at 320/390/768/1440 widths; fixtures cleaned. Admin grant and alias provisioned for the existing verified account without resetting credentials.
+- New local popup regression: 11 browser checks passed, including global music playback, 20% default and mute persistence. Artifacts: .postgres-test/e2e/1fb6069e861cb82f. Lint/type checks passed.
+- Updated Next/eslint-config-next to 16.4.6, sharp to 0.35.5 and source-map-js patch; runtime audit has no critical advisories, four high advisories remain in Prisma config/deepmerge and Zod requiring separate major upgrades. No forced dependency migration.
+- Privacy backfill will run once with production storage credentials on Vercel after explicit activation. Audit-only scan optimized; six private-data integration tests passed. This remains pending until post-audit reports zero.
+
 
 ### 2026-11-15 — Keep the keyboard and latest message visible while typing/sending
 
@@ -4059,3 +4072,5 @@ is READY. Live flow cbd4ca1495 passed all 9 checkpoints with no JavaScript error
 sessions. Earlier failed readiness/network attempts remain recorded, not presented as passes.
 Only synthetic QA data was used. Real-user recovery setup/history migration and actual physical
 phone behavior are not claimed complete. Final evidence documentation is being published.
+## Planner popup refinement (2026-11-16)
+User supplied a DateFlow reference and requested MONO-styled icon tiles in an Add-stop popup, replacing the crowded inline options and eliminating scrolling back up to add the next stop. Implement compact editable route cards with an Add a stop control below the route; selecting a tile goes directly to matching venues. Continue authorized deployment/privacy backfill and live validation alongside this refinement.

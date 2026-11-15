@@ -40,12 +40,8 @@ export async function migratePrivateFields(raw: PrismaClient, crypto: PrivateCry
     for (;;) {
       const rows = await delegate(raw, name).findMany({ orderBy: { [pk]: "asc" }, take: 100,
         ...(cursor === undefined ? {} : { cursor: { [pk]: cursor }, skip: 1 }) });
-      for (const snapshot of rows) {
-        await raw.$transaction(async (tx) => {
-          const id = snapshot[pk];
-          await tx.$queryRaw(Prisma.sql`SELECT ${Prisma.raw(`"${pk}"`)} FROM ${Prisma.raw(`"${table}"`)} WHERE ${Prisma.raw(`"${pk}"`)} = ${id} FOR UPDATE`);
-          const row = await delegate(tx, name).findUnique({ where: { [pk]: id } });
-          if (!row) return;
+      const inspect = async (row: Row, tx: PrismaClient | Prisma.TransactionClient = raw) => {
+          const id = row[pk];
           stats.rows++;
           const patch: Row = {};
           for (const field of privateTextFields[name] ?? []) {
@@ -78,6 +74,15 @@ export async function migratePrivateFields(raw: PrismaClient, crypto: PrivateCry
             await delegate(tx, name).update({ where: { [pk]: id }, data });
             stats.changed++;
           }
+      };
+      for (const snapshot of rows) {
+        // Audit the already-loaded batch without locking or rereading every row.
+        if (!apply) { await inspect(snapshot); continue; }
+        await raw.$transaction(async (tx) => {
+          const id = snapshot[pk];
+          await tx.$queryRaw(Prisma.sql`SELECT ${Prisma.raw(`"${pk}"`)} FROM ${Prisma.raw(`"${table}"`)} WHERE ${Prisma.raw(`"${pk}"`)} = ${id} FOR UPDATE`);
+          const current = await delegate(tx, name).findUnique({ where: { [pk]: id } });
+          if (current) await inspect(current, tx);
         }, { timeout: 15000 });
       }
       if (rows.length < 100) break;

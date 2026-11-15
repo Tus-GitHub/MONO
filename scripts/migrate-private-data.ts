@@ -16,10 +16,14 @@ async function main() {
     // Validate every existing ciphertext and file before writing anything. A wrong
     // key or missing source must not leave an avoidable partially migrated dataset.
     if (apply) {
+      console.log("Private-data preflight: protected fields.");
       await migratePrivateFields(raw, crypto, false);
+      console.log("Private-data preflight: referenced files.");
       await migratePrivateFiles(raw, driver, crypto, false);
     }
+    console.log("Private-data migration: protected fields.");
     const fields = await migratePrivateFields(raw, crypto, apply);
+    console.log("Private-data migration: referenced files.");
     const files = await migratePrivateFiles(raw, driver, crypto, apply);
     console.log(JSON.stringify({ apply, fields, files }));
     if (apply) {

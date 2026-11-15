@@ -34,6 +34,8 @@ Prisma query extensions do not automatically invoke hooks for nested operations,
 
 ## Verification
 
+For the approved one-time production rollout, `MONO_PRIVACY_BACKFILL=1` runs the operator with `--apply` during `vercel-build`, after schema migration. Enable it only once the encryption-aware application is live and older deployments are protected. This uses Vercel's existing storage credentials and encryption key without exporting secrets. After a successful zero-plaintext audit, disable the flag (`0` or remove it). Preview builds never run this backfill. The operator reports stages and aggregate counts only.
+
 Cryptographic tests cover nonce variation, wrong-key/tamper/context rejection, file-key binding and round trips. Database tests inspect raw stored values, nested writes, rollback, mixed-data uniqueness/verification, repeatable migration and retirement of photo variants. The existing integration suite also exercises chat view limits/edit/delete, account/session revocation, moderation, calls, history and authorized photo routes with this layer enabled.
 
 Implementation references: [Node.js crypto](https://nodejs.org/api/crypto.html), [Prisma query extensions](https://www.prisma.io/docs/orm/v6/prisma-client/client-extensions/query).

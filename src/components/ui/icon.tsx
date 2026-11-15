@@ -8,6 +8,11 @@ import { cn } from "@/lib/utils/cn";
  * generic-SaaS glyph pack. Add glyphs to `GLYPHS` as needed.
  */
 const GLYPHS = {
+  coffee: <><path d="M4 8h12v7a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8ZM16 9h2a3 3 0 1 1 0 6h-2M3 22h16M7 2v3M12 2v3" /></>,
+  utensils: <><path d="M4 3v6a3 3 0 0 0 6 0V3M7 3v19M20 22V3c-4 2-5 6-5 10h5" /></>,
+  film: <><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M7 3v18M17 3v18M3 8h4M3 16h4M17 8h4M17 16h4M7 12h10" /></>,
+  shoppingBag: <><path d="M4 7h16l1 14H3L4 7ZM8 8V5a4 4 0 0 1 8 0v3" /></>,
+  bed: <><path d="M3 19v-9h18v9M3 16h18M5 10V4h14v6M7 7h3M14 7h3" /></>,
   crop: <path d="M6 3v12a3 3 0 0 0 3 3h12M3 6h12a3 3 0 0 1 3 3v12" />,
   document: <><path d="M14 2H5v20h14V7l-5-5Z" /><path d="M14 2v5h5M8 12h8M8 16h6" /></>,
   download: <><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5" /></>,

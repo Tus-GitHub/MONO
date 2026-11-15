@@ -5,14 +5,22 @@ import path from "node:path";
 import bcrypt from "bcryptjs";
 import sharp from "sharp";
 
-export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifactDir, allowGlobalAudio = true, responsiveSmoke = false }) {
+export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifactDir, allowGlobalAudio = true, responsiveSmoke = false, plannerOnly = false }) {
   let checks = 0; const contexts = [], errors = [];
   const pass = (label) => { checks++; console.log(`PASS chat-planner: ${label}`); };
   const password = randomBytes(20).toString("hex"), passwordHash = await bcrypt.hash(password, 12);
   const users = await Promise.all(["owner", "partner"].map((role) => prisma.user.create({ data: { email: `e2e-${runId}-${role}@example.invalid`, name: `${role} ${runId}`, passwordHash, emailVerified: new Date(), profileCompletedAt: new Date() } })));
   const couple = await prisma.couple.create({ data: { name: "Our QA route", createdById: users[0].id, inviteCode: randomBytes(15).toString("hex"), setupCompletedAt: new Date(), status: "ACTIVE", timezone: "Asia/Kolkata", members: { create: users.map((u, i) => ({ userId: u.id, role: i ? "PARTNER" : "OWNER", status: "ACTIVE" })) } } });
   const click = async (page, label) => {
-    await page.locator(`xpath=//button[normalize-space(.)=${JSON.stringify(label)}]`).click();
+    const selector = `xpath=//button[normalize-space(.)=${JSON.stringify(label)}]`;
+    const target = await page.locator(selector).waitHandle();
+    await target.evaluate((el) => el.scrollIntoView({block:"center",behavior:"instant"}));
+    await page.waitForFunction((label) => {
+      const el=[...document.querySelectorAll("button")].find(el=>el.textContent.trim()===label && !el.disabled); if(!el)return false;
+      const r=el.getBoundingClientRect(); const hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
+      return hit && el.contains(hit);
+    }, {}, label);
+    await page.locator(selector).setEnsureElementIsInTheViewport(false).click(); await target.dispose();
   };
   const fill = async (page, selector, value) => { await page.locator(selector).click(); await page.keyboard.down("Control"); await page.keyboard.press("KeyA"); await page.keyboard.up("Control"); await page.keyboard.press("Backspace"); await page.type(selector, value, { delay: 3 }); assert.equal(await page.$eval(selector, (el) => el.value), value, "Typed field value was not retained"); };
   const text = (page, value) => page.waitForFunction((value) => document.body.innerText.includes(value), {}, value);
@@ -37,13 +45,15 @@ export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifact
   const api = (page, body) => page.evaluate(async (body) => { const r = await fetch("/api/audio", { method: body ? "POST" : "GET", headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined }); return { status: r.status, value: await r.json() }; }, body);
   try {
     const owner = await pageFor(users[0]);
+    let partner;
+    if (!plannerOnly) {
     await click(owner, "Generate recovery code");
     await owner.waitForSelector("p.select-all");
     const code = await owner.$eval("p.select-all", (el) => el.textContent);
     await owner.locator('input[type="checkbox"]').click(); await click(owner, "Enable encrypted chat");
     await owner.waitForSelector('[aria-label="Message your partner"]');
     await fill(owner, '[aria-label="Message your partner"]', "A little adventure for us"); await owner.locator('[aria-label="Send message"]').click(); await text(owner, "A little adventure for us");
-    const partner = await pageFor(users[1]); await fill(partner, '[aria-label="Private recovery code"]', code); await click(partner, "Unlock on this device"); await text(partner, "A little adventure for us");
+    partner = await pageFor(users[1]); await fill(partner, '[aria-label="Private recovery code"]', code); await click(partner, "Unlock on this device"); await text(partner, "A little adventure for us");
     pass("both devices unlock and decrypt the real sent message");
     await owner.bringToFront();
     const message = await owner.$('.mono-message > p'); const box = await message.boundingBox();
@@ -109,25 +119,44 @@ export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifact
     await click(partner, "Pause music");
     pass("admin song reaches users with default 20% and persistent playback/volume controls");
     }
+    }
     await goto(owner, "/plan/new"); await text(owner, "Make a day of it.");
-    await click(owner, "Tomorrow"); await click(owner, "Arcade");
-    await click(owner, "Afternoon"); await click(owner, "Hotel");
+    await click(owner, "Tomorrow"); await click(owner, "Add your first stop");
+    await click(owner, "Cancel"); await owner.waitForFunction(() => !document.querySelector('[role="dialog"]'));
+    assert.equal(await owner.$$eval('.mono-itinerary-stop', (rows) => rows.length), 0);
+    await click(owner, "Add your first stop");
+    await owner.setViewport({ width: 320, height: 700, isMobile: true, hasTouch: true });
+    assert.equal(await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
+    await owner.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+    await owner.screenshot({ path: path.join(artifactDir, "activity-popup-mobile.png") });
+    await click(owner, "Arcade"); await text(owner, "Choose on map");
+    await owner.waitForFunction(() => [...document.querySelectorAll('[role="dialog"] button[aria-pressed="true"]')].some((el) => el.textContent.includes("Activities")));
+    await owner.keyboard.press("Escape"); await owner.waitForFunction(() => !document.querySelector('[role="dialog"]'));
+    await owner.locator('[aria-label="Edit stop 1"]').click(); await click(owner, "Afternoon"); await click(owner, "Done editing");
+    await click(owner, "Add a stop"); await click(owner, "Hotel"); await text(owner, "Choose on map");
+    await owner.waitForFunction(() => [...document.querySelectorAll('[role="dialog"] button[aria-pressed="true"]')].some((el) => el.textContent.includes("Staycation")));
     assert.equal(await prisma.date.count({ where: { coupleId: couple.id } }), 0);
     pass("adding route stops creates no database date before Save");
-    await click(owner, "Find our first venue"); await click(owner, "Choose on map");
+    await click(owner, "Choose on map");
     await owner.waitForSelector(".leaflet-container");
     await click(owner, "Use map centre"); await owner.select('[aria-label="Map search radius"]', "10");
     await click(owner, "Search within 10 km of this pin"); await text(owner, "Within 10 km.");
     pass("nested Leaflet picker selects a pin and updates venue search radius");
-    // Close the venue finder without saving an arbitrary map location as a real venue.
-    await owner.keyboard.press("Escape");
+    // Choose a clearly synthetic custom venue rather than inventing a real place at the map pin.
+    await owner.locator('[role="tab"][id$="custom"]').click();
+    await fill(owner, "#cp-name", "QA private retreat"); await owner.select("#cp-category", "TRAVEL");
+    await click(owner, "Use this place"); await owner.waitForFunction(() => !document.querySelector('[role="dialog"]'));
+    await text(owner, "QA private retreat");
+    assert.equal(await prisma.date.count({ where: { coupleId: couple.id } }), 0);
+    await owner.evaluate(() => window.scrollTo({top:0,behavior:"instant"}));
     await owner.screenshot({ path: path.join(artifactDir, "itinerary-mobile.png"), fullPage: true });
     assert.equal(await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
     await click(owner, "Save date"); await owner.waitForFunction(() => location.pathname.startsWith("/dates/"));
     const saved = await prisma.date.findFirst({ where: { coupleId: couple.id }, include: { activities: { orderBy: { sortOrder: "asc" } } } });
-    assert.equal(saved.activities.length, 2); assert.ok(saved.activities[0].startAt); assert.ok(saved.activities[1].startAt);
+    assert.equal(saved.activities.length, 2); assert.ok(saved.activities[0].startAt); assert.ok(saved.activities[1].startAt); assert.ok(saved.activities[1].placeId);
     pass("one-screen route saves both stops and their times in one explicit action");
     if (responsiveSmoke) {
+      partner ??= await pageFor(users[1]);
       await goto(owner, `/dates/${saved.id}`); await click(owner, "Start the date");
       await text(owner, "Mark completed"); await click(owner, "Mark completed");
       await goto(owner, `/dates/${saved.id}/memory`);

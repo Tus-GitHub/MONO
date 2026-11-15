@@ -23,7 +23,7 @@ import { localPlanSchema, type LocalPlan } from "@/lib/validation/new-plan";
 import { PLAN_CATEGORIES, categoryFromPlanTitle, venueCategoryKey } from "@/lib/date/plan-discovery";
 
 import { afterMinutes, planStepErrors } from "@/lib/date/plan-validation";
-import { ACTIVITY_PRESETS } from "@/lib/date/activity-palette";
+import { AddStopSheet, STOP_CHOICES } from "./add-stop-sheet";
 import { saveNewPlanAction } from "@/server/actions/plan";
 import type { ActionState } from "@/lib/utils/result";
 import type { SavedPlaceOption } from "@/server/services/plan-service";
@@ -40,7 +40,9 @@ export function NewPlanEditor({ initial, userId, coupleId, timezone, savedPlaces
   const [showErrors, setShowErrors] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   useValidationFocus(formRef, showErrors, "itinerary");
-  const [custom, setCustom] = useState("");
+  const [addingStop, setAddingStop] = useState(false);
+  const [editingStop, setEditingStop] = useState<string | null>(null);
+  const [changingDay, setChangingDay] = useState(false);
   const saveKey = useRef("");
   const navigated = useRef<string | null>(null);
   const router = useRouter();
@@ -62,14 +64,15 @@ export function NewPlanEditor({ initial, userId, coupleId, timezone, savedPlaces
   }, [state, clear, router]);
 
   const patch = <K extends keyof LocalPlan>(key: K, value: LocalPlan[K]) => setValue((current) => ({ ...current, [key]: value }));
-  const add = (title: string, duration?: number) => {
+  const add = (title: string, duration?: number, findVenue = false) => {
     if (!title.trim() || draft.activities.length >= 40) return;
+    const key = crypto.randomUUID();
     setValue((current) => {
       const last = current.activities.at(-1);
       const startTime = last ? afterMinutes(last.endTime || afterMinutes(last.startTime || current.startTime, Number(last.duration) || 60), 15) : current.startTime;
-      return { ...current, activities: [...current.activities, { key: crypto.randomUUID(), title: title.trim(), duration: duration ? String(duration) : "", cost: "", savedPlaceId: !last && current.place?.selection.mode === "saved" ? current.place.selection.savedPlaceId : "", place: !last ? current.place : null, startTime, endTime: startTime ? afterMinutes(startTime, duration ?? 60) : "" }] };
+      return { ...current, activities: [...current.activities, { key, title: title.trim(), duration: duration ? String(duration) : "", cost: "", savedPlaceId: !last && current.place?.selection.mode === "saved" ? current.place.selection.savedPlaceId : "", place: !last ? current.place : null, startTime, endTime: startTime ? afterMinutes(startTime, duration ?? 60) : "" }] };
     });
-    setCustom("");
+    if (findVenue) { setPickerTarget(key); setPickerCategory(venueCategoryKey(categoryFromPlanTitle(title))); setPicker(true); }
   };
   const categoryKey = venueCategoryKey(draft.category || categoryFromPlanTitle(draft.title));
   const errors = showErrors ? planStepErrors(plan, "review", timezone) : {};
@@ -79,7 +82,9 @@ export function NewPlanEditor({ initial, userId, coupleId, timezone, savedPlaces
     sortOrder, placeId: activity.savedPlaceId || null, placeName: null }));
 
   return <form ref={formRef} action={save} className="space-y-6" noValidate onKeyDown={(event) => { if (event.key === "Enter" && event.target instanceof HTMLInputElement) event.preventDefault(); }} onSubmit={(event) => {
-    if ((event.nativeEvent as SubmitEvent).submitter?.getAttribute("value") !== "plan") return;
+    const mode = (event.nativeEvent as SubmitEvent).submitter?.getAttribute("value");
+    if (mode !== "plan" && mode !== "draft") { event.preventDefault(); return; }
+    if (mode === "draft") return;
     if (Object.keys(planStepErrors(plan, "review", timezone)).length) { event.preventDefault(); setShowErrors(true); }
   }}>
     <PendingFields className="space-y-6">
@@ -91,20 +96,26 @@ export function NewPlanEditor({ initial, userId, coupleId, timezone, savedPlaces
       </header>
       <FormFeedback state={state} />
       <div className="space-y-5">
-        <div><p className="mb-2 text-sm font-medium text-ink">Where shall we begin?</p>
-          <Button variant="secondary" fullWidth onClick={() => { setPickerTarget(null); setPicker(true); }}><span className="truncate">{plan.place ? `${plan.place.name} · Change` : "Find our first venue"}</span></Button>
-          {plan.place?.address ? <p className="mt-2 text-xs text-muted">{plan.place.address}</p> : null}
+        <div><p className="mb-2 text-sm font-medium text-ink">When?</p>
+          {draft.date && !changingDay && !errors.date ? <Button variant="secondary" fullWidth onClick={() => setChangingDay(true)}><Icon name="calendar" size="sm" />{new Intl.DateTimeFormat("en", { weekday: "short", day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(`${draft.date}T12:00:00Z`))}<span className="text-muted">· Change day</span></Button>
+            : <DatePicker value={draft.date} onChange={(value) => { patch("date", value ?? ""); if (value) setChangingDay(false); }} timezone={timezone} invalid={Boolean(errors.date)} />}
+          {error("date")}
         </div>
-        <div><p className="mb-2 text-sm font-medium text-ink">When?</p><DatePicker value={draft.date} onChange={(value) => { patch("date", value ?? ""); }} timezone={timezone} invalid={Boolean(errors.date)} />{error("date")}</div>
-        <p className="text-xs text-muted">Each stop has its own time below · {timezone}</p>
       </div>
       <section aria-label="Date itinerary" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-display text-xl">Your little route · {draft.activities.length} stops</h2>{draft.activities.length > 1 ? <Button variant="ghost" size="sm" disabled={!draft.activities[0].startTime} onClick={() => patch("activities", scheduleItinerary(draft.activities, draft.activities[0].startTime!))}><Icon name="clock" size="sm" /> Arrange times · 15 min between stops</Button> : null}</div>
-        <div className="flex flex-wrap gap-2">{[...ACTIVITY_PRESETS, { key: "arcade", title: "Arcade", icon: "gamepad" as const, durationMinutes: 60 }, { key: "hotel", title: "Hotel", icon: "home" as const, durationMinutes: 120 }].map((preset) => <Chip key={preset.key} onClick={() => add(preset.title, preset.durationMinutes)}><Icon name={preset.icon} size="sm" />{preset.title}</Chip>)}</div>
-        <div className="flex gap-2"><Input className="min-w-0" aria-label="Custom event" value={custom} onChange={(event) => setCustom(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); add(custom); } }} placeholder="And then… add your next stop" />
-          <Button className="shrink-0 whitespace-nowrap" variant="secondary" onClick={() => add(custom)}>Add</Button></div>
         {draft.activities.map((activity, position) => <div key={activity.key} className="mono-itinerary-stop relative ml-4 min-w-0 space-y-3 rounded-2xl border border-line border-l-primary bg-surface p-4 pl-6">
           <span className="absolute -left-4 top-4 grid size-8 place-items-center rounded-full border border-primary/25 bg-paper text-sm font-semibold text-primary">{position + 1}</span>
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary-tint text-primary"><Icon name={STOP_CHOICES.find((choice) => choice.title === activity.title)?.icon ?? "heart"} /></span>
+            <div className="min-w-0 flex-1"><h3 className="font-medium text-ink">{activity.title}</h3>
+              <p className="truncate text-sm text-muted">{activity.place?.name ?? savedPlaces.find((place) => place.id === activity.savedPlaceId)?.name ?? "A place to discover"}</p>
+              <button type="button" className="mt-2 inline-flex items-center gap-1 text-xs text-primary" onClick={() => setEditingStop(activity.key)}><Icon name="clock" size="sm" />{activity.startTime ? `${activity.startTime}–${activity.endTime || "…"}` : "Set a time"}{activity.duration ? ` · ${activity.duration} min` : ""}</button>
+            </div>
+            <Button variant="ghost" size="icon" aria-label={`Edit stop ${position + 1}`} aria-expanded={editingStop === activity.key} onClick={() => setEditingStop(editingStop === activity.key ? null : activity.key)}><Icon name="chevronDown" size="sm" /></Button>
+          </div>
+          {!activity.place && !activity.savedPlaceId && editingStop !== activity.key ? <Button variant="secondary" size="sm" onClick={() => { setPickerTarget(activity.key); setPickerCategory(venueCategoryKey(categoryFromPlanTitle(activity.title))); setPicker(true); }}><Icon name="mapPin" size="sm" />Find a venue</Button> : null}
+          {editingStop === activity.key || Object.keys(errors).some((key) => key.startsWith(`activities.${position}.`)) ? <div className="space-y-3 border-t border-line pt-4">
           <Field label={`Stop ${position + 1}`} htmlFor={`activity-${activity.key}`} errors={errors[`activities.${position}.title`]}><Input invalid={Boolean(errors[`activities.${position}.title`])} id={`activity-${activity.key}`} value={activity.title} onChange={(event) => patch("activities", draft.activities.map((row) => row.key === activity.key ? { ...row, title: event.target.value } : row))} /></Field>
           <div className="space-y-2"><p className="text-sm font-medium text-ink">Venue for this stop</p>
             <Button variant="secondary" className="max-w-full" onClick={() => { setPickerTarget(activity.key); setPickerCategory(venueCategoryKey(categoryFromPlanTitle(activity.title))); setPicker(true); }}><span className="truncate">{activity.place?.name ?? savedPlaces.find((place) => place.id === activity.savedPlaceId)?.name ?? "Find a venue"}</span></Button>
@@ -119,7 +130,12 @@ export function NewPlanEditor({ initial, userId, coupleId, timezone, savedPlaces
 </div></details>
           <div className="flex gap-3"><Button variant="ghost" disabled={!position} onClick={() => { const next = [...draft.activities]; [next[position - 1], next[position]] = [next[position], next[position - 1]]; patch("activities", next); }}>Move up</Button>
             <Button variant="ghost" onClick={() => patch("activities", draft.activities.filter((row) => row.key !== activity.key))}>Remove</Button></div>
+          <Button variant="secondary" fullWidth onClick={() => setEditingStop(null)}>Done editing</Button>
+          </div> : null}
         </div>)}
+        <Button variant="secondary" fullWidth className="border-dashed py-6" disabled={draft.activities.length >= 40} onClick={() => setAddingStop(true)}><Icon name="plus" size="sm" />{draft.activities.length ? "Add a stop" : "Add your first stop"}</Button>
+        {!draft.activities.length ? <p className="text-center text-sm text-muted">A coffee, a movie, a little detour. Start with one.</p> : null}
+        <p className="text-xs text-faint">Times are in {timezone}. Tap a stop to adjust its details.</p>
       </section>
       <details className="rounded-xl border border-line p-4" open={showErrors || undefined}><summary className="cursor-pointer font-medium text-muted">Name, budget & a note for us · optional</summary><div className="mt-4 space-y-4">
         <Field label="Date name" htmlFor="new-title" errors={errors.title}><Input id="new-title" value={draft.title} maxLength={160} invalid={Boolean(errors.title)}
@@ -144,6 +160,7 @@ export function NewPlanEditor({ initial, userId, coupleId, timezone, savedPlaces
       </div>
       {Object.keys(errors).length ? <p role="alert" className="text-sm text-error">{Object.values(errors).flat().join(" ")}</p> : null}
     </PendingFields>
+    {addingStop ? <AddStopSheet onClose={() => setAddingStop(false)} onChoose={(title, minutes) => add(title, minutes, true)} /> : null}
     <PlacePickerSheet open={pickerOpen} onClose={() => { setPicker(false); setPickerTarget(null); }} categoryKey={pickerTarget ? pickerCategory : categoryKey}
       onCategoryChange={(key) => { if (pickerTarget) setPickerCategory(key); else patch("category", key ?? "all"); }} activities={activities}
       onChooseLocal={(place) => {

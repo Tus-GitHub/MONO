@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils/cn";
 interface BottomSheetProps {
   open: boolean;
   onClose: () => void;
+  onAfterClose?: () => void;
   title?: ReactNode;
   description?: ReactNode;
   children?: ReactNode;
@@ -28,6 +29,7 @@ const DISMISS_THRESHOLD = 96;
 export function BottomSheet({
   open,
   onClose,
+  onAfterClose,
   title,
   description,
   children,
@@ -43,7 +45,7 @@ export function BottomSheet({
   useScrollLock(mounted);
   useFocusTrap(panelRef, visible);
   useEscapeKey(onClose, mounted);
-  useBackButton(onClose, open);
+  useBackButton(onClose, open, (stayedOnPage) => { if (stayedOnPage) onAfterClose?.(); });
 
   const onPointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
     startY.current = event.clientY;
