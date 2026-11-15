@@ -122,7 +122,7 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes }: {
     } catch (error) { setError(errorMessage(error)); }
     finally { setBusy(false); }
   };
-  return <div className="shrink-0 space-y-2 border-t border-line bg-elevated px-2 py-2 sm:px-5">
+  return <div className="mono-chat-composer min-h-0 space-y-2 overflow-y-auto overscroll-contain border-t border-line bg-elevated px-2 py-2 sm:px-5">
     {error ? <p role="alert" className="text-sm text-error">{error}</p> : null}
     <BottomSheet open={picture != null} onClose={() => { if (!busy) { setPicture(null); imageNonce.current = ""; } }} title="Share a photo"
       footer={<div className="flex gap-2"><Button size="sm" loading={busy} onClick={() => void sendImage()}>Send image</Button><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setPicture(null); imageNonce.current = ""; }}>Cancel image</Button></div>}>

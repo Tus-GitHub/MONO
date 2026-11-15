@@ -11,11 +11,14 @@ export function viewportGeometry({
     return { top: 0, height: layout, bottom: 0, keyboardOpen: false };
   }
   const height = Math.min(layout, visualHeight);
-  const top = Math.min(Math.max(0, Number.isFinite(visualTop) ? visualTop : 0), layout - height);
-  const bottom = Math.max(0, layout - height - top);
   const keyboardOpen = (editing || keyboardWasOpen) && (
     layout - height > 120 || (touch && baselineHeight - height > 120)
   );
+  const offset = Math.max(0, Number.isFinite(visualTop) ? visualTop : 0);
+  // iOS can pan past the layout's bottom edge to reveal the caret. Clamping that
+  // offset hides the header above the visible viewport, especially in standalone mode.
+  const top = keyboardOpen ? offset : Math.min(offset, layout - height);
+  const bottom = Math.max(0, layout - height - top);
   return { top, height, bottom, keyboardOpen };
 }
 

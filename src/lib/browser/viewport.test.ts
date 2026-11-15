@@ -11,6 +11,12 @@ it("fits a shifted Safari keyboard viewport even when little bottom occlusion re
 it("detects a touch keyboard when the browser resizes the layout too", () => {
   expect(viewportGeometry({ ...base, editing: true, layoutHeight: 500, visualHeight: 500 }).keyboardOpen).toBe(true);
 });
+it("preserves iOS caret panning beyond the layout edge while the keyboard is open", () => {
+  expect(viewportGeometry({ ...base, editing: true, visualHeight: 400, visualTop: 470 }))
+    .toEqual({ top: 470, height: 400, bottom: 0, keyboardOpen: true });
+  expect(viewportGeometry({ ...base, editing: true, layoutHeight: 400, visualHeight: 400, visualTop: 200 }))
+    .toEqual({ top: 200, height: 400, bottom: 0, keyboardOpen: true });
+});
 it("keeps keyboard state through blur while the viewport is still occluded", () => {
   expect(viewportGeometry({ ...base, keyboardWasOpen: true, visualHeight: 400 }).keyboardOpen).toBe(true);
   expect(viewportGeometry({ ...base, keyboardWasOpen: true }).keyboardOpen).toBe(false);

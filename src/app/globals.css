@@ -399,13 +399,30 @@ html[data-kb="open"] body:has(.mono-chat-page) {
   max-height: calc(var(--vvh, 92dvh) - max(1rem, var(--safe-top)));
 }
 /* Conversation and calls use the visible viewport, including installed-PWA safe areas. */
+html:has(.mono-chat-page) {
+  overflow: hidden;
+  overscroll-behavior: none;
+  scroll-behavior: auto;
+}
+body:has(.mono-chat-page) {
+  /* A body overflow lock alone still allows iOS to move the document when focusing
+     the composer. Anchor the document; the message list keeps its own scrolling. */
+  position: fixed;
+  inset: 0;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
 .mono-chat-page {
   position: fixed;
   inset-inline: 0;
   top: var(--vv-top, 0px);
   height: var(--vvh, 100dvh);
   padding: var(--safe-top) var(--safe-right) var(--safe-bottom-visible) var(--safe-left);
-  overflow: hidden;
+  /* Unlike hidden, clip cannot be scrolled by native focus/caret reveal. */
+  overflow: clip;
+  overscroll-behavior: none;
 }
 .mono-chat-page > .anim-rise {
   height: 100%;
@@ -423,7 +440,8 @@ html[data-kb="open"] body:has(.mono-chat-page) {
 html[data-kb="open"] .mono-chat-header {
   padding-block: 0;
 }
-html[data-kb="open"] .mono-chat-presence {
+html[data-kb="open"] .mono-chat-presence,
+html[data-kb="open"] .mono-chat-encryption-status {
   display: none;
 }
 html[data-kb="open"] .mono-chat-tabs {

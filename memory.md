@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-15 (saved photo crop adjustments deployed and verified)
+Last updated: 2026-11-15 (iPhone PWA chat keyboard follow-up in progress)
 
 
 
@@ -24,6 +24,11 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **iPhone PWA chat keyboard shift (2026-11-15)** — user reports the screen moving upward when
+  opening the keyboard and confirms it happens in Chat. Audit viewport offsets, document scroll
+  locking and keyboard transitions; keep the existing design, run automated browser/standalone
+  checks, and deploy. Physical iPhone keyboard behavior cannot be verified in this Windows workspace.
 
 - **Physical encrypted-chat phone verification (2026-11-15)** — live Chromium two-user flows and emulated phone widths passed. Actual iPhone/Samsung PWA, native keyboard and independent cryptographic review remain outside that evidence. Screenshot/recording blocking and attempt detection remain unavailable in a PWA.
 
@@ -1690,6 +1695,19 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-15 — iPhone PWA chat shifts upward when the keyboard opens
+
+**IN PROGRESS.** User narrowed the issue to Chat. Working in isolated branch
+`codex/ios-pwa-chat-keyboard` to preserve unrelated admin/privacy work in the root workspace.
+Reproduced a discarded 200px viewport offset and a separate focus-driven 15px chat-container
+scroll in short landscape with tools expanded. Use the root layout viewport measurement,
+preserve keyboard offsets, anchor Chat's document, prevent shell scrolling with overflow clip,
+and constrain focus correction to nested scroll areas. Composer overflow stays inside itself;
+the short encryption status compacts with the existing keyboard header. 13 focused unit tests,
+ESLint, production build and 48 Chromium/WebKit browser/standalone layout checks passed.
+Deployment and live verification are next. Prior authorization remains automated checks only;
+no physical iPhone result is claimed. See docs/reports/ios-chat-keyboard-2026-11-15.md.
 
 ### 2026-11-15 — Adjust crops of already uploaded photos
 

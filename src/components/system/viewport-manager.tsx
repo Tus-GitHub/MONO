@@ -24,7 +24,9 @@ export function ViewportManager() {
       return el;
     };
     const geometry = () => viewportGeometry({
-      layoutHeight: window.innerHeight, visualHeight: vv.height, visualTop: vv.offsetTop,
+      // Safari's innerHeight can already be keyboard-sized while fixed elements
+      // still use the layout viewport. The root's clientHeight measures that viewport.
+      layoutHeight: root.clientHeight || window.innerHeight, visualHeight: vv.height, visualTop: vv.offsetTop,
       scale: vv.scale, baselineHeight, editing: Boolean(editable()), keyboardWasOpen: keyboardOpen, touch,
     });
     const cancelFocusScroll = () => window.clearTimeout(focusTimer);
@@ -37,9 +39,9 @@ export function ViewportManager() {
     const nudgeFocus = () => {
       const el = editable();
       if (!el || !el.isConnected || !allowFocusScroll || Math.abs(vv.scale - 1) > 0.01) return;
-      // Chat already tracks visualViewport. Scrolling the document here on iOS
-      // moves it a second time and sends the composer/messages above the keyboard.
-      if (el.closest(".mono-chat-page")) return;
+      // Chat already tracks visualViewport. Its nested areas may scroll, but moving
+      // the document or the whole chat would lift the header off screen on iOS.
+      const chatPage = el.closest(".mono-chat-page");
       const view = geometry();
       const header = el.closest('[role="dialog"]') ? null : document.querySelector(".mono-appheader,.mono-setup-header");
       const hr = header?.getBoundingClientRect();
@@ -51,12 +53,12 @@ export function ViewportManager() {
       // Nearest-layout scrolling can no-op behind iOS's keyboard. Correct visual occlusion
       // once after it settles, consuming nested scroll areas before moving the page.
       for (let parent = el.parentElement; parent && Math.abs(delta()) > 1; parent = parent.parentElement) {
-        if (parent === document.body || parent === root) break;
+        if (parent === chatPage || parent === document.body || parent === root) break;
         if (parent.scrollHeight > parent.clientHeight && /^(auto|scroll)$/.test(getComputedStyle(parent).overflowY)) {
           move(parent, delta());
         }
       }
-      if (Math.abs(delta()) > 1) move(root, delta(), true);
+      if (!chatPage && Math.abs(delta()) > 1) move(root, delta(), true);
     };
     const apply = () => {
       frame = 0;
