@@ -105,6 +105,14 @@ export class PhotonPlacesProvider implements PlaceProvider {
       return [{ ...point, label }];
     });
   }
+  async locationLabel(point: { latitude: number; longitude: number }): Promise<string | null> {
+    const [feature] = await this.get("/reverse", new URLSearchParams({ lat: String(point.latitude), lon: String(point.longitude), limit: "1", lang: "en" }));
+    const p = feature?.properties;
+    if (!p) return null;
+    const area = [p.district, p.city ?? p.county, p.state, p.country];
+    if (!area.some(Boolean)) area.unshift(p.name);
+    return [...new Set(area.filter((value): value is string => typeof value === "string" && Boolean(value.trim())))].join(", ").slice(0, 160) || null;
+  }
   async resolveArea(area: string) {
     const places = await this.get("/api/", new URLSearchParams({ q: locationQuery(area), limit: "8", lang: "en" }));
     // Prefer an exact city/area name over an unrelated same-named business, but

@@ -9,6 +9,13 @@ beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-11T00:
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 async function settle<T>(work: Promise<T>): Promise<T> { await vi.runAllTimersAsync(); return work; }
 
+it("names the location's area rather than pretending the nearest business is the user's address", async () => {
+  fetcher.mockResolvedValue(collection([{ ...cafe, properties: { ...cafe.properties, district: "Chanakyapuri", state: "Delhi" } }]));
+  expect(await new PhotonPlacesProvider().locationLabel({ latitude: 28.6, longitude: 77.2 })).toBe("Chanakyapuri, New Delhi, Delhi, India");
+  expect(fetcher.mock.calls[0][0].pathname).toBe("/reverse");
+  expect(fetcher.mock.calls[0][0].searchParams.has("include")).toBe(false);
+});
+
 it("maps real venue fields without inventing Google ratings, photos or a key", async () => {
   fetcher.mockResolvedValue(collection([cafe]));
   const [place] = await new PhotonPlacesProvider().search({ text: "Starbucks Delhi", category: PlaceCategory.CAFE });

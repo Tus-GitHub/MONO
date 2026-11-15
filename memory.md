@@ -1,3 +1,10 @@
+## Active follow-up (2026-11-16)
+User requests completion/deployment of the mobile Save bar and live planner verification; Use my location must populate the location input. Implementing reverse area naming with immediate coordinate fallback in shared Explore/date-stop search and the map picker, retaining the selected coordinates for radius searches and protecting manual edits from late lookup responses. Previous desktop tab cleanup was blocked by Computer Use URL verification; no closures confirmed. Do not retry desktop automation as part of this follow-up.
+
+## Production verification update (2026-11-16)
+Planner popup release 148abb7 is READY on the canonical MONO URL. Approved production privacy backfill completed: 554 protected fields and 110 stored image objects converted; 47 unreferenced old objects retired through the reference-checked cleanup path; final audit remainingPlaintextFieldsOrFiles=0. One-time MONO_PRIVACY_BACKFILL flag disabled (0). Key unchanged and never exported.
+Live popup cancellation, matching Arcade/Hotel filters, nested map/radius, custom venue choice and explicit Save all passed; no date exists before Save. Seven live encrypted chat/document/photo/ringtone checks passed on the preceding run. Broader runs encountered intermittent aborted JavaScript requests/offline fallback and an unhydrated login button; no server error/fatal groups. Keep diagnostics, retry on fresh fixtures, do not claim a clean full run yet. Mobile screenshot review also found the sticky Save panel could overlap bottom navigation; applying the existing above-bottom-nav utility before final responsive validation.
+
 ## Continued authorization (2026-11-15)
 User explicitly approved storing the existing DATA_ENCRYPTION_KEY in this MONO Vercel project's production and preview environments and using it for the privacy migration. Both sensitive environment targets are configured; do not regenerate the key. Browser release checks and production rollout continue.
 Final merged validation: 546 unit tests (82 files), lint, and 36 focused integration tests (5 files) passed; initial full integration run passed 213 tests before the published crop/keyboard merge. Browser checks have verified two-device encryption, long-press edit, delete controls, documents and mobile/desktop chat. Completing photos/audio/maps/itinerary checks before build and deployment. Isolated test helpers now wait for transitions and post-login redirects; QA hides the Next.js badge so it cannot intercept composer taps.
@@ -36,6 +43,9 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Mobile Save bar and location field (2026-11-16)** — using bottom-nav-safe sticky placement, reverse area naming and coordinate fallback in both location pickers. 38 location tests, TypeScript and focused lint passed; synced published Games changes 99e2e7c before deployment. Preparing live GPS-emulation and 320/390/768/1440px Save-button checks.
+
 
 - **Planner icon popup (2026-11-16)** — user requests Add a stop below compact route cards, category icon popup and direct matching venues; implementing and validating before deployment.
 

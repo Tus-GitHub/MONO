@@ -112,7 +112,7 @@ export function NewPlanEditor({ initial, userId, coupleId, timezone, savedPlaces
               <p className="truncate text-sm text-muted">{activity.place?.name ?? savedPlaces.find((place) => place.id === activity.savedPlaceId)?.name ?? "A place to discover"}</p>
               <button type="button" className="mt-2 inline-flex items-center gap-1 text-xs text-primary" onClick={() => setEditingStop(activity.key)}><Icon name="clock" size="sm" />{activity.startTime ? `${activity.startTime}–${activity.endTime || "…"}` : "Set a time"}{activity.duration ? ` · ${activity.duration} min` : ""}</button>
             </div>
-            <Button variant="ghost" size="icon" aria-label={`Edit stop ${position + 1}`} aria-expanded={editingStop === activity.key} onClick={() => setEditingStop(editingStop === activity.key ? null : activity.key)}><Icon name="chevronDown" size="sm" /></Button>
+            <Button variant="ghost" size="icon" aria-label={`Edit stop ${position + 1}`} aria-expanded={editingStop === activity.key} onClick={() => setEditingStop(editingStop === activity.key ? null : activity.key)}><Icon name={editingStop === activity.key ? "chevronUp" : "chevronDown"} size="sm" /></Button>
           </div>
           {!activity.place && !activity.savedPlaceId && editingStop !== activity.key ? <Button variant="secondary" size="sm" onClick={() => { setPickerTarget(activity.key); setPickerCategory(venueCategoryKey(categoryFromPlanTitle(activity.title))); setPicker(true); }}><Icon name="mapPin" size="sm" />Find a venue</Button> : null}
           {editingStop === activity.key || Object.keys(errors).some((key) => key.startsWith(`activities.${position}.`)) ? <div className="space-y-3 border-t border-line pt-4">
@@ -154,7 +154,7 @@ export function NewPlanEditor({ initial, userId, coupleId, timezone, savedPlaces
           <option value="SHARED">We&apos;ll split it</option><option value="OWNER">I&apos;ve got this one</option><option value="PARTNER">They&apos;ve got this one</option><option value="CUSTOM">We&apos;ll sort it per expense</option>
         </Select></Field>
       </div></div></details>
-      <div className="sticky bottom-0 z-10 space-y-3 rounded-xl border border-line bg-paper p-4">
+      <div className="above-bottom-nav sticky z-10 space-y-3 rounded-xl border border-line bg-paper p-4 lg:bottom-0">
         <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted">{plan.date || "Choose your day"}{plan.startTime ? ` · ${plan.startTime}–${plan.endTime || "…"}` : ""}</p><div className="flex gap-2"><SubmitButton variant="secondary" name="mode" value="draft" pendingText="Saving…">Save draft</SubmitButton><SubmitButton name="mode" value="plan" pendingText="Saving…" disabled={!draft.activities.length}>Save date</SubmitButton></div></div>
         <p className="text-xs text-faint">Only saved when you choose Save. Adding a venue does not book it.</p>
       </div>

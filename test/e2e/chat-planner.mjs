@@ -26,6 +26,7 @@ export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifact
   const text = (page, value) => page.waitForFunction((value) => document.body.innerText.includes(value), {}, value);
   const goto = async (page, route) => {
     await page.bringToFront();
+    console.log("NAVIGATE", route);
     try { await page.goto(baseUrl + route, { waitUntil: "networkidle2", timeout: 180000 }); }
     catch (error) {
       // A just-completed server action can finish its redirect after pathname changes.
@@ -33,13 +34,20 @@ export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifact
       await page.waitForNetworkIdle({ idleTime: 1000, timeout: 30000 });
       await page.goto(baseUrl + route, { waitUntil: "networkidle2", timeout: 180000 });
     }
+    if (await page.evaluate(() => document.body.innerText.includes("You’re offline"))) {
+      console.log("NETWORK RETRY: offline navigation fallback at", route);
+      await page.goto(baseUrl + route, { waitUntil: "networkidle2", timeout: 180000 });
+      assert.equal(await page.evaluate(() => document.body.innerText.includes("You’re offline")), false, `Still offline at ${route}`);
+    }
   };
   const pageFor = async (user) => {
     const context = await browser.createBrowserContext(); contexts.push(context); const page = await context.newPage();
+    page.on("console", async (message) => { if (message.type() === "error") { const details = await Promise.all(message.args().map((arg) => arg.evaluate((value) => value instanceof Error ? `${value.name}: ${value.message}` : typeof value === "string" ? value.slice(0, 500) : "[object]").catch(() => "[unavailable]"))); console.log("Browser console error:", details.join(" ") || message.text()); } });
+    page.on("requestfailed", (request) => { const u = new URL(request.url()); if (u.origin === new URL(baseUrl).origin) console.log("Network failure:", request.method(), u.pathname, request.failure()?.errorText); });
     page.setDefaultTimeout(120000); page.setDefaultNavigationTimeout(180000); page.on("pageerror", (e) => { errors.push(e.message); console.error("Browser error:", e.message); });
     await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
     await goto(page, "/login"); await fill(page, '[name="email"]', user.email); await fill(page, '[name="password"]', password); assert.equal(await page.$eval('[name="email"]', (el) => el.value), user.email); await click(page, "Sign in");
-    await page.waitForFunction(() => location.pathname === "/home"); await page.waitForNetworkIdle({ idleTime: 1000, timeout: 60000 }); await goto(page, "/chat");
+    await page.waitForFunction(() => location.pathname === "/home"); await page.waitForNetworkIdle({ idleTime: 1000, timeout: 60000 }); if (!plannerOnly) await goto(page, "/chat");
     await page.waitForFunction(() => !document.body.innerText.includes("Checking this device…")); console.log("CHECKPOINT device ready:", contexts.length); return page;
   };
   const api = (page, body) => page.evaluate(async (body) => { const r = await fetch("/api/audio", { method: body ? "POST" : "GET", headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined }); return { status: r.status, value: await r.json() }; }, body);
@@ -131,6 +139,20 @@ export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifact
     await owner.screenshot({ path: path.join(artifactDir, "activity-popup-mobile.png") });
     await click(owner, "Arcade"); await text(owner, "Choose on map");
     await owner.waitForFunction(() => [...document.querySelectorAll('[role="dialog"] button[aria-pressed="true"]')].some((el) => el.textContent.includes("Activities")));
+    if (plannerOnly) {
+      await owner.browserContext().overridePermissions(baseUrl, ["geolocation"]);
+      await owner.setGeolocation({ latitude: 28.6, longitude: 77.2, accuracy: 100 });
+      const nearbyRequest = owner.waitForRequest((request) => { const u=new URL(request.url()); return u.pathname==="/api/places/search" && u.searchParams.get("lat")==="28.6" && u.searchParams.get("lng")==="77.2" && u.searchParams.get("radius")==="5"; }, {timeout:15000});
+      const locationResponse = owner.waitForResponse((r) => r.url().includes("/api/places/locations?lat=") && r.status() === 200, {timeout:15000}).then(r=>r.json()).catch(()=>null);
+      await click(owner, "Use my location");
+      await owner.waitForFunction(() => Boolean(document.querySelector('input[placeholder="City or Gaur City Mall"]')?.value));
+      await text(owner, "Within 5 km."); await nearbyRequest;
+      const named = await locationResponse;
+      if (named?.label) await owner.waitForFunction((label) => document.querySelector('input[placeholder="City or Gaur City Mall"]')?.value === label, {}, named.label);
+      await fill(owner, 'input[placeholder="City or Gaur City Mall"]', "Noida");
+      assert.equal(await owner.evaluate(() => document.body.innerText.includes("Around your selected location")), false);
+      pass("device location fills the area field, keeps radius search, and permits manual replacement");
+    }
     await owner.keyboard.press("Escape"); await owner.waitForFunction(() => !document.querySelector('[role="dialog"]'));
     await owner.locator('[aria-label="Edit stop 1"]').click(); await click(owner, "Afternoon"); await click(owner, "Done editing");
     await click(owner, "Add a stop"); await click(owner, "Hotel"); await text(owner, "Choose on map");
@@ -139,7 +161,12 @@ export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifact
     pass("adding route stops creates no database date before Save");
     await click(owner, "Choose on map");
     await owner.waitForSelector(".leaflet-container");
-    await click(owner, "Use map centre"); await owner.select('[aria-label="Map search radius"]', "10");
+    if (plannerOnly) {
+      await owner.locator('xpath=(//div[@role="dialog"]//button[normalize-space(.)="Use my location"])[last()]').click();
+      await owner.waitForFunction(() => Boolean(document.querySelector('input[aria-label="City, area or landmark"]')?.value) && document.querySelector('input[aria-label="City, area or landmark"]').value !== "Noida");
+      pass("map location button fills its location field");
+    } else await click(owner, "Use map centre");
+    await owner.select('[aria-label="Map search radius"]', "10");
     await click(owner, "Search within 10 km of this pin"); await text(owner, "Within 10 km.");
     pass("nested Leaflet picker selects a pin and updates venue search radius");
     // Choose a clearly synthetic custom venue rather than inventing a real place at the map pin.
@@ -151,6 +178,20 @@ export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifact
     await owner.evaluate(() => window.scrollTo({top:0,behavior:"instant"}));
     await owner.screenshot({ path: path.join(artifactDir, "itinerary-mobile.png"), fullPage: true });
     assert.equal(await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
+    if (plannerOnly) {
+      for (const width of [320, 390, 768, 1440]) {
+        await owner.setViewport({width,height:900,isMobile:width<768,hasTouch:width<768});
+        await owner.$eval('button[value="plan"]', el => el.scrollIntoView({block:"center",behavior:"instant"}));
+        await owner.waitForFunction(() => {
+          const save=document.querySelector('button[value="plan"]'); const r=save.getBoundingClientRect();
+          const hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
+          const nav=document.querySelector('.mono-bottom-nav'); const n=nav?.getBoundingClientRect();
+          return save.contains(hit) && (innerWidth>=1024 || r.bottom <= n.top) && document.documentElement.scrollWidth<=innerWidth+1;
+        });
+        await owner.screenshot({path:path.join(artifactDir,`planner-save-${width}.png`)});
+      }
+      pass("Save stays visible above mobile navigation at 320/390/768px and fits desktop at 1440px");
+    }
     await click(owner, "Save date"); await owner.waitForFunction(() => location.pathname.startsWith("/dates/"));
     const saved = await prisma.date.findFirst({ where: { coupleId: couple.id }, include: { activities: { orderBy: { sortOrder: "asc" } } } });
     assert.equal(saved.activities.length, 2); assert.ok(saved.activities[0].startAt); assert.ok(saved.activities[1].startAt); assert.ok(saved.activities[1].placeId);
@@ -171,7 +212,7 @@ export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifact
         for (const route of ["/home", "/chat", "/plan/new", "/explore", "/memories", "/memories/photos", "/settings/profile"]) {
           await goto(partner, route);
           assert.equal(await partner.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, `Overflow at ${width}: ${route}`);
-          assert.equal(await partner.evaluate(() => document.body.innerText.includes("Something went wrong")), false, `Error at ${route}`);
+          assert.equal(await partner.evaluate(() => /Something went wrong|This didn.t load|You.re offline/.test(document.body.innerText)), false, `Error at ${route}`);
         }
         await partner.screenshot({path:path.join(artifactDir,`profile-${width}.png`),fullPage:true});
       }
