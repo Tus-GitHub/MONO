@@ -9,7 +9,7 @@ import { prisma } from "@/lib/db/prisma";
 import { sendChatMessage, togetherSnapshot, actOnGame, getGame, updateChatPresence } from "@/server/services/together-service";
 import { actOnCall, getCall, togetherStatus } from "@/server/services/couple-call-service";
 import { GET as imageGET } from "@/app/api/together/images/[id]/route";
-import { GAME_LABEL, newGame, type GameKind, type GameMove } from "@/lib/together/games";
+import { GAME_LABEL, newGame, movableTokens, type GameKind, type GameMove, type GameState, type Player } from "@/lib/together/games";
 import { getGameHistory } from "@/server/services/game-history-service";
 import { recentGames } from "@/lib/together/game-list";
 import { legalArcadeMoves } from "@/lib/together/arcade-view";
@@ -113,20 +113,62 @@ it("rejects an image once the shared quota is full without leaving a partial mes
   await expect(asUser(owner, () => sendEncryptedImage({ ...image, clientNonce: randomUUID() }))).rejects.toThrow(/full/);
   expect(await prisma.chatMessage.count({ where: { coupleId: couple } })).toBe(1);
 });
-it.each(Object.keys(GAME_LABEL) as GameKind[])("persists and plays a real shared %s match", async (kind) => {
+function openingMove(state: GameState, side: Player): GameMove {
+  if (state.type === "LUDO") return state.die ? { type: "token", token: movableTokens(state)[0] } : { type: "roll" };
+  if (state.type !== "ARCADE") return { type: "place", cell: state.board.findIndex((value) => value == null) };
+  const legal = legalArcadeMoves(state, side);
+  if (state.kind === "PIG" && Number(state.data.running) > 0) return { type: "hold" };
+  if (state.kind === "CHOMP") return legal[legal.length - 1];
+  if (state.kind === "HIGHER_LOWER") return { type: "guess", value: Math.floor((Number(state.data.low) + Number(state.data.high)) / 2) };
+  return legal[0];
+}
+it.each(Object.keys(GAME_LABEL) as GameKind[])("persists both partners' moves, chat, result and history for %s", async (kind) => {
   const invitation = await asUser(owner, () => actOnGame({ action: "create", kind, clientNonce: randomUUID() }));
   expect(invitation.status).toBe("WAITING");
   await expect(asUser(owner, () => actOnGame({ action: "accept", id: invitation.id, version: 0 }))).rejects.toThrow();
   const active = await asUser(partner, () => actOnGame({ action: "accept", id: invitation.id, version: 0 }));
-  let move: GameMove = { type: "place", cell: 0 };
-  if (active.state.type === "LUDO") move = { type: "roll" };
-  else if (active.state.type === "ARCADE") move = legalArcadeMoves(active.state, 0)[0];
+  const move = openingMove(active.state, 0);
   const updated = await asUser(owner, () => actOnGame({ action: "move", id: active.id, version: active.version, move }));
   expect(updated.version).toBe(2);
   expect((await asUser(partner, () => getGame(active.id))).version).toBe(2);
   await expect(asUser(outsider, () => getGame(active.id))).rejects.toThrow();
   await expect(asUser(owner, () => actOnGame({ action: "move", id: active.id, version: active.version, move }))).rejects.toThrow(/moved on/);
   expect((await asUser(partner, () => togetherSnapshot())).messages.some((message) => message.gameId === active.id)).toBe(true);
+  let game = updated;
+  const actors = new Set([owner]);
+  for (let step = 0; game.status === "ACTIVE" && actors.size < 2 && step < 40; step++) {
+    const side = game.state.type === "ARCADE" && kind === "ROCK_PAPER_SCISSORS" && game.state.phase !== "reveal"
+      ? game.state.data.pick0 ? 1 : 0 : game.state.turn;
+    const actor = side === 0 ? owner : partner;
+    const view = await asUser(actor, () => getGame(game.id));
+    game = await asUser(actor, () => actOnGame({ action: "move", id: view.id, version: view.version, move: openingMove(view.state, side) }));
+    actors.add(actor);
+    expect((await asUser(actor === owner ? partner : owner, () => getGame(game.id))).version).toBe(game.version);
+  }
+  // A first-turn win is possible in guessing games; a finished match is still shared.
+  expect(game.status === "FINISHED" || actors.size === 2).toBe(true);
+  const beforeChat = game.version;
+  const hello = await asUser(owner, () => sendChatMessage(text(`During ${kind}`)));
+  const reply = await asUser(partner, () => sendChatMessage(text(`Reply during ${kind}`)));
+  const receiving = await asUser(owner, () => togetherSnapshot());
+  expect(receiving.messages.map((message) => message.id)).toEqual(expect.arrayContaining([hello.id, reply.id]));
+  expect((await asUser(partner, () => getGame(game.id))).version).toBe(beforeChat);
+  if (game.status === "ACTIVE") game = await asUser(partner, () => actOnGame({ action: "resign", id: game.id, version: game.version }));
+  expect(game.status).toBe("FINISHED");
+  await expect(asUser(owner, () => actOnGame({ action: "resign", id: game.id, version: game.version }))).rejects.toThrow(/Finished/);
+  for (const actor of [owner, partner]) {
+    const current = await asUser(actor, () => togetherSnapshot());
+    expect(recentGames(current.games!, current.observedAt).some((row) => row.id === game.id)).toBe(true);
+    expect(current.scores!.filter((row) => row.kind === kind && row.userId === actor)
+      .reduce((total, row) => total + row.wins + row.draws + row.losses, 0)).toBe(1);
+    expect((await asUser(actor, () => getGameHistory())).games.find((row) => row.id === game.id)?.version).toBe(game.version);
+  }
+  await prisma.gameMatch.update({ where: { id: game.id }, data: { updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000) } });
+  for (const actor of [owner, partner]) {
+    const current = await asUser(actor, () => togetherSnapshot());
+    expect(recentGames(current.games!, current.observedAt).some((row) => row.id === game.id)).toBe(false);
+    expect((await asUser(actor, () => getGameHistory())).games.some((row) => row.id === game.id)).toBe(true);
+  }
 });
 it("counts a finished result once, even when the winning move is retried or a score is forged", async () => {
   let game = await asUser(owner, () => actOnGame({ action: "create", kind: "TIC_TAC_TOE", clientNonce: randomUUID() }));

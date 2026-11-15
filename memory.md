@@ -37,7 +37,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (Local chat picker/custom stickers implemented; final DB/browser QA blocked; existing Games verification retained)
+Last updated: 2026-11-16 (radius diagnosis; 24-game panel QA awaiting Browser control)
 
 Last updated: 2026-11-15 (admin panel and private data encryption)
 
@@ -70,6 +70,16 @@ components. Business rules never live only in React components — they live in
 
 
 
+- **All 24 games and right-panel QA (2026-11-16)** — user requests every game for both
+  partners, chat during play, last-hour matches/full History, phone browser and PWA,
+  remaining fixes and deployment. Work on `codex/all-games-qa` in the isolated checkout.
+  Keep synthetic records as previously requested. Right-panel open was queued; the
+  in-app browser selector currently reports unavailable. Diagnose the connection while
+  continuing independent rules, data and UI-code checks; do not claim right-panel coverage.
+  User confirms the panel is visible but explicitly declines separate browser automation:
+  keep browser tests only in the right panel. The runtime still returns “Browser is not
+  available: iab”; direct panel-context reading returns “The Browser Use plugin is not
+  available in this context.” Browser checks/deployment are pending that connection.
 
 - **Planner icon popup (2026-11-16)** — user requests Add a stop below compact route cards, category icon popup and direct matching venues; implementing and validating before deployment.
 
@@ -274,6 +284,12 @@ components. Business rules never live only in React components — they live in
 
 - **Mobile Save bar and location field (2026-11-16)** — published d70bc3c and deployed READY as dpl_CpaPZQtV87G9AMww1iMWgXrXRKYC on the canonical MONO URL. 38 unit tests, focused lint/type checks and production build passed. Six live planner checks passed with zero JavaScript errors: simulated GPS fills city/area, coordinate/radius request verified, manual replacement works, map location fills its field, map radius changes, Save remains hit-testable above navigation at 320/390/768px and fits 1440px, and two stops with times/venue persist only after explicit Save. Screenshots inspected. Both disposable accounts and their space removed. Artifacts: .postgres-test/release-live/live-4027ae15f664. Area naming is optional and bounded; coordinates remain visible when lookup is unavailable. Physical phone GPS/permission prompts were not tested.
 
+- **Venue radius diagnosis (2026-11-16)** — verified selected 50 km radius reaches Photon
+  and is enforced, but browsing is capped at 24 nearest results with no pagination. Public
+  Gaur City Mall example: 5 km returned 4 cafés/17 restaurants; 50 km returned 24 each,
+  farthest café 9.583 km and restaurant 5.650 km. This is a result-list limitation, not an
+  8 km radius clamp. Distances are straight-line. No application change deployed for this
+  diagnostic; all-game right-panel UI checks remain pending.
 
 - **Separate Games and in-game chat (2026-11-16)** — live in `3a5f565`, production deployment
   `dpl_5XtpHpvWi32FD7dooLMdfUYeLsrE` READY on the canonical MONO URL. Direct Games navigation,
@@ -1788,6 +1804,42 @@ User requests modern custom controls across MONO. Preserve warm colour tokens, p
 - Applied the existing above-bottom-nav utility to the planner Save panel. Added authenticated reverse-area lookup with immediate coordinate fallback and cancellation on manual changes. Both shared venue search and the map picker fill their actual input values.
 - 38 focused tests passed, production build passed (94 routes), and six targeted live browser checks passed at phone/tablet/desktop widths with simulated GPS. Used isolated headless QA; no personal browser tabs were opened or changed. QA fixtures cleaned.
 
+### 2026-11-16 — 50 km venue radius only showing nearby results
+
+**DONE (diagnosis).** User asks whether café/restaurant radius works when 50 km returns places only about 8 km
+away. Inspected the latest main `d70bc3c` plus provider, route, shared hook and service.
+The selected radius reaches Photon in kilometres and is enforced again by haversine distance.
+Browsing asks for only 24 results (named searches 40), then sorts/limits with no pagination;
+there is no 8 km clamp. Widening the radius can therefore show the same nearest subset.
+Checking a bounded, public-provider example around Gaur City Mall, not the user's GPS.
+Five read-only requests confirmed the behavior: at 5 km, 4 cafés (max 3.484 km) and 17
+restaurants (max 4.765 km); at 50 km, 24 cafés (max 9.583 km) and 24 restaurants (max 5.650 km).
+Every result was within the requested radius. Captured aggregate evidence in ignored
+`.postgres-test/radius-diagnostic.json`. No application mutation or production deployment.
+The 24-game UI work remains pending the requested in-app Browser control; no separate browser
+automation was used for this diagnosis.
+
+### 2026-11-16 — Full 24-game browser/PWA verification in the right panel
+
+**IN PROGRESS.** Prior release covered one complete Tic-tac-toe flow, not all 24 games.
+User now requests all games for both partners, including chat, recent matches and full
+History, fixes and deployment, with visible right-panel testing. Preserve existing planner
+work in the root checkout. In-app Browser runtime bootstrap succeeded but `iab` is
+unavailable; the UI open request was queued. Investigating before choosing a fallback.
+User says the panel is visible; reconnect still fails, with no available browser inventory.
+User explicitly says “Keep testing only in panel”; do not run standalone Playwright or
+substitute a cloud/external browser. Current official Browser guide recommends selecting
+the Browser plugin via @ in the composer. Request that connection before resuming UI tests.
+32 rules/list unit checks passed, including complete rules-level matches for all 24 kinds.
+Expanded the 24-kind integration matrix to exercise authorized partner turns, messages during
+play without altering the board, completion/resignation, score accounting, recent matches,
+old-match exclusion and retained full History for both partners. The 37 integration checks
+passed locally; the final 24-game matrix passed again after correcting the opening Chomp
+test to avoid deliberately losing immediately. The 13 unchanged tests were skipped in that
+focused rerun. Scoped ESLint and diff whitespace checks passed. Local test Postgres stopped
+while awaiting Browser activation; data retained. Changes remain local on `codex/all-games-qa`.
+No production application bug has been reproduced or application change deployed in this
+follow-up. Browser/PWA/physical-device coverage must not be inferred from these tests.
 
 ### 2026-11-16 — Planner popup and release follow-up
 - Replaced the crowded inline activity palette with a MONO-styled icon sheet. Category selection creates a local stop and opens matching venues after the previous sheet releases its browser history entry. Each route card expands for details; Add remains beneath the route. Only explicit Save buttons submit.
