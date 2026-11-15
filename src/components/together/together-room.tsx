@@ -132,8 +132,13 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes }: {
     const focused = document.activeElement === field;
     const atEnd = field.selectionStart === field.value.length && field.selectionEnd === field.value.length;
     const previousScroll = field.scrollTop;
+    // Keep sibling message space stable while measuring. A temporary shrink can
+    // clamp its scrollTop even when the final size is unchanged (no resize event).
+    const previousHeight = host.style.height;
+    host.style.height = `${host.getBoundingClientRect().height}px`;
     field.style.height = "auto";
     field.style.height = `${field.scrollHeight}px`;
+    host.style.height = previousHeight;
     // WebKit can reset the textarea's own scroll while sizing it. Keep the caret
     // visible at the end, and preserve the reader's position when editing earlier text.
     field.scrollTop = focused && atEnd ? field.scrollHeight : previousScroll;

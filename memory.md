@@ -10,7 +10,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-15 (chat typing and sending keyboard follow-up in progress)
+Last updated: 2026-11-16 (final chat typing and sending verification in progress)
 
 Last updated: 2026-11-15 (admin panel and private data encryption)
 
@@ -1748,6 +1748,18 @@ Final local production-build checks pass: Chromium 30 and WebKit 30; zero page e
 zero composer blurs, newest bubbles pinned and document/Chat scrolling zero. Real service
 worker active in Chromium standalone mode. All four final-run QA sessions revoked; test
 records retained. Release ready for production deployment and live repetition.
+Initial release `11f8dde` deployed READY. Live Chromium and WebKit each passed 30 checks,
+but an intermittent retry-state bottom gap was reproduced independently: textarea autosizing
+temporarily enlarges the message viewport, clamps its scroll position, then restores its size
+without a ResizeObserver notification. The probe showed a 42 px gap, eliminated by holding
+composer height during measurement. Applying this final fix and repeating the release checks.
+One separate stress run hit a transport reset; its two QA sessions plus two cleanup sessions
+were revoked individually. No test records or other sessions removed.
+Rebased the final five-line sizing fix onto concurrent release `b698dac`, preserving its
+chat attachments, UI and other changes. Combined build passed (89 traces, largest 3.70 MiB),
+as did lint, 16 focused tests, Chromium 46 checks with five retry cycles and WebKit 30 checks.
+All final local sessions revoked; no page errors or composer blurs. Shared dependencies
+changed to Next 16.4.6 during QA; the actual locked production build and live checks follow.
 
 ### 2026-11-15 — iPhone PWA chat shifts upward when the keyboard opens
 

@@ -1,4 +1,4 @@
-# Chat typing and sending verification — 2026-11-15
+# Chat typing and sending verification — 2026-11-15–16
 
 User story: both partners type and send encrypted messages with the composer focused,
 the newest message visible, and the Chat shell anchored in phone browser and standalone layouts.
@@ -24,12 +24,19 @@ the newest message visible, and the Chat shell anchored in phone browser and sta
 - WebKit exposed an additional long-draft issue: resizing reset the textarea to its first
   lines. Preserve its scroll position for earlier edits and reveal the end caret after sizing.
   Reveal focused fields locally when error/retry controls grow above them.
+- Live retry checks revealed a transient textarea-measurement clamp: changing its height
+  to `auto` briefly enlarged the message viewport, moving its scroll position despite
+  unchanged final dimensions. An isolated Chromium reproduction showed a 42 px bottom
+  gap. Hold the composer's height during measurement; the same reproduction then stayed at 0 px.
 
 ## Verification
 
 - ESLint and 16 focused viewport/message-merge tests passed on the final implementation.
-- Production build passed: 83 route traces, largest 3.68 MiB.
-- Final local Chromium: 30 checks passed, real service worker active, no page errors,
+- Production build passed after incorporating the concurrent `b698dac` release: 89 route
+  traces, largest 3.70 MiB. Shared local dependencies were upgraded to Next 16.4.6 during
+  verification; the final deployment's own locked build and live checks are required too.
+- Final local Chromium: 46 checks passed, including five ambiguous-send retry cycles;
+  real service worker active, no page errors,
   both synthetic sessions revoked.
 - Final local WebKit: 30 checks passed, no page errors, both synthetic sessions revoked.
 - Both runs retained composer focus with zero blurs and zero disabled-input mutations.
@@ -48,4 +55,8 @@ standalone checks use the real service worker. WebKit uses a transport relay (pr
 headers preserved; localhost alone omits HTTPS upgrading for the HTTP QA server) with service
 workers blocked. This does not certify a physical iPhone keyboard or native installed-PWA behavior.
 
-Production deployment and final results will be recorded after release.
+Initial production release `11f8dde` is READY. Live Chromium and WebKit each completed
+30 checks, but the intermittent retry clamp prompted the final sizing fix above. A separate
+stress run hit an external connection reset; its two QA sessions and the two cleanup
+sessions were explicitly revoked. The final sizing fix passed 76 local checks after merging
+the latest Chat UI. Final production deployment and live repetition remain pending.
