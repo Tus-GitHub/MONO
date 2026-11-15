@@ -41,4 +41,21 @@ or native installed-PWA behavior.
 
 ## Production release
 
-Pending deployment and live checks.
+- URL: https://mono-kappa-beryl.vercel.app/games
+- Commit: `3a5f56521e687f7bc0962f168523229c9de3fed4`.
+- Deployment: `dpl_5XtpHpvWi32FD7dooLMdfUYeLsrE`, production, READY, canonical alias assigned.
+- Preserved the latest planner/dependency release `148abb7`; the merged build and scoped lint
+  passed on Next.js 16.4.6, matching the repository's updated package version. Runtime traces:
+  94 routes, largest 3.75 MiB, summed 281.16 MiB, unique 6.24 MiB.
+- Live Chromium: 26 checks passed, activated service worker, zero page errors, two test
+  sessions revoked. Live WebKit: 26 checks passed, zero page errors, two sessions revoked.
+- Both live runs verified direct navigation, invite/accept/live moves, board updates behind
+  chat, encrypted messages in both directions, focus/latest-message retention, landscape,
+  returning to the same board, completing a match, History/Scores, responsive widths and
+  messages persisting in ordinary Chat. The old-match cutoff/pagination fixtures were tested
+  locally; production data was not backdated or seeded for those checks.
+- Simulated keyboard checks recorded zero blurs, zero panel scroll and unchanged document
+  scroll. Physical iPhone keyboard/installed-PWA behavior is not established by these tests.
+- The deployment-scoped 15-minute error/fatal runtime log count query returned no groups.
+- Retained the synthetic games/messages as requested. Revoked only the four live test
+  sessions, and stopped the isolated local server/database while retaining their fixture files.

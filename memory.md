@@ -10,7 +10,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (Games release in progress; planner popup and privacy rollout preserved)
+Last updated: 2026-11-16 (Games navigation and in-game chat live; 52 live checks passed)
 
 Last updated: 2026-11-15 (admin panel and private data encryption)
 
@@ -38,15 +38,6 @@ components. Business rules never live only in React components — they live in
 ### In Progress
 
 - **Planner icon popup (2026-11-16)** — user requests Add a stop below compact route cards, category icon popup and direct matching venues; implementing and validating before deployment.
-
-- **Separate Games and in-game chat (2026-11-16)** — user requests a direct Games entry,
-  only the last hour in Your matches, full history kept separately, and chat while playing.
-  Work on `codex/games-navigation-chat`; reuse the existing UI and encrypted chat, preserve
-  the completed keyboard fixes, test both partners and deploy. Interpret the recent window
-  by last match activity so ongoing play stays discoverable; older open matches remain
-  accessible in History.
-  Implementation and local checks are complete: 19 unit, 37 integration and 58 two-partner
-  Chromium/WebKit browser checks passed. Preparing publication alongside the latest main.
 
 - **Chat interaction, attachments, sound and visual date planning (2026-11-15)** — implemented long-press actions, encrypted documents, normal photo saving, personal ringtone/admin music and venue-first itinerary with Leaflet. User authorized publication and live testing; release checks in progress. Preserve ₹0 services constraint, E2EE and limited-view restrictions.
 
@@ -246,6 +237,16 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Separate Games and in-game chat (2026-11-16)** — live in `3a5f565`, production deployment
+  `dpl_5XtpHpvWi32FD7dooLMdfUYeLsrE` READY on the canonical MONO URL. Direct Games navigation,
+  last-hour activity in Your matches, separate full History/Scores and encrypted chat while
+  the board stays mounted and synchronized. Older open games remain accessible in History.
+  Final merged build/lint and 19 unit checks passed, plus 37 isolated integration checks,
+  58 local and 52 live two-partner browser checks. Chromium used an activated service worker;
+  WebKit and simulated phone/keyboard/standalone layouts passed with zero page errors.
+  All four final live sessions revoked; synthetic records retained. Physical iPhone/PWA
+  behavior remains unverified. See `docs/reports/games-navigation-chat-2026-11-16.md`.
 
 - **Chat typing/send keyboard continuity (2026-11-16)** — deployed `11f8dde` + `86f8d67`.
   Preserve focus, next drafts and latest-message visibility through typing, sending, retries,
@@ -1746,7 +1747,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-16 — Games entry, last-hour matches and chat while playing
 
-**IN PROGRESS.** User steered after completion of the keyboard release. Add direct Games
+**DONE.** User steered after completion of the keyboard release. Add direct Games
 navigation, separate recent matches/history/scores, and an in-match chat panel that keeps
 the game mounted and synchronized. Current Your matches mixes five open and fifteen closed
 matches; Scores is only aggregate totals, with no full game-history page. Keep existing
@@ -1758,7 +1759,15 @@ The full build, lint, 19 focused unit tests, 37 local database tests and 58 loca
 WebKit browser checks passed. Both partners exchanged encrypted messages, completed a match,
 opened older history and used portrait/landscape layouts at 320–1440 px. Four final QA sessions
 were revoked; records retained. Native iPhone behavior remains outside automated evidence.
-See `docs/reports/games-navigation-chat-2026-11-16.md`. Deployment/live verification pending.
+Merged the latest published planner/dependency update `148abb7`, preserving both task logs.
+Final production build and scoped lint passed; published `3a5f56521e687f7bc0962f168523229c9de3fed4`.
+Vercel deployment `dpl_5XtpHpvWi32FD7dooLMdfUYeLsrE` is READY on the canonical alias.
+Live Chromium and WebKit each passed 26 checks, including two-partner game completion, chat
+while playing, History/Scores and responsive layouts. No page errors, zero focus blurs and no
+document/panel scroll shifts in the simulated keyboard checks. All four live QA sessions were
+revoked; test games/messages retained. The deployment-scoped 15-minute error/fatal log count
+query returned no groups. Local QA server/Postgres stopped, fixture data retained.
+See `docs/reports/games-navigation-chat-2026-11-16.md` for evidence and physical-device limits.
 
 ### 2026-11-15 — Keep the keyboard and latest message visible while typing/sending
 
