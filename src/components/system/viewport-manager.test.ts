@@ -5,7 +5,7 @@ const lifecycle = vi.hoisted(() => ({ cleanup: undefined as undefined | (() => v
 vi.mock("react", () => ({ useEffect: (effect: () => (() => void)) => { lifecycle.cleanup = effect(); } }));
 afterEach(() => { lifecycle.cleanup?.(); lifecycle.cleanup = undefined; vi.useRealTimers(); vi.unstubAllGlobals(); });
 
-function keyboardFixture(chat: boolean, innerHeight = 844, nested = false, keepFocus = false) {
+function keyboardFixture(chat: boolean | "game", innerHeight = 844, nested = false, keepFocus = false) {
   vi.useFakeTimers();
   const events = new Map<string, (event?: { target: unknown; defaultPrevented: boolean }) => void>();
   const root = { clientHeight: 844, style: { setProperty: vi.fn(), removeProperty: vi.fn(), scrollBehavior: "" }, setAttribute: vi.fn(), removeAttribute: vi.fn() };
@@ -15,7 +15,7 @@ function keyboardFixture(chat: boolean, innerHeight = 844, nested = false, keepF
     isConnected = true;
     parentElement = nested ? scroller : null;
     matches(selector: string) { return selector === "input,select,textarea,[contenteditable]"; }
-    closest(selector: string) { return chat && selector === ".mono-chat-page" ? {} : null; }
+    closest(selector: string) { return chat && selector.split(", ").includes(chat === "game" ? ".mono-game-chat-panel" : ".mono-chat-page") ? {} : null; }
     getBoundingClientRect() { const shift = nested ? 100 - scroller.scrollTop : 0; return { top: 150 + shift, bottom: 194 + shift }; }
   }
   const scrollBy = vi.fn();
@@ -61,6 +61,11 @@ it("reveals a covered chat field inside its nested scroller without moving the d
 });
 it("keeps focus correction active when Send prevents pointer focus transfer", () => {
   const { scrollBy, scroller } = keyboardFixture(true, 844, true, true);
+  expect(scroller.scrollBy).toHaveBeenCalledWith({ top: -58, behavior: "auto" });
+  expect(scrollBy).not.toHaveBeenCalled();
+});
+it("reveals in-game chat fields without scrolling the game underneath", () => {
+  const { scrollBy, scroller } = keyboardFixture("game", 844, true, true);
   expect(scroller.scrollBy).toHaveBeenCalledWith({ top: -58, behavior: "auto" });
   expect(scrollBy).not.toHaveBeenCalled();
 });

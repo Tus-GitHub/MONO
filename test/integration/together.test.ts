@@ -9,7 +9,9 @@ import { prisma } from "@/lib/db/prisma";
 import { sendChatMessage, togetherSnapshot, actOnGame, getGame, updateChatPresence } from "@/server/services/together-service";
 import { actOnCall, getCall, togetherStatus } from "@/server/services/couple-call-service";
 import { GET as imageGET } from "@/app/api/together/images/[id]/route";
-import { GAME_LABEL, type GameKind, type GameMove } from "@/lib/together/games";
+import { GAME_LABEL, newGame, type GameKind, type GameMove } from "@/lib/together/games";
+import { getGameHistory } from "@/server/services/game-history-service";
+import { recentGames } from "@/lib/together/game-list";
 import { legalArcadeMoves } from "@/lib/together/arcade-view";
 import { CHAT_IMAGE_SPACE } from "@/lib/together/catalog";
 import { sendEncryptedImage, registerChatKey } from "@/server/services/chat-security-service";
@@ -33,6 +35,26 @@ afterEach(async () => {
 });
 afterAll(() => prisma.$disconnect());
 const text = (body = "Hello ❤️") => ({ kind: "TEXT", body: JSON.stringify({ v: 1, keyId, iv: "AA".repeat(8), data: Buffer.from(body + "-ciphertext-fixture-padding").toString("base64") }), clientNonce: randomUUID() });
+
+it("keeps last-hour activity separate from paginated full history and rejects another couple's cursor", async () => {
+  const old = new Date(Date.now() - 2 * 60 * 60 * 1000);
+  await prisma.gameMatch.createMany({ data: Array.from({ length: 32 }, (_, index) => ({
+    id: `history-${randomUUID()}`, coupleId: couple, playerOneId: owner, playerTwoId: partner,
+    clientNonce: randomUUID(), kind: "TIC_TAC_TOE" as const, status: "FINISHED" as const,
+    state: JSON.parse(JSON.stringify(newGame("TIC_TAC_TOE", () => 0))), createdAt: new Date(old.getTime() - index * 1000), updatedAt: old,
+  })) });
+  const resumed = await prisma.gameMatch.create({ data: { coupleId: couple, playerOneId: owner, playerTwoId: partner, clientNonce: randomUUID(),
+    kind: "TIC_TAC_TOE", status: "ACTIVE", state: JSON.parse(JSON.stringify(newGame("TIC_TAC_TOE", () => 0))), createdAt: old } });
+  const snapshot = await asUser(partner, () => togetherSnapshot());
+  expect(recentGames(snapshot.games!, snapshot.observedAt).map((row) => row.id)).toEqual([resumed.id]);
+  const first = await asUser(owner, () => getGameHistory());
+  expect(first.games).toHaveLength(30); expect(first.nextCursor).not.toBeNull();
+  const second = await asUser(partner, () => getGameHistory(first.nextCursor!));
+  expect(second.games).toHaveLength(3); expect(second.nextCursor).toBeNull();
+  expect(new Set([...first.games, ...second.games].map((row) => row.id)).size).toBe(33);
+  expect((await asUser(outsider, () => getGameHistory())).games).toEqual([]);
+  await expect(asUser(outsider, () => getGameHistory(first.nextCursor!))).rejects.toThrow();
+});
 
 it("stores exactly one message across concurrent retries and rejects forged ownership", async () => {
   const input = { ...text(), coupleId: otherCouple, senderId: outsider };

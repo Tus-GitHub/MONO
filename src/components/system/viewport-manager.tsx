@@ -41,7 +41,7 @@ export function ViewportManager() {
       if (!el || !el.isConnected || !allowFocusScroll || Math.abs(vv.scale - 1) > 0.01) return;
       // Chat already tracks visualViewport. Its nested areas may scroll, but moving
       // the document or the whole chat would lift the header off screen on iOS.
-      const chatPage = el.closest(".mono-chat-page");
+      const chatPage = el.closest(".mono-chat-page, .mono-game-chat-panel");
       const view = geometry();
       const header = el.closest('[role="dialog"]') ? null : document.querySelector(".mono-appheader,.mono-setup-header");
       const hr = header?.getBoundingClientRect();

@@ -10,7 +10,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (planner popup and privacy rollout)
+Last updated: 2026-11-16 (Games release in progress; planner popup and privacy rollout preserved)
 
 Last updated: 2026-11-15 (admin panel and private data encryption)
 
@@ -39,6 +39,14 @@ components. Business rules never live only in React components — they live in
 
 - **Planner icon popup (2026-11-16)** — user requests Add a stop below compact route cards, category icon popup and direct matching venues; implementing and validating before deployment.
 
+- **Separate Games and in-game chat (2026-11-16)** — user requests a direct Games entry,
+  only the last hour in Your matches, full history kept separately, and chat while playing.
+  Work on `codex/games-navigation-chat`; reuse the existing UI and encrypted chat, preserve
+  the completed keyboard fixes, test both partners and deploy. Interpret the recent window
+  by last match activity so ongoing play stays discoverable; older open matches remain
+  accessible in History.
+  Implementation and local checks are complete: 19 unit, 37 integration and 58 two-partner
+  Chromium/WebKit browser checks passed. Preparing publication alongside the latest main.
 
 - **Chat interaction, attachments, sound and visual date planning (2026-11-15)** — implemented long-press actions, encrypted documents, normal photo saving, personal ringtone/admin music and venue-first itinerary with Leaflet. User authorized publication and live testing; release checks in progress. Preserve ₹0 services constraint, E2EE and limited-view restrictions.
 
@@ -1736,6 +1744,21 @@ components. Business rules never live only in React components — they live in
 - Updated Next/eslint-config-next to 16.4.6, sharp to 0.35.5 and source-map-js patch; runtime audit has no critical advisories, four high advisories remain in Prisma config/deepmerge and Zod requiring separate major upgrades. No forced dependency migration.
 - Privacy backfill will run once with production storage credentials on Vercel after explicit activation. Audit-only scan optimized; six private-data integration tests passed. This remains pending until post-audit reports zero.
 
+### 2026-11-16 — Games entry, last-hour matches and chat while playing
+
+**IN PROGRESS.** User steered after completion of the keyboard release. Add direct Games
+navigation, separate recent matches/history/scores, and an in-match chat panel that keeps
+the game mounted and synchronized. Current Your matches mixes five open and fifteen closed
+matches; Scores is only aggregate totals, with no full game-history page. Keep existing
+couple authorization, E2EE and the retained synthetic test records.
+Implemented `/games`, dedicated match routes, separate paginated History and Scores, direct
+header/sidebar navigation, server-time recent filtering and shared encrypted chat in a full
+overlay. Board updates continue while chat is open; closing returns without reloading.
+The full build, lint, 19 focused unit tests, 37 local database tests and 58 local Chromium/
+WebKit browser checks passed. Both partners exchanged encrypted messages, completed a match,
+opened older history and used portrait/landscape layouts at 320–1440 px. Four final QA sessions
+were revoked; records retained. Native iPhone behavior remains outside automated evidence.
+See `docs/reports/games-navigation-chat-2026-11-16.md`. Deployment/live verification pending.
 
 ### 2026-11-15 — Keep the keyboard and latest message visible while typing/sending
 

@@ -35,7 +35,8 @@ export function AppHeader({ user, unreadCount }: AppHeaderProps) {
       )}
     >
       <div className="mr-auto min-w-0 lg:hidden">
-        <Logo href="/home" size="sm" />
+        <span className="sm:hidden"><Logo href="/home" size="md" variant="mark" /></span>
+        <span className="hidden sm:block"><Logo href="/home" size="sm" /></span>
       </div>
 
       {/* Explore is a primary destination but not a bottom-nav tab — keep it one tap away on mobile. */}
@@ -51,6 +52,7 @@ export function AppHeader({ user, unreadCount }: AppHeaderProps) {
       </Link>
 
       <MusicButton />
+      <Link href="/games" aria-label="Games" title="Games" className={cn("tap grid place-items-center rounded-lg text-muted hover:bg-ink/[0.06] hover:text-ink", focusRing)}><Icon name="gamepad" size="md" /></Link>
       <ChatLink />
       <NotificationsBell unreadCount={unreadCount} />
       <AccountMenu user={user} />

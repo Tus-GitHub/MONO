@@ -529,6 +529,18 @@ html[data-kb="open"] .mono-fullscreen-panel > .scroll-area {
   overflow-y: auto;
 }
 
+/* In-match chat keeps its messages/composer in separate scroll areas, as full Chat does. */
+.mono-game-chat-panel { overflow: clip; }
+.mono-game-chat-panel > .scroll-area,
+html[data-kb="open"] .mono-game-chat-panel > .scroll-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  padding: 0;
+  overflow: hidden;
+}
+html[data-kb="open"] .mono-game-chat-panel > :first-child { padding-block: 0; }
+
 /* Call chrome overlays one viewport-sized stage, with safe-area aware controls. */
 .mono-call-panel {
   --call-header-space: calc(4rem + var(--safe-top));

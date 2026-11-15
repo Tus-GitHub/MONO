@@ -11,6 +11,7 @@ import { secureMessageSchema } from "@/lib/validation/chat-security";
 import { assertChatKey } from "./chat-security-service";
 import type { GameDTO, MessageDTO, ScoreDTO, TogetherSnapshot } from "@/lib/together/types";
 import { bumpTogether, requireTogether, withTogetherWrite } from "./together-context";
+import { RECENT_GAME_WINDOW_MS } from "@/lib/together/game-list";
 
 export const imageSelect = { width: true, height: true, contentType: true, encrypted: true, viewLimit: true, viewsUsed: true, crop: true } satisfies Prisma.ChatImageSelect;
 export function messageDTO(row: ChatMessage & { image: { width: number; height: number; contentType: string; encrypted: boolean; viewLimit: number; viewsUsed: number; crop?: unknown } | null }, userId: string): MessageDTO {
@@ -23,7 +24,7 @@ export function messageDTO(row: ChatMessage & { image: { width: number; height: 
 export function gameDTO(row: GameMatch, userId: string): GameDTO {
   const state = parseGame(row.kind, row.state);
   return { id: row.id, kind: row.kind, status: row.status, playerOneId: row.playerOneId, playerTwoId: row.playerTwoId,
-    winnerId: row.winnerId, version: row.version, createdAt: row.createdAt.toISOString(),
+    winnerId: row.winnerId, version: row.version, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(),
     state: state.type === "ARCADE" ? publicArcade(state, userId === row.playerOneId ? 0 : 1) : state };
 }
 export async function getGame(id: string): Promise<GameDTO> {
@@ -42,7 +43,7 @@ export async function togetherSnapshot(options: { after?: bigint; before?: bigin
     prisma.chatMemberState.findUnique({ where: { coupleId_userId: { coupleId: couple.id, userId: partner.id } } }),
     changed && options.before == null ? Promise.all([
       prisma.gameMatch.findMany({ where: { coupleId: couple.id, status: { in: ["WAITING", "ACTIVE"] } }, orderBy: { updatedAt: "desc" }, take: 5 }),
-      prisma.gameMatch.findMany({ where: { coupleId: couple.id, status: { notIn: ["WAITING", "ACTIVE"] } }, orderBy: { updatedAt: "desc" }, take: 15 }),
+      prisma.gameMatch.findMany({ where: { coupleId: couple.id, status: { notIn: ["WAITING", "ACTIVE"] }, updatedAt: { gte: new Date(Date.now() - RECENT_GAME_WINDOW_MS) } }, orderBy: { updatedAt: "desc" }, take: 50 }),
     ]).then((rows) => rows.flat()) : Promise.resolve(undefined),
     changed && options.before == null ? prisma.gameMatch.groupBy({ by: ["kind", "winnerId"], where: { coupleId: couple.id, status: "FINISHED" }, _count: { _all: true } }) : Promise.resolve(undefined),
     changed && options.before == null ? prisma.chatImage.aggregate({ where: { coupleId: couple.id }, _sum: { byteLength: true } }) : Promise.resolve(undefined),
