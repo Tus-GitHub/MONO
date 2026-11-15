@@ -1,6 +1,6 @@
 # Project Memory — MONO
 
-Last updated: 2026-11-15 (iPhone PWA chat keyboard follow-up in progress)
+Last updated: 2026-11-15 (iPhone PWA chat keyboard fix deployed and automated checks passed)
 
 
 
@@ -24,11 +24,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **iPhone PWA chat keyboard shift (2026-11-15)** — user reports the screen moving upward when
-  opening the keyboard and confirms it happens in Chat. Audit viewport offsets, document scroll
-  locking and keyboard transitions; keep the existing design, run automated browser/standalone
-  checks, and deploy. Physical iPhone keyboard behavior cannot be verified in this Windows workspace.
 
 - **Physical encrypted-chat phone verification (2026-11-15)** — live Chromium two-user flows and emulated phone widths passed. Actual iPhone/Samsung PWA, native keyboard and independent cryptographic review remain outside that evidence. Screenshot/recording blocking and attempt detection remain unavailable in a PWA.
 
@@ -224,6 +219,13 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **iPhone PWA chat keyboard shift (2026-11-15)** — deployed in 1e06c8c + 45c57e1.
+  Corrected viewport offsets and chat/document scroll containment; keep the composer visible
+  alongside legacy-history notices. 13 focused tests, ESLint/build and 48 final live browser/
+  standalone layout checks passed for both synthetic partners. Four test sessions revoked.
+  WebKit uses a transport relay; no physical iPhone keyboard result is claimed.
+  See docs/reports/ios-chat-keyboard-2026-11-15.md.
 
 - **Adjust saved photo crops (2026-11-15)** — live in 5d9e7c8. Profile, couple, date and own
   encrypted-chat photos can be reframed without another upload. Original sources and record
@@ -1698,7 +1700,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-15 — iPhone PWA chat shifts upward when the keyboard opens
 
-**IN PROGRESS.** User narrowed the issue to Chat. Working in isolated branch
+**DONE (automated verification scope).** User narrowed the issue to Chat. Worked in isolated branch
 `codex/ios-pwa-chat-keyboard` to preserve unrelated admin/privacy work in the root workspace.
 Reproduced a discarded 200px viewport offset and a separate focus-driven 15px chat-container
 scroll in short landscape with tools expanded. Use the root layout viewport measurement,
@@ -1710,9 +1712,14 @@ Initial fix deployed as 1e06c8c. The live synthetic chat exposed an additional 1
 case: its older-history security notice squeezed the composer out of view. The notice now
 scrolls independently, the composer keeps a reserved/capped height, and keyboard message-list
 padding no longer forces overflow. Seeded one local synthetic legacy message and repeated all
-48 checks successfully with that notice present; test sessions revoked. Publishing this final
-adjustment and repeating live checks next. Prior authorization remains automated checks only;
-no physical iPhone result is claimed. See docs/reports/ios-chat-keyboard-2026-11-15.md.
+48 checks successfully with that notice present. Final adjustment 45c57e1 is READY in Vercel
+deployment dpl_J6QPr8LvQozqZ6tFKpHYbet8zSUn on the production alias. All 48 final live checks
+passed for the two retained synthetic partners across Chromium/WebKit browser/standalone modes;
+Chromium standalone had the real active service worker, WebKit used an HTTP transport relay.
+No page errors or failed requests. Drafts cleared; all four final test sessions revoked with
+401 checks, test records retained. Local QA processes stopped. Prior authorization remains
+automated checks only; no physical iPhone result is claimed.
+See docs/reports/ios-chat-keyboard-2026-11-15.md.
 
 ### 2026-11-15 — Adjust crops of already uploaded photos
 

@@ -44,7 +44,24 @@ Keyboard geometry is injected into isolated Playwright contexts; standalone disp
 is simulated. This tests layout responses, not a physical iPhone keyboard or installed iOS PWA.
 WebKit local requests use an HTTP transport relay and omit the production CSP's HTTPS-upgrade
 directive only on localhost (WebKit otherwise upgrades the HTTP QA server's assets to HTTPS).
-Production CSP is unchanged. Production verification is recorded after release.
+Production CSP is unchanged. Live WebKit checks use the same HTTP transport relay with
+the production headers preserved and service workers blocked. Chromium uses native networking
+and, in the standalone simulation, the real activated production service worker.
+
+## Production result
+
+- Live release: `45c57e119a54d1a490ce2da500fbdaa9a45f625c` (following `1e06c8c`).
+- Vercel deployment `dpl_J6QPr8LvQozqZ6tFKpHYbet8zSUn` is READY on
+  <https://mono-kappa-beryl.vercel.app>.
+- All 48 checks passed again on production with the retained encrypted-chat QA couple's
+  older-history warning present: owner in simulated standalone mode, partner in browser
+  mode, in both Chromium and WebKit.
+- Chat/header offset, composer and Send visibility, zero shell scroll, keyboard dismissal,
+  landscape/tools, 320/390/430px phone widths, 768px tablet and route exit all passed.
+- No page errors or failed requests in these four production runs. Drafts cleared;
+  each of the four test sessions revoked and unauthenticated chat access returned 401.
+  Production users, dates, messages and uploaded photos were retained.
+- Local QA processes stopped. Physical iPhone keyboard behavior remains unverified.
 
 The browser behavior motivating these cases is documented in the
 [VisualViewport reference](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport)
