@@ -10,7 +10,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (final chat typing and sending verification in progress)
+Last updated: 2026-11-16 (chat typing and sending fixes deployed and verified live)
 
 Last updated: 2026-11-15 (admin panel and private data encryption)
 
@@ -36,11 +36,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Chat typing/send keyboard continuity (2026-11-15)** — verify both partners' typing,
-  sending and incoming messages in phone browser/standalone simulations; retain focus and
-  latest-message visibility without moving Chat. Fix and deploy, preserving design. Use the
-  retained synthetic QA couple and keep its records; physical iPhone testing remains unavailable.
 
 - **Chat interaction, attachments, sound and visual date planning (2026-11-15)** — implemented long-press actions, encrypted documents, normal photo saving, personal ringtone/admin music and venue-first itinerary with Leaflet. User authorized publication and live testing; release checks in progress. Preserve ₹0 services constraint, E2EE and limited-view restrictions.
 
@@ -240,6 +235,14 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Chat typing/send keyboard continuity (2026-11-16)** — deployed `11f8dde` + `86f8d67`.
+  Preserve focus, next drafts and latest-message visibility through typing, sending, retries,
+  decryption and composer measurement. Build/lint, 16 focused tests and 76 final live checks
+  passed (Chromium 46, WebKit 30); zero composer blurs, Chat/document scroll or page errors.
+  Final four QA sessions revoked and records retained. Physical iPhone keyboard remains
+  unverified; browser/PWA layouts and keyboard geometry were simulated.
+  See docs/reports/chat-send-keyboard-2026-11-15.md.
 
 - **iPhone PWA chat keyboard shift (2026-11-15)** — deployed in 1e06c8c + 45c57e1.
   Corrected viewport offsets and chat/document scroll containment; keep the composer visible
@@ -1723,7 +1726,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-15 — Keep the keyboard and latest message visible while typing/sending
 
-**IN PROGRESS.** User requests full typing/send verification on phone browser and installed PWA,
+**DONE (automated verification scope, 2026-11-16).** User requests full typing/send verification on phone browser and installed PWA,
 remaining fixes and deployment. Inspect Send's focus transfer/disabled textarea, in-flight draft
 handling and message scrolling after asynchronous decryption. Work isolated in
 `codex/chat-send-keyboard`; automated checks only, with physical-device limits reported accurately.
@@ -1760,6 +1763,17 @@ chat attachments, UI and other changes. Combined build passed (89 traces, larges
 as did lint, 16 focused tests, Chromium 46 checks with five retry cycles and WebKit 30 checks.
 All final local sessions revoked; no page errors or composer blurs. Shared dependencies
 changed to Next 16.4.6 during QA; the actual locked production build and live checks follow.
+Final correction published as `86f8d67`; Vercel deployment
+`dpl_3dEYHnmxnDyrDKgbEoxkjuDjtLrF` is READY on mono-kappa-beryl.vercel.app.
+The production build succeeded, and the final live runs passed Chromium 46 checks (five
+retry cycles, actual service worker active) and WebKit 30 checks (HTTP transport relay).
+Both partners retained editable focus with zero blurs; latest-message gap stayed within
+2 px when pinned, and Chat/document scroll stayed zero in portrait, landscape and safe-area
+cases. Both live runs had zero page errors; the scoped deployment error/fatal log query
+returned no groups. All four final QA sessions were revoked; earlier interrupted sessions
+were also revoked individually. Records retained as requested; local server/Postgres stopped.
+No physical iPhone/native keyboard success is claimed. Verification report records the
+simulation, transport and local dependency-version limits.
 
 ### 2026-11-15 — iPhone PWA chat shifts upward when the keyboard opens
 

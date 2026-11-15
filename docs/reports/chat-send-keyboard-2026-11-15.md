@@ -34,11 +34,14 @@ the newest message visible, and the Chat shell anchored in phone browser and sta
 - ESLint and 16 focused viewport/message-merge tests passed on the final implementation.
 - Production build passed after incorporating the concurrent `b698dac` release: 89 route
   traces, largest 3.70 MiB. Shared local dependencies were upgraded to Next 16.4.6 during
-  verification; the final deployment's own locked build and live checks are required too.
+  verification; the final deployment's own locked build and live checks also passed.
 - Final local Chromium: 46 checks passed, including five ambiguous-send retry cycles;
   real service worker active, no page errors,
   both synthetic sessions revoked.
 - Final local WebKit: 30 checks passed, no page errors, both synthetic sessions revoked.
+- Final live Chromium: 46 checks passed, five retry cycles, real service worker active,
+  zero page errors and both QA sessions revoked.
+- Final live WebKit: 30 checks passed, zero page errors and both QA sessions revoked.
 - Both runs retained composer focus with zero blurs and zero disabled-input mutations.
   Chat/document scroll remained zero; the newest-message gap stayed within 2 px when pinned.
   Checks include initial history decryption, multiline caret/earlier edits, repeated touch
@@ -59,4 +62,13 @@ Initial production release `11f8dde` is READY. Live Chromium and WebKit each com
 30 checks, but the intermittent retry clamp prompted the final sizing fix above. A separate
 stress run hit an external connection reset; its two QA sessions and the two cleanup
 sessions were explicitly revoked. The final sizing fix passed 76 local checks after merging
-the latest Chat UI. Final production deployment and live repetition remain pending.
+the latest Chat UI, followed by all 76 live checks on the final deployment.
+
+## Production release
+
+- URL: https://mono-kappa-beryl.vercel.app
+- Commit: `86f8d676e415227e4160e6db84d7e4c48b3bc74c` (initial focus/scroll changes: `11f8dde`).
+- Deployment: `dpl_3dEYHnmxnDyrDKgbEoxkjuDjtLrF`, production, READY.
+- The scoped 15-minute error/fatal runtime-log count query returned no groups during final QA.
+- All four final live QA sessions were revoked; test messages/accounts remain as requested.
+- Local QA server and Postgres were stopped; fixture data and the isolated local key were retained.
