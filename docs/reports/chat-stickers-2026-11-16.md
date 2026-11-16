@@ -30,14 +30,21 @@ Published commit **7fac26a**; push to origin/main succeeded. Vercel deployment
 Vercel build completed; largest traced function was 44.79 MiB.
 
 Live health returned HTTP 200 with database up. Anonymous sticker-library GET returned 401
-and private/no-store; cross-origin POST returned 403. The additional production two-account
-UI run could not create fixtures because this machine could not resolve the configured
-DB endpoint (ENOTFOUND/P1001). Provider metadata reported active compute; app configuration
-was preserved. All attempted fixture runs created zero accounts/spaces. No real-user data,
-passwords, sessions or chat content were changed.
+and private/no-store; cross-origin POST returned 403.
 
-Automatic approval review rejected sending the DB hostname to an independent public DNS
-resolver as an unapproved metadata disclosure. Optional approval was requested; that lookup
-was not sent. This limitation does not change the passing local two-partner browser result,
-but a live two-partner browser pass is not claimed. The local sticker test database server
-was stopped after verification.
+All **7 production two-partner sticker browser groups passed** with no uncaught browser
+errors. The same suite verified encrypted unlock, document sending, cursor-aware emoji,
+keyboard tabs, responsive bounds, custom preview/cancel, empty-name protection, failed-send
+retry, ciphertext-only storage, inline display on both devices, reload and partner reuse
+without duplicate library tiles. Mobile and fully decoded desktop screenshots reviewed.
+Artifacts: `.postgres-test/sticker-live/stickers-0ef314b684f114/results.json`.
+Both disposable accounts and their test space were removed. No real-user chat or credentials
+were changed. Physical-device keyboard behavior remains outside this Chromium evidence.
+
+Initial live attempts failed before fixture creation because this machine's DNS could not
+resolve the configured database endpoint. Automatic review first rejected a public DNS
+lookup as unapproved metadata disclosure. The user explicitly approved hostname-only
+Cloudflare DNS diagnosis; it succeeded. A temporary lookup override inside the test process
+used those results while preserving the original database hostname and TLS certificate
+verification. App configuration and OS DNS settings were unchanged. The subsequent live
+browser run passed. Local test PostgreSQL was stopped after local verification.

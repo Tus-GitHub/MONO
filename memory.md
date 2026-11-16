@@ -11,14 +11,16 @@ keyboard tabs, custom preview/cancel, failed-send retry, encrypted storage, relo
 partner reuse. The broader audio/planner run was interrupted by local disk exhaustion
 after chat/photo passes; only generated caches were cleared, then focused suites/build
 passed. Do not claim a complete audio/planner or physical-phone pass in this release.
-Production health returned HTTP200/database up; anonymous sticker GET returned401 with
-no-store and foreign-origin POST403. Extra production two-account UI verification could
-not create fixtures: local DB DNS fails (ENOTFOUND/P1001), while Neon reports its endpoint
-active. All attempted live fixture runs created zero accounts/spaces. Public DNS diagnosis
-was rejected by automatic approval review because it would disclose the DB hostname to a
-third-party resolver; requested optional user approval, did not send that query or bypass
-the rejection. Existing provider metadata/direct-endpoint diagnostics did not resolve local
-connectivity. No app configuration, existing accounts, credentials or real chats changed.
+Production health returned HTTP200/database up; anonymous sticker GET401/private-no-store
+and foreign-origin POST403 passed. Initial live fixture attempts created zero accounts
+because local DNS failed. User then explicitly approved hostname-only Cloudflare DNS
+lookup. Independent resolution succeeded; a test-process-only DNS override preserved the
+original database hostname and full TLS verification without modifying app/system config.
+All seven production two-partner sticker browser groups then PASSED, with no page errors.
+Confirmed custom creation/cancel, failed-send retry, inline display, reload/library reuse,
+keyboard tabs, cursor insertion and mobile/desktop layout. Production screenshots reviewed.
+Artifacts: .postgres-test/sticker-live/stickers-0ef314b684f114/results.json. Both disposable
+accounts and their one test space were removed. No real-user data or credentials changed.
 Local sticker Postgres was stopped cleanly; test data and screenshots retained. The two
 release-sync stashes remain as recovery copies. Final report: docs/reports/chat-stickers-2026-11-16.md.
 User also requested admin credentials: admin@mono.com is the documented alias sharing their
@@ -64,7 +66,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (Chat picker/custom stickers published; 15 browser groups passed; live health/access checks passed)
+Last updated: 2026-11-16 (Chat picker/custom stickers published; 15 local and 7 live browser groups passed; fixtures cleaned)
 
 Last updated: 2026-11-15 (admin panel and private data encryption)
 
@@ -308,7 +310,7 @@ components. Business rules never live only in React components — they live in
 
 ### Done
 
-- **Chat expression picker/custom stickers (2026-11-16)** — published 7fac26a; Vercel READY on canonical MONO. 579 unit, 55 DB and 15 local browser groups pass. Live health/access checks pass; additional live two-account UI check unverified due local DB DNS, zero fixture accounts created.
+- **Chat expression picker/custom stickers (2026-11-16)** — published 7fac26a; Vercel READY on canonical MONO. 579 unit, 55 DB and 15 local browser groups and all seven live two-partner sticker groups pass. Live health/access checks pass. Two disposable production accounts and one test space removed after the user-approved DNS diagnosis.
 
 - **Venue pagination, cards and public ratings (2026-11-16)** — released 1d6db07, deployment dpl_EbiRgSe9PYBMkXDdxC5EZw6VDZ6X READY on the canonical MONO URL, preserving e2f6af9 shared controls. Keyless IndiaRestros pagination for Indian food categories, photo cards in planner/Explore, sourced public rating/count, persisted attribution, safe retries/deduplication and per-page radius/couple checks. 63 focused unit, 25 local PostgreSQL and 15 live API checks passed for both retained test partners; a live 50 km search included cafés up to 23.7656 km away and a 5 km search excluded them. TypeScript/lint/final build passed; no error/fatal runtime log groups. Both test sessions plus two cleanup sessions revoked; accounts/data retained. Report: docs/reports/venue-pagination-ratings-2026-11-16.md. Admin alias admin@mono.com uses the existing MONO password; none retrieved or reset. Visual Browser/PWA verification remains explicitly pending.
 - **Custom controls refresh (2026-11-16)** — published/deployed 6aea4f9; custom shared controls, stable long-menu scrolling, 8 local groups and 7 live planner checks passed.
@@ -1824,7 +1826,7 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-16 — Chat expression picker and private custom stickers — DONE
 - Replaced crowded expanding tools with attachment cards under + and dedicated searchable Emoji/Stickers tabs. Added a local preview/name creator; explicit Send & save sends encrypted PNG and encrypted identity/name. Both partners can reuse accessible recent creations; fresh encryption per send, stable retry nonce, existing quota/auth/deletion rules.
-- Added crypto/library/schema and deadline regression checks, real-DB security cases and a synthetic two-partner browser suite. Approval service recovered: 579 unit, 55 DB and 15 local browser groups pass. Build/lint/types pass. Published 7fac26a; Vercel READY, production health/access checks pass. Additional live two-account UI check unverified because local DB DNS fails; no fixtures created. See top release record and report for limits.
+- Added crypto/library/schema and deadline regression checks, real-DB security cases and a synthetic two-partner browser suite. Approval service recovered: 579 unit, 55 DB and 15 local browser groups pass. Build/lint/types pass. Published 7fac26a; Vercel READY, production health/access checks pass. After explicit user approval for hostname-only DNS diagnosis, all seven live two-partner sticker browser groups passed. Both disposable production accounts and their test space were removed. See top release record and report for limits.
 
 ### 2026-11-16 — Custom controls refresh — DONE
 - Published e2f6af9 and scrolling correction 6aea4f9 from the isolated `.postgres-test/controls-release` checkout. Both pushes succeeded; final deployment dpl_7QDGJ8amMaLSSgJCnvWMaMbGhKfr is READY on https://mono-kappa-beryl.vercel.app. Preserved the newer venue-card release 1d6db07 and Games test update 984ee38.
