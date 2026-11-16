@@ -16,7 +16,8 @@ import {
 } from "@/lib/authz";
 import { prisma } from "@/lib/db/prisma";
 import { NotFoundError, ValidationError } from "@/lib/errors";
-import { getExternalPlaceProvider } from "@/lib/places";
+import { getPlaceProviderByName } from "@/lib/places";
+import { indiaRestrosPhoto } from "@/lib/places/indiarestros-photos";
 import { averageScore } from "@/lib/review/scale";
 import { sharedReviews } from "@/lib/date/review-reveal";
 import { storage } from "@/lib/storage";
@@ -77,7 +78,7 @@ export async function resolvePlace(
   });
   if (existing) return existing;
 
-  const provider = getExternalPlaceProvider();
+  const provider = getPlaceProviderByName(input.provider);
   const detail =
     provider && provider.name === input.provider
       ? await provider.details(input.providerPlaceId).catch(() => null)
@@ -105,6 +106,8 @@ export async function resolvePlace(
       openingText: detail.openingText,
       externalRating: detail.externalRating,
       externalRatingCount: detail.externalRatingCount,
+      externalRatingSource: detail.externalRatingSource,
+      externalUrl: detail.externalUrl,
       priceLevel: detail.priceLevel,
     },
     select: { id: true, name: true, category: true, city: true },
@@ -222,6 +225,8 @@ export interface PlaceDetailView {
   openingText: string | null;
   externalRating: number | null;
   externalRatingCount: number | null;
+  externalRatingSource: string | null;
+  externalUrl: string | null;
   priceLevel: number | null;
   isFavorite: boolean;
 
@@ -325,13 +330,15 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
     latitude: resource.latitude,
     longitude: resource.longitude,
     imageUrl: placeImageUrl(resource) ?? photos.get(resource.providerPlaceId ?? "")?.url ?? null,
-    photo: photos.get(resource.providerPlaceId ?? "") ?? null,
+    photo: photos.get(resource.providerPlaceId ?? "") ?? (resource.provider === "indiarestros" ? indiaRestrosPhoto({ id: resource.providerPlaceId ?? "", url: resource.externalUrl ?? "", photos: [{ thumb: resource.imageUrl ?? "" }] }) : null),
     description: resource.description,
     website: resource.website,
     phone: resource.phone,
     openingText: resource.openingText,
     externalRating: resource.externalRating,
     externalRatingCount: resource.externalRatingCount,
+    externalRatingSource: resource.externalRatingSource ?? (resource.provider === "google" ? "google" : null),
+    externalUrl: resource.externalUrl,
     priceLevel: resource.priceLevel,
     isFavorite: resource.isFavorite,
     gallery: datesHere

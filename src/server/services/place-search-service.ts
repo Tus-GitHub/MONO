@@ -13,6 +13,9 @@ import { getPlaceHistoryMap, score10 } from "@/server/services/place-history";
 import { haversineKm } from "@/lib/utils/geo";
 import { CATEGORY_SEARCH_TEXT, providerCategoryFor } from "@/lib/date/plan-discovery";
 import { venueRadius } from "@/lib/places/types";
+import { AppError, ValidationError } from "@/lib/errors";
+import { decodeVenueCursor, encodeVenueCursor, venueSearchKey } from "@/lib/places/search-cursor";
+import { indiaRestrosPhoto } from "@/lib/places/indiarestros-photos";
 
 export interface PlaceSearchResult {
   /** Present when this is (or matches) a place already saved in MONO. */
@@ -30,6 +33,8 @@ export interface PlaceSearchResult {
 
   externalRating: number | null;
   externalRatingCount: number | null;
+  externalRatingSource?: string | null;
+  externalUrl?: string | null;
   priceLevel: number | null;
 
   // couple-private signal (aggregate only)
@@ -49,21 +54,49 @@ interface Options {
   near?: { latitude: number; longitude: number } | null;
   curated?: boolean;
   limit?: number;
+  cursor?: string;
 }
 
 export async function searchPlaces(options: Options = {}): Promise<PlaceSearchResult[]> {
+  return (await searchPlacesPage(options)).results.slice(0, options.limit ?? 24);
+}
+
+export interface PlaceSearchPage { results: PlaceSearchResult[]; nextCursor: string | null }
+
+export async function searchPlacesPage(options: Options = {}): Promise<PlaceSearchPage> {
   const { couple } = await requireCoupleContext();
   const radiusKm = venueRadius(options.radiusKm);
   const limit = Math.min(options.limit ?? 24, 40);
   const text = options.text?.trim() || undefined;
   const city = options.city?.trim().slice(0, 80) || undefined;
-  const provider = getExternalPlaceProvider();
-  const origin = options.near ?? (city && provider?.resolveArea ? await provider.resolveArea(city).catch(() => null) : null);
+  const baseProvider = getExternalPlaceProvider();
+  const origin = options.near ?? (city && baseProvider?.resolveArea ? await baseProvider.resolveArea(city).catch(() => null) : null);
   const providerCategory = providerCategoryFor(options.categories);
+  let provider = getExternalPlaceProvider({ category: providerCategory, near: origin });
+  const key = venueSearchKey([couple.id, text, city, options.categories, options.near, radiusKm, limit, Boolean(options.curated)]);
+  const cursor = decodeVenueCursor(options.cursor, key);
+  if (cursor?.external != null) {
+    if (cursor.provider === baseProvider?.name) provider = baseProvider;
+    if (cursor.provider !== provider?.name) throw new ValidationError("The venue source changed. Search again.");
+  }
   const browseText = providerCategory ? CATEGORY_SEARCH_TEXT[providerCategory] : "places";
   const areaParts = origin ? [] : city?.split(",").map((part) => part.trim()).filter(Boolean).slice(0, 3) ?? [];
 
-  const [saved, history] = await Promise.all([
+  const externalTask = async () => {
+    if (!provider || options.curated || !(text || city || options.near) || (cursor && cursor.external === null)) return { results: [], nextOffset: null };
+    const query = { text: provider.name === "indiarestros" ? text : text ?? (city ? `${browseText} in ${city}` : `${browseText} near me`),
+      city, category: providerCategory, near: origin, radiusKm, limit, ...(cursor ? { offset: cursor.external! } : {}) };
+    try {
+      const page = provider.searchPage ? await provider.searchPage(query) : { results: await provider.search(query), nextOffset: null };
+      // Keep OSM/Commons coverage when the Indian dataset has no matching venue.
+      if (!cursor && provider.name === "indiarestros" && !page.results.length && page.nextOffset === null && baseProvider) {
+        provider = baseProvider;
+        return { results: await provider.search({ ...query, text: text ?? `${browseText} near me` }), nextOffset: null };
+      }
+      return page;
+    } catch { throw new AppError("venue_source_unavailable", "Couldn't load more venues right now. Please try again shortly.", 503); }
+  };
+  const [saved, history, externalPage] = await Promise.all([
     prisma.place.findMany({
       where: {
         coupleId: couple.id,
@@ -86,9 +119,9 @@ export async function searchPlaces(options: Options = {}): Promise<PlaceSearchRe
           : {}),
       },
       orderBy: { name: "asc" },
-      take: 200,
     }),
     getPlaceHistoryMap(couple.id),
+    externalTask(),
   ]);
 
   const savedByProviderId = new Map(
@@ -112,6 +145,9 @@ export async function searchPlaces(options: Options = {}): Promise<PlaceSearchRe
       imageUrl: placeImageUrl(place),
       externalRating: place.externalRating,
       externalRatingCount: place.externalRatingCount,
+      externalRatingSource: place.externalRatingSource ?? (place.provider === "google" ? "google" : null),
+      externalUrl: place.externalUrl,
+      photo: place.provider === "indiarestros" ? indiaRestrosPhoto({ id: place.providerPlaceId ?? "", url: place.externalUrl ?? "", photos: [{ thumb: place.imageUrl ?? "" }] }) : null,
       priceLevel: place.priceLevel,
       isFavorite: place.isFavorite,
       coupleScore10: score10(entry),
@@ -124,15 +160,16 @@ export async function searchPlaces(options: Options = {}): Promise<PlaceSearchRe
     };
   });
 
-  // Merge in external provider results (deduped against saved places).
-  if (provider && (text || ((city || options.near) && browseText)) && !options.curated) {
-    const external = await provider
-      .search({ text: text ?? (city ? `${browseText} in ${city}` : `${browseText} near me`), city, category: providerCategory, near: origin, radiusKm, limit })
-      .catch(() => []);
-    for (const place of external) {
+  // Each stream advances independently so merging never discards unshown provider rows.
+  const externalResults: PlaceSearchResult[] = [];
+  const seenExternal = new Set<string>();
+    for (const place of externalPage.results) {
       if (options.categories?.length && (!place.category || !options.categories.includes(place.category))) continue;
       if (savedByProviderId.has(`${place.provider}:${place.providerPlaceId}`)) continue;
-      results.push({
+      const identity = `${place.provider}:${place.providerPlaceId}`;
+      if (seenExternal.has(identity)) continue;
+      seenExternal.add(identity);
+      externalResults.push({
         savedPlaceId: null,
         external: { provider: place.provider, providerPlaceId: place.providerPlaceId },
         name: place.name,
@@ -144,6 +181,9 @@ export async function searchPlaces(options: Options = {}): Promise<PlaceSearchRe
         imageUrl: placeImageUrl(place),
         externalRating: place.externalRating,
         externalRatingCount: place.externalRatingCount,
+        externalRatingSource: place.externalRatingSource ?? (place.provider === "google" ? "google" : null),
+        externalUrl: place.externalUrl,
+        photo: place.provider === "indiarestros" ? indiaRestrosPhoto({ id: place.providerPlaceId, url: place.externalUrl ?? "", photos: [{ thumb: place.imageUrl ?? "" }] }) : null,
         priceLevel: place.priceLevel,
         isFavorite: false,
         coupleScore10: null,
@@ -155,10 +195,9 @@ export async function searchPlaces(options: Options = {}): Promise<PlaceSearchRe
             : place.distanceKm ?? null,
       });
     }
-  }
 
-  const nearby = origin ? results.filter((place) => place.distanceKm != null && place.distanceKm <= radiusKm) : results;
-  const ranked = nearby.sort((a, b) => {
+  const inRadius = (place: PlaceSearchResult) => !origin || (place.distanceKm != null && place.distanceKm <= radiusKm);
+  const compare = (a: PlaceSearchResult, b: PlaceSearchResult) => {
     if (options.curated) {
       return (b.coupleScore10 ?? -1) - (a.coupleScore10 ?? -1) || a.visitCount - b.visitCount;
     }
@@ -168,13 +207,18 @@ export async function searchPlaces(options: Options = {}): Promise<PlaceSearchRe
       (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity) ||
       a.name.localeCompare(b.name)
     );
-  });
+  };
 
-  const selected = (options.curated ? ranked.filter((r) => r.coupleScore10 != null && !r.isFavorite) : ranked).slice(0, limit);
+  const ranked = results.filter(inRadius).filter((r) => !options.curated || (r.coupleScore10 != null && !r.isFavorite)).sort(compare);
+  const savedOffset = cursor?.saved ?? 0;
+  const savedEnd = Math.min(ranked.length, savedOffset + limit);
+  const selected = [...ranked.slice(savedOffset, savedEnd), ...externalResults.filter(inRadius)].sort(compare);
+  const nextCursor = savedEnd < ranked.length || externalPage.nextOffset != null
+    ? encodeVenueCursor({ key, saved: savedEnd, external: externalPage.nextOffset, provider: provider?.name ?? null }) : null;
   const photos = await lookupVenuePhotos(selected.filter((place) => !place.imageUrl && place.external?.provider === "photon").map((place) => ({ ...place, providerPlaceId: place.external!.providerPlaceId })));
-  return selected.map((place) => {
+  return { nextCursor, results: selected.map((place) => {
     const photo = !place.imageUrl && place.external?.provider === "photon" ? photos.get(place.external.providerPlaceId) : null;
     return photo ? { ...place, imageUrl: photo.url, photo,
       address: photo.source === "indiarestros" ? photo.venueAddress ?? place.address : place.address } : place;
-  });
+  }) };
 }

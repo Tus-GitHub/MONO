@@ -2,7 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { PlaceCategory } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { getExternalPlaceProvider } from "@/lib/places";
+import { getPlaceProviderByName } from "@/lib/places";
 import type { ProviderPlace } from "@/lib/places/types";
 import type { SelectPlaceInput } from "@/lib/validation/place";
 import { NotFoundError, ValidationError } from "@/lib/errors";
@@ -11,8 +11,8 @@ import { NotFoundError, ValidationError } from "@/lib/errors";
 export async function preparePlanVenue(coupleId: string, selection?: SelectPlaceInput): Promise<ProviderPlace | null> {
   if (selection?.mode !== "external") return null;
   if (await prisma.place.findFirst({ where: { coupleId, provider: selection.provider, providerPlaceId: selection.providerPlaceId, deletedAt: null }, select: { id: true } })) return null;
-  const provider = getExternalPlaceProvider();
-  const place = provider?.name === selection.provider ? await provider.details(selection.providerPlaceId).catch(() => null) : null;
+  const provider = getPlaceProviderByName(selection.provider);
+  const place = provider ? await provider.details(selection.providerPlaceId).catch(() => null) : null;
   if (!place) throw new ValidationError("Couldn't verify that venue. Search again or choose a custom place.");
   return place;
 }

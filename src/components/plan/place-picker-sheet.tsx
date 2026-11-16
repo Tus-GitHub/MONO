@@ -4,10 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlaceCategory } from "@prisma/client";
 import { PlaceAttribution } from "@/components/places/place-attribution";
-import { PhotoCredit } from "@/components/places/photo-credit";
-import { PlaceImage } from "@/components/places/place-image";
-
-import { CoupleScore, PublicRating } from "@/components/explore/rating-badges";
+import { PlaceCard } from "@/components/explore/place-card";
+import { VenueSearchFooter } from "@/components/places/venue-search-footer";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
@@ -23,7 +21,6 @@ import { selectPlaceForDateAction } from "@/server/actions/place";
 import { DATE_IDEAS } from "@/lib/explore/date-ideas";
 import { addActivityAction } from "@/server/actions/plan";
 import type { PlanActivityDTO } from "@/server/services/plan-service";
-import { formatDistanceKm } from "@/lib/utils/geo";
 import { useVenueSearch } from "@/lib/hooks/use-venue-search";
 import { VenueSearchControls } from "@/components/places/venue-search-controls";
 import { selectPlaceSchema } from "@/lib/validation/place";
@@ -159,35 +156,14 @@ export function PlacePickerSheet({
                 : "Search your saved places, or add a custom one."}
             </p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {results.map((place) => {
-                const key = place.savedPlaceId ?? `${place.external?.providerPlaceId}`;
+                const key = place.savedPlaceId ?? `${place.external?.provider}:${place.external?.providerPlaceId}`;
                 return (
-                  <li
-                    key={key}
-                    className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3"
-                  >
-                    {place.imageUrl ? <div className="size-20 shrink-0 overflow-hidden rounded-lg"><PlaceImage src={place.imageUrl} name={place.name} /></div> : null}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-ink">{place.name}</p>
-                      <p className="truncate text-xs text-muted">
-                        {PLACE_CATEGORY_LABEL[place.category ?? PlaceCategory.OTHER]}
-                        {place.city ? ` · ${place.city}` : ""}
-                        {place.distanceKm != null ? ` · ${formatDistanceKm(place.distanceKm)}` : ""}
-                      </p>
-                      {place.address ? <p className="line-clamp-2 text-xs text-muted">{place.address}</p> : null}
-                      <div className="mt-1 flex gap-1.5">
-                        <PublicRating rating={place.externalRating} count={place.externalRatingCount} />
-                        <CoupleScore score10={place.coupleScore10} />
-                      </div>
-                      <PhotoCredit photo={place.photo} />
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={() =>
-                        choose(
+                  <li key={key} className="min-w-0">
+                    <PlaceCard place={place} disabled={busy}
+                      onChoose={() =>
+                        void choose(
                           place.savedPlaceId
                             ? { mode: "saved", savedPlaceId: place.savedPlaceId }
                             : {
@@ -197,14 +173,13 @@ export function PlacePickerSheet({
                             },
                         )
                       }
-                    >
-                      Choose
-                    </Button>
+                    />
                   </li>
                 );
               })}
             </ul>
           )}
+          <VenueSearchFooter search={search} disabled={busy} />
           <PlaceAttribution provider={results.some((place) => place.external?.provider === "photon") ? "photon" : null} />
         </TabsContent>
 

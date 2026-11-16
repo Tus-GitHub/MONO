@@ -1,6 +1,8 @@
 import Link from "@/components/ui/app-link";
 import { PhotoCredit } from "@/components/places/photo-credit";
 import { PlaceImage } from "@/components/places/place-image";
+import { PlaceAttribution } from "@/components/places/place-attribution";
+import { Button } from "@/components/ui/button";
 import { PlaceCategory, type RecommendationSignal } from "@prisma/client";
 
 import { FavoriteButton } from "@/components/explore/favorite-button";
@@ -18,10 +20,14 @@ export function PlaceCard({
   place,
   forDate,
   feedbackSignal = null,
+  onChoose,
+  disabled = false,
 }: {
   place: PlaceSearchResult;
   forDate?: string;
   feedbackSignal?: RecommendationSignal | null;
+  onChoose?: () => void;
+  disabled?: boolean;
 }) {
   const category = place.category ?? PlaceCategory.OTHER;
   const visitedStatus = classifyVisited({
@@ -41,7 +47,7 @@ export function PlaceCard({
   };
 
   return (
-    <article className="group overflow-hidden rounded-xl border border-line bg-surface">
+    <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-surface">
       <div className="relative aspect-[4/3] bg-line">
         {place.imageUrl ? (
           <PlaceImage src={place.imageUrl} name={place.name} />
@@ -50,11 +56,11 @@ export function PlaceCard({
             <Icon name={PLACE_CATEGORY_ICON[category]} size={32} className="text-primary/60" />
           </div>
         )}
-        <FavoriteButton
+        {!onChoose ? <FavoriteButton
           place={ref}
           initialFavorite={place.isFavorite}
           className="absolute right-2 top-2"
-        />
+        /> : null}
         {visitedStatus !== "new" ? (
           <span className="absolute left-2 top-2">
             <VisitedBadge status={visitedStatus} />
@@ -62,10 +68,10 @@ export function PlaceCard({
         ) : null}
       </div>
 
-      <div className="space-y-2 p-3">
+      <div className="flex flex-1 flex-col gap-2 p-3">
         <PhotoCredit photo={place.photo} />
         <div>
-          <p className="truncate text-sm font-medium text-ink">{place.name}</p>
+          <p className="wrap-anywhere text-sm font-medium text-ink">{place.name}</p>
           <p className="line-clamp-3 text-xs text-muted">
             {PLACE_CATEGORY_LABEL[category]}
             {location ? ` · ${location}` : ""}
@@ -73,7 +79,7 @@ export function PlaceCard({
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <PublicRating rating={place.externalRating} count={place.externalRatingCount} />
+          <PublicRating rating={place.externalRating} count={place.externalRatingCount} source={place.externalRatingSource} />
           {place.priceLevel != null ? (
             <span className="text-2xs font-medium text-faint">{priceLevelLabel(place.priceLevel)}</span>
           ) : null}
@@ -84,7 +90,7 @@ export function PlaceCard({
 
         {place.coupleScore10 != null ? <CoupleScore score10={place.coupleScore10} /> : null}
 
-        {place.savedPlaceId && !forDate ? (
+        {!onChoose && place.savedPlaceId && !forDate ? (
           <RecFeedback
             targetType="PLACE"
             targetKey={place.savedPlaceId}
@@ -92,8 +98,9 @@ export function PlaceCard({
           />
         ) : null}
 
-        <div className="pt-1">
-          {forDate ? (
+        {place.external?.provider === "indiarestros" ? <PlaceAttribution provider="indiarestros" url={place.externalUrl} /> : null}
+        <div className="mt-auto pt-1">
+          {onChoose ? <Button size="sm" variant="secondary" className="w-full" disabled={disabled} onClick={onChoose} aria-label={`Choose ${place.name}`}>Choose</Button> : forDate ? (
             <SelectPlaceButton
               dateId={forDate}
               place={ref}

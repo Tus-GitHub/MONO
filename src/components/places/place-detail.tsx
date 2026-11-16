@@ -59,7 +59,7 @@ export function PlaceDetail({ place, forDate }: { place: PlaceDetailView; forDat
           {location ? ` · ${location}` : ""}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <PublicRating rating={place.externalRating} count={place.externalRatingCount} />
+          <PublicRating rating={place.externalRating} count={place.externalRatingCount} source={place.externalRatingSource} />
           {place.priceLevel != null ? (
             <span className="text-xs font-medium text-faint">{priceLevelLabel(place.priceLevel)}</span>
           ) : null}
@@ -72,7 +72,7 @@ export function PlaceDetail({ place, forDate }: { place: PlaceDetailView; forDat
         </div>
       </div>
 
-      <PlaceAttribution provider={place.provider} />
+      <PlaceAttribution provider={place.provider} url={place.externalUrl} />
       {place.description ? (
         <p className="text-sm leading-relaxed text-muted">{place.description}</p>
       ) : null}

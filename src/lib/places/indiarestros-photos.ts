@@ -19,8 +19,15 @@ function sameName(a: string, b: string): boolean {
   const left = normalize(a), right = normalize(b);
   return right.length >= 3 && !/^(cafe|coffee|restaurant|food|tea|hotel)$/.test(right) && (left === right || left.startsWith(`${right} `) || right.startsWith(`${left} `));
 }
-function image(candidate: Candidate): IndiaRestrosVenuePhoto | null {
-  if (!/^IRR-[A-Z0-9]{10}$/.test(candidate.id ?? "") || !(Number(candidate.photo_count) > 0) || !Array.isArray(candidate.photos)) return null;
+export function indiaRestrosListingUrl(value: unknown, id: string): string | null {
+  if (typeof value !== "string" || !/^IRR-[A-Z0-9]{10}$/.test(id)) return null;
+  try {
+    const url = new URL(value, ORIGIN);
+    return url.origin === ORIGIN && !url.username && !url.password && !url.search && !url.hash && new RegExp(`^/r/[a-z0-9-]+-${id.slice(4).toLowerCase()}$`).test(url.pathname) ? url.href : null;
+  } catch { return null; }
+}
+export function indiaRestrosPhoto(candidate: Candidate): IndiaRestrosVenuePhoto | null {
+  if (!/^IRR-[A-Z0-9]{10}$/.test(candidate.id ?? "") || (candidate.photo_count != null && !(Number(candidate.photo_count) > 0)) || !Array.isArray(candidate.photos)) return null;
   for (const item of candidate.photos.slice(0, 5)) {
     if (!item || item.representative || /representative|illustrat|placeholder|stock/i.test(`${item.alt ?? ""} ${item.kind ?? ""}`)) continue;
     try {
@@ -73,7 +80,7 @@ export class IndiaRestrosPhotos {
           .sort((a, b) => a.distance - b.distance);
         // Two nearby same-name branches are ambiguous unless the closest is clearly nearer.
         if (!candidates[0] || (candidates[1] && candidates[1].distance - candidates[0].distance < 0.05)) continue;
-        const resolved = image(candidates[0].row);
+        const resolved = indiaRestrosPhoto(candidates[0].row);
         if (resolved) found.set(this.key(place), resolved);
       }
     } catch { ttl = 60_000; this.nextRequest = Math.max(this.nextRequest, Date.now() + ttl); }

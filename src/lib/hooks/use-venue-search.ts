@@ -6,6 +6,9 @@ import { getBrowserLocation } from "@/lib/places/browser-location";
 import { coordinateLabel, getLocationLabel } from "@/lib/places/location-label";
 import type { GeoPoint } from "@/lib/places/types";
 import type { PlaceSearchResult } from "@/server/services/place-search-service";
+import { mergeVenueResults } from "@/lib/places/merge-search-results";
+
+interface SearchState { key: string; results: PlaceSearchResult[]; nextCursor?: string | null; error?: string; loadingMore?: boolean; moreError?: string }
 
 export function useVenueSearch({ active = true, categoryKey, initialQuery = "" }: {
   active?: boolean; categoryKey: string | null; initialQuery?: string;
@@ -16,36 +19,64 @@ export function useVenueSearch({ active = true, categoryKey, initialQuery = "" }
   const labelRequest = useRef<AbortController | null>(null);
   const [radiusKm, setRadius] = useState(5);
   const [attempt, setAttempt] = useState(0);
-  const [search, setSearch] = useState<{ key: string; results: PlaceSearchResult[]; error?: string }>({ key: "", results: [] });
+  const [search, setSearch] = useState<SearchState>({ key: "", results: [] });
+  const moreRequest = useRef<AbortController | null>(null);
   const location = useAsyncTask<GeoPoint, "locating">();
   const { reset } = location;
   const searchCity = near ? "" : city;
   const key = JSON.stringify([q, searchCity, near, radiusKm, categoryKey, attempt]);
   const current = search.key === key;
+  const params = new URLSearchParams({ radius: String(radiusKm) });
+  if (q.trim()) params.set("q", q.trim());
+  if (searchCity.trim()) params.set("city", searchCity.trim());
+  if (categoryKey) params.set("category", categoryKey);
+  if (near) { params.set("lat", String(near.latitude)); params.set("lng", String(near.longitude)); }
+  const query = params.toString();
+
+  useEffect(() => () => { moreRequest.current?.abort(); moreRequest.current = null; }, [active, key]);
 
   useEffect(() => {
-    if (!active) return;
+    // Reopening the picker keeps the already loaded pages. A background first-page
+    // refresh must not race a Load more click and replace its appended results.
+    if (!active || current) return;
     let live = true;
     const controller = new AbortController();
     let deadline: ReturnType<typeof setTimeout> | undefined;
     const timer = setTimeout(async () => {
-      deadline = setTimeout(() => controller.abort(), 15_000);
+      deadline = setTimeout(() => controller.abort(), 25_000);
       try {
-        const params = new URLSearchParams({ radius: String(radiusKm) });
-        if (q.trim()) params.set("q", q.trim());
-        if (searchCity.trim()) params.set("city", searchCity.trim());
-        if (categoryKey) params.set("category", categoryKey);
-        if (near) { params.set("lat", String(near.latitude)); params.set("lng", String(near.longitude)); }
-        const response = await fetch(`/api/places/search?${params}`, { signal: controller.signal, cache: "no-store" });
+        const response = await fetch(`/api/places/search?${query}`, { signal: controller.signal, cache: "no-store" });
         const body = await response.json();
         if (!response.ok) throw new Error(body.error ?? "Couldn't load places. Try again.");
-        if (live) setSearch({ key, results: body.results ?? [] });
-      } catch {
-        if (live) setSearch({ key, results: [], error: !navigator.onLine ? "You're offline. Reconnect to search." : "Couldn't load places in time. Try again or change the city." });
+        if (live) setSearch({ key, results: body.results ?? [], nextCursor: body.nextCursor });
+      } catch (error) {
+        if (live) setSearch({ key, results: [], error: !navigator.onLine ? "You're offline. Reconnect to search." : error instanceof Error && error.name !== "AbortError" ? error.message : "Couldn't load places in time. Try again or change the city." });
       } finally { clearTimeout(deadline); }
     }, 450);
     return () => { live = false; clearTimeout(timer); clearTimeout(deadline); controller.abort(); };
-  }, [active, q, searchCity, near, radiusKm, categoryKey, key]);
+  }, [active, query, key, current]);
+
+  const loadMore = async () => {
+    if (!active || !current || !search.nextCursor || moreRequest.current) return;
+    const controller = new AbortController();
+    moreRequest.current = controller;
+    setSearch((previous) => previous.key === key ? { ...previous, loadingMore: true, moreError: undefined } : previous);
+    const deadline = setTimeout(() => controller.abort(), 25_000);
+    try {
+      const response = await fetch(`/api/places/search?${query}&cursor=${encodeURIComponent(search.nextCursor)}`, { signal: controller.signal, cache: "no-store" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? "Couldn't load more places. Try again.");
+      if (moreRequest.current === controller) setSearch((previous) => previous.key === key
+        ? { ...previous, results: mergeVenueResults(previous.results, body.results ?? []), nextCursor: body.nextCursor, loadingMore: false, moreError: undefined } : previous);
+    } catch (error) {
+      if (moreRequest.current === controller) setSearch((previous) => previous.key === key
+        ? { ...previous, loadingMore: false, moreError: !navigator.onLine ? "You're offline. Reconnect to load more." : error instanceof Error && error.name !== "AbortError" ? error.message : "Couldn't load more places in time. Try again." } : previous);
+    } finally {
+      clearTimeout(deadline);
+      if (moreRequest.current === controller) moreRequest.current = null;
+      if (!moreRequest.current) setSearch((previous) => previous.key === key && previous.loadingMore ? { ...previous, loadingMore: false } : previous);
+    }
+  };
 
   useEffect(() => {
     if (!active || !near) return;
@@ -71,6 +102,8 @@ export function useVenueSearch({ active = true, categoryKey, initialQuery = "" }
     locationError: location.state.status === "error" ? location.state.message : null,
     results: current ? search.results : [], loading: active && !current,
     error: current ? search.error : undefined, retry: () => setAttempt((value) => value + 1),
+    hasMore: current && Boolean(search.nextCursor), loadingMore: current && Boolean(search.loadingMore),
+    moreError: current ? search.moreError : undefined, loadMore,
   };
 }
 export type VenueSearchState = ReturnType<typeof useVenueSearch>;

@@ -37,7 +37,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (radius diagnosis; 24-game panel QA awaiting Browser control)
+Last updated: 2026-11-16 (venue pagination, cards and public visitor ratings in progress)
 
 Last updated: 2026-11-15 (admin panel and private data encryption)
 
@@ -69,6 +69,7 @@ components. Business rules never live only in React components — they live in
 - **Custom controls refresh (2026-11-16)** — user requests consistent custom buttons, selectors and dropdowns throughout MONO. Audit found native select menus, date/time inputs and plain range/checkbox controls. Implement shared themed controls, preserve native form submission/validation and keyboard support, verify responsive interactions, and carry the approved publication workflow forward.
 
 
+- **Venue pagination and cards (2026-11-16)** — add Load more for Indian restaurants/cafes across the selected radius, card-based planning results and genuine public visitor ratings with source/count. User confirmed public visitor ratings; couple reviews stay private. IndiaRestros has keyless offset pagination and sourced ratings; retain Photon/Commons fallbacks. Implement, validate and deploy. Admin alias is admin@mono.com using the existing verified account password; do not retrieve or reset credentials. Right-panel-only browser preference persists; Browser control remains unavailable, so report that test limitation.
 
 - **All 24 games and right-panel QA (2026-11-16)** — user requests every game for both
   partners, chat during play, last-hour matches/full History, phone browser and PWA,
@@ -1803,6 +1804,15 @@ User requests modern custom controls across MONO. Preserve warm colour tokens, p
 - Published d70bc3c after merging the newer Games release 99e2e7c. Production deployment READY; privacy backfill remains disabled after its earlier successful zero-plaintext audit.
 - Applied the existing above-bottom-nav utility to the planner Save panel. Added authenticated reverse-area lookup with immediate coordinate fallback and cancellation on manual changes. Both shared venue search and the map picker fill their actual input values.
 - 38 focused tests passed, production build passed (94 routes), and six targeted live browser checks passed at phone/tablet/desktop widths with simulated GPS. Used isolated headless QA; no personal browser tabs were opened or changed. QA fixtures cleaned.
+
+### 2026-11-16 — Venue pagination, cards and public ratings — IN PROGRESS
+
+- Verified IndiaRestros supports next_offset, 50 km radius, canonical venue links and ratings with source/count, without keys/billing. User chose public visitor ratings rather than public MONO reviews.
+- Continuing in isolated codex/venue-pagination-cards checkout rebased onto d70bc3c; retained earlier game integration tests and the panel-connection blocker. Implementing full search → pagination → select/save metadata flow.
+- Implementation complete: keyless IndiaRestros pages for Indian food categories, real public rating/source/count, shared venue cards, stale-request cancellation, retry and deduplication, per-page radius/couple checks and persisted attribution through both save paths. 63 focused unit and 25 local PostgreSQL checks passed; TypeScript/lint passed. Corrected the additive migration's mapped table name during isolated testing before publication. Real API pages/details passed; named café results reached 23.7656 km within 50 km. Production build and live API checks next. Browser runtime still unavailable; no alternative browser used.
+- Explained admin@mono.com is an alias for the user's verified MONO account; existing password or normal password reset, no separate password disclosed.
+- Production build passed. During publication, main advanced to e2f6af9 (shared custom controls). Rebased preserving both releases and their memory entries; rebuild the combined result before pushing.
+- Combined build passed. Final hook review removed a reopen/Load more race: reuse loaded pages and reset the pending state on cancellation. Rebuilding this last adjustment before the production push.
 
 ### 2026-11-16 — 50 km venue radius only showing nearby results
 

@@ -22,6 +22,7 @@ export interface PlaceSearchQuery {
   /** Bias toward a point (device location). */
   near?: { latitude: number; longitude: number } | null;
   limit?: number;
+  offset?: number;
 }
 
 export interface ProviderPlace {
@@ -42,6 +43,9 @@ export interface ProviderPlace {
   /** Public rating on a 0–5 scale. */
   externalRating: number | null;
   externalRatingCount: number | null;
+  /** Source and canonical listing for the public rating snapshot. */
+  externalRatingSource?: string | null;
+  externalUrl?: string | null;
   /** 0 (free) – 4 (very expensive). */
   priceLevel: number | null;
 }
@@ -50,5 +54,6 @@ export interface PlaceProvider {
   readonly name: string;
   resolveArea?(area: string): Promise<GeoPoint | null>;
   search(query: PlaceSearchQuery): Promise<ProviderPlace[]>;
+  searchPage?(query: PlaceSearchQuery): Promise<{ results: ProviderPlace[]; nextOffset: number | null }>;
   details(providerPlaceId: string): Promise<ProviderPlace | null>;
 }

@@ -6,6 +6,7 @@ import Link from "@/components/ui/app-link";
 import { PlaceCard } from "./place-card";
 import { VenueSearchControls } from "@/components/places/venue-search-controls";
 import { PlaceAttribution } from "@/components/places/place-attribution";
+import { VenueSearchFooter } from "@/components/places/venue-search-footer";
 import { useVenueSearch } from "@/lib/hooks/use-venue-search";
 import { EXPLORE_CATEGORIES } from "@/lib/date/explore-categories";
 import { Icon } from "@/components/ui/icon";
@@ -42,9 +43,10 @@ export function ExploreDiscovery({ initialQuery, initialCategory, forDate, feedb
     {search.loading ? <div className="flex justify-center py-8"><Spinner /></div>
       : search.error ? <p role="alert" className="text-sm text-error">{search.error} <Button variant="link" onClick={search.retry}>Try again</Button></p>
       : !search.results.length ? <p className="py-6 text-sm text-muted">{browsingSaved ? "No saved places in this category yet. Enter a city or venue name above." : "No matches found. Try a wider radius, another category, or a different city."}</p>
-      : <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">{search.results.map((place) => <PlaceCard
+      : <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{search.results.map((place) => <PlaceCard
         key={place.savedPlaceId ?? `${place.external?.provider}:${place.external?.providerPlaceId}`} place={place} forDate={forDate}
         feedbackSignal={place.savedPlaceId ? feedback[`PLACE:${place.savedPlaceId}`] ?? null : null} />)}</div>}
+    <VenueSearchFooter search={search} />
     <PlaceAttribution provider={search.results.some((place) => place.external?.provider === "photon") ? "photon" : null} />
     {browsingSaved && !categoryKey ? children : null}
   </div>;

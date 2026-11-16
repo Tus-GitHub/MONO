@@ -5,25 +5,28 @@ import { cn } from "@/lib/utils/cn";
 export function PublicRating({
   rating,
   count,
+  source,
   className,
 }: {
   rating: number | null;
   count?: number | null;
+  source?: string | null;
   className?: string;
 }) {
   if (rating == null) return null;
+  const label = ({ google: "Google", zomato: "Zomato", magicpin: "magicpin", swiggy: "Swiggy", tripadvisor: "Tripadvisor", justdial: "Justdial" } as Record<string, string>)[source ?? ""] ?? "public";
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md bg-line/60 px-1.5 py-0.5 text-2xs font-medium text-muted",
+        "inline-flex max-w-full flex-wrap items-center gap-1 rounded-md bg-line/60 px-1.5 py-0.5 text-2xs font-medium text-muted",
         className,
       )}
-      title="Public rating"
+      title={`Public visitor rating${source ? ` · ${label}` : ""}${count ? ` · ${count.toLocaleString("en-IN")} reviews` : ""}`}
     >
       <Icon name="star" size={11} />
       {rating.toFixed(1)}
-      {count ? <span className="text-faint">({count > 999 ? `${Math.round(count / 1000)}k` : count})</span> : null}
-      <span className="text-faint">· public</span>
+      {count ? <span className="text-faint">({count.toLocaleString("en-IN")})</span> : null}
+      <span className="text-faint">· {label}</span>
     </span>
   );
 }

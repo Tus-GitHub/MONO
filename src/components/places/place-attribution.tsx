@@ -1,5 +1,8 @@
 /** Shared by server pages and the client picker; never imports provider config or keys. */
-export function PlaceAttribution({ provider }: { provider: string | null | undefined }) {
+export function PlaceAttribution({ provider, url }: { provider: string | null | undefined; url?: string | null }) {
+  if (provider === "indiarestros" && url) return <p className="wrap-anywhere text-2xs text-faint">
+    Listing &amp; public ratings via <a href={url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">IndiaRestros</a>
+  </p>;
   if (provider !== "photon") return null;
   return (
     <p className="text-xs text-faint">

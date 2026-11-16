@@ -8,7 +8,7 @@ vi.mock("@/lib/auth/current-user", async () => {
   return { requireUser: () => prisma.user.findUniqueOrThrow({ where: { id: testUser.getStore()! } }) };
 });
 const provider = vi.hoisted(() => ({ name: "fixture", details: vi.fn() }));
-vi.mock("@/lib/places", () => ({ getExternalPlaceProvider: () => provider }));
+vi.mock("@/lib/places", () => ({ getPlaceProviderByName: (name: string) => name === provider.name ? provider : null }));
 
 import { prisma } from "@/lib/db/prisma";
 import { emptyLocalPlan } from "@/lib/date/local-plan";

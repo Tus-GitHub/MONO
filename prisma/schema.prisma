@@ -720,6 +720,8 @@ model Place {
   providerPlaceId     String?
   externalRating      Float? // 0..5 public rating
   externalRatingCount Int?
+  externalRatingSource String?
+  externalUrl          String?
   priceLevel          Int? // 0..4
 
   createdById String
