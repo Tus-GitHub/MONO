@@ -37,7 +37,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (venue pagination, cards and public visitor ratings in progress)
+Last updated: 2026-11-16 (venue cards, pagination and public ratings live; API verification passed)
 
 Last updated: 2026-11-15 (admin panel and private data encryption)
 
@@ -69,7 +69,7 @@ components. Business rules never live only in React components — they live in
 - **Custom controls refresh (2026-11-16)** — user requests consistent custom buttons, selectors and dropdowns throughout MONO. Audit found native select menus, date/time inputs and plain range/checkbox controls. Implement shared themed controls, preserve native form submission/validation and keyboard support, verify responsive interactions, and carry the approved publication workflow forward.
 
 
-- **Venue pagination and cards (2026-11-16)** — add Load more for Indian restaurants/cafes across the selected radius, card-based planning results and genuine public visitor ratings with source/count. User confirmed public visitor ratings; couple reviews stay private. IndiaRestros has keyless offset pagination and sourced ratings; retain Photon/Commons fallbacks. Implement, validate and deploy. Admin alias is admin@mono.com using the existing verified account password; do not retrieve or reset credentials. Right-panel-only browser preference persists; Browser control remains unavailable, so report that test limitation.
+- **Venue cards visual verification (2026-11-16)** — implementation is live and live API checks passed (see Done). Browser/PWA visual checks remain pending because the user requires the right panel and its control runtime remains unavailable. Do not infer visual/device coverage from the API tests or substitute a separate browser.
 
 - **All 24 games and right-panel QA (2026-11-16)** — user requests every game for both
   partners, chat during play, last-hour matches/full History, phone browser and PWA,
@@ -282,6 +282,8 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Venue pagination, cards and public ratings (2026-11-16)** — released 1d6db07, deployment dpl_EbiRgSe9PYBMkXDdxC5EZw6VDZ6X READY on the canonical MONO URL, preserving e2f6af9 shared controls. Keyless IndiaRestros pagination for Indian food categories, photo cards in planner/Explore, sourced public rating/count, persisted attribution, safe retries/deduplication and per-page radius/couple checks. 63 focused unit, 25 local PostgreSQL and 15 live API checks passed for both retained test partners; a live 50 km search included cafés up to 23.7656 km away and a 5 km search excluded them. TypeScript/lint/final build passed; no error/fatal runtime log groups. Both test sessions plus two cleanup sessions revoked; accounts/data retained. Report: docs/reports/venue-pagination-ratings-2026-11-16.md. Admin alias admin@mono.com uses the existing MONO password; none retrieved or reset. Visual Browser/PWA verification remains explicitly pending.
 
 - **Mobile Save bar and location field (2026-11-16)** — published d70bc3c and deployed READY as dpl_CpaPZQtV87G9AMww1iMWgXrXRKYC on the canonical MONO URL. 38 unit tests, focused lint/type checks and production build passed. Six live planner checks passed with zero JavaScript errors: simulated GPS fills city/area, coordinate/radius request verified, manual replacement works, map location fills its field, map radius changes, Save remains hit-testable above navigation at 320/390/768px and fits 1440px, and two stops with times/venue persist only after explicit Save. Screenshots inspected. Both disposable accounts and their space removed. Artifacts: .postgres-test/release-live/live-4027ae15f664. Area naming is optional and bounded; coordinates remain visible when lookup is unavailable. Physical phone GPS/permission prompts were not tested.
 
@@ -1807,7 +1809,7 @@ User requests modern custom controls across MONO. Preserve warm colour tokens, p
 - Applied the existing above-bottom-nav utility to the planner Save panel. Added authenticated reverse-area lookup with immediate coordinate fallback and cancellation on manual changes. Both shared venue search and the map picker fill their actual input values.
 - 38 focused tests passed, production build passed (94 routes), and six targeted live browser checks passed at phone/tablet/desktop widths with simulated GPS. Used isolated headless QA; no personal browser tabs were opened or changed. QA fixtures cleaned.
 
-### 2026-11-16 — Venue pagination, cards and public ratings — IN PROGRESS
+### 2026-11-16 — Venue pagination, cards and public ratings — DONE (visual QA pending Browser)
 
 - Verified IndiaRestros supports next_offset, 50 km radius, canonical venue links and ratings with source/count, without keys/billing. User chose public visitor ratings rather than public MONO reviews.
 - Continuing in isolated codex/venue-pagination-cards checkout rebased onto d70bc3c; retained earlier game integration tests and the panel-connection blocker. Implementing full search → pagination → select/save metadata flow.
@@ -1815,6 +1817,7 @@ User requests modern custom controls across MONO. Preserve warm colour tokens, p
 - Explained admin@mono.com is an alias for the user's verified MONO account; existing password or normal password reset, no separate password disclosed.
 - Production build passed. During publication, main advanced to e2f6af9 (shared custom controls). Rebased preserving both releases and their memory entries; rebuild the combined result before pushing.
 - Combined build passed. Final hook review removed a reopen/Load more race: reuse loaded pages and reset the pending state on cancellation. Rebuilding this last adjustment before the production push.
+- Final build passed and 1d6db07 pushed successfully. Production dpl_EbiRgSe9PYBMkXDdxC5EZw6VDZ6X READY with mono-kappa-beryl.vercel.app assigned. All 15 live HTTP/API checks passed: both partner scopes, café/restaurant pages, genuine ratings/canonical links, stale radius cursors, named search pagination, far-away matches, narrower filtering and typed landmark resolution. No alternate browser automation used. One session-cleanup request failed transiently; a narrowly scoped follow-up revoked the one session remaining from this test window and both cleanup sessions, verifying no test-window sessions remain. Local Postgres stopped, production fixture accounts/data retained. No error/fatal runtime groups observed.
 
 ### 2026-11-16 — 50 km venue radius only showing nearby results
 
