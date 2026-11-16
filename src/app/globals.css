@@ -82,6 +82,7 @@
   --content-max: 72rem;
   --content-wide: 84rem;
   --prose-max: 42rem;
+  --home-date-cover-max-height: 16rem;
   --crop-frame-max-height: min(22rem, 42dvh);
   --chat-message-min: min(3rem, calc(var(--vvh, 100dvh) * 0.2));
   --call-preview-width: clamp(7.5rem, 30vw, 13rem);

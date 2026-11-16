@@ -157,6 +157,8 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Compact desktop date card (2026-11-17):** User screenshot identifies the home upcoming-date cover growing too tall on laptops. Preserve mobile styling, bound desktop media height and loading placeholder, verify in the right-panel browser. Work isolated from other ongoing branding changes.
 - Temporary migration branch `br-lively-math-b329pbdl` is retained pending the already-requested explicit cleanup approval. Feature deployment is complete; do not delete the branch without that response.
 
 
@@ -1914,6 +1916,9 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-17 - Desktop date-card sizing - IN PROGRESS
+- Screenshot matches UpcomingDateCard; full-width 16:9 media pushes date details below the laptop viewport. Implemented a desktop-only 16rem cover cap and compact desktop loading placeholder; existing object-contain framing and mobile sizing are preserved. Right-panel sample checks passed at 320, 390, 768, 1023, 1024, 1366 and 1920px: no horizontal overflow; desktop buttons visible; photo edges intact; no browser errors. Phone before/after card dimensions match exactly. Targeted ESLint and production build (including TypeScript and function trace budgets) passed. Temporary preview route excluded from build/release. No production records changed. Publishing pending.
 
 ### 2026-11-17 — AMOR name, hidden-Mio logo and new URL — DONE
 Completion: published d418a75 and final polish 7e4db3052ace3cc51222c4ff3ac607ada06b700b; both pushes succeeded. Final production dpl_AwG7s1bkxyr65z5aVSqWc5fWrMdL READY with both amor-together.vercel.app and mono-kappa-beryl.vercel.app aliases. Three final public browser groups pass on both origins at 390/1440 widths; health/database up, AMOR manifests and no browser exceptions. Live PWA update fixture explicitly seeded an old cached MONO manifest plus nonextractable IndexedDB key and local preference: Refresh activates v8, replaces the cached name, preserves key/preference and shows correct 56px monogram. Prior-release encrypted-history/account/cross-origin messaging checks passed and their two synthetic accounts/space were removed. Final scoped runtime error/fatal log scan empty. No database/schema/data migration or key/API-provider/storage changes. New-origin sessions/notifications/PWA installation are browser-scoped; existing recovery code unlocks old history there. Existing original-origin users can stay or use Refresh. Report docs/reports/amor-rebrand-2026-11-17.md. Unrelated root memory edits left intact.
