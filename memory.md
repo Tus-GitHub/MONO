@@ -133,7 +133,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-17 (game score recovery, Games highlight and faster Emoji Bounce deployed; chat-key recovery options explained)
+Last updated: 2026-11-17 (dual-email OTP chat reset deployed and verified; approved temporary migration branch removed)
 
 
 
@@ -157,7 +157,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-- **Chat reset with both email OTPs (2026-11-17):** Implement an authenticated fresh-chat reset requiring both registered mailbox codes in one submission; preserve accounts, couple/date/memory/expense/game data and retain old ciphertext outside the new chat. Test isolation and deploy.
 
 
 
@@ -384,6 +383,7 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+- **Chat reset with both email OTPs (2026-11-17):** Live code 9562f61; both mailbox codes and consent required together, fresh browser-generated shared key, old ciphertext isolated, both Chat screens relocked, other couple data preserved. Two-partner localhost flow and production health/UI/API guards verified; no real chats reset. Approved Neon test branch deleted.
 - **Both partners lose chat keys (2026-11-17):** Explained the proposed shared chat-reset flow, preserving accounts/couple space while starting new encrypted messages; old encrypted history is unrecoverable if every key/code is lost. Implementation and deletion were not requested or performed.
 - **Games highlight and score recovery (2026-11-17):** Live 3057c38; durable round/best backups, automatic retry, selected Games icon and versioned 12% faster Emoji Bounce. Local failure/reload and live recovery verified in the right panel.
 
@@ -1925,11 +1925,12 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
-### 2026-11-17 — Chat reset with both email OTPs — IN PROGRESS
+### 2026-11-17 — Chat reset with both email OTPs — DONE
 - User requires both email OTPs entered together for reset and asks whether only Chat is affected. Confirmed that old chat messages/attachments leave the active conversation while all other app data remains. Implemented two distinct OTPs, keyed hashes bound to both current verified mailboxes, 10-minute expiry, five failed attempts, shared 60-second resend cooldown and three requests/hour. Both codes and consent are required in one atomic submission; the browser creates the new recovery secret and sends only its fingerprint.
 - Added chat generations across messages, attachments, crop/edit actions, video, unread counts and archive reads. Existing ciphertext is retained. Old-key sends and stale client responses cannot reintroduce old history. Both connected devices lock Chat and require the new shared code; account sessions remain signed in. A lost reset response is reconciled by polling.
 - Verification: 82 integration tests across Chat/security/video/crop/archive/games (81 initial plus an added video-reset check); 11 targeted unit tests; TypeScript, focused lint and production build/size checks passed. Right-panel localhost test used two synthetic partners and console-only mail: original chat visible, incomplete codes and missing consent disabled submission, both codes reset once, both screens locked without reloading, old code rejected, new code unlocked and messages decrypted both ways, and the sample date remained intact. Checked 320x568, 390x844, 844x390 and 1440x900; no horizontal overflow and footer stayed reachable. Physical iPhone/installed PWA not tested; no real mailbox delivery or production chat reset performed.
-- Neon migration check on br-flat-hill-b3yyauuy preserved all six accounts, three couples and 54 messages; generation remained zero and no reset request existed. User explicitly approved cleanup; temporary branch was deleted with apply_changes:false. Production migration will run through the normal Vercel pipeline. Publishing after the final build.
+- Neon migration check on br-flat-hill-b3yyauuy preserved all six accounts, three couples and 54 messages; generation remained zero and no reset request existed. User explicitly approved cleanup; temporary branch was deleted with apply_changes:false. The normal Vercel pipeline applied the production migration; a read-only post-deploy query confirmed the same six accounts, three couples, 54 messages, zero switched generations and zero reset requests.
+- Published 9562f619f0b4f676c42708605bd8bdb0a440e713 to origin/main; push succeeded. Production dpl_4bxEAsyS43m9SHJyVBfTMK6SnqMP is READY at https://amor-together.vercel.app and the legacy alias. Vercel build: 109 routes, largest runtime trace 44.85 MiB (within guard). Health 200/database up; anonymous reset POST 401/private-no-store; scoped error/fatal runtime logs empty. Right-panel live demo Chat hydrated with no browser errors and correctly offered initial encryption setup (demo has no active key), so no production key was created or reset. Local final-bundle wording and automatic unlock after reload also verified. Screenshot: .screenshots/chat-reset-confirmation.jpg. Task-owned localhost servers stopped; synthetic local fixtures retained. No dependency, billing or secret changes.
 
 ### 2026-11-17 — Both partners lose chat keys — DONE
 - User clarified the case where both partners lose access. Explained that account login/couple space can remain usable, but current AMOR has no encrypted-chat reset: if no device key or recovery code survives, the existing encrypted chat cannot be unlocked. Recommended an authenticated reset with both partners' confirmation, a new privately shared recovery code, and fresh chat; never claim a new key decrypts old history. No code, production data, keys or security settings changed; no history deleted.
