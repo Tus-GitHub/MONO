@@ -130,7 +130,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (video-call control visibility and video switching in progress)
+Last updated: 2026-11-16 (video-call control visibility and video switching published)
 
 
 
@@ -155,7 +155,6 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Video-call controls and participant switching (2026-11-16)** — implemented in isolated `codex/video-call-controls`, preserving upstream through `ccfb1ed`. Connected video controls toggle by tapping the background and auto-hide after five seconds; audio settings/errors/permissions/reconnecting and keyboard navigation keep controls visible. A larger preview swaps the main/secondary participant on tap, with stable video players and independent remote audio. Hidden chrome is inert, focus is restored after hiding/swapping, and preview dimensions are bounded by viewport height. 35 focused call/control/media/audio tests, focused lint and the final merged production build passed (99 routes, largest trace 4.47 MiB). Publishing next. Right-panel selector is still unavailable, so real browser/two-partner/PWA call interaction is unverified. No signaling/schema changes or new dependencies.
 
 - **Planner and Memories panel verification (2026-11-16)** — implementation and deployment are complete (see Done and release record). User explicitly tagged Browser and asked to retry live mobile/desktop checks, café then movie, fixes and deployment. Retried the exact in-app selector using the existing runtime; still `Browser is not available: iab`. Supported recovery inventory is empty, and direct active-tab context reports `The Browser Use plugin is not available in this context.` No alternative browser was used under the panel-only constraint. Live planner was queued in the right panel; authenticated visual/click tests remain blocked, with no new app change or redeployment warranted solely by this failed connection. Local preview remains on port3247; prior HTTP200 responses do not establish visual or click-flow correctness.
 
@@ -378,6 +377,8 @@ components. Business rules never live only in React components — they live in
 ### Done
 
 - **Encrypted videos and admin Couples tab (2026-11-16)** — compressed E2EE video messages, retryable chunks, private playback/save/delete, ID grouping and known media usage deployed; seven live browser groups passed. See release record above.
+
+- **Video-call controls and participant switching (2026-11-16)** — published `1d3bda6017bbbfefc667685bccec414ce60e9ea6` to origin/main, preserving upstream through `ccfb1ed`. Vercel production `dpl_HxA2Mb7USY51Da8s9UkM3BSmcK1e` is READY on https://mono-kappa-beryl.vercel.app. Connected video controls toggle on background tap and auto-hide after five seconds. Enlarged preview swaps main/secondary views without restarting video or remote audio. Audio menus, errors and keyboard navigation retain controls; hidden controls are inert with focus restoration. 35 focused tests, lint, TypeScript and full build/size checks pass (99 routes; local largest 4.47 MiB, Vercel largest 44.81 MiB). Live health HTTP200/database up; anonymous call configuration HTTP401; scoped error/fatal logs empty. The right-panel browser remains unavailable, so actual two-person phone/PWA call and visual checks are unverified. No call signaling/schema changes or new dependency.
 
 - **Game experience, audio and admin-managed storage (2026-11-16)** — released 771e387; no couple storage quota, admin totals, temporary inline game chat, winner/rematch consent, sticker shortcut, 10 MB admin songs; six live two-player groups passed and test data cleaned.
 - **Simpler planner and Memories (2026-11-16)** — published `5fbc739` from `codex/planner-local-preview` after the user explicitly authorized deployment. New and saved plans share name/day/overall time/total budget first, compact expandable event cards, allocation validation and fresh nearby venue search per event. Memories tabs/captions/actions adapt to narrow layouts. Final 41 unit + 27 local PostgreSQL tests, lint, TypeScript and required production build passed; Vercel `dpl_6NRkPzB7N4TC3FK1go7HbodZBoS4` is READY on the canonical URL with health/access checks passing. Visual/browser verification remains blocked separately. Local preview port3247 (session30944), synthetic partners, café/movie draft and three memories are retained. No real user data or credentials changed.
@@ -1899,7 +1900,7 @@ components. Business rules never live only in React components — they live in
 ### 2026-11-16 — Game chat, rematches and 10 MB admin audio — DONE
 User requests 10 MB admin soundtrack uploads; same-page temporary game chat below a raised Resign control; winner celebration; mutual rematch popup without a new main-chat invitation; and discoverable custom stickers. Inspecting existing game/audio/sticker services and Plato's official game/chat reference. Use WebRTC data channels for chat content that never enters the database or browser storage; persist only bounded expiring negotiation metadata. Chunk admin uploads to respect Vercel request limits. Preserve encrypted storage, scores and couple isolation.
 
-### 2026-11-16 — Video-call controls, automatic hiding and participant switching — IN PROGRESS
+### 2026-11-16 — Video-call controls, automatic hiding and participant switching — DONE
 
 - User requests WhatsApp-like screen-tap visibility, five-second inactivity hiding, switching the full-size and small video participants, and a slightly larger self preview. Reviewing the shared call modal, persistent remote audio, interaction/focus behavior and responsive stage before implementing. Working from synced main in `codex/video-call-controls`; preserve prior local memory notes and other released work.
 - Implemented a separate call-control inactivity clock that is not restarted by signaling polls. Video background taps toggle chrome; active toolbar interaction resets five seconds. Controls stay available for incoming/connecting/audio calls, playback/permission problems, screen-help/audio menus and keyboard navigation. Model resets/cancels on close, visibility changes and new calls.
@@ -1907,6 +1908,7 @@ User requests 10 MB admin soundtrack uploads; same-page temporary game chat belo
 - Added inert/hidden chrome support to the modal, labelled background/swap buttons, keyboard timer pinning and focus restoration for hidden toolbars/swapped previews. Fixed an Enter/Space interaction that could reveal and immediately re-hide the controls.
 - 35 focused tests pass: nine timer/interaction/cleanup tests plus existing media, tracks, deadline and remote-audio tests. Focused ESLint, TypeScript, diff checks and the initial full production build passed (97 routes). Retried the in-app Browser through the existing runtime; it still reports `Browser is not available: iab`. No alternative browser or actual user call was used, and no visual/device or two-partner call success is claimed.
 - Synced upstream `2290c87` and `ccfb1ed` to preserve the newer encrypted video/admin release and download fixes. A dependency install encountered Windows junction/rename errors; retained the installed package versions, linked the already-installed Mediabunny into this worktree, regenerated its Prisma client and applied the upstream migration only to the local preview database. Removed only this failed install's temporary package backups whose retained files had identical SHA-256 copies. Original packages remain intact. Focused lint and 35 tests pass again; final production build after the last upstream sync passed (99 routes, largest trace 4.47 MiB), including TypeScript and function-size checks. Publishing to authorized origin/main next.
+- Published `1d3bda6017bbbfefc667685bccec414ce60e9ea6`; push succeeded. Vercel production deployment `dpl_HxA2Mb7USY51Da8s9UkM3BSmcK1e` is READY with the canonical MONO alias assigned. Vercel build completed in approximately two minutes (99 routes; largest trace 44.81 MiB). Live health returned HTTP200/database up; the authenticated call-configuration route returned HTTP401 to an anonymous request. Scoped post-release error/fatal logs returned no entries. No real call or production test records were created. Actual phone/PWA/two-partner interaction remains unverified because the right-panel browser connection is unavailable.
 
 ### 2026-11-16 — Confirm whether the planner and Memories changes are live — DONE
 
