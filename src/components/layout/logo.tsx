@@ -13,7 +13,7 @@ export function AmorWordmark({ className }: { className?: string }) {
 
 /** Shared-stem Mio monogram for the app tile and compact placements. */
 export function AmorMark({ className }: { className?: string }) {
-  return <svg viewBox="72 10 158 112" fill="currentColor" aria-hidden="true" className={cn("h-[1.15em] w-[1.15em] shrink-0", className)}>
+  return <svg viewBox="72 10 158 112" fill="currentColor" aria-hidden="true" className={cn("amor-mark shrink-0", className)}>
     <path d={AMOR_M} /><path d={AMOR_O} fillRule="evenodd" />
     <path d={AMOR_STEM} className="fill-primary" /><circle cx="145" cy="23" r="4" className="fill-primary" />
   </svg>;

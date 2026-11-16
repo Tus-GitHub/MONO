@@ -981,7 +981,8 @@ input[type="range"]:focus-visible { outline: 2px solid var(--primary); outline-o
 @media (prefers-reduced-motion: reduce) { .mono-result-scene *, .mono-result-character { animation: none !important; } .mono-result-confetti, .mono-result-rain { display: none; } }
 
 /* AMOR artwork keeps a stable footprint across the existing navigation layouts. */
-:root { --brand-width-sm: 5rem; --brand-width-md: 6rem; --brand-width-lg: 7.5rem; }
+:root { --brand-width-sm: 5rem; --brand-width-md: 6rem; --brand-width-lg: 7.5rem; --brand-mark-size: 1.15em; }
+@layer components { .amor-mark { width: var(--brand-mark-size); height: var(--brand-mark-size); } }
 .amor-logo-sm { --brand-width: var(--brand-width-sm); }
 .amor-logo-md { --brand-width: var(--brand-width-md); }
 .amor-logo-lg { --brand-width: var(--brand-width-lg); }

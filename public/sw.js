@@ -14,7 +14,7 @@
  * Updating: bump VERSION. The new worker precaches, `skipWaiting()`s on the page's nudge, and
  * on activate deletes every cache whose name doesn't start with the current VERSION.
  */
-const VERSION = "mono-v7-amor";
+const VERSION = "mono-v8-amor";
 const PRECACHE = VERSION + "-precache";
 const STATIC = VERSION + "-static";
 
@@ -29,7 +29,8 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(PRECACHE)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
+      // A branding update must not copy the previous HTTP-cached manifest/icons.
+      .then((cache) => cache.addAll(PRECACHE_URLS.map((url) => new Request(new URL(url, self.location.origin), { cache: "reload" }))))
       // Existing clients keep their current version until the user chooses Refresh.
       .catch(() => {
         /* a missing precache URL must not block install */

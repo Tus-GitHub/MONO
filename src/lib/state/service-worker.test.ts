@@ -9,14 +9,16 @@ function worker() {
   const skipWaiting = vi.fn();
   const claim = vi.fn();
   const remove = vi.fn().mockResolvedValue(true);
+  const addAll = vi.fn().mockResolvedValue(undefined);
   runInNewContext(readFileSync(resolve("public/sw.js"), "utf8"), {
-    self: { addEventListener: (name: string, handler: (event: WorkerEvent) => void) => handlers.set(name, handler), skipWaiting, clients: { claim } },
+    Request, URL,
+    self: { location: { origin: "https://amor-together.vercel.app" }, addEventListener: (name: string, handler: (event: WorkerEvent) => void) => handlers.set(name, handler), skipWaiting, clients: { claim } },
     caches: {
-      open: async () => ({ addAll: async () => {} }),
-      keys: async () => ["mono-v1-static", "mono-v2-static", "mono-v3-static", "mono-v3-precache", "mono-v4-static", "mono-v4-precache", "mono-v5-static", "mono-v5-precache", "mono-v6-static", "mono-v6-precache", "mono-v7-amor-static", "mono-v7-amor-precache"], delete: remove,
+      open: async () => ({ addAll }),
+      keys: async () => ["mono-v1-static", "mono-v2-static", "mono-v3-static", "mono-v3-precache", "mono-v4-static", "mono-v4-precache", "mono-v5-static", "mono-v5-precache", "mono-v6-static", "mono-v6-precache", "mono-v7-amor-static", "mono-v7-amor-precache", "mono-v8-amor-static", "mono-v8-amor-precache"], delete: remove,
     },
   });
-  return { handlers, skipWaiting, claim, remove };
+  return { handlers, skipWaiting, claim, remove, addAll };
 }
 
 it("does not force an installed replacement to take over until Refresh is requested", async () => {
@@ -34,7 +36,7 @@ it("claims clients on activation and removes only obsolete cache versions", asyn
   let completion: Promise<unknown> | undefined;
   state.handlers.get("activate")!({ waitUntil: (work) => { completion = work; } });
   await completion;
-  expect(state.remove).toHaveBeenCalledTimes(10);
+  expect(state.remove).toHaveBeenCalledTimes(12);
   expect(state.remove).toHaveBeenCalledWith("mono-v1-static");
   expect(state.remove).toHaveBeenCalledWith("mono-v2-static");
   expect(state.remove).toHaveBeenCalledWith("mono-v3-static");
@@ -45,7 +47,20 @@ it("claims clients on activation and removes only obsolete cache versions", asyn
   expect(state.remove).toHaveBeenCalledWith("mono-v5-precache");
   expect(state.remove).toHaveBeenCalledWith("mono-v6-static");
   expect(state.remove).toHaveBeenCalledWith("mono-v6-precache");
-  expect(state.remove).not.toHaveBeenCalledWith("mono-v7-amor-static");
-  expect(state.remove).not.toHaveBeenCalledWith("mono-v7-amor-precache");
+  expect(state.remove).toHaveBeenCalledWith("mono-v7-amor-static");
+  expect(state.remove).toHaveBeenCalledWith("mono-v7-amor-precache");
+  expect(state.remove).not.toHaveBeenCalledWith("mono-v8-amor-static");
+  expect(state.remove).not.toHaveBeenCalledWith("mono-v8-amor-precache");
   expect(state.claim).toHaveBeenCalledOnce();
+});
+
+it("bypasses old HTTP-cached branding when installing the next worker", async () => {
+  const state = worker();
+  let completion: Promise<unknown> | undefined;
+  state.handlers.get("install")!({ waitUntil: (work) => { completion = work; } });
+  await completion;
+  expect(state.addAll).toHaveBeenCalledOnce();
+  const requests = state.addAll.mock.calls[0][0] as Request[];
+  expect(requests.map((request) => new URL(request.url).pathname)).toContain("/manifest.webmanifest");
+  expect(requests.every((request) => request.cache === "reload" && new URL(request.url).origin === "https://amor-together.vercel.app")).toBe(true);
 });
