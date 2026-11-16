@@ -77,7 +77,7 @@ export async function runCallMinimize({ browser, baseUrl, prisma, runId, artifac
   try {
     const owner = await pageFor(users[0]); await click(owner, "Generate recovery code"); const code = await owner.$eval("p.select-all", el => el.textContent);
     await target(owner, 'input[type="checkbox"]'); await click(owner, "Enable encrypted chat"); await owner.waitForSelector('[aria-label="Message your partner"]');
-    const partner = await pageFor(users[1]); await partner.waitForSelector('[aria-label="Private recovery code"]'); await partner.type('[aria-label="Private recovery code"]', code); await click(partner, "Unlock on this device"); await partner.waitForSelector('[aria-label="Message your partner"]');
+    const partner = await pageFor(users[1]); await partner.waitForSelector('[aria-label="Private recovery code"]'); await partner.locator('[aria-label="Private recovery code"]').fill(code); await click(partner, "Unlock on this device"); await partner.waitForSelector('[aria-label="Message your partner"]');
     await target(owner, '[aria-label="Video call"]'); await partner.bringToFront(); await target(partner, '[aria-label="Pick up"]');
     await Promise.all([connected(owner), connected(partner)]);
     const before = await sample(owner), peerBefore = await sample(partner);
