@@ -37,6 +37,8 @@ interface ModalProps {
   closeLabel?: string;
   /** Hide overlay controls for an immersive view while leaving its content mounted. */
   chromeHidden?: boolean;
+  /** Keep live media mounted in a non-modal floating window while the dialog is closed. */
+  docked?: boolean;
   className?: string;
 }
 
@@ -52,24 +54,26 @@ export function Modal({
   hideClose,
   closeLabel = "Close",
   chromeHidden = false,
+  docked = false,
   className,
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const descId = useId();
-  const { mounted, visible } = useMountTransition(open);
+  const { mounted, visible } = useMountTransition(open || docked);
 
-  useScrollLock(mounted);
-  useFocusTrap(panelRef, visible);
-  useEscapeKey(onClose, mounted);
+  useScrollLock(mounted && !docked);
+  useFocusTrap(panelRef, visible && !docked);
+  useEscapeKey(onClose, mounted && !docked);
   useBackButton(onClose, open, onHistoryClosed);
 
   if (!mounted) return null;
 
   return (
     <Portal>
-      <div inert={!open} className={cn("mono-modal-wrap fixed inset-0 z-50 flex items-center justify-center", size === "full" ? "mono-fullscreen-wrap" : "dialog-inset", !open && "pointer-events-none")}>
+      <div inert={!open && !docked} className={docked ? "mono-call-mini-wrap" : cn("mono-modal-wrap fixed inset-0 z-50 flex items-center justify-center", size === "full" ? "mono-fullscreen-wrap" : "dialog-inset", !open && "pointer-events-none")}>
         <div
+          hidden={docked}
           className={cn(
             "absolute inset-0 bg-ink/45 backdrop-blur-[2px] transition-opacity duration-fast",
             visible ? "opacity-100" : "opacity-0",
@@ -78,9 +82,10 @@ export function Modal({
         />
         <div
           ref={panelRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={title ? titleId : undefined}
+          role={docked ? "region" : "dialog"}
+          aria-modal={docked ? undefined : true}
+          aria-label={docked ? "Minimized video call" : undefined}
+          aria-labelledby={!docked && title ? titleId : undefined}
           aria-describedby={description ? descId : undefined}
           data-chrome-hidden={chromeHidden || undefined}
           className={cn(
@@ -88,7 +93,7 @@ export function Modal({
             // the keyboard (set by <ViewportManager>); `100dvh` is the fallback. The body
             // scrolls inside instead, so it stays usable in landscape and with the keyboard up.
             "mono-dialog-panel relative z-10 flex w-full origin-center flex-col overflow-hidden bg-elevated transition-[opacity,transform] duration-base ease-out",
-            size === "full" ? "mono-fullscreen-panel" : "mono-modal-panel max-h-[calc(var(--vvh,100dvh)-2rem)] rounded-xl border border-line shadow-xl",
+            docked ? "mono-call-mini-panel" : size === "full" ? "mono-fullscreen-panel" : "mono-modal-panel max-h-[calc(var(--vvh,100dvh)-2rem)] rounded-xl border border-line shadow-xl",
             SIZE[size],
             visible ? "scale-100 opacity-100" : "scale-95 opacity-0",
             className,

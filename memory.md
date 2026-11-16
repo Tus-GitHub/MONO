@@ -130,7 +130,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (video-call control visibility and video switching published)
+Last updated: 2026-11-16 (call header and mini video verified locally; publishing)
 
 
 
@@ -154,6 +154,7 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+- Call minimization (2026-11-16): implemented header Return to call and persistent mini video after X/Back. 32 call tests, lint, initial build and six two-user local browser checks pass. Round hang-up button and audio-menu persistence finalized; final production build/lint pass (99 routes, largest trace 27.36 MiB). Production publication and live verification pending.
 
 
 - **Planner and Memories panel verification (2026-11-16)** — implementation and deployment are complete (see Done and release record). User explicitly tagged Browser and asked to retry live mobile/desktop checks, café then movie, fixes and deployment. Retried the exact in-app selector using the existing runtime; still `Browser is not available: iab`. Supported recovery inventory is empty, and direct active-tab context reports `The Browser Use plugin is not available in this context.` No alternative browser was used under the panel-only constraint. Live planner was queued in the right panel; authenticated visual/click tests remain blocked, with no new app change or redeployment warranted solely by this failed connection. Local preview remains on port3247; prior HTTP200 responses do not establish visual or click-flow correctness.
@@ -1896,6 +1897,9 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-16 — Call header and minimized video — IN PROGRESS
+User requested top-right Return to call replacing call-start icons, plus WhatsApp-like video minimization. Official WhatsApp help confirms continuing chat with minimized video. Implemented in-app mini view, preserving the existing peer connection, remote audio and video elements. Six local browser groups passed (.postgres-test/e2e/0daf59e5cad91d1e): real synthetic-media WebRTC in both directions, stable players/microphone after X, responsive 320px/landscape/desktop, Back, expansion/navigation/hang-up, and voice-only header return. Local fixtures removed. 32 focused call tests, lint and initial production build pass. A first harness run passed functional checks but recorded about:blank initialization errors; helper corrected and rerun cleanly. Final production build and live test pending.
 
 ### 2026-11-16 — Game chat, rematches and 10 MB admin audio — DONE
 User requests 10 MB admin soundtrack uploads; same-page temporary game chat below a raised Resign control; winner celebration; mutual rematch popup without a new main-chat invitation; and discoverable custom stickers. Inspecting existing game/audio/sticker services and Plato's official game/chat reference. Use WebRTC data channels for chat content that never enters the database or browser storage; persist only bounded expiring negotiation metadata. Chunk admin uploads to respect Vercel request limits. Preserve encrypted storage, scores and couple isolation.

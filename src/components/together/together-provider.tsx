@@ -11,13 +11,15 @@ import { CallControl } from "./call-control";
 import { CallAudioOutput } from "./call-audio-output";
 import { CallVideoStage } from "./call-video-stage";
 import { BackgroundMusic } from "@/components/settings/background-music";
+import { usePathname } from "next/navigation";
 
-type CallContext = ReturnType<typeof useCoupleCall> & { soundsReady: boolean; enableCallSounds: () => void };
+type CallContext = ReturnType<typeof useCoupleCall> & { soundsReady: boolean; enableCallSounds: () => void; returnToCall: () => void };
 const Context = createContext<CallContext | null>(null);
 const subscribeCapabilities = () => () => {};
 const screenSharingAvailable = () => typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
 export function useTogetherCall() { const value = useContext(Context); if (!value) throw new Error("Chat must be inside the shared-space layout."); return value; }
 export function TogetherProvider({ userId, children }: { userId: string; children: ReactNode }) {
+  const pathname = usePathname();
   const calling = useCoupleCall(userId), [hiddenFor, setHidden] = useState<string | null>(null);
   const [screenHelp, setScreenHelp] = useState(false);
   const [audioOpenFor, setAudioOpenFor] = useState<string | null>(null);
@@ -28,7 +30,9 @@ export function TogetherProvider({ userId, children }: { userId: string; childre
   const incoming = calling.call?.status === "RINGING" && calling.call.calleeId === userId && !calling.owned;
   const { audioRef, blocked: ringtoneBlocked, ready: soundsReady, play: playRingtone, enable: enableCallSounds, stop: stopRingtone } = useCallRingtone(calling.call?.id, calling.call?.status === "RINGING" && calling.phase === "ringing" && (incoming || calling.owned));
   const open = Boolean((id && hiddenFor !== id) || calling.error || calling.notice);
-  const close = () => { calling.dismissError(); setAudioOpenFor(null); if (id) setHidden(id); };
+  const minimized = Boolean(id && !open && calling.owned && calling.call?.kind === "VIDEO");
+  const returnToCall = () => setHidden(null);
+  const close = () => { calling.dismissError(); if (calling.call?.kind !== "VIDEO") setAudioOpenFor(null); if (id) setHidden(id); };
   const autoHide = Boolean(calling.owned && calling.phase === "connected" && calling.call?.kind === "VIDEO" && calling.remote
     && !calling.error && !calling.notice && !calling.syncError && !calling.mediaBusy && !calling.screenPaused
     && !partnerAudioBlocked && !ringtoneBlocked && !(screenHelp && !screenSupported) && audioOpenFor !== id);
@@ -56,18 +60,18 @@ export function TogetherProvider({ userId, children }: { userId: string; childre
     {incoming && !preparing ? <><div className="col-start-2"><CallControl icon="phoneEnd" label="Decline" tone="danger" onClick={() => { stopRingtone(); void calling.decline(); }} /></div><div className="col-start-4"><CallControl icon="phone" label="Pick up" tone="success" onClick={() => { stopRingtone(); void calling.accept(); }} /></div></>
       : calling.call || preparing ? <div className={calling.owned ? "" : "col-start-3"}><CallControl icon="phoneEnd" label={preparing ? "Cancel call" : "End call"} tone="danger" onClick={() => { stopRingtone(); void calling.end(); }} /></div> : <Button variant="secondary" onClick={close}>Close</Button>}
   </div>;
-  return <Context.Provider value={{ ...calling, soundsReady, enableCallSounds }}><BackgroundMusic pausedForCall={Boolean(id) || calling.phase !== "idle"}>
+  return <Context.Provider value={{ ...calling, soundsReady, enableCallSounds, returnToCall }}><BackgroundMusic pausedForCall={Boolean(id) || calling.phase !== "idle"}>
     <audio ref={audioRef} preload="none" aria-label="Call ringtone" />
     <audio ref={partnerAudioRef} autoPlay aria-label="Partner call audio" />
     {children}
-    {id && hiddenFor === id ? <div className="fixed right-4 bottom-[calc(var(--bottomnav-h)+1rem)] z-40 flex gap-2 lg:bottom-6"><Button className="shadow-lg" onClick={() => setHidden(null)}>Return to call</Button>{calling.sharing ? <Button variant="secondary" onClick={() => void calling.stopSharing()}>Stop sharing</Button> : null}</div> : null}
+    {id && !open && pathname !== "/chat" ? <div className="mono-call-return"><Button size="sm" leadingIcon={<Icon name={calling.call?.kind === "VIDEO" ? "video" : "phone"} />} onClick={returnToCall}>Return to call</Button></div> : null}
     <div className="contents" onPointerDownCapture={chrome.interact}>
-    <Modal open={open} onClose={close} size={id ? "full" : "md"} className={id ? "mono-call-panel" : undefined} chromeHidden={!chrome.visible} closeLabel={id ? "Minimize call" : "Close"} footer={controls} title={incoming ? `Incoming ${calling.call?.kind === "VIDEO" ? "video" : "voice"} call` : calling.call?.kind === "VIDEO" ? "Your video call" : "Your call"}>
+    <Modal open={open} docked={minimized} onClose={close} size={id ? "full" : "md"} className={id ? "mono-call-panel" : undefined} chromeHidden={minimized || !chrome.visible} closeLabel={id ? "Minimize call" : "Close"} footer={controls} title={incoming ? `Incoming ${calling.call?.kind === "VIDEO" ? "video" : "voice"} call` : calling.call?.kind === "VIDEO" ? "Your video call" : "Your call"}>
       <div className={id ? "relative flex h-full min-h-0 flex-col" : "space-y-4"}>
         {id ? calling.call?.kind === "VIDEO" ? <CallVideoStage key={id} local={calling.sharing ? calling.screenPreview : calling.cameraOff ? null : calling.local}
-          remote={calling.remote} sharing={calling.sharing} connected={calling.phase === "connected"} controlsVisible={chrome.visible} canHideControls={autoHide} onToggleControls={chrome.toggle} />
+          remote={calling.remote} sharing={calling.sharing} connected={calling.phase === "connected"} minimized={minimized} controlsVisible={chrome.visible && !minimized} canHideControls={autoHide && !minimized} onToggleControls={chrome.toggle} />
           : <div className="absolute inset-0 grid place-content-center justify-items-center gap-4 text-white"><span className="grid size-24 place-items-center rounded-full bg-white/10"><Icon name="phone" size="xl" /></span><p className="font-display text-2xl">{incoming ? "Your partner is calling" : "Just the two of you"}</p></div> : null}
-        <div inert={!chrome.visible} aria-hidden={!chrome.visible || undefined} className={id ? "mono-call-status mono-call-chrome relative z-10 space-y-2" : "space-y-4"}>
+        <div inert={minimized || !chrome.visible} aria-hidden={minimized || !chrome.visible || undefined} className={id ? "mono-call-status mono-call-chrome relative z-10 space-y-2" : "space-y-4"}>
         {calling.error ? <p role="alert" className="text-sm text-error">{calling.error}</p> : null}
         {calling.notice ? <p role="status" className="text-sm text-muted">{calling.notice}</p> : null}
         {ringtoneBlocked ? <div className="space-y-2"><p className="text-sm text-muted">Your browser paused call sounds. Tap to hear the ringtone.</p><Button variant="secondary" leadingIcon={<Icon name="speaker" />} onClick={playRingtone}>Play ringtone</Button></div> : null}
@@ -84,6 +88,10 @@ export function TogetherProvider({ userId, children }: { userId: string; childre
           {calling.sharing ? <p role="status" className="text-xs text-muted">{calling.screenPaused ? "Screen sharing is paused by your device. Return to the shared app or stop and share again." : `${calling.screenSurface === "browser" ? "Sharing the selected browser tab, not other apps." : calling.screenSurface === "window" ? "Sharing the selected window, not the whole screen." : "Sharing the source you selected."} Keep MONO open; your phone may pause capture when you switch apps or lock it. Screen audio is off.`}</p> : null}
         </> : null}
         </div>
+        {minimized ? <>
+          <button type="button" className="mono-call-mini-restore" aria-label="Expand video call" onClick={returnToCall}><span className="mono-call-mini-expand"><Icon name="expand" size="sm" /></span></button>
+          <div className="mono-call-mini-actions"><span className="text-xs">{calling.phase === "connected" ? "In call" : calling.phase === "ringing" ? "Calling…" : "Connecting…"}</span><Button size="icon" variant="danger" className="rounded-full" aria-label="End call" onClick={() => { stopRingtone(); void calling.end(); }}><Icon name="phoneEnd" /></Button></div>
+        </> : null}
       </div>
     </Modal>
     </div>

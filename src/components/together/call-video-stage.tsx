@@ -4,15 +4,16 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 
-export function CallVideoStage({ local, remote, sharing, connected, controlsVisible, canHideControls, onToggleControls }: {
+export function CallVideoStage({ local, remote, sharing, connected, controlsVisible, canHideControls, onToggleControls, minimized = false }: {
   local: MediaStream | null; remote: MediaStream | null; sharing: boolean; connected: boolean;
   controlsVisible: boolean; canHideControls: boolean; onToggleControls: (fromKeyboard?: boolean) => void;
+  minimized?: boolean;
 }) {
   const [selfMain, setSelfMain] = useState(false), [cover, setCover] = useState(false);
   const toggleButton = useRef<HTMLButtonElement>(null);
   const swapButton = useRef<HTMLButtonElement>(null), restoreSwapFocus = useRef(false);
-  const localIsMain = selfMain && Boolean(local);
-  const canSwap = connected && Boolean(local && remote);
+  const localIsMain = (minimized ? !remote : selfMain) && Boolean(local);
+  const canSwap = !minimized && connected && Boolean(local && remote);
   const swap = () => { restoreSwapFocus.current = true; setSelfMain((value) => !value); };
   useEffect(() => {
     if (!restoreSwapFocus.current) return;
@@ -22,10 +23,10 @@ export function CallVideoStage({ local, remote, sharing, connected, controlsVisi
   useEffect(() => {
     // An auto-hidden toolbar must not leave keyboard focus behind in inert chrome.
     const focused = document.activeElement;
-    if (!controlsVisible && (focused === document.body || focused instanceof HTMLElement && focused.closest("[inert]"))) {
+    if (!minimized && !controlsVisible && (focused === document.body || focused instanceof HTMLElement && focused.closest("[inert]"))) {
       toggleButton.current?.focus({ preventScroll: true });
     }
-  }, [controlsVisible]);
+  }, [controlsVisible, minimized]);
   return <div className="mono-call-video-stage absolute inset-0" aria-label="Video call views">
     {!remote && !localIsMain ? <div className="absolute inset-0 grid place-content-center justify-items-center gap-4 text-white">
       <span className="grid size-24 place-items-center rounded-full bg-white/10"><Icon name="video" size="xl" /></span>
