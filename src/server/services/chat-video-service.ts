@@ -55,14 +55,21 @@ export async function actOnChatVideo(value: unknown) {
     });
     if (plan.done) return { ok: true };
     // Network I/O stays outside the database lock. Immutable digest keys make retries safe.
-    await storage.put({ key: plan.key, body: bytes, contentType: "application/octet-stream" });
-    await withTogetherWrite(context, async (tx) => {
-      const row = await owned(tx, context, input.id);
-      const existing = await tx.chatVideoPart.findUnique({ where: { videoId_index: { videoId: row.id, index: input.index } } });
-      if (existing) { if (existing.digest !== digest) throw new ConflictError("This chunk changed. Choose the video again."); return; }
-      if (row.messageId) throw new ConflictError("This video has already been sent.");
-      await tx.chatVideoPart.create({ data: { videoId: row.id, index: input.index, storageKey: plan.key, byteLength: bytes.length, iv: input.iv, digest } });
-    });
+    try {
+      await storage.put({ key: plan.key, body: bytes, contentType: "application/octet-stream" });
+      await withTogetherWrite(context, async (tx) => {
+        const row = await owned(tx, context, input.id);
+        const existing = await tx.chatVideoPart.findUnique({ where: { videoId_index: { videoId: row.id, index: input.index } } });
+        if (existing) { if (existing.digest !== digest) throw new ConflictError("This chunk changed. Choose the video again."); return; }
+        if (row.messageId) throw new ConflictError("This video has already been sent.");
+        await tx.chatVideoPart.create({ data: { videoId: row.id, index: input.index, storageKey: plan.key, byteLength: bytes.length, iv: input.iv, digest } });
+      });
+    } catch (error) {
+      // A reset/cancel can delete the first cleanup job while this upload is in flight.
+      // Requeue after the final write so a late object cannot become an orphan.
+      await queueStorageCleanup([plan.key], new Date());
+      throw error;
+    }
     return { ok: true };
   }
   return withTogetherWrite(context, async (tx) => {

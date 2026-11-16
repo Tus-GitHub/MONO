@@ -8,7 +8,9 @@ it("explains both-partner chat approval without placing an OTP in a URL", () => 
   expect(message.text).toContain("012345");
   expect(message.text).toContain("Both email codes must be entered together");
   expect(message.text).toContain("10 minutes");
-  expect(message.text).toContain("dates, Memories, expenses and games stay unchanged");
+  expect(message.text).toContain("dates, Memories, other photos, expenses and games stay unchanged");
+  expect(message.text).toContain("permanently deletes all old chat messages and attachments");
+  expect(message.text).toContain("cannot be undone");
   expect(message.text).toContain("never sent in email");
   expect(message.html!.match(/href="[^"]*012345/g)).toBeNull();
 });

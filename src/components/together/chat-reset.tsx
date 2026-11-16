@@ -25,7 +25,7 @@ export function ChatReset({ open, onClose, coupleId, userId, currentKeyId, refre
     running.current = true; setBusy(true); setError("");
     try {
       const code = newRecoveryCode(), key = await recoverChatKey(code, coupleId);
-      const next = await togetherFetch<ChatResetDelivery>("/api/together/encryption/reset", { body: { action: "request", keyId: key.id } });
+      const next = await togetherFetch<ChatResetDelivery>("/api/together/encryption/reset", { body: { action: "request", keyId: key.id, deleteOldChat: true } });
       setDelivery(next); setRecovery(code); setNextKeyId(key.id); setOwn(""); setPartner(""); setSaved(false); setCopied(false);
     } catch (error) { setError(errorMessage(error)); }
     finally { running.current = false; setBusy(false); }
@@ -37,7 +37,7 @@ export function ChatReset({ open, onClose, coupleId, userId, currentKeyId, refre
       // Persist the exact key being approved, without replacing this device's active key.
       // A refused resend must not overwrite this backup with an unused key.
       await storedChatKey(`${userId}:${coupleId}:pending-reset`, await recoverChatKey(recovery, coupleId));
-      await togetherFetch("/api/together/encryption/reset", { body: { action: "confirm", requestId: delivery.requestId, ownCode, partnerCode, acknowledged: true } });
+      await togetherFetch("/api/together/encryption/reset", { body: { action: "confirm", requestId: delivery.requestId, ownCode, partnerCode, acknowledged: true, deleteOldChat: true } });
       setDone(true); setOwn(""); setPartner(""); await refresh();
     } catch (error) { setError(errorMessage(error)); await refresh(); }
     finally { running.current = false; setBusy(false); }
@@ -54,9 +54,10 @@ export function ChatReset({ open, onClose, coupleId, userId, currentKeyId, refre
   };
   const invalidOwn = ownCode.length > 0 && ownCode.length !== 6, invalidPartner = partnerCode.length > 0 && partnerCode.length !== 6;
   return <BottomSheet open={open} onClose={() => void close()} title="Reset encrypted chat" description="Both email codes are required together."
-    footer={completed ? <Button fullWidth onClick={() => void close()}>Unlock with your new code</Button> : delivery ? <Button fullWidth loading={busy} disabled={!saved || !/^\d{6}$/.test(ownCode) || !/^\d{6}$/.test(partnerCode)} onClick={() => void confirm()}>Reset chat with both codes</Button> : <Button fullWidth loading={busy} onClick={() => void request()}>Email both approval codes</Button>}>
+    footer={completed ? <Button fullWidth onClick={() => void close()}>Unlock with your new code</Button> : delivery ? <Button fullWidth loading={busy} disabled={!saved || !/^\d{6}$/.test(ownCode) || !/^\d{6}$/.test(partnerCode)} onClick={() => void confirm()}>Delete old chat and reset</Button> : <Button fullWidth loading={busy} onClick={() => void request()}>Email both approval codes</Button>}>
     <div className="space-y-4">
-      {completed ? <p role="status" className="text-sm text-ink">Chat has been reset. Both partners must unlock it with the new recovery code below.</p> : <p className="text-sm text-muted">Use this only when you cannot recover your current chat key. Old chat messages, photos, videos, documents and custom stickers will leave the active conversation. This does not permanently delete the stored old history.</p>}
+      {completed ? <p role="status" className="text-sm text-ink">Old chat messages and attachments have been removed from AMOR. Video files are being erased in the background. Both partners must unlock the fresh chat with the new recovery code below.</p> : <p className="text-sm text-muted">After both email codes are confirmed, all previous chat messages, photos, videos, documents and custom stickers will be permanently deleted. This cannot be undone, even if you later find the old recovery code.</p>}
+      {!completed ? <p className="text-xs text-muted">Chat access ends immediately on reset. Stored video files are erased in the background, with retries if storage is temporarily unavailable.</p> : null}
       <p className="rounded-lg border border-line bg-surface p-3 text-sm text-muted">Your accounts, couple space, dates, Memories, other photos, expenses and games stay unchanged.</p>
       {delivery && !completed ? <>
         <p role="status" className="text-sm text-muted">Codes sent to {delivery.ownEmail} and {delivery.partnerEmail}. Request {delivery.requestId.slice(0, 8)} · valid for 10 minutes.</p>
@@ -72,7 +73,7 @@ export function ChatReset({ open, onClose, coupleId, userId, currentKeyId, refre
         <p className="select-all break-all rounded-lg bg-paper p-3 font-mono text-xs text-ink">{recovery}</p>
         <p className="text-xs text-muted">Save this privately and share it with your partner. AMOR cannot recover it. This is different from the two email OTPs.</p>
         <Button size="sm" variant="secondary" onClick={async () => { try { await navigator.clipboard.writeText(recovery); setCopied(true); } catch { setError("Select and copy the recovery code manually."); } }}>{copied ? "Copied" : "Copy new recovery code"}</Button>
-        {!completed ? <label className="flex items-start gap-2 text-sm"><Checkbox checked={saved} onChange={event => setSaved(event.target.checked)} />I saved the new recovery code. We both agree to start a fresh chat.</label> : null}
+        {!completed ? <label className="flex items-start gap-2 text-sm"><Checkbox checked={saved} onChange={event => setSaved(event.target.checked)} />I saved the new recovery code. We both agree to permanently delete all old chat messages and attachments.</label> : null}
       </div> : null}
       {error && !completed ? <p role="alert" className="text-sm text-error">{error}</p> : null}
       {delivery && !completed ? <Button size="sm" variant="link" disabled={busy} onClick={() => void request()}>Send new codes to both emails</Button> : null}

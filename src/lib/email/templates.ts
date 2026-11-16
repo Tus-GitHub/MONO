@@ -100,11 +100,11 @@ export function verificationEmail(args: Recipient & { verifyUrl: string }): Emai
 }
 
 export function chatResetEmail(args: Recipient & { code: string; requesterName: string; reference: string; chatUrl: string }): EmailMessage {
-  return accountEmail({ ...args, url: args.chatUrl, subject: "Approve an AMOR chat reset", eyebrow: "BOTH PARTNERS MUST APPROVE",
+  return accountEmail({ ...args, url: args.chatUrl, subject: "Approve permanent AMOR chat deletion and reset", eyebrow: "BOTH PARTNERS MUST APPROVE",
     heading: `Your chat reset code:\n${args.code}`,
     body: `${args.requesterName} requested a fresh encrypted chat. Only share this code with your partner if you both agree. Both email codes must be entered together on the requesting device.`,
     button: "Open AMOR chat",
-    details: `Request ${args.reference}. This code expires in 10 minutes and can be used once. Reset hides old chat messages, photos, videos and files from the new conversation. Your accounts, dates, Memories, expenses and games stay unchanged.`,
+    details: `Request ${args.reference}. This code expires in 10 minutes and can be used once. Confirming both codes permanently deletes all old chat messages and attachments, including photos, videos, documents and custom stickers. This cannot be undone, even if you later find the old key. Video files are erased in the background with storage retries. Your accounts, dates, Memories, other photos, expenses and games stay unchanged.`,
     safety: "If you did not agree to this reset, do not share the code. No change happens without both codes. Your new recovery code is created on your device and is never sent in email.",
   });
 }

@@ -19,7 +19,7 @@ export async function togetherFetch<T>(path: string, options: { body?: unknown; 
     if (!response.ok) throw new TogetherRequestError(value.error ?? "Couldn't connect. Try again.", response.status);
     return value as T;
   } catch (error) {
-    if (controller.signal.aborted && !options.signal?.aborted) throw new Error(multipart ? "The upload took too long. Try again; your photo is kept." : path.startsWith("/api/together/calls") ? "The call service took too long to respond. Please try again." : path.startsWith("/api/together/solo") ? "The game service took too long to respond. Please reconnect and retry." : "The request took too long. Try again; your message is kept.");
+    if (controller.signal.aborted && !options.signal?.aborted) throw new Error(path === "/api/together/encryption/reset" ? "The reset response was interrupted. Checking Chat for the result…" : multipart ? "The upload took too long. Try again; your photo is kept." : path.startsWith("/api/together/calls") ? "The call service took too long to respond. Please try again." : path.startsWith("/api/together/solo") ? "The game service took too long to respond. Please reconnect and retry." : "The request took too long. Try again; your message is kept.");
     throw error;
   } finally { clearTimeout(timer); options.signal?.removeEventListener("abort", cancel); }
 }

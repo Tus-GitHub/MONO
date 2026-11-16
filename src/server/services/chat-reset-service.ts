@@ -8,10 +8,12 @@ import { chatResetEmail } from "@/lib/email/templates";
 import { AuthorizationError, ValidationError } from "@/lib/errors";
 import { chatResetActionSchema, type ChatResetDelivery } from "@/lib/validation/chat-reset";
 import { requireTogether, withTogetherWrite, type TogetherContext } from "./together-context";
+import { erasePreviousChat } from "./chat-reset-cleanup-service";
 
 const TTL = 10 * 60_000, COOLDOWN = 60_000, WINDOW = 60 * 60_000, ATTEMPTS = 5;
 const invalid = "Both codes must match this request and be unexpired. Request new codes if needed.";
-const digest = (...parts: string[]) => createHmac("sha256", env.AUTH_SECRET).update(JSON.stringify(["amor-chat-reset-v1", ...parts])).digest("hex");
+// Invalidate older retention-only approvals: those emails never consented to deletion.
+const digest = (...parts: string[]) => createHmac("sha256", env.AUTH_SECRET).update(JSON.stringify(["amor-chat-reset-delete-v2", ...parts])).digest("hex");
 const equal = (left: string, right: string) => timingSafeEqual(Buffer.from(left, "hex"), Buffer.from(right, "hex"));
 const mask = (email: string) => { const [local, domain] = email.split("@"); return `${local.slice(0, 1)}•••@${domain}`; };
 async function people(tx: Prisma.TransactionClient, context: TogetherContext) {
@@ -20,7 +22,7 @@ async function people(tx: Prisma.TransactionClient, context: TogetherContext) {
   if (!own || !partner || !own.email || !partner.email || own.email === partner.email) throw new AuthorizationError("Both partners need verified, separate email addresses to reset chat.");
   return { own, partner };
 }
-export async function actOnChatReset(value: unknown): Promise<ChatResetDelivery | { reset: true; keyId: string } | { cancelled: true }> {
+export async function actOnChatReset(value: unknown): Promise<ChatResetDelivery | { reset: true; keyId: string; cleanupCoupleId: string } | { cancelled: true }> {
   const input = chatResetActionSchema.parse(value), context = await requireTogether();
   if (input.action === "request") {
     const requestId = randomUUID(), ownNumber = randomInt(0, 1_000_000), otherNumber = randomInt(0, 999_999);
@@ -69,11 +71,12 @@ export async function actOnChatReset(value: unknown): Promise<ChatResetDelivery 
       await tx.chatResetRequest.update({ where: { coupleId: record.coupleId }, data: { attempts: { increment: 1 } } });
       return { error: record.attempts + 1 >= ATTEMPTS ? "Too many incorrect attempts. Request new codes." : invalid };
     }
-    // Atomic key switch and single-use consumption. Existing ciphertext and other app data stay intact.
+    // Deletion, key switch and single-use consumption either all commit or all roll back.
+    await erasePreviousChat(tx, record.coupleId, record.generation, now);
     await tx.chatResetRequest.update({ where: { coupleId: record.coupleId }, data: { usedAt: now } });
     await tx.couple.update({ where: { id: record.coupleId }, data: { chatKeyId: record.newKeyId, chatGeneration: { increment: 1 }, togetherRevision: { increment: 1 } } });
-    await tx.chatMemberState.updateMany({ where: { coupleId: record.coupleId }, data: { typingUntil: null } });
-    return { reset: true as const, keyId: record.newKeyId };
+    await tx.chatMemberState.updateMany({ where: { coupleId: record.coupleId }, data: { typingUntil: null, lastRead: BigInt(0) } });
+    return { reset: true as const, keyId: record.newKeyId, cleanupCoupleId: record.coupleId };
   });
   // Throw outside the transaction so failed-attempt counters are committed.
   if ("error" in result) throw new ValidationError(result.error);

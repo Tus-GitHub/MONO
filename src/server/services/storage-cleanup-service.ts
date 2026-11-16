@@ -44,15 +44,20 @@ export async function isActiveMediaKey(key: string): Promise<boolean> {
 }
 
 /** Idempotent deletion with an exclusive, expiring lease and visible terminal failures. */
-export async function processStorageCleanup(options: { now?: Date; limit?: number } = {}) {
+export async function processStorageCleanup(options: { now?: Date; limit?: number; keyPrefix?: string; chatVideosOnly?: boolean } = {}) {
   const now = options.now ?? new Date();
+  const scope = options.keyPrefix || options.chatVideosOnly ? { key: {
+    ...(options.keyPrefix ? { startsWith: options.keyPrefix } : {}),
+    ...(options.chatVideosOnly ? { contains: "/chat-videos/" } : {}),
+  } } : {};
   const report = { processed: 0, removed: 0, kept: 0, failed: 0 };
   const expired = await prisma.storageCleanup.updateMany({
-    where: { failedAt: null, attempts: { gte: MAX_ATTEMPTS }, OR: [{ leaseUntil: null }, { leaseUntil: { lte: now } }] },
+    where: { ...scope, failedAt: null, attempts: { gte: MAX_ATTEMPTS }, OR: [{ leaseUntil: null }, { leaseUntil: { lte: now } }] },
     data: { failedAt: now, leaseToken: null, leaseUntil: null, lastError: "lease_expired" },
   });
   report.failed += expired.count;
   const claimable = {
+    ...scope,
     failedAt: null, attempts: { lt: MAX_ATTEMPTS }, nextAttemptAt: { lte: now },
     OR: [{ leaseUntil: null }, { leaseUntil: { lte: now } }],
   };

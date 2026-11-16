@@ -133,7 +133,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-17 (dual-email OTP chat reset deployed and verified; approved temporary migration branch removed)
+Last updated: 2026-11-17 (dual-email OTP reset live; clarified fresh-chat history and lost-key recovery limits)
 
 
 
@@ -157,6 +157,7 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+- **Permanent old-chat reset and updated guides (2026-11-17):** User explicitly requests permanent deletion of only prior Chat messages/attachments after both email OTPs confirm reset, with all other data preserved, and updated PDF/DOCX explaining encryption/security. Implement scoped transactional deletion, durable object cleanup, explicit destructive consent, stale-client protection, tests, deploy and update existing C:/my/Documentation artifacts. No direct production chat deletion is authorized before the app's dual-OTP confirmation.
 
 
 
@@ -383,6 +384,7 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+- **Old chat after reset clarification (2026-11-17):** Explained that reset opens an empty active conversation showing only new messages. Previous ciphertext is retained separately and the replacement key cannot decrypt it. Recovery is impossible when the original code and every saved device key are gone; email OTPs authorize reset, not decryption. No code, key, account or production data changes.
 - **Chat reset with both email OTPs (2026-11-17):** Live code 9562f61; both mailbox codes and consent required together, fresh browser-generated shared key, old ciphertext isolated, both Chat screens relocked, other couple data preserved. Two-partner localhost flow and production health/UI/API guards verified; no real chats reset. Approved Neon test branch deleted.
 - **Both partners lose chat keys (2026-11-17):** Explained the proposed shared chat-reset flow, preserving accounts/couple space while starting new encrypted messages; old encrypted history is unrecoverable if every key/code is lost. Implementation and deletion were not requested or performed.
 - **Games highlight and score recovery (2026-11-17):** Live 3057c38; durable round/best backups, automatic retry, selected Games icon and versioned 12% faster Emoji Bounce. Local failure/reload and live recovery verified in the right panel.
@@ -1924,6 +1926,17 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-17 — Chat deletion release verification and radius explanation — IN PROGRESS
+
+Permanent reset implementation passed 74 focused PostgreSQL integration checks, a repeated final 15-test reset suite, 19 focused unit checks, ESLint/type checks and the production build (110 routes). Right-panel localhost checks for both partners covered warnings, consent/OTP disabling, live validation, cancellation, and 320/390/844-landscape/1440 layouts. No production reset performed. Added a protected daily Chat-video cleanup fallback and production CRON_SECRET (never logged); no reminder scheduling. PDF now has five pages including recovery and security; detailed DOCX update is awaiting native Word rendering because the Windows bundled LibreOffice renderer is unavailable. User asked about Load more/radius: current code retains radius/anchor on every cursor request, filters measured distance server-side, and prior live 50 km test reached 23.7656 km versus 5 km exclusion; explained straight-line distances and nearby results first.
+
+
+### 2026-11-17 — Permanent chat reset and security documentation — IN PROGRESS
+- Latest instruction replaces retention on future approved Chat resets with permanent deletion of old Chat messages/attachments only. Preserve accounts, shared space, dates, Memories, non-chat media, expenses, reviews, calls, games and scores. Also update AMOR quick PDF and full project handbook in C:/my/Documentation with key encryption, recovery and security features. Existing production conversations will not be reset as part of deployment/testing.
+
+### 2026-11-17 — Old history after a lost-key reset — DONE
+- User asks whether Chat starts with new messages and whether old messages can be regained when both partners lose the key. Clarified the actual deployed behavior: old messages/attachments no longer appear in the active conversation; new messages use the newly shared key. Old ciphertext remains stored, but neither the new key nor email OTPs can decrypt it. The no-recovery condition includes loss of every saved device key, not merely forgetting the written recovery code. No reset, restore or deletion was performed and no deployment was needed.
 
 ### 2026-11-17 — Chat reset with both email OTPs — DONE
 - User requires both email OTPs entered together for reset and asks whether only Chat is affected. Confirmed that old chat messages/attachments leave the active conversation while all other app data remains. Implemented two distinct OTPs, keyed hashes bound to both current verified mailboxes, 10-minute expiry, five failed attempts, shared 60-second resend cooldown and three requests/hour. Both codes and consent are required in one atomic submission; the browser creates the new recovery secret and sends only its fingerprint.
