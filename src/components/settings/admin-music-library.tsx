@@ -24,7 +24,7 @@ export function AdminMusicLibrary() {
         const next = await uploadAudio(file, "music", percent => setStatus(`Song ${completed + 1} of ${files.length} · ${percent}%`));
         setSettings(next); completed++; setFiles(files.slice(completed));
       }
-      setStatus(`${completed} ${completed === 1 ? "song added" : "songs added"} to MONO.`);
+      setStatus(`${completed} ${completed === 1 ? "song added" : "songs added"} to AMOR.`);
     } catch (e) { setError(errorMessage(e)); setStatus(`${completed} added. Remaining songs are ready to retry.`); }
     finally { setBusy(false); }
   };
@@ -45,7 +45,7 @@ export function AdminMusicLibrary() {
     void output.current?.play().then(() => setPreviewId(track.id)).catch(() => setError("This song could not play. Try its preview again."));
   };
   return <section className="my-6 space-y-4 rounded-2xl border border-line bg-surface p-5" aria-label="Website soundtrack">
-    <div><h2 className="flex items-center gap-2 font-display text-xl"><Icon name="music" />MONO song library</h2><p className="mt-2 text-sm text-muted">Add songs for everyone. Each person chooses their playlist, order, repeat mode and volume.</p></div>
+    <div><h2 className="flex items-center gap-2 font-display text-xl"><Icon name="music" />AMOR song library</h2><p className="mt-2 text-sm text-muted">Add songs for everyone. Each person chooses their playlist, order, repeat mode and volume.</p></div>
     <audio ref={audio} preload="none" aria-label="Background song preview" onEnded={() => setPreviewId(null)} />
     <input ref={picker} className="sr-only" type="file" multiple accept={AUDIO_ACCEPT} aria-label="Choose background songs" disabled={busy} onChange={event => {
       const next = Array.from(event.target.files ?? []); event.target.value = ""; setError(""); setStatus("");

@@ -4,7 +4,7 @@ import { ICON_SIZE, type IconSize } from "@/lib/design/tokens";
 import { cn } from "@/lib/utils/cn";
 
 /**
- * MONO's own line-icon set — one consistent stroke, no third-party icon dependency, no
+ * AMOR's own line-icon set — one consistent stroke, no third-party icon dependency, no
  * generic-SaaS glyph pack. Add glyphs to `GLYPHS` as needed.
  */
 const GLYPHS = {

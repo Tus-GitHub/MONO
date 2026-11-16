@@ -34,7 +34,7 @@ export function TogetherRoom({ initial, userId }: { initial: TogetherSnapshot; u
   const callBusy = Boolean(calling.call) || calling.phase !== "idle";
   return <div className="flex h-full min-h-0 w-full flex-col">
     <header className="mono-chat-header flex shrink-0 items-center gap-2 border-b border-line bg-elevated px-2 py-2 sm:gap-3 sm:px-5">
-      <Link href="/home" aria-label="Back to MONO" className="tap grid shrink-0 place-items-center rounded-lg text-muted hover:bg-surface"><Icon name="arrowLeft" /></Link>
+      <Link href="/home" aria-label="Back to AMOR" className="tap grid shrink-0 place-items-center rounded-lg text-muted hover:bg-surface"><Icon name="arrowLeft" /></Link>
       <span aria-hidden="true" className="relative grid size-9 shrink-0 place-items-center rounded-full bg-primary-tint font-display text-lg text-primary">{partner.name.slice(0, 1)}{chat.partnerOnline ? <span className="absolute right-0 bottom-0 size-2.5 rounded-full border-2 border-elevated bg-success" /> : null}</span>
       <div className="min-w-0 flex-1"><h1 className="truncate font-display text-xl font-medium text-ink">{partner.name}</h1>
         <p className="mono-chat-presence truncate text-xs text-muted">{chat.partnerTyping ? "Typing…" : chat.partnerOnline ? "Online" : "Just us · private chat"}</p></div>
@@ -244,7 +244,7 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, revision }: { c
     <BottomSheet open={picture != null} onClose={() => { if (!busy) { setPicture(null); imageNonce.current = ""; } }} title="Share a photo"
       footer={<div className="flex gap-2"><Button size="sm" loading={busy} onClick={() => void sendImage()}>Send image</Button><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setPicture(null); imageNonce.current = ""; }}>Cancel image</Button></div>}>
       <label className="block space-y-2 text-sm">Photo access<Select aria-label="Photo access" disabled={busy} value={viewLimit} onChange={(event) => { setViewLimit(Number(event.target.value) as 0 | 1 | 2); imageNonce.current = ""; }} className="block w-full rounded-lg border border-line bg-surface p-3"><option value={0}>Keep in chat</option><option value={1}>View once</option><option value={2}>View twice</option></Select></label>
-      {viewLimit > 0 ? <p className="my-2 text-xs text-muted">Your partner can open this photo {viewLimit === 1 ? "once" : "twice"}. MONO cannot block screenshots or recordings, or warn you about them.</p> : null}
+      {viewLimit > 0 ? <p className="my-2 text-xs text-muted">Your partner can open this photo {viewLimit === 1 ? "once" : "twice"}. AMOR cannot block screenshots or recordings, or warn you about them.</p> : null}
       {picture ? <div className="space-y-2"><PhotoPreview file={picture} /><p className="truncate text-xs text-muted">{picture.name}</p>{error ? <p role="alert" className="text-sm text-error">{error}</p> : null}</div> : null}
     </BottomSheet>
     <form onSubmit={(event) => { event.preventDefault(); void send("TEXT", text.trim()); }} className="space-y-1">

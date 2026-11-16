@@ -63,7 +63,7 @@ export default async function NotificationsPage() {
           description="A nudge before a date, a note when your partner adds something — it'll show up here."
           action={
             <LinkButton href="/settings/notifications" variant="secondary" size="sm">
-              Choose what MONO tells you
+              Choose what AMOR tells you
             </LinkButton>
           }
         />

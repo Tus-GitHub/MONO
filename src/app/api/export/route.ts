@@ -7,7 +7,7 @@ import { exportCoupleData } from "@/server/services/account-service";
 export const dynamic = "force-dynamic";
 
 /**
- * Download everything the couple has put into MONO as one JSON file. Members only — the couple
+ * Download everything the couple has put into AMOR as one JSON file. Members only — the couple
  * is resolved from the session, never from a query param.
  */
 export async function GET(_request: NextRequest) {
@@ -24,7 +24,7 @@ export async function GET(_request: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": "application/json; charset=utf-8",
-        "Content-Disposition": `attachment; filename="mono-export-${stamp}.json"`,
+        "Content-Disposition": `attachment; filename="amor-export-${stamp}.json"`,
         "Cache-Control": "no-store",
         "X-Robots-Tag": "noindex, nofollow",
       },

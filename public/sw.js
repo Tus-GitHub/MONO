@@ -1,5 +1,5 @@
 /*
- * MONO service worker — hand-rolled, no build step, no dependency.
+ * AMOR service worker — hand-rolled, no build step, no dependency.
  *
  * Strategy (deliberately conservative for a private two-person app):
  *   - Precache only the offline fallback + the app icons.
@@ -14,7 +14,7 @@
  * Updating: bump VERSION. The new worker precaches, `skipWaiting()`s on the page's nudge, and
  * on activate deletes every cache whose name doesn't start with the current VERSION.
  */
-const VERSION = "mono-v6";
+const VERSION = "mono-v7-amor";
 const PRECACHE = VERSION + "-precache";
 const STATIC = VERSION + "-static";
 
@@ -65,20 +65,20 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: "MONO", body: event.data ? event.data.text() : "" };
+    data = { title: "AMOR", body: event.data ? event.data.text() : "" };
   }
   const incomingCall = typeof data.callId === "string" && Number.isFinite(data.expiresAt);
   const expired = incomingCall && data.expiresAt <= Date.now();
-  const title = expired ? "Missed MONO call" : data.title || "MONO";
+  const title = expired ? "Missed AMOR call" : data.title || "AMOR";
   event.waitUntil(
     self.registration.showNotification(title, {
-      body: expired ? "This call has ended. Open MONO to call your partner back." : data.body || "",
+      body: expired ? "This call has ended. Open AMOR to call your partner back." : data.body || "",
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
       tag: data.tag || undefined,
       renotify: Boolean(data.tag),
       data: { url: data.url || "/notifications", callId: data.callId },
-      ...(incomingCall && !expired ? { actions: [{ action: "open-call", title: "Open MONO" }], requireInteraction: true } : {}),
+      ...(incomingCall && !expired ? { actions: [{ action: "open-call", title: "Open AMOR" }], requireInteraction: true } : {}),
     }),
   );
 });

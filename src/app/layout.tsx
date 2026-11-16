@@ -23,17 +23,17 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: {
-    default: "MONO",
-    template: "%s · MONO",
+    default: "AMOR",
+    template: "%s · AMOR",
   },
   description:
     "A private space for two — plan dates, capture what actually happened, and decide what to do again.",
-  applicationName: "MONO",
+  applicationName: "AMOR",
   robots: { index: false, follow: false },
   // Installed-PWA behaviour on iOS (Android reads the web app manifest instead).
   appleWebApp: {
     capable: true,
-    title: "MONO",
+    title: "AMOR",
     statusBarStyle: "default",
   },
 };

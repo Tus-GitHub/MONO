@@ -59,7 +59,7 @@ export class IndiaRestrosPhotos {
     const found = new Map<string, IndiaRestrosVenuePhoto>();
     let ttl = 60_000;
     try {
-      const response = await fetch(url, { headers: { "User-Agent": "MONO/1.0 (+https://mono-kappa-beryl.vercel.app)", Accept: "application/json" }, cache: "no-store", signal: AbortSignal.timeout(4000) });
+      const response = await fetch(url, { headers: { "User-Agent": "AMOR/1.0 (+https://amor-together.vercel.app)", Accept: "application/json" }, cache: "no-store", signal: AbortSignal.timeout(4000) });
       if (!response.ok) {
         const retry = response.headers.get("Retry-After") ?? "";
         const delay = /^\d+$/.test(retry) ? Number(retry) * 1000 : Date.parse(retry) - Date.now();

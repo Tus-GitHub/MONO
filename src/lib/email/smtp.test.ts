@@ -3,7 +3,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   sendMail: vi.fn(), createTransport: vi.fn(),
   env: { SMTP_HOST: "smtp.example.test", SMTP_PORT: 587, SMTP_SECURE: false,
-    SMTP_USER: "user", SMTP_PASSWORD: "secret", EMAIL_FROM: "MONO <mono@example.test>" },
+    SMTP_USER: "user", SMTP_PASSWORD: "secret", EMAIL_FROM: "AMOR <mono@example.test>" },
 }));
 vi.mock("nodemailer", () => ({ default: { createTransport: mocks.createTransport } }));
 vi.mock("@/config/env", () => ({ env: mocks.env }));

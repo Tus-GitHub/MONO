@@ -65,7 +65,7 @@ export class IndiaRestrosProvider implements PlaceProvider {
     if (pending) return pending;
     if (Date.now() < this.retryAt) throw new Error("Venue source is busy. Try again shortly.");
     const request = (async () => {
-      const response = await fetch(url, { headers: { Accept: "application/json", "User-Agent": "MONO/1.0 (+https://mono-kappa-beryl.vercel.app)" }, cache: "no-store", signal: AbortSignal.timeout(10_000) });
+      const response = await fetch(url, { headers: { Accept: "application/json", "User-Agent": "AMOR/1.0 (+https://amor-together.vercel.app)" }, cache: "no-store", signal: AbortSignal.timeout(10_000) });
       if (!response.ok) {
         if (response.status === 429 || response.status >= 500) {
           const retry = response.headers.get("Retry-After") ?? "";

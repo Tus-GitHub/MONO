@@ -31,7 +31,7 @@ export function PublicRating({
   );
 }
 
-/** The couple's private MONO score — warm, distinct, always labelled "together". */
+/** The couple's private AMOR score — warm, distinct, always labelled "together". */
 export function CoupleScore({
   score10,
   className,
@@ -46,7 +46,7 @@ export function CoupleScore({
         "inline-flex items-center gap-1 rounded-md bg-primary-tint px-1.5 py-0.5 text-2xs font-semibold text-primary",
         className,
       )}
-      title="Your private MONO score"
+      title="Your private AMOR score"
     >
       <Icon name="heart" size={11} />
       {score10.toFixed(1)}/10 · together

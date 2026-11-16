@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { DateStatus } from "@prisma/client";
 
-import { Logo, MonoMark } from "@/components/layout/logo";
+import { Logo, AmorMark } from "@/components/layout/logo";
 import { Alert } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge, DateStatusBadge } from "@/components/ui/badge";
@@ -116,7 +116,7 @@ export function StyleGallery() {
             <Logo variant="lockup" size="sm" href={null} />
           </Row>
           <Row label="Mark / word">
-            <MonoMark className="h-10 w-10 text-ink" />
+            <AmorMark className="h-10 w-10 text-ink" />
             <Logo variant="wordmark" href={null} />
           </Row>
         </Section>

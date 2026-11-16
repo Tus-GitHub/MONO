@@ -36,7 +36,7 @@ export default function GlobalError({
         }}
       >
         <h1 style={{ fontSize: "1.25rem", fontWeight: 600, margin: 0 }}>
-          MONO ran into a problem
+          AMOR ran into a problem
         </h1>
         <p style={{ fontSize: "0.875rem", color: "#766c60", margin: 0, maxWidth: "24rem" }}>
           Reloading usually fixes it. If it keeps happening, check your connection and try again

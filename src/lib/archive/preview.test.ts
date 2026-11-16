@@ -22,7 +22,7 @@ describe("portable archive preview", () => {
   });
   it("does not render malformed archive dates, identities or counts", () => {
     for (const patch of [{ exportedAt: "yesterday" }, { members: [] }, { photos: {} }, { digest: "bad" }]) {
-      expect(() => readArchivePreview(JSON.stringify({ ...file, ...patch }))).toThrow("MONO portable archive");
+      expect(() => readArchivePreview(JSON.stringify({ ...file, ...patch }))).toThrow("AMOR portable archive");
     }
   });
 });

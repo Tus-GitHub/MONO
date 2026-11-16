@@ -1,6 +1,6 @@
 import type { CommonsVenuePhoto as VenuePhoto } from "./venue-photo";
 
-const USER_AGENT = "MONO/1.0 (+https://mono-kappa-beryl.vercel.app)";
+const USER_AGENT = "AMOR/1.0 (+https://amor-together.vercel.app)";
 const PROPERTIES = { N: "P11693", W: "P10689", R: "P402" } as const;
 type Binding = Record<string, { value?: string }>;
 type ImageInfo = { thumburl?: string; mime?: string; extmetadata?: Record<string, { value?: string }> };

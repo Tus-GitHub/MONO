@@ -185,7 +185,7 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
             label="Overall experience"
             value={effectiveOverall}
             suggested={!overallTouched && suggested != null}
-            hint="MONO's suggestion"
+            hint="AMOR's suggestion"
             onChange={(n) => {
               setOverallTouched(true);
               setOverall(n);

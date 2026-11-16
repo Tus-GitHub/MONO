@@ -87,13 +87,13 @@ function subscribe(onChange: () => void) {
 }
 
 /**
- * Unobtrusive "add MONO to your home screen".
+ * Unobtrusive "add AMOR to your home screen".
  *
  *   variant="banner"  a slim, dismissible strip — used once on Home, then snoozed ~2 weeks
  *                     and shown at most a few times ever.
  *   variant="card"    an always-available panel in Settings for people who go looking.
  *
- * Renders nothing when MONO is already installed / running standalone, or when there is no
+ * Renders nothing when AMOR is already installed / running standalone, or when there is no
  * install path on this browser (e.g. desktop Firefox).
  */
 export function InstallPrompt({ variant = "banner" }: { variant?: "banner" | "card" }) {
@@ -163,17 +163,17 @@ export function InstallPrompt({ variant = "banner" }: { variant?: "banner" | "ca
             <Icon name="sparkles" size="sm" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-ink">Install MONO</p>
+            <p className="text-sm font-medium text-ink">Install AMOR</p>
             {ios ? (
               <p className="mt-0.5 text-sm text-muted">
                 In Safari, tap the Share button{" "}
                 <Icon name="share" size={14} className="-mt-0.5 inline text-muted" /> then{" "}
                 <span className="font-medium text-ink">Add to Home Screen</span>. It opens
-                straight into MONO, full screen.
+                straight into AMOR, full screen.
               </p>
             ) : (
               <p className="mt-0.5 text-sm text-muted">
-                Add MONO to your home screen for a full-screen, app-like space that opens in
+                Add AMOR to your home screen for a full-screen, app-like space that opens in
                 one tap.
               </p>
             )}
@@ -203,7 +203,7 @@ export function InstallPrompt({ variant = "banner" }: { variant?: "banner" | "ca
         <Icon name="sparkles" size="sm" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-ink">Keep MONO one tap away</p>
+        <p className="text-sm font-medium text-ink">Keep AMOR one tap away</p>
         <p className="text-xs text-muted">
           {ios
             ? "Share → Add to Home Screen for the full-screen app."

@@ -54,7 +54,7 @@ const dollarsToCents = z
     z.coerce
       .number()
       .nonnegative("That can't be negative.")
-      .max(1_000_000, "That's more than MONO handles.")
+      .max(1_000_000, "That's more than AMOR handles.")
       .optional(),
   )
   .transform((dollars) => (dollars == null ? undefined : Math.round(dollars * 100)));
@@ -79,7 +79,7 @@ const requiredDollarsToCents = z
     z.coerce
       .number({ invalid_type_error: "Enter an amount." })
       .positive("Enter an amount greater than zero.")
-      .max(1_000_000, "That's more than MONO handles."),
+      .max(1_000_000, "That's more than AMOR handles."),
   )
   .transform((dollars) => Math.round(dollars * 100));
 

@@ -60,7 +60,7 @@ export async function actOnCall(value: unknown): Promise<CallDTO> {
       if (await tx.coupleCall.count({ where: { callerId: context.user.id, createdAt: { gt: new Date(Date.now() - 60_000) } } }) >= 6) throw new ValidationError("Wait a moment before calling again.");
       const call = await tx.coupleCall.create({ data: { coupleId: context.couple.id, callerId: context.user.id, calleeId: context.partner.id, kind: input.kind, clientNonce: input.clientNonce } });
       await enqueueNotification(tx, context.partner.id, { type: "SYSTEM", title: `Incoming ${input.kind === "VIDEO" ? "video" : "voice"} call`,
-        body: "Your partner is calling. Open MONO to answer.", entityType: "CoupleCall", entityId: call.id }, context.couple.id);
+        body: "Your partner is calling. Open AMOR to answer.", entityType: "CoupleCall", entityId: call.id }, context.couple.id);
       return call;
     }
     const call = await tx.coupleCall.findFirst({ where: { id: input.id, coupleId: context.couple.id } });

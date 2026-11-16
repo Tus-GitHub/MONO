@@ -38,7 +38,7 @@ export async function runMusicLibrary({ browser, baseUrl, prisma, runId, artifac
         const file = path.join(artifactDir, `QA ${i + 1} ${runId}.wav`); await writeFile(file, data); files.push(file);
       }
       const chooser = owner.waitForFileChooser(); await click(owner, "Choose songs"); await (await chooser).accept(files); await click(owner, "Publish 3 songs");
-      await owner.waitForFunction(() => document.body.innerText.includes("3 songs added to MONO."));
+      await owner.waitForFunction(() => document.body.innerText.includes("3 songs added to AMOR."));
       assert.equal(await prisma.siteAudio.count({ where: { updatedById: users[0].id } }), 3);
       await owner.screenshot({ path: path.join(artifactDir, "admin-music-library.png"), fullPage: true }); pass("admin uploads three songs together without replacing existing songs");
     }

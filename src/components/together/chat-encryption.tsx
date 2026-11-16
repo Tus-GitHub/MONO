@@ -33,8 +33,8 @@ export function ChatEncryption({ coupleId, userId, keyId, onUnlock, refresh, rea
   return <div className="space-y-3 border-b border-line bg-surface p-4">
     <h2 className="font-display text-lg">{keyId ? "Unlock encrypted chat" : "Secure your chat"}</h2>
     <p className="text-sm text-muted">Messages, stickers, photos and documents are encrypted on your device. This browser remembers your key and unlocks automatically next time.</p>
-    <p className="text-sm text-muted">The recovery code connects your partner’s device and restores access on a new phone or after browser data is cleared. Keep it safe and share it privately, outside MONO. MONO cannot recover it.</p>
-    {keyId ? <Input aria-label="Private recovery code" type="password" autoComplete="off" value={code} onChange={(event) => setCode(event.target.value)} placeholder="MONO1-…" /> : <>
+    <p className="text-sm text-muted">The recovery code connects your partner’s device and restores access on a new phone or after browser data is cleared. Keep it safe and share it privately, outside AMOR. AMOR cannot recover it.</p>
+    {keyId ? <><p className="text-xs text-muted">Opening from a new address? Use your existing recovery code. Your key and encrypted history have not changed.</p><Input aria-label="Private recovery code" type="password" autoComplete="off" value={code} onChange={(event) => setCode(event.target.value)} placeholder="Your private recovery code" /></> : <>
       {!generated ? <Button size="sm" onClick={() => { setCode(newRecoveryCode()); setGenerated(true); }}>Generate recovery code</Button> : <>
         <p className="break-all rounded-lg bg-paper p-3 font-mono text-sm select-all">{code}</p>
         <Button size="sm" variant="secondary" onClick={async () => { try { await navigator.clipboard.writeText(code); setStatus("Code copied. Store it privately before continuing."); } catch { setError("Copy is unavailable. Select the code above and copy it manually."); } }}>Copy code</Button>

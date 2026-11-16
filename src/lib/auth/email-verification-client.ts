@@ -14,5 +14,5 @@ export async function postEmailVerification(input: VerificationRequest): Promise
     if (result.status === "success" && response.ok) return { status: "success", message: result.message };
     if (result.status === "error" && typeof result.message === "string") return errorState(result.message);
   } catch { /* A retry may report an already-consumed link; the signed-in status check is authoritative. */ }
-  return errorState("The connection took too long. Check your connection and try again. If you already confirmed, continue to MONO to check your status.");
+  return errorState("The connection took too long. Check your connection and try again. If you already confirmed, continue to AMOR to check your status.");
 }

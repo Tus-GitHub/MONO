@@ -60,7 +60,7 @@ export function InvitationManager({ activeInvitation }: Props) {
     if (typeof navigator.share === "function") {
       try {
         await navigator.share({
-          title: "Join me on MONO",
+          title: "Join me on AMOR",
           text: "Our private space for two — accept my invitation:",
           url: link,
         });

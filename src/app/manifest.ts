@@ -11,8 +11,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "MONO — a private space for two",
-    short_name: "MONO",
+    name: "AMOR — a private space for two",
+    short_name: "AMOR",
     description:
       "A private space for two — plan dates, capture what actually happened, and decide what to do again.",
     start_url: "/home",

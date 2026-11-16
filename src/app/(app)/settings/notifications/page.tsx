@@ -16,7 +16,7 @@ export default async function NotificationSettingsPage() {
     <div className="mx-auto max-w-xl space-y-6">
       <PageHeader
         title="Reminders"
-        description="What MONO reminds you about, and how."
+        description="What AMOR reminds you about, and how."
         back={{ href: "/couple", label: "Couple" }}
       />
       <EnableBrowserNotifications />

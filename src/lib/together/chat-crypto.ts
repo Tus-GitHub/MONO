@@ -12,7 +12,7 @@ export function newRecoveryCode() {
 }
 export async function recoverChatKey(code: string, coupleId: string): Promise<ChatKey> {
   const hex = code.trim().toUpperCase().replace(/^MONO1-/, "").replace(/[-\s]/g, "");
-  if (!/^[0-9A-F]{64}$/.test(hex)) throw new Error("Enter the complete MONO recovery code.");
+  if (!/^[0-9A-F]{64}$/.test(hex)) throw new Error("Enter the complete AMOR recovery code.");
   const secret = Uint8Array.from(hex.match(/../g)!, (v) => parseInt(v, 16));
   try {
     const material = await crypto.subtle.importKey("raw", secret, "HKDF", false, ["deriveKey", "deriveBits"]);

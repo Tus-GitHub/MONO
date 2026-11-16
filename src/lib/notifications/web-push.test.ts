@@ -172,7 +172,7 @@ describe("WebPushChannel", () => {
     let headers: Record<string, string> | undefined, payload: unknown;
     const expiresAt = Date.now() + 60_000;
     globalThis.fetch = (async (_url: string, init: RequestInit) => { headers = init.headers as Record<string, string>; payload = JSON.parse(decryptAsClient(Buffer.from(init.body as Uint8Array), ecdh, auth).toString()); return new Response(null, { status: 201 }); }) as typeof fetch;
-    try { await channel.send(sub, { title: "Incoming call", body: "Open MONO", callId: "fixture-call", expiresAt, ttl: 59, urgency: "high" }); }
+    try { await channel.send(sub, { title: "Incoming call", body: "Open AMOR", callId: "fixture-call", expiresAt, ttl: 59, urgency: "high" }); }
     finally { globalThis.fetch = realFetch; }
     expect(headers).toMatchObject({ TTL: "59", Urgency: "high" });
     expect(payload).toMatchObject({ callId: "fixture-call", expiresAt });

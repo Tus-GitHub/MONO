@@ -76,7 +76,7 @@ export async function runChatStability({ browser, baseUrl, prisma, runId, artifa
     // Move through app links so an active call stays mounted when opening the game.
     await owner.goto(baseUrl+"/chat",{waitUntil:"domcontentloaded"}); await partner.goto(baseUrl+"/chat",{waitUntil:"domcontentloaded"});
     await click(owner,'[aria-label="Voice call"]'); await click(partner,'[aria-label="Pick up"]');
-    for(const page of [owner,partner]) { await page.waitForFunction(()=>window.__qaPeers.at(-1)?.connectionState==="connected"); await click(page,'[aria-label="Minimize call"]'); await click(page,'[aria-label="Back to MONO"]'); await page.waitForFunction(()=>location.pathname==="/home"); await click(page,'a[aria-label="Games"]'); await click(page,`a[href="/games/${game.id}"]`); }
+    for(const page of [owner,partner]) { await page.waitForFunction(()=>window.__qaPeers.at(-1)?.connectionState==="connected"); await click(page,'[aria-label="Minimize call"]'); await click(page,'[aria-label="Back to AMOR"]'); await page.waitForFunction(()=>location.pathname==="/home"); await click(page,'a[aria-label="Games"]'); await click(page,`a[href="/games/${game.id}"]`); }
     await connected([owner,partner]);
     for(const page of [owner,partner]) assert.equal(await page.$eval('[data-game-chat]',el=>el.dataset.chatTransport),"call");
     const callPeers=await owner.evaluate(()=>window.__qaPeers.length);

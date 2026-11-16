@@ -88,6 +88,6 @@ export function screenCaptureError(error: unknown) {
   const name = error instanceof Error ? error.name : "";
   if (name === "NotReadableError") return "Your device couldn’t capture that screen. Keep the selected app open, stop other screen recordings, then try again. Your call continues.";
   if (name === "NotFoundError" || name === "NotSupportedError") return "This browser has no screen source to share. Use a supported desktop browser; your call continues.";
-  if (name === "InvalidStateError") return "Return to MONO and tap Share again to open the screen picker. Your call continues.";
+  if (name === "InvalidStateError") return "Return to AMOR and tap Share again to open the screen picker. Your call continues.";
   return "Screen sharing was cancelled or blocked by your browser. If no picker appeared, this browser may not support capture. Your call continues.";
 }

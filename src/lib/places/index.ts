@@ -8,7 +8,7 @@ export type { PlaceProvider, PlaceSearchQuery, ProviderPlace } from "@/lib/place
 const photon = new PhotonPlacesProvider();
 const india = new IndiaRestrosProvider();
 
-/** The configured external provider, or `null` (MONO then searches only its own saved places). */
+/** The configured external provider, or `null` (AMOR then searches only its own saved places). */
 export function getExternalPlaceProvider(query?: Pick<PlaceSearchQuery, "near" | "category">): PlaceProvider | null {
   if (env.PLACE_PROVIDER === "photon") return query && supportsIndiaRestros(query.category, query.near) ? india : photon;
   if (env.PLACE_PROVIDER === "google" && env.GOOGLE_PLACES_API_KEY) {

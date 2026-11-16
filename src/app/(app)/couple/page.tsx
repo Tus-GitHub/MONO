@@ -47,7 +47,7 @@ export default async function CouplePage() {
           <SettingsLink href="/settings" label="All settings" hint="Privacy, theme, data, account" />
           <SettingsLink href="/settings/couple" label="Couple profile" hint="Name, photo, relationship date" />
           <SettingsLink href="/settings/profile" label="Your profile" hint="How you show up here" />
-          <SettingsLink href="/settings/notifications" label="Reminders" hint="What MONO nudges you about" />
+          <SettingsLink href="/settings/notifications" label="Reminders" hint="What AMOR nudges you about" />
         </div>
       </section>
     </PageContainer>

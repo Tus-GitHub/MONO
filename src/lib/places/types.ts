@@ -8,7 +8,7 @@ export function venueRadius(value?: number): number {
 }
 
 /**
- * External place-provider contract. MONO's UI and business logic depend only on this shape,
+ * External place-provider contract. AMOR's UI and business logic depend only on this shape,
  * so a provider (Google Places, Foursquare, a local dataset …) can be added later by
  * implementing `PlaceProvider` — nothing above this layer changes.
  */

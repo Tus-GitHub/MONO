@@ -157,6 +157,7 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+- **AMOR rebrand (2026-11-17)** — visible name, custom AMOR/Mio wordmark and new free Vercel URL on the same project. Preserve database, data, secrets, encryption derivation/headers/recovery format, cookies and storage identifiers; keep the original hostname available for existing devices.
 - Temporary migration branch `br-lively-math-b329pbdl` is retained pending the already-requested explicit cleanup approval. Feature deployment is complete; do not delete the branch without that response.
 
 
@@ -1913,6 +1914,10 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-17 — AMOR name, hidden-Mio logo and new URL — IN PROGRESS
+Checkpoint: original vector AMOR wordmark with a shared dotted M/i stem, matching Mio monogram/app icons, visible text/email/notification branding and download names complete. New verified amor-together.vercel.app alias on existing project; original alias retained. Only production APP_URL and EMAIL_FROM display name updated; sender mailbox and every other environment value/update timestamp unchanged. Explicit same-origin compatibility allows only the two owned aliases in production; local/preview origin isolation preserved. 643 unit tests pass after correcting two old branding/cache expectations (641 first pass + 10 scoped rerun); old/new encryption compatibility confirms identical key fingerprint/AAD and readable existing text/image ciphertext. Production build/TypeScript passed after retrying blocked font DNS with approved network access; changed-file lint passed. Prepared disposable encrypted history on old live release before publication; cross-origin continuity test awaiting deployment. No schema/migration/storage/key changes.
+User authorizes publishing the AMOR rebrand with no database/data/key/API changes. Working in isolated .postgres-test/amor-brand from b14b15c to preserve unrelated root memory edits. Keep same Vercel project, database, file store, AUTH_SECRET, DATA_ENCRYPTION_KEY and push keys. Change display text/icons and public APP_URL only; preserve protocol identifiers and old origin. Browser sessions/chat keys are origin-bound; users can keep the old address or sign in/unlock with their existing recovery code on the new one. No customer data migration or key rotation.
 
 ### 2026-11-16 — Slow internet and Wi-Fi/mobile-data recovery — DONE
 Published `0353d918898ec81123f34210eac560cb2f7b0b95`; main push succeeded. Vercel `dpl_9JKsWuXCXo21VctoiDveNuVysoCz` READY with canonical alias. Live run `live-a8df951c4c7a` passed all six groups: 400 ms latency/512 kbps down/128 kbps up, normal offline draft retention and single resend/catch-up, standalone game queue delivery after 20 seconds, and caller/receiver 20-second HTTP-offline + 100% WebRTC packet-loss recovery on the same peer/call/microphone tracks with received audio energy in both directions. No uncaught browser errors; two disposable users and their space removed. Health HTTP200/database up; scoped production error/fatal logs empty. Reload both devices. Actual physical phone Wi-Fi/cellular handoff, carrier NAT and OS suspension are not verified. Normal fully offline outgoing text retains an explicit retry draft, not an automatic outbox. Evidence: docs/reports/network-handoff-2026-11-16.md.

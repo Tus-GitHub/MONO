@@ -184,7 +184,7 @@ export async function runCompatibility({ browser, baseUrl, prisma, runId, artifa
       await navigator.serviceWorker.register("/sw.js"); await navigator.serviceWorker.ready;
       return { name: manifest.short_name, icons };
     });
-    assert.equal(resources.name, "MONO"); assert(resources.icons.every((icon) => icon.status === 200));
+    assert.equal(resources.name, "AMOR"); assert(resources.icons.every((icon) => icon.status === 200));
     await owner.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
     await go(owner, baseUrl, `/dates/${completed.id}`);
     const cachePaths = await owner.evaluate(async () => {

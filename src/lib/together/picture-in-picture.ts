@@ -11,7 +11,7 @@ export function supportsCallPip(video: PipVideo | null) {
 export async function enterCallPip(video: PipVideo) {
   if (document.pictureInPictureEnabled && typeof video.requestPictureInPicture === "function") await video.requestPictureInPicture();
   else if (video.webkitSupportsPresentationMode?.("picture-in-picture") && video.webkitSetPresentationMode) video.webkitSetPresentationMode("picture-in-picture");
-  else throw new Error("Your browser does not offer floating video outside MONO. The in-app mini view still works.");
+  else throw new Error("Your browser does not offer floating video outside AMOR. The in-app mini view still works.");
 }
 export async function leaveCallPip(video: PipVideo) {
   if (document.pictureInPictureElement === video) await document.exitPictureInPicture();

@@ -97,7 +97,7 @@ export async function runJourney({ browser, baseUrl, prisma, runId, artifactDir 
     await waitFor(async () => {
       const log = await readFile(join(artifactDir, "server.log"), "utf8");
       const block = log.split("──────────── email (console driver) ────────────")
-        .find((message) => message.includes(`to:      ${email(person)}\n`) && message.includes("subject: Verify your MONO email\n"));
+        .find((message) => message.includes(`to:      ${email(person)}\n`) && message.includes("subject: Verify your AMOR email\n"));
       verificationToken = block?.match(/\/verify-email#token=([A-Za-z0-9_-]{43})/)?.[1];
       return Boolean(verificationToken);
     }, "registration verification email");
@@ -127,7 +127,7 @@ export async function runJourney({ browser, baseUrl, prisma, runId, artifactDir 
     await fill(partner, 'input[name="name"]', `Browser couple ${runId}`);
     await fill(partner, 'textarea[name="description"]', "Created by the browser journey");
     await clickText(partner, "Finish setup");
-    await clickText(partner, "Enter MONO", "a");
+    await clickText(partner, "Enter AMOR", "a");
     await go(owner, baseUrl, "/home");
     const couple = await prisma.couple.findFirstOrThrow({ where: { createdById: ownerUser.id } });
     assert.equal(await prisma.coupleMember.count({ where: { coupleId: couple.id, status: "ACTIVE" } }), 2);

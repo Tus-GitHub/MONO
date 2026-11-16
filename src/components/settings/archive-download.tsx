@@ -20,7 +20,7 @@ export function ArchiveDownload() {
     if (!outcome) return;
     const url = URL.createObjectURL(outcome.data);
     const anchor = document.createElement("a");
-    anchor.href = url; anchor.download = `mono-archive-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.href = url; anchor.download = `amor-archive-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.append(anchor); anchor.click(); anchor.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }

@@ -7,7 +7,7 @@ import { listMyArchivedSpaces } from "@/server/services/archive-access-service";
 export default async function ArchivedSpacesPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const data = await listMyArchivedSpaces((await searchParams).page);
   return <ArchiveShell><ArchiveRefresh />
-    <div className="space-y-2"><Link href="/home" className="text-sm text-primary underline">Back to MONO</Link><h1 className="font-display text-3xl">Your archived spaces</h1>
+    <div className="space-y-2"><Link href="/home" className="text-sm text-primary underline">Back to AMOR</Link><h1 className="font-display text-3xl">Your archived spaces</h1>
       <p className="text-sm text-muted">When your partner deletes their account, your shared history is kept and locked. Request admin permission to view it again. Only your original account can make this request.</p></div>
     {!data.verified ? <Link href="/verify-email?next=/history-access" className="text-primary underline">Verify your email to request access</Link> : null}
     {!data.rows.length ? <div className="rounded-xl border border-line bg-surface p-5 text-sm text-muted">No eligible archived spaces for this account. A new signup does not inherit an older account’s history.</div> : null}

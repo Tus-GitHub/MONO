@@ -30,7 +30,7 @@ export default function OfflinePage() {
         You&rsquo;re offline
       </h1>
       <p className="max-w-xs text-sm text-muted" style={{ maxWidth: "20rem", color: "#766c60" }}>
-        MONO needs a connection for this. Your unsent notes are kept on this device — reconnect
+        AMOR needs a connection for this. Your unsent notes are kept on this device — reconnect
         and try again.
       </p>
       <OfflineRetry />

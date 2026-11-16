@@ -2,10 +2,11 @@ import "server-only";
 
 import { env } from "@/config/env";
 import { AppError, AuthorizationError, ValidationError } from "@/lib/errors";
+import { isAppOrigin } from "./app-origins";
 
 /** Cookie-authenticated JSON mutations must originate from the configured app origin. */
 export function assertSameOrigin(request: Request): void {
-  if (request.headers.get("origin") !== new URL(env.APP_URL).origin
+  if (!isAppOrigin(request.headers.get("origin"), env.APP_URL)
     || request.headers.get("sec-fetch-site") === "cross-site") {
     throw new AuthorizationError("This request must come from this app.");
   }

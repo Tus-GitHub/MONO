@@ -18,7 +18,7 @@ import { decodeVenueCursor, encodeVenueCursor, venueSearchKey } from "@/lib/plac
 import { indiaRestrosPhoto } from "@/lib/places/indiarestros-photos";
 
 export interface PlaceSearchResult {
-  /** Present when this is (or matches) a place already saved in MONO. */
+  /** Present when this is (or matches) a place already saved in AMOR. */
   savedPlaceId: string | null;
   external: { provider: string; providerPlaceId: string } | null;
 

@@ -8,7 +8,7 @@ export type ClassValue =
   | ClassValue[];
 
 /**
- * Minimal className joiner. Intentionally dependency-free — MONO does not pull in
+ * Minimal className joiner. Intentionally dependency-free — AMOR does not pull in
  * `clsx` / `tailwind-merge`. Falsy values are dropped; arrays are flattened.
  */
 export function cn(...inputs: ClassValue[]): string {

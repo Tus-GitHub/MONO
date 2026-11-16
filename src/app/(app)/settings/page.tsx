@@ -38,7 +38,7 @@ export default async function SettingsPage() {
         <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
           <Row href="/settings/couple" label="Couple profile" hint="Name, photo, relationship date, currency" />
           <Row href="/settings/profile" label="Personal profile" hint="Your name, nickname, pronouns, photo" />
-          <Row href="/settings/notifications" label="Reminders & notifications" hint="What MONO nudges you about, and how" />
+          <Row href="/settings/notifications" label="Reminders & notifications" hint="What AMOR nudges you about, and how" />
           <Row href="/settings/privacy" label="Privacy" hint="What's private, what we collect, and what we don't" />
           <Row href="/report-account" label="Report an account" hint="Send a concern for private, manual review" />
           {admin ? <Row href="/admin" label="Admin panel" hint="Account IDs, reports and moderation" /> : null}
@@ -58,7 +58,7 @@ export default async function SettingsPage() {
         </div>
       </section>
 
-      {/* Renders only when MONO is installable and not already installed. */}
+      {/* Renders only when AMOR is installable and not already installed. */}
       <InstallPrompt variant="card" />
 
       <section className="space-y-3">

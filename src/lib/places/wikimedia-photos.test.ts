@@ -17,7 +17,7 @@ it("matches exact public OSM IDs, batches Commons metadata and returns full phot
  expect(result.get(id)).toMatchObject({author:"Alex & Co",license:"CC BY-SA 4.0",sourceUrl:"https://commons.wikimedia.org/wiki/File%3AVenue%20photo.jpg"});
  expect(fetcher).toHaveBeenCalledTimes(2);
  const [url,options]=fetcher.mock.calls[0];expect(url.origin).toBe("https://query.wikidata.org");expect(url.searchParams.get("query")).toContain('VALUES ?id { "1454687141" }');
- expect(options.headers["User-Agent"]).toContain("MONO");expect(url.href).not.toContain("apiKey");
+ expect(options.headers["User-Agent"]).toContain("AMOR");expect(url.href).not.toContain("apiKey");
  expect(fetcher.mock.calls[1][0].origin).toBe("https://commons.wikimedia.org");
 });
 it("ignores another venue, brand or untrusted host instead of showing an unrelated photo",async()=>{

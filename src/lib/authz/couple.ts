@@ -12,7 +12,7 @@ import {
 } from "@/lib/errors";
 
 /**
- * MONO's authorization layer.
+ * AMOR's authorization layer.
  *
  * Rule: every protected server operation resolves the couple from the authenticated session
  * and verifies membership here. It never trusts a client-supplied couple id, user id, URL

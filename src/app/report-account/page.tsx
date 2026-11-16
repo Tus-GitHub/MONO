@@ -12,7 +12,7 @@ export default async function ReportAccountPage() {
   if (!user.emailVerified) redirect("/verify-email");
   const accounts = await getReportableAccounts();
   return <main className="mx-auto min-h-dvh max-w-xl space-y-6 px-4 py-8">
-    <Link href="/home" className="text-sm text-primary">Back to MONO</Link>
+    <Link href="/home" className="text-sm text-primary">Back to AMOR</Link>
     <h1 className="font-display text-3xl text-ink">Report an account</h1>
     <p className="text-sm text-muted">The admin will review your report before deciding whether any account action is needed.</p>
     <ReportAccountForm accounts={accounts} />

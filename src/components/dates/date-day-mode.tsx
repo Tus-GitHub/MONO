@@ -126,7 +126,7 @@ export function DateDayMode({
             ) : null}
             <StartDateButton dateId={dateId} />
             <p className="text-xs text-faint">
-              Once you start, MONO follows the plan through the evening — you don&apos;t have to
+              Once you start, AMOR follows the plan through the evening — you don&apos;t have to
               check anything off.
             </p>
           </>

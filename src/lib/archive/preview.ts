@@ -19,9 +19,9 @@ export function readArchivePreview(text: string) {
   }
   let archive: unknown;
   try { archive = JSON.parse(text); }
-  catch { throw new Error("This file isn't readable JSON. Choose a MONO portable archive."); }
+  catch { throw new Error("This file isn't readable JSON. Choose a AMOR portable archive."); }
   const parsed = previewSchema.safeParse(archive);
-  if (!parsed.success) throw new Error("Choose a MONO portable archive from Archive & restore. The regular data export cannot be restored.");
+  if (!parsed.success) throw new Error("Choose a AMOR portable archive from Archive & restore. The regular data export cannot be restored.");
   const data = parsed.data;
   return {
     archive,

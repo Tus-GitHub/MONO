@@ -21,7 +21,7 @@ afterEach(()=>{vi.unstubAllGlobals();vi.useRealTimers()});
 it("matches a real Indian cafe by name and coordinates, with source link but no invented license",async()=>{
  fetcher.mockResolvedValue(response());const photos=await new IndiaRestrosPhotos().lookup([place]);
  expect(photos.get(place.providerPlaceId)).toEqual({source:"indiarestros",url:"https://indiarestros.com/img/IRR-8SPCQG2J88/37acc41ca6c9-480.webp",sourceUrl:record().url});
- const [url,options]=fetcher.mock.calls[0];expect(url.origin).toBe("https://indiarestros.com");expect(url.searchParams.get("q")).toBe("Starbucks");expect(url.searchParams.get("lat")).toBe(String(place.latitude));expect(options.headers["User-Agent"]).toContain("MONO");expect(url.searchParams.has("apiKey")).toBe(false);
+ const [url,options]=fetcher.mock.calls[0];expect(url.origin).toBe("https://indiarestros.com");expect(url.searchParams.get("q")).toBe("Starbucks");expect(url.searchParams.get("lat")).toBe(String(place.latitude));expect(options.headers["User-Agent"]).toContain("AMOR");expect(url.searchParams.has("apiKey")).toBe(false);
 });
 it("skips foreign places, other categories, generic names, mismatched ID coordinates and invalid input",async()=>{
  const service=new IndiaRestrosPhotos();await service.lookup([{...place,latitude:48.8,longitude:2.3},{...place,category:"PARK"},{...place,name:"Cafe"},{...place,latitude:28.7},{...place,longitude:NaN},{...place,providerPlaceId:"malformed"}]);expect(fetcher).not.toHaveBeenCalled();

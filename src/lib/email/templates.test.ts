@@ -3,11 +3,11 @@ import { passwordResetEmail, welcomeEmail, verificationEmail } from "./templates
 
 const args = { to: "person@example.test", name: "Alex", resetUrl: "https://mono.example/reset-password?token=private-token&source=email", expiresInMinutes: 30 };
 
-describe("MONO password recovery email", () => {
+describe("AMOR password recovery email", () => {
   it("contains its own branding, HTML and plain-text recovery instructions", () => {
     const message = passwordResetEmail(args);
     expect(message.to).toBe(args.to);
-    expect(message.subject).toBe("Reset your MONO password");
+    expect(message.subject).toBe("Reset your AMOR password");
     expect(message.html).toContain("A private space for two.");
     expect(message.html).toContain("Choose a new password");
     expect(message.html).toContain("30 minutes");
@@ -32,16 +32,16 @@ describe("MONO password recovery email", () => {
 });
 
 describe("registration emails", () => {
-  it("welcomes new accounts with an onboarding link and a distinct MONO message", () => {
+  it("welcomes new accounts with an onboarding link and a distinct AMOR message", () => {
     const message = welcomeEmail({ to: args.to, name: "Alex", appUrl: "https://mono.example/onboarding" });
-    expect(message.subject).toBe("Welcome to MONO");
+    expect(message.subject).toBe("Welcome to AMOR");
     expect(message.html).toContain("Make time.<br>Keep the memory.");
     expect(message.text).toContain("separate email to confirm");
     expect(message.text).toContain("https://mono.example/onboarding");
   });
   it("includes a private fragment link, 24-hour expiry and explicit confirmation instructions", () => {
     const message = verificationEmail({ to: args.to, name: "<Alex>", verifyUrl: "https://mono.example/verify-email#token=test&other=value" });
-    expect(message.subject).toBe("Verify your MONO email");
+    expect(message.subject).toBe("Verify your AMOR email");
     expect(message.html).toContain("&lt;Alex&gt;");
     expect(message.html).toContain("#token=test&amp;other=value");
     expect(message.text).toContain("24 hours");

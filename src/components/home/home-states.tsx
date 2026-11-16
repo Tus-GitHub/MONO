@@ -1,4 +1,4 @@
-import { MonoMark } from "@/components/layout/logo";
+import { AmorMark } from "@/components/layout/logo";
 import { PlanDateButton } from "@/components/navigation/plan-date-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
@@ -8,7 +8,7 @@ import { LinkButton } from "@/components/ui/link-button";
 export function StoryStartsHere({ coupleName }: { coupleName: string | null }) {
   return (
     <div className="anim-rise mx-auto flex max-w-md flex-col items-center py-10 text-center">
-      <MonoMark className="h-10 w-10 text-ink motion-safe:anim-breathe" />
+      <AmorMark className="h-10 w-10 text-ink motion-safe:anim-breathe" />
       <h1 className="mt-6 font-display text-3xl font-medium tracking-tight text-ink">
         Your story starts here.
       </h1>

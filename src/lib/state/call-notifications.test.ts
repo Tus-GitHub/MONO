@@ -16,9 +16,9 @@ function setup() {
 it("shows an actionable incoming-call popup and labels a delayed call as missed", async () => {
   const worker = setup(), payload = { callId: "call123", expiresAt: Date.now() + 60_000, title: "Incoming voice call", url: "/chat?call=call123" };
   await worker.fire("push", { data: { json: () => payload } });
-  expect(worker.show).toHaveBeenLastCalledWith("Incoming voice call", expect.objectContaining({ actions: [{ action: "open-call", title: "Open MONO" }] }));
+  expect(worker.show).toHaveBeenLastCalledWith("Incoming voice call", expect.objectContaining({ actions: [{ action: "open-call", title: "Open AMOR" }] }));
   await worker.fire("push", { data: { json: () => ({ ...payload, expiresAt: Date.now() - 1 }) } });
-  expect(worker.show).toHaveBeenLastCalledWith("Missed MONO call", expect.not.objectContaining({ actions: expect.anything() }));
+  expect(worker.show).toHaveBeenLastCalledWith("Missed AMOR call", expect.not.objectContaining({ actions: expect.anything() }));
 });
 it("opens the exact call instead of just focusing an unrelated chat and blocks external navigation", async () => {
   const worker = setup(), close = vi.fn();

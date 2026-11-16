@@ -13,7 +13,7 @@ function worker() {
     self: { addEventListener: (name: string, handler: (event: WorkerEvent) => void) => handlers.set(name, handler), skipWaiting, clients: { claim } },
     caches: {
       open: async () => ({ addAll: async () => {} }),
-      keys: async () => ["mono-v1-static", "mono-v2-static", "mono-v3-static", "mono-v3-precache", "mono-v4-static", "mono-v4-precache", "mono-v5-static", "mono-v5-precache", "mono-v6-static", "mono-v6-precache"], delete: remove,
+      keys: async () => ["mono-v1-static", "mono-v2-static", "mono-v3-static", "mono-v3-precache", "mono-v4-static", "mono-v4-precache", "mono-v5-static", "mono-v5-precache", "mono-v6-static", "mono-v6-precache", "mono-v7-amor-static", "mono-v7-amor-precache"], delete: remove,
     },
   });
   return { handlers, skipWaiting, claim, remove };
@@ -34,7 +34,7 @@ it("claims clients on activation and removes only obsolete cache versions", asyn
   let completion: Promise<unknown> | undefined;
   state.handlers.get("activate")!({ waitUntil: (work) => { completion = work; } });
   await completion;
-  expect(state.remove).toHaveBeenCalledTimes(8);
+  expect(state.remove).toHaveBeenCalledTimes(10);
   expect(state.remove).toHaveBeenCalledWith("mono-v1-static");
   expect(state.remove).toHaveBeenCalledWith("mono-v2-static");
   expect(state.remove).toHaveBeenCalledWith("mono-v3-static");
@@ -43,7 +43,9 @@ it("claims clients on activation and removes only obsolete cache versions", asyn
   expect(state.remove).toHaveBeenCalledWith("mono-v4-precache");
   expect(state.remove).toHaveBeenCalledWith("mono-v5-static");
   expect(state.remove).toHaveBeenCalledWith("mono-v5-precache");
-  expect(state.remove).not.toHaveBeenCalledWith("mono-v6-static");
-  expect(state.remove).not.toHaveBeenCalledWith("mono-v6-precache");
+  expect(state.remove).toHaveBeenCalledWith("mono-v6-static");
+  expect(state.remove).toHaveBeenCalledWith("mono-v6-precache");
+  expect(state.remove).not.toHaveBeenCalledWith("mono-v7-amor-static");
+  expect(state.remove).not.toHaveBeenCalledWith("mono-v7-amor-precache");
   expect(state.claim).toHaveBeenCalledOnce();
 });

@@ -6,7 +6,7 @@ export const encryptedBodySchema = z.string().max(24000).superRefine((body, ctx)
   try {
     const value = JSON.parse(body);
     if (!z.object({ v: z.literal(1), keyId: chatKeyIdSchema, iv: encoded.length(16), data: encoded.min(24).max(22000) }).strict().safeParse(value).success) throw new Error();
-  } catch { ctx.addIssue({ code: "custom", message: "Send an encrypted message from an updated MONO app." }); }
+  } catch { ctx.addIssue({ code: "custom", message: "Send an encrypted message from an updated AMOR app." }); }
 });
 export const secureMessageSchema = z.object({ kind: z.enum(["TEXT", "STICKER"]), body: encryptedBodySchema, clientNonce: z.string().uuid() });
 export const encryptedImageSchema = z.object({ clientNonce: z.string().uuid(), keyId: chatKeyIdSchema, iv: encoded.length(16), data: encoded.min(24).max(710000), width: z.number().int().min(1).max(4096), height: z.number().int().min(1).max(4096), viewLimit: z.union([z.literal(0), z.literal(1), z.literal(2)]) });

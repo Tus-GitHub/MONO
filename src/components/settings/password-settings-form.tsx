@@ -44,7 +44,7 @@ export function PasswordSettingsForm({ hasPassword }: { hasPassword: boolean }) 
   if (!hasPassword) return (
     <div className="space-y-4 rounded-xl border border-line bg-surface p-5">
       <Alert title="You sign in with Google">
-        Your Google password is managed by Google. To add a MONO password, use the password
+        Your Google password is managed by Google. To add a AMOR password, use the password
         reset flow when email delivery is available.
       </Alert>
       <LinkButton href="/forgot-password" variant="secondary">Reset password</LinkButton>

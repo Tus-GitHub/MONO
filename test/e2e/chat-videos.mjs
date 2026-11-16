@@ -56,7 +56,7 @@ export async function runChatVideos({ browser, baseUrl, prisma, runId, artifactD
       const recorder = new MediaRecorder(stream, { mimeType: "video/webm;codecs=vp8,opus", videoBitsPerSecond: 14000000, audioBitsPerSecond: 96000 });
       const chunks = []; recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
       const stopped = new Promise(resolve => { recorder.onstop = resolve; });
-      let frame = 0; const draw = () => { const view = new Uint32Array(pixels.data.buffer); for (let i = 0; i < view.length; i++) view[i] = 0xff000000 | (Math.random() * 0xffffff); ctx.putImageData(pixels, 0, 0); ctx.fillStyle = "white"; ctx.font = "40px sans-serif"; ctx.fillText(`MONO video QA ${frame++}`, 30, 60); };
+      let frame = 0; const draw = () => { const view = new Uint32Array(pixels.data.buffer); for (let i = 0; i < view.length; i++) view[i] = 0xff000000 | (Math.random() * 0xffffff); ctx.putImageData(pixels, 0, 0); ctx.fillStyle = "white"; ctx.font = "40px sans-serif"; ctx.fillText(`AMOR video QA ${frame++}`, 30, 60); };
       draw(); const timer = setInterval(draw, 34); recorder.start(500);
       await new Promise(resolve => setTimeout(resolve, 14000)); recorder.stop(); await stopped; clearInterval(timer); stream.getTracks().forEach(t => t.stop()); oscillator.stop(); await audio.close();
       const blob = new Blob(chunks, { type: "video/webm" });

@@ -24,7 +24,7 @@ it("maps real venue fields without inventing Google ratings, photos or a key", a
   expect(place.providerPlaceId).toBe("N6957678134:28.6022338:77.1861298:amenity:cafe");
   const [url, options] = fetcher.mock.calls[0];
   expect(url.origin).toBe("https://photon.komoot.io"); expect(url.searchParams.getAll("include")).toEqual(["osm.amenity.cafe,osm.amenity.ice_cream"]);
-  expect(url.searchParams.has("apiKey")).toBe(false); expect(options.headers["User-Agent"]).toContain("MONO");
+  expect(url.searchParams.has("apiKey")).toBe(false); expect(options.headers["User-Agent"]).toContain("AMOR");
 });
 it("resolves an area before browsing its cafes instead of matching names elsewhere", async () => {
   fetcher.mockResolvedValueOnce(collection([{ properties: { name: "Delhi", osm_key: "place", osm_value: "city" }, geometry: { type: "Point", coordinates: [77.2, 28.6] } }])).mockResolvedValueOnce(collection([cafe]));

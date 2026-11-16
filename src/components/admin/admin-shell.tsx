@@ -8,7 +8,7 @@ const views = [["couples", "Couples"], ["accounts", "Accounts"], ["ratings", "Re
 export function AdminShell({ activeView, children }: { activeView: "couples" | "accounts" | "ratings" | "archives"; children: ReactNode }) {
   return <main className="mx-auto min-h-dvh w-full max-w-5xl space-y-8 px-4 py-8 sm:px-6">
     <header className="flex flex-wrap items-center justify-between gap-4">
-      <div className="min-w-0"><h1 className="font-display text-3xl text-ink">MONO admin</h1><p className="mt-2 text-sm text-muted">Accounts, reports, restaurant ratings and archive requests.</p></div>
+      <div className="min-w-0"><h1 className="font-display text-3xl text-ink">AMOR admin</h1><p className="mt-2 text-sm text-muted">Accounts, reports, restaurant ratings and archive requests.</p></div>
       <form action={logoutAction}><input type="hidden" name="next" value="/admin/login" /><Button type="submit" variant="secondary">Sign out</Button></form>
     </header>
     <nav aria-label="Admin views" className="grid grid-cols-2 gap-1 rounded-xl border border-line bg-surface p-2 sm:grid-cols-4">

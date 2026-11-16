@@ -37,7 +37,7 @@ export function archiveDigest(payload: ArchivePayload): string { return hash(JSO
 /** Validate the whole graph before any IO or writes; external IDs never become database IDs. */
 export function parseArchive(input: unknown): CoupleArchive {
   const result = archiveSchema.safeParse(input);
-  if (!result.success) throw new ValidationError("This is not a supported MONO archive.");
+  if (!result.success) throw new ValidationError("This is not a supported AMOR archive.");
   const archive = result.data;
   const { digest, ...payload } = archive;
   if (Buffer.byteLength(JSON.stringify(archive)) > ARCHIVE_MAX_BYTES || archiveDigest(payload) !== digest) throw new ValidationError("Archive size or checksum is invalid.");

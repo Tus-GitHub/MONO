@@ -1,5 +1,5 @@
 import { backgroundGain } from "./playlist";
-/** iOS may ignore HTMLMediaElement.volume. A gain node keeps MONO's music slider useful. */
+/** iOS may ignore HTMLMediaElement.volume. A gain node keeps AMOR's music slider useful. */
 export function musicOutput(element: HTMLAudioElement) {
   let context: AudioContext | null = null, gain: GainNode | null = null;
   let volume = 0.2;

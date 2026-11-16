@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { Logo, MonoMark } from "@/components/layout/logo";
+import { Logo, AmorMark } from "@/components/layout/logo";
 import { Icon } from "@/components/ui/icon";
 
 /** Shared presentation for sign-in and password recovery, with guards owned by each layout. */
@@ -21,12 +21,12 @@ export function AuthShell({ children }: { children: ReactNode }) {
         <Logo />
 
         <div className="relative z-10 max-w-sm">
-          <MonoMark className="h-14 w-14 text-ink motion-safe:anim-breathe" />
+          <AmorMark className="h-14 w-14 text-ink motion-safe:anim-breathe" />
           <p className="mt-6 font-display text-[1.75rem] leading-snug text-ink">
             Your dates. Your memories. Your story.
           </p>
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            MONO is a private record of your time together — plans, photos, spending, and the
+            AMOR is a private record of your time together — plans, photos, spending, and the
             small verdicts you reach as a two. No feed, no followers, no one else.
           </p>
         </div>

@@ -36,7 +36,7 @@ export interface PlaceSummary {
 
 // --- save / favourite / custom -------------------------------------------
 
-/** Resolve a place selection to a saved MONO `Place` (creating one for external/custom). */
+/** Resolve a place selection to a saved AMOR `Place` (creating one for external/custom). */
 export async function resolvePlace(
   context: CoupleContext,
   input: SelectPlaceInput,

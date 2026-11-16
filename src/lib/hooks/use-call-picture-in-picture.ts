@@ -16,7 +16,7 @@ export function useCallPictureInPicture(ref: RefObject<HTMLVideoElement | null>,
   const open = useCallback(async (automatic = false) => {
     const video = ref.current; if (!video) return;
     try { await enterCallPip(video); setError(""); }
-    catch (reason) { if (!automatic) setError(reason instanceof Error && reason.name === "NotAllowedError" ? "Your browser did not allow pop-out video. Keep using the mini view in MONO." : "Pop-out video is unavailable in this browser. The mini view and your call still work inside MONO."); }
+    catch (reason) { if (!automatic) setError(reason instanceof Error && reason.name === "NotAllowedError" ? "Your browser did not allow pop-out video. Keep using the mini view in AMOR." : "Pop-out video is unavailable in this browser. The mini view and your call still work inside AMOR."); }
   }, [ref]);
   useEffect(() => {
     const video = ref.current;

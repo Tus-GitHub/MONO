@@ -979,3 +979,10 @@ input[type="range"]:focus-visible { outline: 2px solid var(--primary); outline-o
 @keyframes result-bump { 0%,100% { transform: rotate(-7deg); } 50% { transform: rotate(7deg) translateY(-.3rem); } }
 .mono-result-equals { animation: result-bump 900ms 3 ease-in-out; transform-origin: center; }
 @media (prefers-reduced-motion: reduce) { .mono-result-scene *, .mono-result-character { animation: none !important; } .mono-result-confetti, .mono-result-rain { display: none; } }
+
+/* AMOR artwork keeps a stable footprint across the existing navigation layouts. */
+:root { --brand-width-sm: 5rem; --brand-width-md: 6rem; --brand-width-lg: 7.5rem; }
+.amor-logo-sm { --brand-width: var(--brand-width-sm); }
+.amor-logo-md { --brand-width: var(--brand-width-md); }
+.amor-logo-lg { --brand-width: var(--brand-width-lg); }
+.amor-wordmark { width: var(--brand-width, var(--brand-width-md)); height: auto; max-width: 100%; }

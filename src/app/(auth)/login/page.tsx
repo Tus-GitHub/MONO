@@ -36,7 +36,7 @@ export default async function LoginPage({
       </div>
 
       <p className="mt-6 text-center text-sm text-muted">
-        New to MONO?{" "}
+        New to AMOR?{" "}
         <Link
           href={`/register${suffix}`}
           className="font-medium text-primary transition-colors hover:text-primary-hover"

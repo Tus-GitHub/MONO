@@ -39,7 +39,7 @@ function VerificationDetails({ token, currentEmail, alreadyVerified, invitationP
   const [resendState, resendAction] = useActionState(requestVerificationAction, idleState);
   const confirmed = verifyState.status === "success";
   const continueHref = invitationPath ?? (currentEmail ? "/onboarding" : "/login");
-  const continueLabel = invitationPath ? "Return to your invitation" : currentEmail ? "Continue to MONO" : "Sign in to MONO";
+  const continueLabel = invitationPath ? "Return to your invitation" : currentEmail ? "Continue to AMOR" : "Sign in to AMOR";
   if (confirmed || (alreadyVerified && !token)) return (
     <div className="space-y-5">
       <Alert tone="success" title="Email confirmed">Your email address is confirmed. You&apos;re ready to continue your story.</Alert>
@@ -58,7 +58,7 @@ function VerificationDetails({ token, currentEmail, alreadyVerified, invitationP
           </PendingFields>
         </form>
       ) : (
-        <Alert title="Check your inbox">Open the verification email from MONO to confirm your address before creating or joining a space. If you came from an invitation, return to that tab after confirming.</Alert>
+        <Alert title="Check your inbox">Open the verification email from AMOR to confirm your address before creating or joining a space. If you came from an invitation, return to that tab after confirming.</Alert>
       )}
       <form action={resendAction} className="space-y-4 border-t border-line pt-5" noValidate>
         <PendingFields className="space-y-4">
@@ -73,7 +73,7 @@ function VerificationDetails({ token, currentEmail, alreadyVerified, invitationP
           <SubmitButton variant="secondary" fullWidth pendingText="Sending…">Resend verification email</SubmitButton>
         </PendingFields>
       </form>
-      <LinkButton href={continueHref} variant="link">{invitationPath ? "Return to your invitation" : currentEmail ? "Continue to MONO" : "Back to sign in"}</LinkButton>
+      <LinkButton href={continueHref} variant="link">{invitationPath ? "Return to your invitation" : currentEmail ? "Continue to AMOR" : "Back to sign in"}</LinkButton>
     </div>
   );
 }

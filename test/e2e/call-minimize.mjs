@@ -62,7 +62,7 @@ export async function runCallMinimize({ browser, baseUrl, prisma, runId, artifac
         if (constraints.video) {
           const canvas = document.createElement("canvas"); canvas.width = 320; canvas.height = 240;
           const ctx = canvas.getContext("2d"); let frame = 0;
-          const draw = () => { ctx.fillStyle = `hsl(${frame++ % 360} 65% 35%)`; ctx.fillRect(0, 0, 320, 240); ctx.fillStyle = "white"; ctx.font = "24px sans-serif"; ctx.fillText(`MONO QA ${frame}`, 20, 80); };
+          const draw = () => { ctx.fillStyle = `hsl(${frame++ % 360} 65% 35%)`; ctx.fillRect(0, 0, 320, 240); ctx.fillStyle = "white"; ctx.font = "24px sans-serif"; ctx.fillText(`AMOR QA ${frame}`, 20, 80); };
           draw(); const timer = setInterval(draw, 100), track = canvas.captureStream(10).getVideoTracks()[0];
           stream.addTrack(track); const stop = track.stop.bind(track); track.stop = () => { stop(); clearInterval(timer); };
         }
@@ -120,7 +120,7 @@ export async function runCallMinimize({ browser, baseUrl, prisma, runId, artifac
     assert.equal(await owner.$eval('[aria-label="Call audio output"]', el => getComputedStyle(el).visibility), "visible");
     await target(owner, '[aria-label="Call audio output"] button');
     await reveal(owner); await target(owner, '[aria-label="Minimize call"]'); await owner.waitForSelector('[aria-label="Minimized video call"]');
-    await target(owner, '[aria-label="Back to MONO"]'); await owner.waitForFunction(() => location.pathname === "/home");
+    await target(owner, '[aria-label="Back to AMOR"]'); await owner.waitForFunction(() => location.pathname === "/home");
     await owner.waitForSelector('[aria-label="Minimized video call"]'); await preserved(owner, before);
     await target(owner, '[aria-label="Expand video call"]'); await owner.waitForSelector('[role="dialog"]'); await reveal(owner); await target(owner, '[aria-label="Minimize call"]');
     await target(owner, '[aria-label="Minimized video call"] [aria-label="End call"]');

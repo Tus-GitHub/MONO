@@ -36,7 +36,7 @@ export function CallSetup({ soundsReady, enableSounds, compact = false }: { soun
         {busy ? <p role="status" className="text-sm text-muted">Allow access in your browser to finish this check.</p> : null}
         {error ? <p role="alert" className="text-sm text-error">{error}</p> : null}
         <EnableBrowserNotifications purpose="calls" />
-        <p className="text-xs text-muted">When MONO is closed, tap the notification to open and answer. Phone settings control notification sounds. Your song plays inside MONO.</p>
+        <p className="text-xs text-muted">When AMOR is closed, tap the notification to open and answer. Phone settings control notification sounds. Your song plays inside AMOR.</p>
         <Button variant="secondary" onClick={close}>{busy ? "Cancel setup" : "Done"}</Button>
       </div>
     </Modal>

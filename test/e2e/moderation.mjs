@@ -88,11 +88,11 @@ export async function runModeration({ browser, baseUrl, prisma, runId, artifactD
     await fill(adminPage, '[name="password"]', password);
     await click(adminPage, "Sign in to admin");
     await adminPage.waitForFunction(() => location.pathname === "/admin");
-    await waitText(adminPage, "MONO admin");
+    await waitText(adminPage, "AMOR admin");
     await adminPage.screenshot({ path: path.join(artifactDir, "admin-desktop.png"), fullPage: true });
     let body = await adminPage.evaluate(() => document.body.innerText);
     assert(!body.includes(email) && !body.includes(users[0].email) && !body.includes(users[0].name));
-    assert(!body.includes("Open MONO") && !body.includes("Connect your partner"));
+    assert(!body.includes("Open AMOR") && !body.includes("Connect your partner"));
     pass("verified admin enters directly without profile or partner setup; only account IDs and counts are exposed");
 
     const reporter = await newPage();

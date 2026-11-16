@@ -5,7 +5,7 @@ import { CouplePhoto } from "@/components/ui/couple-photo";
 import { COUPLE_PHOTO_ASPECT } from "@/lib/images/crop";
 import { Icon } from "@/components/ui/icon";
 import { LinkButton } from "@/components/ui/link-button";
-import { MonoMark } from "@/components/layout/logo";
+import { AmorMark } from "@/components/layout/logo";
 import { requireOnboarded } from "@/lib/onboarding";
 import { getCoupleWithMembers } from "@/server/services/couple-service";
 
@@ -30,7 +30,7 @@ export default async function OnboardingDonePage() {
         </div>
       </div>
 
-      <MonoMark className="mx-auto h-8 w-8 text-ink" />
+      <AmorMark className="mx-auto h-8 w-8 text-ink" />
       <h1 className="mt-4 font-display text-3xl font-medium text-ink">
         {couple.name ? couple.name : "You're connected"}
       </h1>
@@ -50,7 +50,7 @@ export default async function OnboardingDonePage() {
       </div>
 
       <LinkButton href="/home" size="lg" className="mt-8" trailingIcon={<Icon name="arrowRight" size="sm" />}>
-        Enter MONO
+        Enter AMOR
       </LinkButton>
     </div>
   );

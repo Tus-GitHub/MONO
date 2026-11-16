@@ -46,7 +46,7 @@ const schema = z.object({
   IMAGE_PROCESSOR: z.enum(["sharp", "noop"]).default("sharp"),
 
   EMAIL_DRIVER: z.enum(["console", "smtp"]).default("console"),
-  EMAIL_FROM: z.string().default("MONO <no-reply@mono.local>"),
+  EMAIL_FROM: z.string().default("AMOR <no-reply@mono.local>"),
   SMTP_HOST: z.string().default(""),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
   SMTP_SECURE: booleanish.default("false"),
@@ -57,7 +57,7 @@ const schema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional().default(""),
   GOOGLE_OAUTH_ENABLED: booleanish.optional(),
 
-  // Place discovery — an external provider is optional; MONO falls back to the couple's
+  // Place discovery — an external provider is optional; AMOR falls back to the couple's
   // own saved places + custom entries when none is configured.
   PLACE_PROVIDER: z.enum(["none", "google", "photon"]).default("none"),
   GOOGLE_PLACES_API_KEY: z.string().optional().default(""),

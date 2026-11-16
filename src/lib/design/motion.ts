@@ -1,5 +1,5 @@
 /**
- * MONO motion language. Small and shared — premium interaction, not visual noise.
+ * AMOR motion language. Small and shared — premium interaction, not visual noise.
  * Mirrors the `--dur-*` / `--ease-*` custom properties in globals.css.
  *
  * Where to use motion: navigation, page transitions, card entrance, selection, rating,

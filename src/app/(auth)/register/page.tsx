@@ -16,7 +16,7 @@ export default async function RegisterPage({
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-medium text-ink">Start your MONO</h1>
+      <h1 className="font-display text-2xl font-medium text-ink">Start your AMOR</h1>
       <p className="mt-1 text-sm text-muted">
         {invite
           ? "Create your account, then accept your partner's invitation."
@@ -39,7 +39,7 @@ export default async function RegisterPage({
       </p>
 
       <p className="mt-4 text-center text-2xs leading-relaxed text-faint">
-        MONO is private by design. Your space is visible only to the two people in it.
+        AMOR is private by design. Your space is visible only to the two people in it.
       </p>
     </div>
   );

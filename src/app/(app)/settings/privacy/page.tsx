@@ -11,7 +11,7 @@ const POINTS: { icon: IconName; title: string; body: string }[] = [
   {
     icon: "lock",
     title: "Private to the two of you",
-    body: "Everything in your MONO space — dates, photos, memories, reviews, spending — is visible only to you and your partner. No one else at MONO reads it, and it is never shown to other users.",
+    body: "Everything in your AMOR space — dates, photos, memories, reviews, spending — is visible only to you and your partner. No one else at AMOR reads it, and it is never shown to other users.",
   },
   {
     icon: "user",
@@ -21,7 +21,7 @@ const POINTS: { icon: IconName; title: string; body: string }[] = [
   {
     icon: "eyeOff",
     title: "No public profiles",
-    body: "MONO does not create a public page for you or your couple. There is nothing to discover, follow, or search. The whole app is set to no-index for search engines.",
+    body: "AMOR does not create a public page for you or your couple. There is nothing to discover, follow, or search. The whole app is set to no-index for search engines.",
   },
   {
     icon: "star",
@@ -47,12 +47,12 @@ export default async function PrivacyPage() {
     <div className="mx-auto max-w-xl space-y-6">
       <PageHeader
         title="Your privacy"
-        description="What MONO does — and deliberately doesn't do — with what you put here."
+        description="What AMOR does — and deliberately doesn't do — with what you put here."
         back={{ href: "/settings", label: "Settings" }}
       />
 
       <p className="rounded-xl border border-primary/25 bg-primary-tint/40 px-4 py-3 text-sm font-medium text-ink">
-        Your MONO space is private to the two of you.
+        Your AMOR space is private to the two of you.
       </p>
 
       <ul className="space-y-3">

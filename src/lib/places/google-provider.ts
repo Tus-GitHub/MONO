@@ -6,7 +6,7 @@ import { venueRadius } from "@/lib/places/types";
 /**
  * Google Places (new) provider. Wired for `places:searchText` / `places/{id}` but only runs
  * when `GOOGLE_PLACES_API_KEY` is set; any failure degrades to an empty result so the caller
- * can fall back to MONO's own saved places.
+ * can fall back to AMOR's own saved places.
  */
 const SEARCH_URL = "https://places.googleapis.com/v1/places:searchText";
 const DETAILS_FIELDS =

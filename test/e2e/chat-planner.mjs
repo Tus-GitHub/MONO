@@ -147,7 +147,7 @@ export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifact
     pass("personal ringtone uploads and streams byte ranges without leaking to partner");
     if (allowGlobalAudio) {
     await prisma.adminAccess.create({ data: { userId: users[0].id } });
-    await goto(owner, "/admin"); await (await owner.waitForSelector('[aria-label="Choose background song"]')).uploadFile(audioPath); await click(owner, "Publish song to MONO"); await text(owner, "Background song updated for MONO users.");
+    await goto(owner, "/admin"); await (await owner.waitForSelector('[aria-label="Choose background song"]')).uploadFile(audioPath); await click(owner, "Publish song to AMOR"); await text(owner, "Background song updated for AMOR users.");
     await goto(partner, "/settings/profile"); await text(partner, "fixture-tone.wav"); assert.equal((await api(partner)).value.musicVolume, 0.2);
     await click(partner, "Play music"); await partner.waitForFunction(() => !document.querySelector('audio[aria-label="Background music"]').paused);
     await click(partner, "Mute music"); await partner.waitForFunction(() => document.querySelector('audio[aria-label="Background music"]').muted);

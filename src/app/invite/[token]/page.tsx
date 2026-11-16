@@ -3,7 +3,7 @@ import Link from "@/components/ui/app-link";
 
 import { AcceptInvitationButton } from "@/components/onboarding/accept-invitation-button";
 import { SpaceVerificationGate } from "@/components/auth/space-verification-gate";
-import { Logo, MonoMark } from "@/components/layout/logo";
+import { Logo, AmorMark } from "@/components/layout/logo";
 import { Avatar } from "@/components/ui/avatar";
 import { Alert } from "@/components/ui/alert";
 import { Icon } from "@/components/ui/icon";
@@ -44,13 +44,13 @@ export default async function InvitePage({
   if (!result) {
     return (
       <Frame>
-        <MonoMark className="mb-4 h-10 w-10 text-ink" />
+        <AmorMark className="mb-4 h-10 w-10 text-ink" />
         <h1 className="font-display text-xl font-medium text-ink">Invitation not found</h1>
         <p className="mt-1.5 text-sm text-muted">
           This link isn&apos;t valid. Double-check it, or ask your partner to send a new one.
         </p>
         <LinkButton href="/" variant="secondary" className="mt-6">
-          Go to MONO
+          Go to AMOR
         </LinkButton>
       </Frame>
     );
@@ -63,11 +63,11 @@ export default async function InvitePage({
   if (state !== "pending") {
     return (
       <Frame>
-        <MonoMark className="mb-4 h-10 w-10 text-ink" />
+        <AmorMark className="mb-4 h-10 w-10 text-ink" />
         <h1 className="font-display text-xl font-medium text-ink">Invitation unavailable</h1>
         <p className="mt-1.5 text-sm text-muted">{STATE_MESSAGE[state]}</p>
         <LinkButton href={user ? "/home" : "/login"} variant="secondary" className="mt-6">
-          {user ? "Go to MONO" : "Sign in"}
+          {user ? "Go to AMOR" : "Sign in"}
         </LinkButton>
       </Frame>
     );
@@ -82,13 +82,13 @@ export default async function InvitePage({
       <div className="text-center">
         <div className="mx-auto flex w-fit items-center gap-2">
           <Avatar name={inviter.name} src={inviter.avatarUrl} size="lg" />
-          <MonoMark className="h-6 w-6 text-faint" />
+          <AmorMark className="h-6 w-6 text-faint" />
         </div>
         <h1 className="mt-4 font-display text-2xl font-medium text-ink">
           {inviter.name} invited you
         </h1>
         <p className="mt-1.5 text-sm text-muted">
-          to their private space{spaceName ? ` “${spaceName}”` : ""} on MONO — a relationship
+          to their private space{spaceName ? ` “${spaceName}”` : ""} on AMOR — a relationship
           journal for exactly two people.
         </p>
       </div>

@@ -26,7 +26,7 @@ export async function GET() {
   try {
     await authorizeArchiveRequest();
     const archive = await exportCoupleArchive();
-    return new NextResponse(JSON.stringify(archive), { headers: { "Content-Type": "application/json; charset=utf-8", "Content-Disposition": `attachment; filename="mono-archive-${new Date().toISOString().slice(0, 10)}.json"`, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex, nofollow" } });
+    return new NextResponse(JSON.stringify(archive), { headers: { "Content-Type": "application/json; charset=utf-8", "Content-Disposition": `attachment; filename="amor-archive-${new Date().toISOString().slice(0, 10)}.json"`, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex, nofollow" } });
   } catch (error) { return failure(error); }
 }
 

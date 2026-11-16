@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { Logo, MonoMark } from "@/components/layout/logo";
+import { Logo, AmorMark } from "@/components/layout/logo";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { LinkButton } from "@/components/ui/link-button";
 import { getCurrentUser } from "@/lib/auth";
@@ -33,7 +33,7 @@ export default async function LandingPage() {
         <nav className="flex items-center gap-2">
           {user ? (
             <LinkButton href="/home" size="sm">
-              Open MONO
+              Open AMOR
             </LinkButton>
           ) : (
             <>
@@ -60,7 +60,7 @@ export default async function LandingPage() {
               <span className="italic text-primary">your</span> time together.
             </h1>
             <p className="mt-5 max-w-md text-lg leading-relaxed text-muted">
-              MONO is a relationship journal, a date planner, and a memory archive — kept by the
+              AMOR is a relationship journal, a date planner, and a memory archive — kept by the
               two of you and no one else.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -74,7 +74,7 @@ export default async function LandingPage() {
           </div>
 
           <div className="relative mx-auto hidden aspect-square w-full max-w-sm place-items-center rounded-2xl border border-line bg-surface shadow-sm lg:grid">
-            <MonoMark className="h-28 w-28 text-ink" />
+            <AmorMark className="h-28 w-28 text-ink" />
             <div className="pointer-events-none absolute inset-0 rounded-2xl bg-linear-to-br from-primary-tint/60 via-transparent to-accent-tint/50" />
           </div>
         </section>
@@ -87,7 +87,7 @@ export default async function LandingPage() {
       </main>
 
       <footer className="border-t border-line py-6 text-center text-xs text-faint">
-        MONO is invite-only. Every space holds exactly two people.
+        AMOR is invite-only. Every space holds exactly two people.
       </footer>
     </div>
   );

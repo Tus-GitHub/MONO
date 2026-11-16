@@ -123,7 +123,7 @@ export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?
       setPermission(permission);
       if (permission !== "granted") {
         setState(permission === "denied" ? "denied" : "off");
-        setFeedback(permission === "denied" ? "Allow MONO in your browser and phone notification settings, then tap Check again." : "Permission wasn't granted. Check the notification icon beside your browser's address bar, then try again.");
+        setFeedback(permission === "denied" ? "Allow AMOR in your browser and phone notification settings, then tap Check again." : "Permission wasn't granted. Check the notification icon beside your browser's address bar, then try again.");
         return;
       }
       stage = "device"; setProgress("Registering this device…");
@@ -193,12 +193,12 @@ export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?
 
   const message: Record<Exclude<State, "enabling" | "disabling">, string> = {
     loading: "Checking notification permission and this device’s registration…",
-    unsupported: "This browser can't show reminders — you'll still see everything inside MONO.",
+    unsupported: "This browser can't show reminders — you'll still see everything inside AMOR.",
     "not-configured": "Browser reminders aren't set up for this install. In-app notifications still work.",
     "ios-needs-install":
-      "On iOS, add MONO to your Home Screen first — then you can turn on reminders here.",
-    denied: "Your browser reports notifications are blocked. Allow MONO in browser or phone settings, then return here. MONO cannot change a blocked permission itself.",
-    off: permission === "granted" ? "Notification permission is allowed. Finish enabling to connect this device to your MONO alerts." : purpose === "calls" ? "Allow notifications for incoming calls, even when MONO is closed. Tap the alert to open MONO and answer." : "Want MONO to remind you about your next date, and when your partner adds something — even when MONO is closed?",
+      "On iOS, add AMOR to your Home Screen first — then you can turn on reminders here.",
+    denied: "Your browser reports notifications are blocked. Allow AMOR in browser or phone settings, then return here. AMOR cannot change a blocked permission itself.",
+    off: permission === "granted" ? "Notification permission is allowed. Finish enabling to connect this device to your AMOR alerts." : purpose === "calls" ? "Allow notifications for incoming calls, even when AMOR is closed. Tap the alert to open AMOR and answer." : "Want AMOR to remind you about your next date, and when your partner adds something — even when AMOR is closed?",
     on: "Enabled on this device. Delivery depends on your connection and phone notification settings.",
   };
 
@@ -209,7 +209,7 @@ export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?
           <Icon name="bell" size="sm" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-ink">{purpose === "calls" ? "Incoming-call notifications" : "Notifications when MONO is closed"}</p>
+          <p className="text-sm font-medium text-ink">{purpose === "calls" ? "Incoming-call notifications" : "Notifications when AMOR is closed"}</p>
           <p className="mt-0.5 text-sm text-muted">{message[displayState]}</p>
           {progress ? <p role="status" className="mt-2 text-sm text-muted">{progress}</p> : null}
           {feedback ? <p role="alert" className="mt-2 text-sm text-error">{feedback}</p> : null}
@@ -221,16 +221,16 @@ export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?
           ) : null}
           {displayState === "on" ? (
             <div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" className="mt-3" onClick={() => {
-              void navigator.serviceWorker.ready.then((reg) => reg.showNotification("MONO test notification", { body: "If you can see this, MONO notifications can appear on this device. Tap to open Chat.", icon: "/icons/icon-192.png", tag: "mono_popup_test", data: { url: "/chat" } }))
+              void navigator.serviceWorker.ready.then((reg) => reg.showNotification("AMOR test notification", { body: "If you can see this, AMOR notifications can appear on this device. Tap to open Chat.", icon: "/icons/icon-192.png", tag: "mono_popup_test", data: { url: "/chat" } }))
                 .catch(() => toast({ title: "Couldn't show the popup. Check this device's notification settings.", variant: "error" }));
             }}>Test notification popup</Button><Button size="sm" variant="ghost" className="mt-3" loading={busy} onClick={disable}>
               Turn off
             </Button></div>
           ) : null}
           <details className="mt-3 text-sm text-muted"><summary className="cursor-pointer">No popup, or enabled manually?</summary>
-            <div className="mt-2 space-y-2"><p>On Android, allow MONO in your browser’s site notification settings. Also check device Settings → Apps → your browser or installed MONO app → Notifications.</p>
+            <div className="mt-2 space-y-2"><p>On Android, allow AMOR in your browser’s site notification settings. Also check device Settings → Apps → your browser or installed AMOR app → Notifications.</p>
               <p>Return here and tap Check again. If permission is allowed, tap Finish enabling notifications if shown, then Test notification popup. Check your notification shade too—your phone can deliver notifications without a popup or sound.</p>
-              <p>MONO can request browser permission, but cannot turn on a phone-level notification switch for you.</p></div>
+              <p>AMOR can request browser permission, but cannot turn on a phone-level notification switch for you.</p></div>
           </details>
         </div>
       </div>

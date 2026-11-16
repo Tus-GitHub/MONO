@@ -15,7 +15,7 @@ import { getAdminRestaurantRatings } from "@/server/services/admin-restaurant-ra
 import { adminQuerySchema } from "@/lib/validation/moderation";
 import { ArchiveRequests } from "@/components/admin/archive-requests";
 
-export const metadata: Metadata = { title: "MONO admin", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "AMOR admin", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {

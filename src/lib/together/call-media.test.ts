@@ -73,7 +73,7 @@ it("handles cancelled/unsupported sharing and stops a selection returned after h
 it.each([
   ["NotReadableError", "couldn’t capture that screen"],
   ["NotSupportedError", "no screen source"],
-  ["InvalidStateError", "Return to MONO"],
+  ["InvalidStateError", "Return to AMOR"],
   ["NotAllowedError", "If no picker appeared"],
 ])("explains a %s screen failure without blaming microphone permission", async (name, text) => {
   vi.stubGlobal("navigator", { mediaDevices: { getDisplayMedia: vi.fn().mockRejectedValue(new DOMException("capture failed", name)) } });

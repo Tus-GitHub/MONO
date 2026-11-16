@@ -17,7 +17,7 @@ interface ScoreScaleProps {
   value: number | null;
   onChange: (value: number | null) => void;
   label: string;
-  /** e.g. "MONO's suggestion" — shown when `value` came from elsewhere and isn't the user's pick. */
+  /** e.g. "AMOR's suggestion" — shown when `value` came from elsewhere and isn't the user's pick. */
   hint?: string;
   /** Dim styling to signal "this is a starting point, not your answer yet". */
   suggested?: boolean;

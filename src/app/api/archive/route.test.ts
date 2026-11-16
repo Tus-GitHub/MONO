@@ -20,7 +20,7 @@ it("downloads a no-store attachment only after authentication", async () => {
   const result = await GET();
   expect(result.status).toBe(200);
   expect(result.headers.get("cache-control")).toBe("no-store");
-  expect(result.headers.get("content-disposition")).toMatch(/^attachment; filename="mono-archive-/);
+  expect(result.headers.get("content-disposition")).toMatch(/^attachment; filename="amor-archive-/);
   expect(await result.json()).toMatchObject({ digest: "fixture" });
   mocks.session.mockRejectedValueOnce(new AuthenticationError());
   expect((await GET()).status).toBe(401);

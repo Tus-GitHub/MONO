@@ -51,7 +51,7 @@ export function VideoComposer({ file, chatKey, coupleId, userId, onClose, onSent
       {phase !== "ready" ? <div role="status" className="space-y-2"><p className="text-sm">{phase === "preparing" ? "Preparing video on your device" : progress === 1 ? "Finishing encrypted upload" : "Encrypting and uploading"} · {Math.round(progress * 100)}%</p><progress aria-label={phase === "preparing" ? "Video compression" : "Video upload"} value={progress} max={1} className="w-full accent-primary" /></div> : null}
       {phase === "preparing" ? <Button size="sm" variant="secondary" onClick={useOriginal}>Use original instead</Button> : null}
       {prepared ? <><p className="text-sm text-muted">{prepared.originalBytes !== prepared.file.size ? `${videoSize(prepared.originalBytes)} → ` : ""}{videoSize(prepared.file.size)}</p><p className="text-xs text-muted">{prepared.note}</p></> : null}
-      <p className="text-xs text-muted">End-to-end encrypted before upload. Keep MONO open while sending. If the connection drops, retry continues from the last chunk. Your partner can save this video.</p>
+      <p className="text-xs text-muted">End-to-end encrypted before upload. Keep AMOR open while sending. If the connection drops, retry continues from the last chunk. Your partner can save this video.</p>
       {error ? <p role="alert" className="text-sm text-error">{error}</p> : null}
     </div>
   </BottomSheet>;

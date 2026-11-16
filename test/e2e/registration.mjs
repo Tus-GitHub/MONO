@@ -28,7 +28,7 @@ export async function runRegistration({ browser, baseUrl, prisma, runId, artifac
       .filter((block) => block.includes(`to:      ${address}\n`) && block.includes(`subject: ${subject}\n`));
   }
   async function verificationLinks(address) {
-    return (await messages(address, "Verify your MONO email")).map((block) => {
+    return (await messages(address, "Verify your AMOR email")).map((block) => {
       const raw = block.match(/\/verify-email#token=([A-Za-z0-9_-]{43})/);
       return raw?.[1];
     }).filter(Boolean);
@@ -49,7 +49,7 @@ export async function runRegistration({ browser, baseUrl, prisma, runId, artifac
     await clickText(signedIn, "Create account");
     await signedIn.waitForFunction(() => location.pathname === "/onboarding/profile");
     await bodyContains(signedIn, "Confirm your email");
-    await waitFor(async () => (await messages(email, "Welcome to MONO")).length === 1 && (await verificationLinks(email)).length === 1, "registration emails after redirect");
+    await waitFor(async () => (await messages(email, "Welcome to AMOR")).length === 1 && (await verificationLinks(email)).length === 1, "registration emails after redirect");
     const user = await prisma.user.findUniqueOrThrow({ where: { email } });
     assert.equal(user.emailVerified, null);
     assert.equal(await prisma.authSession.count({ where: { userId: user.id, revokedAt: null } }), 1);
@@ -80,7 +80,7 @@ export async function runRegistration({ browser, baseUrl, prisma, runId, artifac
     await resend(visitor, email);
     await waitFor(async () => (await verificationLinks(email)).length === 2, "resend after cooldown");
     const second = (await verificationLinks(email))[1];
-    assert.equal((await messages(email, "Welcome to MONO")).length, 1);
+    assert.equal((await messages(email, "Welcome to AMOR")).length, 1);
     pass("resend uses generic responses, enforces cooldown and does not repeat the welcome email");
 
     await clickText(visitor, "Verify email address");
@@ -115,7 +115,7 @@ export async function runRegistration({ browser, baseUrl, prisma, runId, artifac
     assert.equal(await legacy.$eval('[name="email"]', (input) => input.value), legacyEmail);
     await resend(legacy, legacyEmail);
     await waitFor(async () => (await verificationLinks(legacyEmail)).length === 1, "existing account verification");
-    assert.equal((await messages(legacyEmail, "Welcome to MONO")).length, 0);
+    assert.equal((await messages(legacyEmail, "Welcome to AMOR")).length, 0);
     pass("existing unverified accounts keep login/onboarding access and can request confirmation");
     assert.deepEqual(errors, []);
     return { checks };

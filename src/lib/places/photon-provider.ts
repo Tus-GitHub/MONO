@@ -77,7 +77,7 @@ export class PhotonPlacesProvider implements PlaceProvider {
     const work = (async () => {
       try {
         if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
-        const response = await fetch(url, { headers: { "Accept": "application/json", "User-Agent": "MONO/1.0 (+https://mono-kappa-beryl.vercel.app)" }, cache: "no-store", signal: AbortSignal.timeout(10_000) });
+        const response = await fetch(url, { headers: { "Accept": "application/json", "User-Agent": "AMOR/1.0 (+https://amor-together.vercel.app)" }, cache: "no-store", signal: AbortSignal.timeout(10_000) });
         if (!response.ok) return [];
         const data = await response.json() as { features?: Feature[] };
         return Array.isArray(data.features) ? data.features : [];
