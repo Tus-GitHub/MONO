@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { togetherFetch } from "@/lib/together/client";
+import { togetherFetch, transientTogetherError } from "@/lib/together/client";
+import { retryDelay } from "@/lib/together/recovery";
 
 export interface GameChatMessage { id: string; text: string; mine: boolean; delivered: boolean }
 interface Signal { id: string; sessionId: string; targetSessionId: string | null; kind: "hello" | "offer" | "answer" | "ice"; payload: RTCSessionDescriptionInit | RTCIceCandidateInit }
@@ -12,28 +13,39 @@ export function useGameChat(gameId: string, initiator: boolean, callChannel: RTC
   const [messages, setMessages] = useState<GameChatMessage[]>([]);
   const [phase, setPhase] = useState("connecting"), [generation, setGeneration] = useState(0);
   const channel = useRef<RTCDataChannel | null>(null), lastSend = useRef(0);
+  const attempts = useRef(0);
   const messagesRef = useRef(messages);
   useEffect(() => { messagesRef.current = messages; }, [messages]);
-  // A temporary API/network failure must not leave the composer disconnected forever.
+  // Rebuild only a failed peer, with a grace period for brief mobile network changes.
   useEffect(() => {
-    if (phase === "connected" || phase === "ended") return;
+    if (phase === "connected") { attempts.current = 0; return; }
+    if (["ended", "blocked", "away"].includes(phase) || callChannel?.readyState === "open") return;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const restart = () => { if (!document.hidden) { setPhase("connecting"); setGeneration(value => value + 1); } };
-    if (!document.hidden) timer = setTimeout(restart, phase === "connecting" ? (initiator ? 30_000 : 34_000) : 3000);
-    const visible = () => { if (!document.hidden) restart(); };
-    document.addEventListener("visibilitychange", visible); window.addEventListener("online", restart);
-    return () => { clearTimeout(timer); document.removeEventListener("visibilitychange", visible); window.removeEventListener("online", restart); };
-  }, [phase, generation, initiator]);
+    const due = Date.now() + (phase === "connecting" ? (initiator ? 45_000 : 50_000) : Math.min(30_000, 8000 * 2 ** Math.min(attempts.current, 2)));
+    const restart = () => {
+      if (document.hidden || navigator.onLine === false) return;
+      attempts.current++; setPhase("connecting"); setGeneration(value => value + 1);
+    };
+    const schedule = () => { clearTimeout(timer); if (!document.hidden && navigator.onLine !== false) timer = setTimeout(restart, Math.max(0, due - Date.now())); };
+    schedule(); document.addEventListener("visibilitychange", schedule); window.addEventListener("online", schedule);
+    return () => { clearTimeout(timer); document.removeEventListener("visibilitychange", schedule); window.removeEventListener("online", schedule); };
+  }, [phase, generation, initiator, callChannel]);
   useEffect(() => {
     const controller = new AbortController(), sessionId = crypto.randomUUID();
-    let stopped = false, cursor = "0", peerId = "", pc: RTCPeerConnection | null = null;
+    let stopped = false, polling = false, failures = 0, cursor = "0", peerId = "", pc: RTCPeerConnection | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined, queue = Promise.resolve();
     let detachChannel = () => {};
     const shared = callChannel?.readyState === "open";
     let servers: RTCIceServer[] = [], candidates: RTCIceCandidateInit[] = [];
     const closePeer = () => { detachChannel(); const old = pc; pc = null; if (channel.current !== callChannel) channel.current?.close(); channel.current = null; old?.close(); candidates = []; };
     const stop = () => { stopped = true; controller.abort(); clearTimeout(timer); closePeer(); };
-    const fail = () => { if (!stopped) { setPhase("error"); stop(); } };
+    const fail = (error?: unknown) => {
+      if (stopped) return;
+      if (error !== undefined && !transientTogetherError(error)) { setPhase("blocked"); stop(); return; }
+      // Late ICE/signaling failures must not kill an already-working data channel.
+      if (channel.current?.readyState === "open") return;
+      setPhase("error"); stop();
+    };
     const post = (kind: Signal["kind"], payload: object, target = peerId) => {
       const work = queue.then(async () => {
         if (stopped) return;
@@ -67,7 +79,8 @@ export function useGameChat(gameId: string, initiator: boolean, callChannel: RTC
           if ((usingCall || data.gameId !== undefined) && data.gameId !== gameId) return;
           if (typeof data.id !== "string" || !/^[a-f0-9-]{36}$/.test(data.id)) return;
           if (usingCall && ["join", "joined", "leave"].includes(data.type)) {
-            if (data.type === "leave") { if (data.id === remoteSession) { peerPresent = false; setPhase("waiting"); } return; }
+            if (data.type === "leave") { if (data.id === remoteSession) { peerPresent = false; setPhase("away"); } return; }
+            if (remoteSession !== data.id) replayed.clear();
             remoteSession = data.id; peerPresent = true; peerSeenAt = Date.now();
             if (data.type === "join") next.send(JSON.stringify({ type: "joined", gameId, id: sessionId }));
             setPhase("connected"); flush(); return;
@@ -81,10 +94,10 @@ export function useGameChat(gameId: string, initiator: boolean, callChannel: RTC
       const join = () => {
         if (!current() || next.readyState !== "open") return;
         try { next.send(JSON.stringify({ type: "join", gameId, id: sessionId })); } catch { setPhase("waiting"); }
-        if (Date.now() - peerSeenAt > 7000) { peerPresent = false; setPhase("waiting"); }
+        if (Date.now() - peerSeenAt > 45_000) { peerPresent = false; setPhase("away"); }
       };
       const presence = usingCall ? setInterval(join, 2000) : undefined;
-      if (usingCall) { setPhase("connecting"); join(); }
+      if (usingCall) { setPhase("away"); join(); }
       else if (next.readyState === "open") { setPhase("connected"); flush(); }
       detachChannel = () => {
         clearInterval(presence);
@@ -97,7 +110,11 @@ export function useGameChat(gameId: string, initiator: boolean, callChannel: RTC
       const next = new RTCPeerConnection({ iceServers: servers }); pc = next;
       next.ondatachannel = event => { if (pc === next && !stopped) bind(event.channel, next); };
       next.onicecandidate = event => { if (event.candidate && pc === next && !stopped) void post("ice", event.candidate.toJSON(), id).catch(fail); };
-      next.onconnectionstatechange = () => { if (pc === next && !stopped && ["disconnected", "failed", "closed"].includes(next.connectionState)) setPhase("waiting"); };
+      next.onconnectionstatechange = () => {
+        if (pc !== next || stopped) return;
+        if (next.connectionState === "connected" && channel.current?.readyState === "open") setPhase("connected");
+        else if (["disconnected", "failed", "closed"].includes(next.connectionState)) setPhase("waiting");
+      };
       if (initiator) {
         bind(next.createDataChannel("mono-match-chat", { ordered: true }), next);
         await next.setLocalDescription(await next.createOffer());
@@ -111,6 +128,11 @@ export function useGameChat(gameId: string, initiator: boolean, callChannel: RTC
       }
       if (signal.targetSessionId !== sessionId || signal.sessionId !== peerId || !pc) return;
       if (signal.kind === "offer" && !initiator) {
+        // A retried/late offer for the same session is already applied.
+        if (pc.remoteDescription?.sdp === (signal.payload as RTCSessionDescriptionInit).sdp && pc.signalingState === "stable") {
+          if (pc.localDescription?.type === "answer") await post("answer", { type: "answer", sdp: pc.localDescription.sdp });
+          return;
+        }
         await pc.setRemoteDescription(signal.payload as RTCSessionDescriptionInit);
         for (const candidate of candidates.splice(0)) await pc.addIceCandidate(candidate);
         await pc.setLocalDescription(await pc.createAnswer());
@@ -119,26 +141,44 @@ export function useGameChat(gameId: string, initiator: boolean, callChannel: RTC
         await pc.setRemoteDescription(signal.payload as RTCSessionDescriptionInit);
         for (const candidate of candidates.splice(0)) await pc.addIceCandidate(candidate);
       } else if (signal.kind === "ice") {
-        if (pc.remoteDescription) await pc.addIceCandidate(signal.payload as RTCIceCandidateInit);
+        if (pc.remoteDescription) await pc.addIceCandidate(signal.payload as RTCIceCandidateInit).catch(() => {});
         else candidates.push(signal.payload as RTCIceCandidateInit);
       }
     };
     const poll = async () => {
+      if (stopped || polling) return;
+      clearTimeout(timer);
+      if (navigator.onLine === false) return;
+      polling = true;
       try {
         const data = await togetherFetch<Snapshot>(`${endpoint}?id=${gameId}&after=${cursor}`, { signal: controller.signal });
         if (stopped) return;
         if (!data.active) { setMessages([]); setPhase("ended"); stop(); return; }
-        servers = data.iceServers;
-        if (!shared) for (const signal of data.signals) { if (stopped) return; await receive(signal); cursor = signal.id; }
+        servers = data.iceServers; failures = 0;
+        // Recovery can return several historic sessions. Negotiate only the latest greeting.
+        const hello = data.signals.filter(signal => signal.kind === "hello").at(-1);
+        if (!shared) for (const signal of data.signals) {
+          if (stopped) return;
+          if (signal.kind !== "hello" || signal === hello) await receive(signal);
+          cursor = signal.id;
+        }
         if (!stopped) timer = setTimeout(() => void poll(), channel.current?.readyState === "open" ? 2000 : 700);
-      } catch { fail(); }
+      } catch (error) {
+        if (stopped) return;
+        if (!transientTogetherError(error)) { fail(error); return; }
+        // Retry HTTP independently. The peer channel and pending texts stay intact.
+        failures++;
+        timer = setTimeout(() => void poll(), retryDelay(failures));
+      } finally { polling = false; }
     };
     void (async () => {
-      try { if (shared && callChannel) bind(callChannel, null, true); else { await post("hello", {}); setPhase("connecting"); } if (!stopped) await poll(); } catch { fail(); }
+      try { if (shared && callChannel) bind(callChannel, null, true); else { await post("hello", {}); setPhase("connecting"); } if (!stopped) await poll(); } catch (error) { fail(error); }
     })();
     const pageHide = () => { setMessages([]); setPhase("waiting"); stop(); };
-    window.addEventListener("pagehide", pageHide);
-    return () => { window.removeEventListener("pagehide", pageHide); stop(); };
+    const restored = (event: PageTransitionEvent) => { if (event.persisted && stopped) { setPhase("connecting"); setGeneration(value => value + 1); } };
+    const wake = () => { if (!document.hidden && !stopped) void poll(); };
+    window.addEventListener("pagehide", pageHide); window.addEventListener("pageshow", restored); window.addEventListener("online", wake); document.addEventListener("visibilitychange", wake);
+    return () => { window.removeEventListener("pagehide", pageHide); window.removeEventListener("pageshow", restored); window.removeEventListener("online", wake); document.removeEventListener("visibilitychange", wake); stop(); };
   }, [gameId, initiator, generation, callChannel]);
   const send = (text: string) => {
     const value = text.trim(), current = channel.current;

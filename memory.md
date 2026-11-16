@@ -157,6 +157,7 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+- **Repeated chat reconnects (2026-11-16)** — user reports repeated connecting/reconnecting in game chat and normal chat. Work isolated in `.postgres-test/reconnect-fix` to preserve concurrent account-name changes. Trace transient polling failures, shared-call presence timers and peer renegotiation; add fault-injection regression checks and publish the verified fix.
 
 
 - **Planner and Memories panel verification (2026-11-16)** — implementation and deployment are complete (see Done and release record). User explicitly tagged Browser and asked to retry live mobile/desktop checks, café then movie, fixes and deployment. Retried the exact in-app selector using the existing runtime; still `Browser is not available: iab`. Supported recovery inventory is empty, and direct active-tab context reports `The Browser Use plugin is not available in this context.` No alternative browser was used under the panel-only constraint. Live planner was queued in the right panel; authenticated visual/click tests remain blocked, with no new app change or redeployment warranted solely by this failed connection. Local preview remains on port3247; prior HTTP200 responses do not establish visual or click-flow correctness.
@@ -1919,6 +1920,10 @@ components. Business rules never live only in React components — they live in
 
 ### 2026-11-16 — Explain account deletion and duplicate email/name rules — DONE
 - User asks what happens to the shared couple space when one member deletes their account, and whether emails/names can duplicate. Verified implementation and existing tests without mutating production. Ordinary self-deletion is soft deletion: both memberships become LEFT, space ARCHIVED, calls ended, pending reminders/invites/deliveries cancelled, deleting user's credentials/sessions revoked, old name replaced and nickname cleared. Shared dates/memories/photos remain stored but unavailable through normal couple access; partner's account is not deleted. Normal self-deletion preserves the old email reservation; exact-case name reuse is allowed. Admin deletion releases/anonymizes email and is separate from blocking. Portable archive import requires an eligible empty space, matching members and approvals; it is not automatic reopening of the archived couple. No implementation change requested or made.
+### 2026-11-16 — Stabilize game and normal chat connections — IN PROGRESS
+Local checkpoint: 12 focused unit tests, TypeScript, ESLint and the first production build pass. Fault-injection browser checks passed normal encrypted chat short/persistent outages, peer preservation during repeated signaling failure, brief disconnect recovery and two reloads. Browser click synchronization needed adjustment before finishing the in-call presence test. Preserved the separately published duplicate-display-name change; final merged build/lint/TypeScript and all seven browser fault-injection groups pass (2788fb14f4ff5ddb), including shared-call chat with delayed presence and failed API requests. Disposable local fixtures removed. Publishing and testing live next.
+
+User first identified match chat, then clarified normal chat too. Game chat currently destroys an open data channel on any poll failure, resets peer negotiation on short presence gaps, and replays historical hello signals after recovery. Normal chat shows a reconnect alert after any single failed refresh and can overlap manual/background refreshes. Investigating and adding recovery without resetting healthy peer links; preserve transient-only game text and explicit authentication failures.
 
 ### 2026-11-16 — Separate food-venue ratings for both partners and Admin — DONE
 

@@ -49,7 +49,7 @@ export function ChatConversation({ chat, chatKey, onUnlock, userId, openGame }: 
   chat: ReturnType<typeof useTogether>; chatKey: ChatKey | null; onUnlock: (key: ChatKey) => void; userId: string; openGame: (id: string) => void;
 }) {
   return <section aria-label="Chat conversation" className="flex min-h-0 flex-1 flex-col">
-    {chat.error ? <p role="alert" className="shrink-0 px-3 py-1 text-sm text-error">Live updates paused: {chat.error} <Button variant="link" onClick={() => void chat.refresh()}>Reconnect</Button></p> : null}
+    {chat.error ? <p role="alert" className="shrink-0 px-3 py-1 text-sm text-error">{chat.error} <Button variant="link" onClick={() => void chat.refresh()}>Retry now</Button></p> : null}
       {!chatKey ? <div className="min-h-0 flex-1 overflow-y-auto"><ChatEncryption coupleId={chat.data.coupleId} userId={userId} keyId={chat.data.chatKeyId} onUnlock={onUnlock} refresh={chat.refresh} /></div> : <>
       <SecureHistory chatKey={chatKey} coupleId={chat.data.coupleId} refresh={chat.refresh} />
       <MessageList chatKey={chatKey} coupleId={chat.data.coupleId} append={chat.append} messages={chat.data.messages.filter((message) => !message.hidden)} userId={userId} lastRead={chat.data.partner.lastRead} timezone={chat.data.timezone} older={chat.older} hasOlder={chat.hasOlder} openGame={openGame} />

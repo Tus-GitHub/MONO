@@ -24,7 +24,7 @@ export function GamesRoom({ initial, userId, userName, mode = "games", initialGa
     <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="font-display text-3xl text-ink">Games</h1>
       <nav aria-label="Games" className="flex flex-wrap gap-1">{([['games', '/games', 'Play'], ['history', '/games/history', 'History'], ['scores', '/games/scores', 'Scores']] as const).map(([key, href, label]) => <Link key={key} href={href} aria-current={mode === key ? "page" : undefined} className={cn("tap flex items-center rounded-lg px-3 text-sm font-medium", mode === key ? "bg-primary-tint text-primary" : "text-muted hover:bg-surface")}>{label}</Link>)}</nav>
     </div>
-    {chat.error ? <p role="alert" className="text-sm text-error">Game updates paused: {chat.error} <Button variant="link" onClick={() => void chat.refresh()}>Reconnect</Button></p> : null}
+    {chat.error ? <p role="alert" className="text-sm text-error">{chat.error} <Button variant="link" onClick={() => void chat.refresh()}>Retry now</Button></p> : null}
     {mode === "history" ? <GameHistory initial={history ?? { games: [], nextCursor: null }} live={chat.data.games ?? []} userId={userId} timezone={chat.data.timezone} /> : <GamesPanel key={selectedId ?? mode}
       games={chat.data.games ?? []} scores={chat.data.scores ?? []} userId={userId} userName={userName} partnerName={chat.data.partner.name}
       selectedId={selectedId} initialGame={initialGame} onSelect={(id) => router.push(id ? `/games/${id}` : "/games")}

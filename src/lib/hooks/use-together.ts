@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useRef, useState } from "react";
-import { togetherFetch, errorMessage } from "@/lib/together/client";
+import { togetherFetch, errorMessage, TogetherRequestError, transientTogetherError } from "@/lib/together/client";
+import { pollHealth, retryRead } from "@/lib/together/recovery";
 import type { MessageDTO, TogetherSnapshot } from "@/lib/together/types";
 import { useVisiblePoll } from "./use-visible-poll";
 export const mergeMessages = (old: MessageDTO[], next: MessageDTO[]) => {
@@ -16,24 +17,35 @@ export const mergeMessages = (old: MessageDTO[], next: MessageDTO[]) => {
 export function useTogether(initial: TogetherSnapshot, chatVisible: boolean) {
   const [data, setData] = useState(initial), [error, setError] = useState<string | null>(null), [hasOlder, setHasOlder] = useState(initial.hasMore);
   const current = useRef({ cursor: initial.cursor, revision: initial.revision });
+  const health = useRef(pollHealth()), inFlight = useRef<Promise<void> | null>(null);
   const [delay, setDelay] = useState(2500);
-  const refresh = useCallback(async (signal?: AbortSignal) => {
+  const refresh = useCallback((signal?: AbortSignal): Promise<void> => {
+    if (inFlight.current) return inFlight.current;
+    const work = (async () => {
     try {
       const params = new URLSearchParams(current.current);
       params.set("after", current.current.cursor); params.delete("cursor");
-      const next = await togetherFetch<TogetherSnapshot>(`/api/together?${params}`, { signal });
+      const next = await retryRead(() => togetherFetch<TogetherSnapshot>(`/api/together?${params}`, { signal }), signal);
       if (signal?.aborted) return;
       const changed = next.revision !== current.current.revision || next.messages.length > 0;
       current.current = { cursor: next.cursor, revision: next.revision };
       setData((previous) => ({ ...previous, ...next, games: next.games ?? previous.games, scores: next.scores ?? previous.scores,
         imageBytes: next.imageBytes ?? previous.imageBytes, messages: mergeMessages(previous.messages, [...next.messages, ...(next.updates ?? [])]) }));
-      setError(null); setDelay((old) => changed ? 2500 : Math.min(10_000, old + 1500));
-    } catch (error) { if (!signal?.aborted) { setError(errorMessage(error)); setDelay(10_000); } }
+      health.current.success(); setError(null); setDelay((old) => changed ? 2500 : Math.min(10_000, old + 1500));
+    } catch (error) { if (!signal?.aborted) {
+      const state = health.current.failure(error);
+      setError(state.show ? error instanceof TogetherRequestError && error.status === 401 ? "Your session expired. Sign in again." : !transientTogetherError(error) ? errorMessage(error) : "Updates are delayed. Retrying automatically…" : null);
+      setDelay(state.delay);
+    } }
+    })();
+    inFlight.current = work;
+    void work.finally(() => { if (inFlight.current === work) inFlight.current = null; });
+    return work;
   }, []);
   const observedAt = new Date(data.observedAt).getTime();
   const partnerOnline = Boolean(data.partner.lastSeenAt && observedAt - new Date(data.partner.lastSeenAt).getTime() < 45_000);
   const partnerTyping = Boolean(data.partner.typingUntil && new Date(data.partner.typingUntil).getTime() > observedAt);
-  useVisiblePoll(refresh, partnerOnline || data.games?.some((game) => game.status === "ACTIVE") ? 2500 : delay);
+  useVisiblePoll(refresh, error ? delay : partnerOnline || data.games?.some((game) => game.status === "ACTIVE") ? 2500 : delay);
   const append = useCallback((message: MessageDTO) => {
     setData((previous) => ({ ...previous, messages: mergeMessages(previous.messages, [message]) }));
     setDelay(2500);

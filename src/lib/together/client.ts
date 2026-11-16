@@ -1,4 +1,8 @@
 "use client";
+export class TogetherRequestError extends Error {
+  constructor(message: string, readonly status: number) { super(message); this.name = "TogetherRequestError"; }
+}
+export const transientTogetherError = (error: unknown) => !(error instanceof TogetherRequestError) || error.status === 408 || error.status === 429 || error.status >= 500;
 export async function togetherFetch<T>(path: string, options: { body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
   const controller = new AbortController();
   const cancel = () => controller.abort();
@@ -11,8 +15,8 @@ export async function togetherFetch<T>(path: string, options: { body?: unknown; 
   try {
     const response = await fetch(path, { method: options.body === undefined ? "GET" : "POST", cache: "no-store", signal: controller.signal,
       ...(options.body === undefined ? {} : multipart ? { body: options.body as FormData } : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(options.body) }) });
-    const value = await response.json();
-    if (!response.ok) throw new Error(value.error ?? "Couldn't connect. Try again.");
+    const value = await response.json().catch(() => { throw new TogetherRequestError("The service is temporarily unavailable. Trying again…", response.status >= 400 ? response.status : 502); });
+    if (!response.ok) throw new TogetherRequestError(value.error ?? "Couldn't connect. Try again.", response.status);
     return value as T;
   } catch (error) {
     if (controller.signal.aborted && !options.signal?.aborted) throw new Error(multipart ? "The upload took too long. Try again; your photo is kept." : path.startsWith("/api/together/calls") ? "The call service took too long to respond. Please try again." : "The request took too long. Try again; your message is kept.");
