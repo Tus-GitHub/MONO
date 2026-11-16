@@ -9,7 +9,9 @@ export async function runCustomControls({page, baseUrl, artifactDir}) {
   const first=async selector => (await page.$$(selector))[0];
   const click=async selector => {await page.waitForSelector(selector);const el=await first(selector); assert.ok(el,selector); await el.click();};
   const button=async text => {const el=await page.evaluateHandle(t=>Array.from(document.querySelectorAll('button')).find(b=>b.textContent.trim()===t && b.getClientRects().length),text); await el.asElement().click();};
-  const option=async text=>{await page.waitForSelector('[role="option"]');const el=await page.evaluateHandle(t=>Array.from(document.querySelectorAll('[role="option"]')).find(b=>b.textContent.trim()===t),text);await el.asElement().evaluate(e=>e.scrollIntoView({block:"nearest",behavior:"instant"}));await new Promise(r=>setTimeout(r,250));await el.asElement().click();await page.waitForFunction(()=>!document.querySelector('[role="listbox"]'));};
+  const option=async text=>{await page.waitForSelector('[role="option"]');const el=await page.evaluateHandle(t=>Array.from(document.querySelectorAll('[role="option"]')).find(b=>b.textContent.trim()===t),text);await el.asElement().evaluate(e=>e.scrollIntoView({block:"nearest",behavior:"instant"}));await new Promise(r=>setTimeout(r,350));
+    assert.equal(await el.asElement().evaluate(e=>{const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}),true,"Scrolled option must remain at its touch target");
+    await el.asElement().click();await page.waitForFunction(()=>!document.querySelector('[role="listbox"]'));};
   await button('Save example');
   await page.waitForSelector(`${form} [role="alert"]`);
   assert.equal(await page.$eval(`${form} output`,e=>e.textContent),'');

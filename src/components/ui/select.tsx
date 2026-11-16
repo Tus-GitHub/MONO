@@ -64,7 +64,6 @@ export function Select({ className, uiSize = "md", invalid, children, value, def
       <SelectPrimitive.Portal>
         <SelectPrimitive.Content position="popper" align="start" sideOffset={6} collisionPadding={12} className="mono-select-menu rounded-2xl border border-line bg-elevated p-1.5 text-ink shadow-xl"
           onEscapeKeyDown={(event) => event.stopPropagation()}>
-          <SelectPrimitive.ScrollUpButton className="flex h-7 items-center justify-center text-muted"><Icon name="chevronUp" size="sm" /></SelectPrimitive.ScrollUpButton>
           <SelectPrimitive.Viewport>{choices.map((choice, index) => <Fragment key={choice.value}>
             {choice.group && choices[index - 1]?.group !== choice.group ? <p className="px-3 pb-1 pt-3 text-xs font-medium text-muted">{choice.group}</p> : null}
             <SelectPrimitive.Item value={`v:${choice.value}`} disabled={choice.disabled} textValue={choice.label}
@@ -73,7 +72,6 @@ export function Select({ className, uiSize = "md", invalid, children, value, def
               <SelectPrimitive.ItemIndicator className="absolute right-3 text-primary"><Icon name="check" size="sm" /></SelectPrimitive.ItemIndicator>
             </SelectPrimitive.Item>
           </Fragment>)}</SelectPrimitive.Viewport>
-          <SelectPrimitive.ScrollDownButton className="flex h-7 items-center justify-center text-muted"><Icon name="chevronDown" size="sm" /></SelectPrimitive.ScrollDownButton>
         </SelectPrimitive.Content>
       </SelectPrimitive.Portal>
     </SelectPrimitive.Root>

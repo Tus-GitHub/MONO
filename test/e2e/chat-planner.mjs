@@ -17,11 +17,20 @@ async function chooseOption(page, selector, value) {
   await page.locator(`[id=${JSON.stringify(info.triggerId)}]`).click();
   await page.waitForSelector('[role="option"]');
   const option = await page.evaluateHandle(label => Array.from(document.querySelectorAll('[role="option"]')).find(el => el.textContent.trim() === label.trim()), info.label);
-  await option.asElement().evaluate(el => el.scrollIntoView({block:"nearest",behavior:"instant"}));
-  await new Promise(resolve => setTimeout(resolve, 250));
-  await option.asElement().click();
+  // Move the mouse away before positioning a touch target.
+  await page.mouse.move(0, 0);
+  await option.asElement().evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
+  await page.waitForFunction(label => {
+    const el=Array.from(document.querySelectorAll('[role="option"]')).find(el=>el.textContent.trim()===label.trim());
+    if (!el) return false; const r=el.getBoundingClientRect();
+    return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));
+  }, {}, info.label);
+  const bounds=await option.asElement().boundingBox();
+  if (page.viewport()?.hasTouch) await page.touchscreen.tap(bounds.x+bounds.width/2,bounds.y+bounds.height/2);
+  else await option.asElement().click();
   await page.waitForFunction(() => !document.querySelector('[role="listbox"]'));
   await new Promise(resolve => setTimeout(resolve, 300));
+  assert.equal(await control.evaluate(node => (node.tagName === "SELECT" ? node : node.parentElement.querySelector("select")).value),value,"Visible option did not update its form value");
 }
 
 export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifactDir, allowGlobalAudio = true, responsiveSmoke = false, plannerOnly = false }) {
@@ -227,7 +236,8 @@ export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifact
     }
     await click(owner, "Save date"); await owner.waitForFunction(() => location.pathname.startsWith("/dates/"));
     const saved = await prisma.date.findFirst({ where: { coupleId: couple.id }, include: { activities: { orderBy: { sortOrder: "asc" } } } });
-    if (plannerOnly) assert.equal(new Intl.DateTimeFormat("en-GB", {hour:"2-digit",minute:"2-digit",timeZone:"Asia/Kolkata"}).format(saved.activities[0].startAt), "15:30");
+    // Plans deliberately store UTC-encoded wall time; applying the couple offset again would be incorrect.
+    if (plannerOnly) assert.equal(saved.activities[0].startAt.toISOString().slice(11, 16), "15:30");
     assert.equal(saved.activities.length, 2); assert.ok(saved.activities[0].startAt); assert.ok(saved.activities[1].startAt); assert.ok(saved.activities[1].placeId);
     pass("one-screen route saves both stops and their times in one explicit action");
     if (responsiveSmoke) {

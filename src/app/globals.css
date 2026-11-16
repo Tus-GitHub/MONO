@@ -853,3 +853,8 @@ input[type="range"]::-webkit-slider-thumb { appearance: none; width: 1.25rem; he
 input[type="range"]::-moz-range-thumb { width: 1rem; height: 1rem; border-radius: 50%; border: 3px solid var(--elevated); background: var(--primary); box-shadow: var(--shadow-sm); }
 input[type="range"]:focus-visible { outline: 2px solid var(--primary); outline-offset: .25rem; border-radius: var(--radius-full); }
 @media (forced-colors: active) { .mono-checkbox { appearance: auto; } input[type="range"] { appearance: auto; } }
+
+/* Native touch/wheel scrolling avoids edge buttons snapping focus back to the selected item. */
+.mono-select-menu [data-radix-select-viewport] { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; overscroll-behavior: contain; scroll-behavior: auto; }
+.mono-select-menu [data-radix-select-viewport]::-webkit-scrollbar { display: block; width: .25rem; }
+.mono-select-menu [data-radix-select-viewport]::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: var(--radius-full); }
