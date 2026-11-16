@@ -1,3 +1,20 @@
+## Planner and Memories release (2026-11-16) — PUBLISHED; PANEL VISUAL CHECKS BLOCKED
+Published `5fbc739f21345dcaa251ad86a583fdd053fe3832` to origin/main. Vercel production
+deployment `dpl_6NRkPzB7N4TC3FK1go7HbodZBoS4` is READY with
+https://mono-kappa-beryl.vercel.app assigned. Name/day/time/total budget precede compact
+event cards; café and movie stay within one date's time and budget. New events clear the
+previous venue query and request current location. Memories navigation/captions/actions
+have more room on small screens. Final fixes cover repeated draft saves, partner-relative
+payment labels, saved-venue restoration, narrow time fields and visible validation focus.
+41 focused unit tests, 27 local PostgreSQL tests, lint, TypeScript and full production
+build/size checks pass. The database journey covers both partners, repeated café/movie
+saves, finalization, completion and shared Memories edits. Production health is 200 with
+database up; anonymous planner/Memories correctly redirect to login; the scoped post-release
+error/fatal log query is empty. Vercel's largest trace is 44.80 MiB (within the 45 MiB guard).
+The in-app Browser control remains unavailable; mobile/desktop/PWA visual and click-flow
+tests were NOT run. The user's panel-only constraint was preserved. Existing authenticated
+localhost preview remains at http://localhost:3247 with sample plans and memories.
+
 ## Game chat, rematches, audio and storage release (2026-11-16) — PUBLISHED & VERIFIED
 Removed total per-couple attachment quotas and the user-facing 25 MB counter. Photo,
 document and custom-sticker sends retain encryption, authentication, per-file bounds and
@@ -100,7 +117,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (planner/Memories local fixes and release validation)
+Last updated: 2026-11-16 (planner/Memories published; right-panel visual checks blocked)
 
 
 
@@ -125,7 +142,7 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Planner and Memories verification/release (2026-11-16)** — user signed into localhost and explicitly requested deployment after local checks, superseding the previous hold. Synced main `38fd905` without replacing the published game/audio/storage work. Fixed repeat-save navigation, partner-relative payment labels, legacy first-venue restoration, compact time controls, visible date/time validation focus and fresh venue search for each new event. 41 focused unit and 27 isolated PostgreSQL integration tests pass, including café then movie through repeated draft saves, completion and Memories for both partners; focused lint, TypeScript, diff checks and the final full production build/size check pass. Publishing the checked changes. The in-app Browser connection returns `Browser is not available: iab` / plugin unavailable; no alternative browser was used under the panel-only constraint. Mobile/desktop visual and browser interaction checks remain unverified. Local preview stays on port 3247.
+- **Planner and Memories panel verification (2026-11-16)** — implementation and deployment are complete (see Done and release record). Mobile/desktop visual and browser interaction checks remain blocked: the in-app Browser connection returns `Browser is not available: iab` / plugin unavailable. No alternative browser was used under the panel-only constraint. Local preview stays authenticated on port3247; planner and Memories rendered with HTTP200 after refreshing the development process's stale Prisma client. These responses do not establish visual or click-flow correctness.
 
 
 
@@ -346,7 +363,7 @@ components. Business rules never live only in React components — they live in
 ### Done
 
 - **Game experience, audio and admin-managed storage (2026-11-16)** — released 771e387; no couple storage quota, admin totals, temporary inline game chat, winner/rematch consent, sticker shortcut, 10 MB admin songs; six live two-player groups passed and test data cleaned.
-- **Simpler planner and Memories local preview (2026-11-16)** — implemented locally on `codex/planner-local-preview` from `664de60`, in `.postgres-test/image-framing`; changes remain uncommitted and unpublished for user review. New and saved plans share name/day/overall time/total budget first, compact expandable event cards, live time/budget totals and shared client/server allocation validation. Current location is requested for each new event's venue search; manual area/map selection remains available. Smaller category options, separate Memories navigation, captions below photos, and responsive actions. 33 unit + 23 isolated PostgreSQL tests, TypeScript, focused ESLint, diff check and full Next production compilation passed. Local dev server remains on port 3247 (exec session 30944), database `mono_test_e2e_planner_preview`, with two synthetic partners, one café/movie draft and three memories. Right-panel open queued successfully; browser control still reports `Browser is not available: iab`, so visual/mobile/PWA interaction verification is pending. Local review first; do not deploy without the user's next instruction.
+- **Simpler planner and Memories (2026-11-16)** — published `5fbc739` from `codex/planner-local-preview` after the user explicitly authorized deployment. New and saved plans share name/day/overall time/total budget first, compact expandable event cards, allocation validation and fresh nearby venue search per event. Memories tabs/captions/actions adapt to narrow layouts. Final 41 unit + 27 local PostgreSQL tests, lint, TypeScript and required production build passed; Vercel `dpl_6NRkPzB7N4TC3FK1go7HbodZBoS4` is READY on the canonical URL with health/access checks passing. Visual/browser verification remains blocked separately. Local preview port3247 (session30944), synthetic partners, café/movie draft and three memories are retained. No real user data or credentials changed.
 
 - **Chat expression picker/custom stickers (2026-11-16)** — published 7fac26a; Vercel READY on canonical MONO. 579 unit, 55 DB and 15 local browser groups and all seven live two-partner sticker groups pass. Live health/access checks pass. Two disposable production accounts and one test space removed after the user-approved DNS diagnosis.
 
@@ -1865,13 +1882,14 @@ components. Business rules never live only in React components — they live in
 ### 2026-11-16 — Game chat, rematches and 10 MB admin audio — DONE
 User requests 10 MB admin soundtrack uploads; same-page temporary game chat below a raised Resign control; winner celebration; mutual rematch popup without a new main-chat invitation; and discoverable custom stickers. Inspecting existing game/audio/sticker services and Plato's official game/chat reference. Use WebRTC data channels for chat content that never enters the database or browser storage; persist only bounded expiring negotiation metadata. Chunk admin uploads to respect Vercel request limits. Preserve encrypted storage, scores and couple isolation.
 
-### 2026-11-16 — Verify planner/Memories locally, then deploy — IN PROGRESS
+### 2026-11-16 — Verify planner/Memories locally, then deploy — RELEASED; PANEL CHECKS BLOCKED
 
 - User confirms local login and explicitly authorizes deployment after local review/fixes, superseding the previous localhost-only hold. Working in `codex/planner-local-preview`; fast-forwarded to main `38fd905` with feature changes preserved and the memory-only conflict resolved by keeping both release histories. Root workspace untouched.
 - Fixed successful repeat-save navigation for the same draft, correct owner/partner payment labels, saved-venue restoration for older device drafts, compact time controls at narrow widths, and error focus on visible date/time controls. Each new event clears the previous venue query before requesting GPS, so a café name cannot filter the subsequent movie search.
 - 41 focused unit tests and 27 isolated PostgreSQL integration tests passed. The new integration journey saves café, adds movie as the other partner, saves the same draft again, finalizes exactly one date within its overall time/budget, starts/completes it, creates Memories and verifies later edits for both partners. Stale edits, isolation, allocation and currency protection are covered. Focused ESLint, TypeScript and diff checks pass. Final `npm run build` including the query-reset fix passed (97 routes, largest local trace 3.86 MiB, required WASM included and size guard passed).
 - Syncing the upstream game schema left the already-running dev process holding its old Prisma client, producing background status TypeErrors. Applied the new local migration/generated client, then used Next's normal config-file watcher restart to refresh the process while retaining its environment and the user's authenticated session. Subsequent planner, Memories, updates and together-status requests return 200. Restored only the generated QA tsconfig additions; no production auth/config change.
 - Browser testing limitation: `agent.browsers.get('iab')` returned `Browser is not available: iab`; the supported context probe returned `The Browser Use plugin is not available in this context.` Plugin discovery found no in-app Browser recovery option. No separate browser, screenshot automation, cookie injection or auth bypass was used. No mobile/desktop/PWA visual or click-flow pass is claimed. The existing authenticated localhost preview stays on port3247; the sample café/movie draft was queued in the right panel for user review.
+- Published `5fbc739f21345dcaa251ad86a583fdd053fe3832`; push to origin/main succeeded. Vercel deployment `dpl_6NRkPzB7N4TC3FK1go7HbodZBoS4` is READY with canonical MONO alias assigned. Vercel production build/size guard passed (97 routes; largest44.80 MiB). Anonymous live health returned200/database up, planner and Memories returned expected307 login redirects, and the deployment-scoped error/fatal query returned no entries. No production fixtures were created. Deployment is complete; panel visual coverage remains the stated limitation.
 
 ### 2026-11-16 — Sign in to the localhost preview — BLOCKED BY BROWSER CONNECTION
 
