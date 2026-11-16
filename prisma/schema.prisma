@@ -190,10 +190,10 @@ model User {
   id            String    @id @default(cuid())
   email         String    @unique // stored lower-cased by the app layer
   emailLookup   String?   @unique // HMAC lookup; plaintext email is encrypted in email
-  nameLookup    String? // active exact-case uniqueness via partial SQL index
+  nameLookup    String? // encrypted display-name lookup; duplicate names are allowed
   emailVerified DateTime?
   passwordHash  String? // null for OAuth-only accounts
-  name          String // active exact-case uniqueness: users_active_name_key partial index (SQL migration)
+  name          String // display name, not a unique account identifier
   nickname      String? // what their partner calls them
   pronouns      String?
   birthday      DateTime?

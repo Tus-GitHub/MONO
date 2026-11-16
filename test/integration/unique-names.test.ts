@@ -10,7 +10,6 @@ import { prisma } from "@/lib/db/prisma";
 import { registerUser } from "@/server/services/auth-service";
 import { updateProfile } from "@/server/services/profile-service";
 import { deleteAccount } from "@/server/services/account-service";
-import { isNameAvailable } from "@/server/services/name-service";
 import { upsertUserFromOAuthProfile } from "@/lib/auth/oauth/google";
 import { isRegistrationEmailAvailable } from "@/server/services/email-availability-service";
 
@@ -25,7 +24,8 @@ it("normalizes registration email checks, reports duplicate field errors and hon
  const first = await account("email", `Email ${run}`);
  expect(await isRegistrationEmailAvailable(`  ${first.email.toUpperCase()}  `)).toBe(false);
  expect(await isRegistrationEmailAvailable(email("unused"))).toBe(true);
- await expect(registerUser({name:`Other email ${run}`,email:first.email,password:"abcdef",confirmPassword:"abcdef"})).rejects.toMatchObject({fieldErrors:{email:expect.any(Array)}});
+ await expect(registerUser({name:first.name,email:first.email.toUpperCase(),password:"abcdef",confirmPassword:"abcdef"})).rejects.toMatchObject({fieldErrors:{email:expect.any(Array)}});
+ await expect(prisma.user.create({data:{email:first.email.toUpperCase(),name:first.name}})).rejects.toMatchObject({code:"P2002"});
  await asUser(first.id,()=>deleteAccount(first.id));
  expect(await isRegistrationEmailAvailable(first.email)).toBe(false);
 });
@@ -33,32 +33,32 @@ it("normalizes registration email checks, reports duplicate field errors and hon
 it("keeps email duplicate errors field-specific when two registrations race", async () => {
  const input = { email:email("email-race"),password:"abcdef",confirmPassword:"abcdef" };
  const results = await Promise.allSettled([
-  registerUser({...input,name:`Email race A ${run}`}), registerUser({...input,name:`Email race B ${run}`}),
+  registerUser({...input,name:`Same name ${run}`}), registerUser({...input,email:input.email.toUpperCase(),name:`Same name ${run}`}),
  ]);
  expect(results.filter(r=>r.status==="fulfilled")).toHaveLength(1);
  const failed = results.find(r=>r.status==="rejected") as PromiseRejectedResult;
  expect(failed.reason).toMatchObject({fieldErrors:{email:expect.any(Array)}});
 });
 
-it("rejects an exact active duplicate while allowing Tushar, TUshar and tushar case variants",async()=>{
+it("allows exact duplicate display names as well as capitalization variants",async()=>{
  const base=`Names ${run}`;
  const first=await account("a",`${base} Tushar`);
- await expect(account("duplicate",first.name)).rejects.toMatchObject({fieldErrors:{name:expect.any(Array)}});
+ const duplicate=await account("duplicate",first.name);
+ expect(duplicate.id).not.toBe(first.id);expect(duplicate.name).toBe(first.name);
  await account("b",`${base} TUshar`);await account("c",`${base} tushar`);
- expect(await isNameAvailable(first.name)).toBe(false);expect(await isNameAvailable(first.name,first.id)).toBe(true);
- await expect(prisma.user.create({data:{email:email("direct"),name:first.name}})).rejects.toMatchObject({code:"P2002"});
+ await prisma.user.create({data:{email:email("direct"),name:first.name}});
+ expect(await prisma.user.count({where:{name:first.name,deletedAt:null}})).toBe(3);
 });
-it("admits only one simultaneous registration for the same exact name",async()=>{
+it("admits simultaneous registrations with the same name and different emails",async()=>{
  const name=`Race ${run}`;
  const results=await Promise.allSettled([account("race-a",name),account("race-b",name)]);
- expect(results.filter(r=>r.status==="fulfilled")).toHaveLength(1);
- const failed=results.find(r=>r.status==="rejected") as PromiseRejectedResult;
- expect(failed.reason).toMatchObject({fieldErrors:{name:expect.any(Array)}});
- expect(await prisma.user.count({where:{name,deletedAt:null}})).toBe(1);
+ expect(results.filter(r=>r.status==="fulfilled")).toHaveLength(2);
+ expect(await prisma.user.count({where:{name,deletedAt:null}})).toBe(2);
 });
-it("enforces the name rule during profile edits while allowing the user's own unchanged name",async()=>{
+it("allows matching profile names while enforcing account ownership",async()=>{
  const first=await account("first",`Profile ${run}`),second=await account("second",`Other ${run}`);
- await expect(asUser(second.id,()=>updateProfile(second.id,{name:first.name}))).rejects.toMatchObject({fieldErrors:{name:expect.any(Array)}});
+ await asUser(second.id,()=>updateProfile(second.id,{name:first.name}));
+ expect(await prisma.user.count({where:{name:first.name,deletedAt:null}})).toBe(2);
  await asUser(first.id,()=>updateProfile(first.id,{name:first.name}));
  await asUser(second.id,()=>updateProfile(second.id,{name:first.name.toLowerCase()}));
  await expect(asUser(second.id,()=>updateProfile(first.id,{name:`Foreign ${run}`}))).rejects.toMatchObject({httpStatus:403});
@@ -67,13 +67,13 @@ it("erases the deleted account's name and nickname, then immediately allows name
  const first=await account("old",`Released ${run}`);await prisma.user.update({where:{id:first.id},data:{nickname:"Private nickname"}});
  await asUser(first.id,()=>deleteAccount(first.id));
  expect(await prisma.user.findUnique({where:{id:first.id},select:{name:true,nickname:true,deletedAt:true}})).toMatchObject({name:"Deleted account",nickname:null,deletedAt:expect.any(Date)});
- expect(await isNameAvailable(first.name)).toBe(true);await account("replacement",first.name);
+ await account("replacement",first.name);
 });
-it("gives a new OAuth identity a unique initial name without renaming an existing account",async()=>{
+it("keeps a new OAuth user's display name even when another account has it",async()=>{
  const first=await account("existing",`OAuth ${run}`);
  const profile={provider:"GOOGLE" as const,providerAccountId:run,email:email("oauth"),name:first.name};
  const oauth=await upsertUserFromOAuthProfile(profile);
- expect(oauth.name).not.toBe(first.name);expect(oauth.name.startsWith(first.name)).toBe(true);
+ expect(oauth.name).toBe(first.name);expect(oauth.id).not.toBe(first.id);
  expect((await upsertUserFromOAuthProfile(profile)).id).toBe(oauth.id);
  expect((await prisma.user.findUniqueOrThrow({where:{id:first.id}})).name).toBe(first.name);
 });

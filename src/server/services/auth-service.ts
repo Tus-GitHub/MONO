@@ -10,7 +10,6 @@ import { sendPasswordResetEmail } from "@/lib/email";
 import { AuthenticationError, ValidationError } from "@/lib/errors";
 import { randomToken, sha256 } from "@/lib/utils/crypto";
 import { capabilityState } from "@/lib/state/access";
-import { assertNameAvailable, isNameConstraint, nameTakenError } from "@/server/services/name-service";
 import { emailRegisteredError } from "@/server/services/email-availability-service";
 import { assertEmailCanRegister, resolveLoginEmail } from "@/lib/auth/registration-policy";
 import type {
@@ -29,7 +28,6 @@ export interface AuthedUser {
 }
 
 export async function registerUser(input: RegisterInput): Promise<AuthedUser> {
-  await assertNameAvailable(input.name);
   const passwordHash = await hashPassword(input.password);
 
   try {
@@ -45,7 +43,6 @@ export async function registerUser(input: RegisterInput): Promise<AuthedUser> {
     });
     return user;
   } catch (error) {
-    if (isNameConstraint(error)) throw nameTakenError();
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       throw emailRegisteredError();
     }

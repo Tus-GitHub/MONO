@@ -6,7 +6,7 @@ import { useActionState, useState } from "react";
 import { FormFeedback } from "@/components/forms/form-feedback";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { UniqueNameField } from "@/components/forms/unique-name-field";
+import { NameField } from "@/components/forms/name-field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { ImageUpload } from "@/components/uploads/image-upload";
 import { idleState } from "@/lib/utils/result";
@@ -41,7 +41,7 @@ export function ProfileSetupForm({ initial }: Props) {
           hint="Optional. Your partner will see this."
         />
 
-        <UniqueNameField initial={initial.name} errors={fieldErrors?.name} />
+        <NameField initial={initial.name} errors={fieldErrors?.name} />
 
         <Field
           label="Nickname"

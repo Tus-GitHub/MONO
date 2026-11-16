@@ -7,7 +7,7 @@ import { useActionState, useState } from "react";
 import { FormFeedback } from "@/components/forms/form-feedback";
 import { RegistrationEmailField } from "@/components/forms/registration-email-field";
 import { NewPasswordFields } from "@/components/forms/new-password-fields";
-import { UniqueNameField } from "@/components/forms/unique-name-field";
+import { NameField } from "@/components/forms/name-field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { idleState } from "@/lib/utils/result";
 import { useFormValidity } from "@/lib/hooks/use-form-validity";
@@ -17,10 +17,10 @@ import { registerAction } from "@/server/actions/auth";
 export function RegisterForm({ invite }: { invite?: string }) {
   const [state, action] = useActionState(registerAction, idleState);
   const [dismissedState, setDismissedState] = useState<typeof state>();
-  const [nameAvailable, setNameAvailable] = useState(false);
+  const [nameValid, setNameValid] = useState(false);
   const [emailAvailable, setEmailAvailable] = useState(false);
   const { formRef, valid, validate } = useFormValidity(registerSchema);
-  const canSubmit = valid && nameAvailable && emailAvailable;
+  const canSubmit = valid && nameValid && emailAvailable;
   const fieldErrors = state.status === "error" ? state.fieldErrors : undefined;
 
   return (
@@ -31,7 +31,7 @@ export function RegisterForm({ invite }: { invite?: string }) {
       <PendingFields className="space-y-4">
         {invite ? <input type="hidden" name="invite" value={invite} /> : null}
 
-        <UniqueNameField errors={fieldErrors?.name} onValidityChange={setNameAvailable} />
+        <NameField errors={fieldErrors?.name} onValidityChange={setNameValid} />
 
         <RegistrationEmailField errors={fieldErrors?.email} onValidityChange={setEmailAvailable} />
 

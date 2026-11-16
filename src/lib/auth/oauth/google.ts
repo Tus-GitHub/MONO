@@ -5,8 +5,6 @@ import { AuthProvider } from "@prisma/client";
 import { env, googleOAuthConfigured } from "@/config/env";
 import { serializable } from "@/lib/db/serializable";
 import { AuthenticationError } from "@/lib/errors";
-import { randomToken } from "@/lib/utils/crypto";
-import { isNameConstraint } from "@/server/services/name-service";
 import { assertEmailCanRegister } from "@/lib/auth/registration-policy";
 
 /**
@@ -59,8 +57,7 @@ export interface OAuthProfile {
 export async function upsertUserFromOAuthProfile(profile: OAuthProfile) {
   const email = profile.email.trim().toLowerCase();
 
-  for (let attempt = 0; attempt < 3; attempt++) {
-  try { return await serializable(async (tx) => {
+  return serializable(async (tx) => {
     const identity = await assertEmailCanRegister(tx, email);
     const linked = await tx.account.findUnique({
       where: {
@@ -80,9 +77,7 @@ export async function upsertUserFromOAuthProfile(profile: OAuthProfile) {
 
     let user = await tx.user.findUnique({ where: { email } });
     if (!user) {
-      const base = (profile.name?.trim() || email).slice(0, 80);
-      const taken = attempt > 0 || await tx.user.findFirst({ where: { name: base, deletedAt: null }, select: { id: true } });
-      const name = taken ? `${base.slice(0, 65)} ${randomToken(6)}` : base;
+      const name = (profile.name?.trim() || email).slice(0, 80);
       user = await tx.user.create({
         data: {
           ...identity,
@@ -111,9 +106,5 @@ export async function upsertUserFromOAuthProfile(profile: OAuthProfile) {
     });
 
     return current;
-  }); } catch (error) {
-    if (!isNameConstraint(error) || attempt === 2) throw error;
-  }
-  }
-  throw new Error("Could not choose an available account name.");
+  });
 }

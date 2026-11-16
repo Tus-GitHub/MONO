@@ -7,7 +7,7 @@ import { useActionState, useState } from "react";
 import { FormFeedback } from "@/components/forms/form-feedback";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { UniqueNameField } from "@/components/forms/unique-name-field";
+import { NameField } from "@/components/forms/name-field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { UnsavedGuard } from "@/components/system/unsaved-guard";
 import { ImageUpload } from "@/components/uploads/image-upload";
@@ -47,7 +47,7 @@ export function ProfileForm({ initial }: Props) {
           label="Profile photo"
         />
 
-        <UniqueNameField initial={initial.name} errors={fieldErrors?.name} onValidityChange={setNameValid} />
+        <NameField initial={initial.name} errors={fieldErrors?.name} onValidityChange={setNameValid} />
 
         <Field label="Nickname" htmlFor="nickname" optional errors={fieldErrors?.nickname}>
           <Input id="nickname" name="nickname" defaultValue={initial.nickname ?? ""} />
