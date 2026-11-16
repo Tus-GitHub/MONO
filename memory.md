@@ -1,4 +1,4 @@
-## Game chat, rematches, audio and storage release (2026-11-16) — READY TO DEPLOY
+## Game chat, rematches, audio and storage release (2026-11-16) — PUBLISHED & VERIFIED
 Removed total per-couple attachment quotas and the user-facing 25 MB counter. Photo,
 document and custom-sticker sends retain encryption, authentication, per-file bounds and
 rate protection. Admin sees aggregate attachment bytes/count and actual PostgreSQL size;
@@ -23,7 +23,14 @@ Initial dev-mode runs were interrupted by on-demand compilation reloads and synt
 under the fixed navigation; production bundles plus hit-tested clicks resolve the harness
 failures. An immediate resize measurement now waits for viewport animation to settle.
 The prebuilt QA runner uses NODE_ENV=test with production bundles against loopback fixtures;
-production's environment guards were not weakened. Live verification follows deployment.
+production's environment guards were not weakened. Published 771e387928efcaf5723d06bd3fa3b57f63102a85 to origin/main. Production deployment
+dpl_FxAiAw1uBt869dwoaKAifXxFSr5U is READY on https://mono-kappa-beryl.vercel.app.
+Six live two-player browser groups passed: peer text in both directions with no saved
+messages, responsive layout, winner popup/temporary-chat cleanup, consent rematch opening
+for both users without a chat invite, and no browser JavaScript errors. Artifact:
+.postgres-test/release-live/live-07456e13d6f6/results.json. The suite removed its two accounts
+and one test space; outer cleanup found no remaining fixture space. Scoped error/fatal
+runtime log search returned no entries. Existing users and global background song untouched.
 
 ## Chat sticker release (2026-11-16) — PUBLISHED
 Published 7fac26ab38e45203c0810683102cd6a5acb7e99a to origin/main successfully, retaining
@@ -93,7 +100,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (Chat picker/custom stickers published; 15 local and 7 live browser groups passed; fixtures cleaned)
+Last updated: 2026-11-16 (Storage/game/audio release published; six live game groups passed; fixtures cleaned)
 
 Last updated: 2026-11-15 (admin panel and private data encryption)
 
@@ -120,7 +127,6 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Game experience and audio (2026-11-16)** — temporary inline chat, result/rematch flow, sticker discovery and 10 MB admin songs; implementation and verification underway.
 
 
 
@@ -338,6 +344,8 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Game experience, audio and admin-managed storage (2026-11-16)** — released 771e387; no couple storage quota, admin totals, temporary inline game chat, winner/rematch consent, sticker shortcut, 10 MB admin songs; six live two-player groups passed and test data cleaned.
 
 - **Chat expression picker/custom stickers (2026-11-16)** — published 7fac26a; Vercel READY on canonical MONO. 579 unit, 55 DB and 15 local browser groups and all seven live two-partner sticker groups pass. Live health/access checks pass. Two disposable production accounts and one test space removed after the user-approved DNS diagnosis.
 
@@ -1853,7 +1861,7 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
-### 2026-11-16 — Game chat, rematches and 10 MB admin audio — IN PROGRESS
+### 2026-11-16 — Game chat, rematches and 10 MB admin audio — DONE
 User requests 10 MB admin soundtrack uploads; same-page temporary game chat below a raised Resign control; winner celebration; mutual rematch popup without a new main-chat invitation; and discoverable custom stickers. Inspecting existing game/audio/sticker services and Plato's official game/chat reference. Use WebRTC data channels for chat content that never enters the database or browser storage; persist only bounded expiring negotiation metadata. Chunk admin uploads to respect Vercel request limits. Preserve encrypted storage, scores and couple isolation.
 
 
@@ -4294,7 +4302,7 @@ phone behavior are not claimed complete. Final evidence documentation is being p
 ## Planner popup refinement (2026-11-16)
 User supplied a DateFlow reference and requested MONO-styled icon tiles in an Add-stop popup, replacing the crowded inline options and eliminating scrolling back up to add the next stop. Implement compact editable route cards with an Add a stop control below the route; selecting a tile goes directly to matching venues. Continue authorized deployment/privacy backfill and live validation alongside this refinement.
 
-### 2026-11-16 — Remove couple storage quota — IN PROGRESS
+### 2026-11-16 — Remove couple storage quota — DONE
 - User requests no total storage quota or delete-old-images requirement. Remove the former 25 MB per-couple attachment cap/counter; admin-only aggregate storage overview. Physical hosting capacity remains admin-managed. Existing technical per-file limits remain; videos deferred explicitly until games complete.
 
 - Validation update: 46 focused integration checks passed across games, privacy/signaling, no-quota uploads, admin totals and 10 MB audio. A large-buffer assertion was changed to SHA-256 equality (same byte verification, avoids slow test comparison). Development-browser runs exposed first-compilation reloads and occluded synthetic clicks; moving final browser verification to the production build and using hit-tested controls.
