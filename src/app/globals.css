@@ -9,7 +9,7 @@
 
 :root {
   --game-cell-min: 2rem;
-  --solo-board-height: min(28rem, 58dvh);
+  --solo-board-height: min(28rem, 58dvh, calc(100dvh - var(--appheader-h) - var(--safe-top) - var(--bottomnav-h) - var(--safe-bottom-visible) - 5rem));
   /* — surfaces & text (light) — */
   --paper: #f5f1ea; /* app background */
   --surface: #fdfbf7; /* cards, inputs */

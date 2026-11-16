@@ -43,9 +43,10 @@ export function GameRound({ challenge, onRecord, onRestart, starting }: {
   }, [capture, setMode]);
   useEffect(() => {
     field.current?.focus({ preventScroll: true });
+    const reveal = requestAnimationFrame(() => field.current?.scrollIntoView({ block: "center", behavior: "instant" }));
     const hidden = () => { if (document.hidden) pause(); };
     window.addEventListener("blur", pause); document.addEventListener("visibilitychange", hidden);
-    return () => { window.removeEventListener("blur", pause); document.removeEventListener("visibilitychange", hidden); };
+    return () => { cancelAnimationFrame(reveal); window.removeEventListener("blur", pause); document.removeEventListener("visibilitychange", hidden); };
   }, [pause]);
   useEffect(() => {
     if (phase !== "running" || challenge.kind === "MERGE_2048") return;
@@ -74,7 +75,7 @@ export function GameRound({ challenge, onRecord, onRestart, starting }: {
     if (box?.width) input.current = clampPaddle((clientX - box.left) / box.width * BOUNCE.width);
   };
   return <section aria-label={`${SOLO_GAMES[challenge.kind].name} round`} className="space-y-4">
-    <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="sticky top-[calc(var(--appheader-h)+var(--safe-top))] z-10 flex flex-wrap items-center justify-between gap-3 bg-paper">
       <p className="text-sm text-muted">Score <output aria-label="Current score" className="ml-2 font-display text-3xl tabular-nums text-ink">{view.state.score.toLocaleString()}</output></p>
       <div className="flex gap-2">{phase === "running" ? <Button size="sm" variant="secondary" onClick={pause}>Pause</Button> : null}
         {phase === "paused" ? <Button size="sm" variant="secondary" loading={starting} onClick={onRestart}>Restart</Button> : null}</div>
