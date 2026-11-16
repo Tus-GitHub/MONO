@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils/cn";
 import GamesPanel from "./games-panel";
 import { GameMatchList } from "./game-match-list";
 import { RematchPrompt } from "./game-rematch";
+import { SoloScoreRecovery } from "@/components/solo-games/score-recovery";
 
 export function GamesRoom({ initial, userId, userName, mode = "games", initialGame, history }: {
   initial: TogetherSnapshot; userId: string; userName: string; mode?: "games" | "history" | "scores";
@@ -24,6 +25,7 @@ export function GamesRoom({ initial, userId, userName, mode = "games", initialGa
     <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="font-display text-3xl text-ink">Games</h1>
       <nav aria-label="Games" className="flex flex-wrap gap-1">{([['games', '/games', 'Play'], ['history', '/games/history', 'History'], ['scores', '/games/scores', 'Scores']] as const).map(([key, href, label]) => <Link key={key} href={href} aria-current={mode === key ? "page" : undefined} className={cn("tap flex items-center rounded-lg px-3 text-sm font-medium", mode === key ? "bg-primary-tint text-primary" : "text-muted hover:bg-surface")}>{label}</Link>)}</nav>
     </div>
+    <SoloScoreRecovery coupleId={chat.data.coupleId} userId={userId} onSaved={chat.refresh} />
     {chat.error ? <p role="alert" className="text-sm text-error">{chat.error} <Button variant="link" onClick={() => void chat.refresh()}>Retry now</Button></p> : null}
     {mode === "history" ? <GameHistory initial={history ?? { games: [], nextCursor: null }} live={chat.data.games ?? []} userId={userId} timezone={chat.data.timezone} /> : <GamesPanel key={selectedId ?? mode}
       games={chat.data.games ?? []} scores={chat.data.scores ?? []} soloScores={chat.data.soloScores ?? []} userId={userId} userName={userName} partnerName={chat.data.partner.name}

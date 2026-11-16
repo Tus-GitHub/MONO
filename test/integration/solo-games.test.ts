@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { SignJWT } from "jose";
+import { env } from "@/config/env";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 import { asUser } from "./auth-context";
 vi.mock("@/lib/auth/current-user", async () => {
@@ -29,9 +31,9 @@ afterEach(async () => {
   await prisma.user.deleteMany({ where: { id: { in: [owner, partner, outsider, otherPartner] } } });
 });
 afterAll(() => prisma.$disconnect());
-const start = async (actor: string, kind: SoloKind) => asUser(actor, () => actOnSoloGame({ action: "start", kind })) as Promise<SoloChallenge>;
+const start = async (actor: string, kind: SoloKind) => asUser(actor, () => actOnSoloGame({ action: "start", kind, rulesVersion: 2 })) as Promise<SoloChallenge>;
 function play(ticket: SoloChallenge, turns = 600): SoloReplay {
-  let round = createSoloRound(ticket.kind, ticket.seed); const moves: [number, number][] = [];
+  let round = createSoloRound(ticket.kind, ticket.seed, ticket.rulesVersion ?? 1); const moves: [number, number][] = [];
   for (let i = 0; i < turns && !round.state.over; i++) {
     let input = round.kind === "EMOJI_BOUNCE" ? Math.round(round.state.x) : i % 4;
     if (round.kind === "SNAKE") {
@@ -73,6 +75,19 @@ it("keeps the maximum with duplicate, lower and concurrent saves", async () => {
   expect(best).toBeGreaterThan(3);
   await save(owner, ticket, low); await save(owner, ticket, high);
   expect((await asUser(owner, getSoloGameSummary)).scores).toEqual([{ kind: "EMOJI_BOUNCE", userId: owner, bestScore: best }]);
+});
+it("accepts both legacy and faster rounds after a deployment and delayed retry", async () => {
+  const old = await asUser(owner, () => actOnSoloGame({ action: "start", kind: "EMOJI_BOUNCE" })) as SoloChallenge;
+  const current = await start(owner, "EMOJI_BOUNCE");
+  expect(old.rulesVersion).toBe(1); expect(current.rulesVersion).toBe(2);
+  // Tickets already issued by production have no rulesVersion claim at all.
+  old.token = await new SignJWT({ seed: old.seed, kind: old.kind, coupleId: couple }).setProtectedHeader({ alg: "HS256" }).setSubject(owner).setAudience("amor-solo-games-v1").setIssuedAt().setExpirationTime("24h").sign(new TextEncoder().encode(env.AUTH_SECRET));
+  const oldResult = await save(owner, old, play(old, 1200));
+  const currentResult = await save(owner, current, play(current, 1200));
+  expect("score" in oldResult && oldResult.score).toBeGreaterThan(0);
+  expect("score" in currentResult && currentResult.score).toBeGreaterThan(0);
+  await save(owner, old, play(old, 1200));
+  expect((await asUser(owner, getSoloGameSummary)).scores[0].bestScore).toBe(Math.max("score" in oldResult ? oldResult.score : 0, "score" in currentResult ? currentResult.score : 0));
 });
 it("rejects another person's ticket, changed totals and malformed replays", async () => {
   const ticket = await start(owner, "EMOJI_BOUNCE"), replay = play(ticket);

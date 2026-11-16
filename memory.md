@@ -158,6 +158,8 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
+- **Games navigation highlight (2026-11-17):** Keep the Games header icon selected across the catalog, matches, solo games, History and Scores; preserve the existing active-tab design. Checking mobile/desktop and deploying from .postgres-test/emoji-bounce.
+
 
 - **Compact desktop date card (2026-11-17):** User screenshot identifies the home upcoming-date cover growing too tall on laptops. Preserve mobile styling, bound desktop media height and loading placeholder, verify in the right-panel browser. Work isolated from other ongoing branding changes.
 - Temporary migration branch `br-lively-math-b329pbdl` is retained pending the already-requested explicit cleanup approval. Feature deployment is complete; do not delete the branch without that response.
@@ -1920,6 +1922,13 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-17 — Games navigation highlight — IN PROGRESS
+- Final local production build passed (108 routes; 4.11 MiB largest local trace); final lint passed. Right-panel production-bundle test at 390x844: forced save HTTP503, earned 8 points, reloaded and restored exactly the same 16 tiles/current score/best paused; lifting the fault automatically saved the best, confirmed on Scores. Header active state verified on catalog/nested solo/Scores/History, inactive on Home; mobile and 1366x900 desktop have no overflow and preserve tokens. No physical iPhone/PWA hardware claim. Local dev preview/browser error-page issues were recovered using a fresh tab and production bundle, not counted as application passes. Publishing authorized game changes; live verification pending.
+- Current recovery verification: 13 deterministic unit checks and six local PostgreSQL/API checks passed, including interrupted-save persistence, exact replay restore, acknowledgement races, account/couple isolation, monotonic bests and old/new speed compatibility. Focused lint and TypeScript passed. Local dev preview did not hydrate; switching browser QA to the production bundle before publication.
+- Encryption questions: explained that an existing recovery code restores history; a still-unlocked device could support a future verified re-encryption flow; loss of every key/code makes old encrypted history unrecoverable. Proposed Recover chat first and a separately confirmed fresh start only if necessary. New shared-code activation could lock Chat for both partners without signing them out of AMOR. No chat key, history or security setting was changed or deleted; reset/rotation is not implemented.
+- Scope expanded: user reported a connection warning and lost score, requested slightly faster Emoji Bounce, and asked why. Explained the 15-second save request timeout and confirmed unsaved progress existed only in page memory. Adding account/couple-scoped device recovery, retries and versioned 12% faster physics so old rounds still verify. Initial navigation-only build/lint passed; no new code has been published yet.
+- User requests a highlighted tab/icon when Games is selected. Desktop sidebar already matches nested Games routes; the header gamepad link had no active state. Adding route-aware primary colour/tint and aria-current while retaining all layouts.
 
 ### 2026-11-17 — Solo games and saved bests — DONE
 - Added Emoji Bounce, Snake and 2048, bringing the catalog to 27 games. Touch, mouse and keyboard controls, pause/resume, responsive boards and each partner's saved personal best use the existing design. Signed user/couple-bound rounds and bounded server replays verify results; transactional writes prevent lower scores from replacing higher ones. Both partners see separate bests in Scores. No new package, integration key or paid service.

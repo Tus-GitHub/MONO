@@ -6,7 +6,9 @@ export const SOLO_GAMES = {
 export type SoloKind = keyof typeof SOLO_GAMES;
 export const SOLO_KINDS = Object.keys(SOLO_GAMES) as SoloKind[];
 export interface SoloScore { kind: SoloKind; userId: string; bestScore: number }
-export interface SoloChallenge { token: string; seed: number; kind: SoloKind }
+export const SOLO_RULES_VERSION = 2;
+export type SoloRulesVersion = 1 | 2;
+export interface SoloChallenge { token: string; seed: number; kind: SoloKind; rulesVersion?: SoloRulesVersion }
 export interface SoloReplay { frames: number; moves: [number, number][] }
 export const MAX_SOLO_FRAMES = 36_000;
 export type Direction = 0 | 1 | 2 | 3; // up, right, down, left

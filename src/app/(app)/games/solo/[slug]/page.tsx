@@ -12,5 +12,5 @@ export default async function SoloGamePage({ params }: { params: Promise<{ slug:
   const kind = SOLO_KINDS.find(key => SOLO_GAMES[key].slug === slug);
   if (!kind) notFound();
   const summary = await getSoloGameSummary();
-  return <SoloGameScreen key={kind} kind={kind} userId={summary.userId} scores={summary.scores} />;
+  return <SoloGameScreen key={`${summary.coupleId}:${summary.userId}:${kind}`} kind={kind} userId={summary.userId} coupleId={summary.coupleId} scores={summary.scores} />;
 }

@@ -27,6 +27,9 @@ interface AppHeaderProps {
  * primary navigation.
  */
 export function AppHeader({ user, unreadCount }: AppHeaderProps) {
+  const pathname = usePathname();
+  const gamesActive = pathname === "/games" || pathname.startsWith("/games/");
+
   return (
     <header
       className={cn(
@@ -51,7 +54,11 @@ export function AppHeader({ user, unreadCount }: AppHeaderProps) {
       </Link>
 
       <MusicButton />
-      <Link href="/games" aria-label="Games" title="Games" className={cn("tap grid place-items-center rounded-lg text-muted hover:bg-ink/[0.06] hover:text-ink", focusRing)}><Icon name="gamepad" size="md" /></Link>
+      <Link href="/games" aria-label="Games" title="Games" aria-current={gamesActive ? "page" : undefined}
+        className={cn("tap grid place-items-center rounded-lg transition-colors", focusRing,
+          gamesActive ? "bg-primary-tint text-primary" : "text-muted hover:bg-ink/[0.06] hover:text-ink")}>
+        <Icon name="gamepad" size="md" />
+      </Link>
       <ChatLink />
       <NotificationsBell unreadCount={unreadCount} />
       <AccountMenu user={user} />

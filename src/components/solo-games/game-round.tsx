@@ -6,20 +6,22 @@ import { SOLO_GAMES, type Direction, type SoloChallenge, type SoloReplay } from 
 import { BOUNCE, clampPaddle } from "@/lib/solo-games/emoji-bounce";
 import { SNAKE_SIZE } from "@/lib/solo-games/snake";
 import { advanceSoloRound, createSoloRound, type SoloRound } from "@/lib/solo-games/engine";
+import { restoreSoloRound } from "@/lib/solo-games/replay";
 
 const keys: Record<string, Direction | undefined> = { ArrowUp: 0, w: 0, ArrowRight: 1, d: 1, ArrowDown: 2, s: 2, ArrowLeft: 3, a: 3 };
 const directions = [{ value: 0, label: "up", arrow: "↑" }, { value: 3, label: "left", arrow: "←" }, { value: 2, label: "down", arrow: "↓" }, { value: 1, label: "right", arrow: "→" }] as const;
 type Phase = "running" | "paused" | "over";
-export function GameRound({ challenge, onRecord, onRestart, starting }: {
+export function GameRound({ challenge, restore, onRecord, onRestart, starting }: {
   challenge: SoloChallenge; onRecord: (replay: SoloReplay, score: number, immediate?: boolean) => void;
-  onRestart: () => void; starting: boolean;
+  onRestart: () => void; starting: boolean; restore?: SoloReplay;
 }) {
-  const [view, setView] = useState(() => createSoloRound(challenge.kind, challenge.seed));
-  const round = useRef(view), inputs = useRef<[number, number][]>([]);
-  const input = useRef(challenge.kind === "EMOJI_BOUNCE" ? 180 : 1), previousInput = useRef(challenge.kind === "EMOJI_BOUNCE" ? 180 : 1);
+  const [view, setView] = useState(() => restore ? restoreSoloRound(challenge.kind, challenge.seed, restore, challenge.rulesVersion ?? 1) : createSoloRound(challenge.kind, challenge.seed, challenge.rulesVersion ?? 1));
+  const round = useRef(view), inputs = useRef<[number, number][]>(restore?.moves.slice() ?? []);
+  const lastInput = restore?.moves.at(-1)?.[1] ?? (challenge.kind === "EMOJI_BOUNCE" ? 180 : 1);
+  const input = useRef(lastInput), previousInput = useRef(lastInput);
   const horizontal = useRef(0), field = useRef<HTMLDivElement>(null), swipe = useRef<{ x: number; y: number } | null>(null);
-  const [phase, setPhase] = useState<Phase>("running");
-  const phaseRef = useRef<Phase>("running");
+  const [phase, setPhase] = useState<Phase>(view.state.over ? "over" : restore ? "paused" : "running");
+  const phaseRef = useRef<Phase>(phase);
   const setMode = useCallback((next: Phase) => { phaseRef.current = next; horizontal.current = 0; setPhase(next); }, []);
   const capture = useCallback((immediate = false) => {
     const state = round.current.state;
@@ -34,7 +36,7 @@ export function GameRound({ challenge, onRecord, onRestart, starting }: {
       inputs.current.push([before.state.frame, value]); previousInput.current = value;
     }
     round.current = next; setView(next);
-    if (next.state.score > before.state.score) capture();
+    if (next.state.score > before.state.score || next.kind === "MERGE_2048" || next.state.frame % (next.kind === "EMOJI_BOUNCE" ? 60 : 8) === 0) capture();
     if (next.state.over) { setMode("over"); capture(true); }
   }, [capture, setMode]);
   const pause = useCallback(() => {
@@ -45,8 +47,8 @@ export function GameRound({ challenge, onRecord, onRestart, starting }: {
     field.current?.focus({ preventScroll: true });
     const reveal = requestAnimationFrame(() => field.current?.scrollIntoView({ block: "center", behavior: "instant" }));
     const hidden = () => { if (document.hidden) pause(); };
-    window.addEventListener("blur", pause); document.addEventListener("visibilitychange", hidden);
-    return () => { cancelAnimationFrame(reveal); window.removeEventListener("blur", pause); document.removeEventListener("visibilitychange", hidden); };
+    window.addEventListener("blur", pause); window.addEventListener("pagehide", pause); document.addEventListener("visibilitychange", hidden);
+    return () => { cancelAnimationFrame(reveal); window.removeEventListener("blur", pause); window.removeEventListener("pagehide", pause); document.removeEventListener("visibilitychange", hidden); };
   }, [pause]);
   useEffect(() => {
     if (phase !== "running" || challenge.kind === "MERGE_2048") return;
@@ -105,7 +107,7 @@ export function GameRound({ challenge, onRecord, onRestart, starting }: {
       <Board round={view} />
       {phase !== "running" ? <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-paper/90 p-5 text-center backdrop-blur-sm">
         <p role="status" className="font-display text-2xl text-ink">{phase === "paused" ? "Paused" : "Round complete"}</p>
-        <p className="text-sm text-muted">{phase === "paused" ? "Resume this round when you're ready." : `${view.state.score.toLocaleString()} points. Ready to beat that?`}</p>
+        <p className="text-sm text-muted">{phase === "paused" ? "Resume this round when you're ready." : `${view.state.score.toLocaleString()} ${view.state.score === 1 ? "point" : "points"}. Ready to beat that?`}</p>
         {phase === "paused" ? <Button onClick={resume}>Resume</Button> : <Button loading={starting} onClick={onRestart}>Play again</Button>}
       </div> : null}
     </div>
