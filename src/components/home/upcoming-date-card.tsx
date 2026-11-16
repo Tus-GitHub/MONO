@@ -16,7 +16,8 @@ export function UpcomingDateCard({ date }: { date: UpcomingDateView }) {
 
   return (
     <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
-      <div className="relative aspect-video w-full bg-line">
+      {/* Keep the mobile framing; wide desktop cards must leave room for date details. */}
+      <div className="relative aspect-video w-full bg-line lg:max-h-(--home-date-cover-max-height)">
         {date.cover ? (
           <Photo
             thumbUrl={date.cover.thumbUrl}

@@ -20,7 +20,7 @@ export default function HomeLoading() {
         <Skeleton className="h-8 w-64" />
       </div>
 
-      <Skeleton className="aspect-[16/9] w-full rounded-2xl" />
+      <Skeleton className="aspect-[16/9] w-full rounded-2xl lg:aspect-auto lg:h-112" />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {Array.from({ length: 6 }).map((_, index) => (
