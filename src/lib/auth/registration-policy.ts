@@ -8,7 +8,7 @@ import { privateCrypto } from "@/lib/privacy/server";
 export const normalizeAccountEmail = (email: string) => email.trim().toLowerCase();
 export const emailFingerprint = (email: string) => privateCrypto().lookup(normalizeAccountEmail(email), "identity:email");
 
-/** Signup and moderation take the same lock, including when no account exists yet. */
+/** Signup, deletion and moderation share this lock, including before an account exists. */
 export async function lockRegistrationEmail(tx: Prisma.TransactionClient, emailHash: string) {
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`mono:email:${emailHash}`}, 0))::text`;
 }

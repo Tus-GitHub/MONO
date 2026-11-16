@@ -8,6 +8,7 @@ import { isActiveMediaKey } from "@/server/services/storage-cleanup-service";
 import { createHash } from "node:crypto";
 import { cropToken, parseCropToken } from "@/lib/images/saved-crop";
 import { renderSavedCrop } from "@/lib/images/render-crop";
+import { requireArchivedAvatar, requireArchivedRead } from "@/lib/authz/archived-space";
 
 export const dynamic = "force-dynamic";
 
@@ -47,16 +48,23 @@ export async function GET(
   try {
     const userScope = userIdFromKey(key);
     const coupleScope = coupleIdFromKey(key);
+    let retainedAvatar = false;
+    let archivedCouple = false;
 
     if (userScope) {
-      await requireUserMediaAccess(userScope, key);
+      try { await requireUserMediaAccess(userScope, key); }
+      catch (error) {
+        if (!isAppError(error)) throw error;
+        await requireArchivedAvatar(userScope, key); retainedAvatar = true;
+      }
     } else if (coupleScope) {
-      await requireCoupleMembership(coupleScope);
+      try { await requireCoupleMembership(coupleScope); }
+      catch (error) { if (!isAppError(error)) throw error; await requireArchivedRead(coupleScope); archivedCouple = true; }
     } else {
       return new NextResponse(null, { status: 404 });
     }
 
-    if (!await isActiveMediaKey(key)) return new NextResponse(null, { status: 404 });
+    if (!retainedAvatar && !await isActiveMediaKey(key)) return new NextResponse(null, { status: 404 });
     const token = _request.nextUrl.searchParams.get("crop");
     const crop = token ? parseCropToken(token) : null;
     if (token && (!crop || !contentTypeFor(key).startsWith("image/"))) return new NextResponse(null, { status: 400 });
@@ -66,6 +74,8 @@ export async function GET(
     }
     const source = await storage.get(key);
     const body = crop ? await renderSavedCrop(source, crop) : source;
+    if (archivedCouple && coupleScope) await requireArchivedRead(coupleScope);
+    if (retainedAvatar && userScope) await requireArchivedAvatar(userScope, key);
     return new NextResponse(new Uint8Array(body), {
       status: 200,
       headers: {

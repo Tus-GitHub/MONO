@@ -12,7 +12,7 @@ export function emailRegisteredError() {
 
 export async function isRegistrationEmailAvailable(value: string): Promise<boolean> {
   const email = emailSchema.parse(value);
-  // Match the existing global email constraint, including closed accounts.
+  // Closed accounts have a retired address; their former mailbox can be reused.
   const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
   return !existing;
 }

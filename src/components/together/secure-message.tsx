@@ -16,7 +16,7 @@ import { chatAAD, decryptBytes, decryptText, encryptText, type ChatKey } from "@
 import { togetherFetch, errorMessage } from "@/lib/together/client";
 import type { MessageDTO } from "@/lib/together/types";
 
-export function SecureMessage({ message, chatKey, coupleId, mine, append }: { message: MessageDTO; chatKey: ChatKey; coupleId: string; mine: boolean; append: (row: MessageDTO) => void }) {
+export function SecureMessage({ message, chatKey, coupleId, mine, append, readOnly = false, videoUrl }: { message: MessageDTO; chatKey: ChatKey; coupleId: string; mine: boolean; append: (row: MessageDTO) => void; readOnly?: boolean; videoUrl?: string }) {
   const [decoded, setDecoded] = useState<{ source: string; value: string } | null>(null), [error, setError] = useState("");
   const [menu, setMenu] = useState(false), [editing, setEditing] = useState(false), [draft, setDraft] = useState(""), [busy, setBusy] = useState(false);
   const press = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> } | null>(null), held = useRef(false);
@@ -32,7 +32,7 @@ export function SecureMessage({ message, chatKey, coupleId, mine, append }: { me
   const body = message.encrypted ? decoded?.source === message.body ? decoded.value : "" : message.body;
   const sticker = message.kind === "STICKER" ? STICKERS.find((s) => s.id === body) : null;
   const action = async (action: "edit" | "delete-me" | "delete-everyone") => {
-    if (busy) return; setBusy(true); setError("");
+    if (busy || readOnly) return; setBusy(true); setError("");
     try {
       append(await togetherFetch<MessageDTO>("/api/together/messages", { body: { action, id: message.id, version: message.version, ...(action === "edit" ? { body: await encryptText(chatKey, draft.trim(), aad) } : {}) } }));
       setMenu(false); setEditing(false);
@@ -40,15 +40,15 @@ export function SecureMessage({ message, chatKey, coupleId, mine, append }: { me
     finally { setBusy(false); }
   };
   return <div className="mono-message group relative pr-4" onPointerDown={(event) => {
-    if (menu || event.button !== 0 || (event.target as Element).closest('[role="dialog"], video')) return;
+    if (readOnly || menu || event.button !== 0 || (event.target as Element).closest('[role="dialog"], video')) return;
     held.current = false; cancelPress();
     press.current = { x: event.clientX, y: event.clientY, timer: setTimeout(() => { held.current = true; setMenu(true); navigator.vibrate?.(20); }, 500) };
   }} onPointerMove={(event) => { if (press.current && Math.hypot(event.clientX - press.current.x, event.clientY - press.current.y) > 10) cancelPress(); }} onPointerUp={cancelPress} onPointerCancel={cancelPress} onPointerLeave={cancelPress}
     onClickCapture={(event) => { if (held.current) { held.current = false; event.preventDefault(); event.stopPropagation(); } }}
-    onContextMenu={(event) => { if ((event.target as Element).closest('[role="dialog"], video')) return; event.preventDefault(); cancelPress(); setMenu(true); }}>
-    {message.deleted ? <p className="text-sm italic text-muted">Message deleted</p> : message.kind === "VIDEO" ? <SecureVideo message={message} body={body} chatKey={chatKey} coupleId={coupleId} /> : message.kind === "STICKER" && message.image ? <StickerImage message={message} chatKey={chatKey} coupleId={coupleId} label={readStickerMetadata(body)?.name ?? "Custom sticker"} className="size-32 sm:size-36" /> : message.kind === "DOCUMENT" && message.image ? <SecureDocument message={message} body={body} chatKey={chatKey} coupleId={coupleId} /> : message.image ? <SecurePhoto message={message} chatKey={chatKey} coupleId={coupleId} mine={mine} append={append} /> : sticker ? <div className="py-1 text-center"><span role="img" aria-label={sticker.label} className="block text-5xl">{sticker.emoji}</span><p className="text-xs">{sticker.label}</p></div> : <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{body || (message.kind === "GAME" ? "Game update" : error ? "Unable to decrypt" : "Decrypting…")}</p>}
+    onContextMenu={(event) => { if (readOnly || (event.target as Element).closest('[role="dialog"], video')) return; event.preventDefault(); cancelPress(); setMenu(true); }}>
+    {message.deleted ? <p className="text-sm italic text-muted">Message deleted</p> : message.kind === "VIDEO" ? <SecureVideo message={message} body={body} chatKey={chatKey} coupleId={coupleId} videoUrl={videoUrl} /> : message.kind === "STICKER" && message.image ? <StickerImage message={message} chatKey={chatKey} coupleId={coupleId} label={readStickerMetadata(body)?.name ?? "Custom sticker"} className="size-32 sm:size-36" /> : message.kind === "DOCUMENT" && message.image ? <SecureDocument message={message} body={body} chatKey={chatKey} coupleId={coupleId} /> : message.image ? <SecurePhoto message={message} chatKey={chatKey} coupleId={coupleId} mine={mine} append={append} readOnly={readOnly} /> : sticker ? <div className="py-1 text-center"><span role="img" aria-label={sticker.label} className="block text-5xl">{sticker.emoji}</span><p className="text-xs">{sticker.label}</p></div> : <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{body || (message.kind === "GAME" ? "Game update" : error ? "Unable to decrypt" : "Decrypting…")}</p>}
     {message.editedAt ? <span className="text-2xs text-muted">Edited</span> : null}
-    <button type="button" aria-label="Message options" title="Hold a message or right-click for options" className="absolute -right-1 -top-1 rounded-md p-1 text-muted opacity-0 transition-opacity hover:bg-surface group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100" onClick={() => setMenu(true)}><Icon name="moreHorizontal" size="sm" /></button>
+    {!readOnly ? <button type="button" aria-label="Message options" title="Hold a message or right-click for options" className="absolute -right-1 -top-1 rounded-md p-1 text-muted opacity-0 transition-opacity hover:bg-surface group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100" onClick={() => setMenu(true)}><Icon name="moreHorizontal" size="sm" /></button> : null}
     {error && !menu ? <p role="alert" className="text-xs text-error">{error}</p> : null}
     <BottomSheet open={menu} onClose={() => { if (!busy) { setMenu(false); setEditing(false); } }} title={editing ? "Edit message" : "Message options"}>
       <div className="space-y-3">
@@ -64,7 +64,7 @@ export function SecureMessage({ message, chatKey, coupleId, mine, append }: { me
     </BottomSheet>
   </div>;
 }
-function SecurePhoto({ message, chatKey, coupleId, mine, append }: { message: MessageDTO; chatKey: ChatKey; coupleId: string; mine: boolean; append: (row: MessageDTO) => void }) {
+function SecurePhoto({ message, chatKey, coupleId, mine, append, readOnly }: { message: MessageDTO; chatKey: ChatKey; coupleId: string; mine: boolean; append: (row: MessageDTO) => void; readOnly?: boolean }) {
   const [url, setUrl] = useState(""), [opened, setOpened] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [used, setUsed] = useState(message.image!.viewsUsed);
   const [adjusting, setAdjusting] = useState(false);
@@ -109,14 +109,14 @@ function SecurePhoto({ message, chatKey, coupleId, mine, append }: { message: Me
     <button type="button" className="flex min-h-20 w-full max-w-64 items-center gap-3 rounded-xl bg-paper/50 p-3 text-left disabled:opacity-50" disabled={busy || (limited && !mine && remaining === 0)} onClick={() => void open()}><span className="grid size-11 shrink-0 place-items-center rounded-full bg-primary-tint text-primary">{limited ? <span className="font-display text-xl">{image.viewLimit}</span> : <Icon name="images" />}</span><span><span className="block text-sm font-medium">{busy ? "Opening…" : limited ? mine ? `Your photo · View ${image.viewLimit === 1 ? "once" : "twice"}` : remaining ? `Open photo · ${remaining} ${remaining === 1 ? "view" : "views"} left` : "Photo opened" : "Open photo"}</span><span className="mt-1 block text-2xs text-muted">{limited ? "Limited-view photo" : "Keep, save or share"}</span></span></button>
     {limited ? <p className="max-w-xs text-2xs text-muted">Closes when you leave MONO. Screenshots and recordings cannot be blocked or detected.</p> : null}
     {error ? <p role="alert" className="text-xs text-error">{error}{limited ? " A failed download may still use a view." : ""}</p> : null}
-    <BottomSheet open={opened} onClose={close} title={limited ? "Private photo" : "Shared photo"} footer={<div className="flex flex-wrap gap-2">{!limited ? <Button variant="secondary" onClick={() => { const blob = downloadable.current; if (blob) void saveAttachment(blob, `MONO-${message.id}.${blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg"}`).catch((e) => { if (e?.name !== "AbortError") setError("Use your browser’s download or share menu to save this photo."); }); }}><Icon name="share" size="sm" /> Save / share photo</Button> : null}{mine ? <Button variant="ghost" onClick={() => { close(); setAdjusting(true); }}><Icon name="crop" size="sm" />Adjust crop</Button> : null}<Button onClick={close}>Close photo</Button></div>}>
+    <BottomSheet open={opened} onClose={close} title={limited ? "Private photo" : "Shared photo"} footer={<div className="flex flex-wrap gap-2">{!limited ? <Button variant="secondary" onClick={() => { const blob = downloadable.current; if (blob) void saveAttachment(blob, `MONO-${message.id}.${blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg"}`).catch((e) => { if (e?.name !== "AbortError") setError("Use your browser’s download or share menu to save this photo."); }); }}><Icon name="share" size="sm" /> Save / share photo</Button> : null}{mine && !readOnly ? <Button variant="ghost" onClick={() => { close(); setAdjusting(true); }}><Icon name="crop" size="sm" />Adjust crop</Button> : null}<Button onClick={close}>Close photo</Button></div>}>
       {error ? <p role="alert" className="mb-2 text-sm text-error">{error}</p> : null}
       {opened && url ? <div className="relative overflow-hidden rounded-lg" style={{ aspectRatio: aspect, width: `min(100%, ${65 * aspect}dvh)` }}>
         <Image unoptimized src={url} alt="Shared private chat photo" width={image.width} height={image.height} draggable={false} className="absolute max-w-none select-none"
           style={{ width: `${100 / crop.width}%`, height: `${100 / crop.height}%`, left: `${-100 * crop.x / crop.width}%`, top: `${-100 * crop.y / crop.height}%` }} />
       </div> : null}
     </BottomSheet>
-    {adjusting ? <SavedPhotoCropDialog kind="chat" id={message.id} loadSource={(_info, signal) => loadPhoto(signal)} onCancel={() => setAdjusting(false)} onSaved={(result) => { if (result.message) append(result.message); setAdjusting(false); }} /> : null}
+    {adjusting && !readOnly ? <SavedPhotoCropDialog kind="chat" id={message.id} loadSource={(_info, signal) => loadPhoto(signal)} onCancel={() => setAdjusting(false)} onSaved={(result) => { if (result.message) append(result.message); setAdjusting(false); }} /> : null}
   </div>;
 }
 

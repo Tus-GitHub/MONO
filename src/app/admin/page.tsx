@@ -13,6 +13,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { RestaurantRatings } from "@/components/admin/restaurant-ratings";
 import { getAdminRestaurantRatings } from "@/server/services/admin-restaurant-ratings";
 import { adminQuerySchema } from "@/lib/validation/moderation";
+import { ArchiveRequests } from "@/components/admin/archive-requests";
 
 export const metadata: Metadata = { title: "MONO admin", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -23,6 +24,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   if (!user.emailVerified) redirect("/verify-email?next=/admin");
   if (!await hasAdminAccess(user.id)) notFound();
   const params = await searchParams;
+  if (adminQuerySchema.parse(params).view === "archives") {
+    return <AdminShell activeView="archives"><ArchiveRequests page={params.page} /></AdminShell>;
+  }
   if (adminQuerySchema.parse(params).view === "ratings") {
     return <AdminShell activeView="ratings"><RestaurantRatings data={await getAdminRestaurantRatings(params)} /></AdminShell>;
   }

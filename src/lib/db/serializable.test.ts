@@ -45,3 +45,15 @@ it("does not retry other raw SQL failures", async () => {
   await expect(serializable(vi.fn())).rejects.toThrow("invalid");
   expect(transaction).toHaveBeenCalledTimes(1);
 });
+it("retries an unwrapped pg adapter serialization failure at commit", async () => {
+  const error = Object.assign(new Error("TransactionWriteConflict"), { name: "DriverAdapterError", cause: { kind: "TransactionWriteConflict" } });
+  transaction.mockRejectedValueOnce(error).mockResolvedValueOnce("ok");
+  expect(await serializable(vi.fn())).toBe("ok");
+  expect(transaction).toHaveBeenCalledTimes(2);
+});
+it("does not retry unrelated adapter errors or errors with a similar message", async () => {
+  const error = Object.assign(new Error("TransactionWriteConflict"), { name: "DriverAdapterError", cause: { kind: "UniqueConstraintViolation" } });
+  transaction.mockRejectedValue(error);
+  await expect(serializable(vi.fn())).rejects.toBe(error);
+  expect(transaction).toHaveBeenCalledTimes(1);
+});

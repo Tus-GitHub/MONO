@@ -19,10 +19,14 @@ export async function serializable<T>(
         ...options,
       });
     } catch (error) {
-      const retryable = error instanceof Prisma.PrismaClientKnownRequestError && (
+      // The JS engine may return an unwrapped adapter conflict when COMMIT fails.
+      const adapterConflict = error instanceof Error && error.name === "DriverAdapterError"
+        && typeof error.cause === "object" && error.cause !== null
+        && "kind" in error.cause && error.cause.kind === "TransactionWriteConflict";
+      const retryable = adapterConflict || (error instanceof Prisma.PrismaClientKnownRequestError && (
         error.code === "P2034"
         || (error.code === "P2010" && ["40001", "40P01"].includes(String(databaseSqlState(error))))
-      );
+      ));
       if (attempt >= 2 || !retryable) throw error;
       await new Promise((resolve) => setTimeout(resolve, 10 * 2 ** attempt));
     }

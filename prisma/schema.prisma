@@ -216,6 +216,8 @@ model User {
 
   blockedAt DateTime?
   moderationEmailHash String?
+  archiveRequests ArchiveAccessRequest[] @relation("ArchiveRequester")
+  archiveDecisions ArchiveAccessRequest[] @relation("ArchiveReviewer")
   adminAccess AdminAccess?
   audio UserAudio?
   audioUploads AudioUpload[]
@@ -449,6 +451,7 @@ model Couple {
   memories         Memory[]
   notifications    Notification[]
   archiveRestore   ArchiveRestore?
+  accessRequests   ArchiveAccessRequest[]
   chatMessages     ChatMessage[]
   chatImages       ChatImage[]
   chatVideos       ChatVideo[]
@@ -683,6 +686,34 @@ model CallSignal {
 /// A shareable, single-use, expiring link for the second person to join a couple.
 /// Only the SHA-256 hash of the token is stored — the raw token lives only in the share URL,
 /// never in the database, and it is not a database id.
+enum ArchiveAccessStatus {
+  PENDING
+  APPROVED
+  DENIED
+  REVOKED
+}
+
+/// Permission to read one archived space; never reactivates a membership.
+model ArchiveAccessRequest {
+  id           String @id @default(cuid())
+  coupleId     String
+  requesterId  String
+  status       ArchiveAccessStatus @default(PENDING)
+  requestedAt  DateTime @default(now())
+  reviewedAt   DateTime?
+  reviewedById String?
+  decisions    Json @default("[]")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  couple       Couple @relation(fields: [coupleId], references: [id], onDelete: Restrict)
+  requester    User @relation("ArchiveRequester", fields: [requesterId], references: [id], onDelete: Restrict)
+  reviewedBy   User? @relation("ArchiveReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  @@unique([coupleId, requesterId])
+  @@index([status, requestedAt])
+  @@index([requesterId])
+  @@map("archive_access_requests")
+}
+
 model ArchiveRestore {
   id           String   @id @default(cuid())
   coupleId     String   @unique

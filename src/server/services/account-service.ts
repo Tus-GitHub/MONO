@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 
 import { prisma } from "@/lib/db/prisma";
 import { requireCoupleContext } from "@/lib/authz";
@@ -9,6 +10,7 @@ import { requireSelf } from "@/lib/authz/user-write";
 import { AuthenticationError } from "@/lib/errors";
 import { Prisma } from "@prisma/client";
 import { archiveCoupleInTransaction } from "@/server/services/couple-archive";
+import { emailFingerprint, lockRegistrationEmail } from "@/lib/auth/registration-policy";
 
 // ---------------------------------------------------------------------------
 // Data export (part 6) — everything the couple has put in, as plain JSON.
@@ -159,7 +161,7 @@ export async function exportCoupleData(): Promise<CoupleExport> {
 }
 
 // ---------------------------------------------------------------------------
-// Account deletion (part 6) — soft. Recoverable by support; sessions killed.
+// Account deletion — retire access and email; retain the ID and saved history.
 // ---------------------------------------------------------------------------
 
 export async function deleteAccount(userId: string): Promise<void> {
@@ -169,11 +171,19 @@ export async function deleteAccount(userId: string): Promise<void> {
 
 /** Internal transaction helper. Callers must authorise self-deletion or admin moderation. */
 export async function deleteAccountInTransaction(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+    const identity = await tx.user.findUnique({ where: { id: userId }, select: { email: true, moderationEmailHash: true, deletedAt: true } });
+    if (!identity) throw new AuthenticationError();
+    if (identity.deletedAt) return;
+    // Match signup/OAuth/moderation lock ordering before releasing the old mailbox.
+    const emailHash = identity.moderationEmailHash ?? emailFingerprint(identity.email);
+    await lockRegistrationEmail(tx, emailHash);
     await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
     const user = await tx.user.findUnique({ where: { id: userId }, select: { deletedAt: true } });
     if (!user) throw new AuthenticationError();
     if (user.deletedAt) return;
     const now = new Date();
+    // Unpredictable so another signup cannot reserve a tombstone and prevent closure.
+    const retiredEmail = `deleted-${randomUUID()}@accounts.invalid`;
     const memberships = await tx.coupleMember.findMany({
       where: { userId, status: "ACTIVE" }, orderBy: { coupleId: "asc" }, select: { coupleId: true },
     });
@@ -181,13 +191,21 @@ export async function deleteAccountInTransaction(tx: Prisma.TransactionClient, u
       await tx.$queryRaw`SELECT id FROM couples WHERE id = ${coupleId} FOR UPDATE`;
       await archiveCoupleInTransaction(tx, coupleId, now);
     }
-    // Credentials and delivery capabilities disappear in the same commit as access.
+    // Retain record IDs, but retire credentials in the same commit as account access.
     await tx.authSession.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } });
-    await tx.account.deleteMany({ where: { userId } });
-      await tx.userAudio.deleteMany({ where: { userId } });
-    await tx.passwordResetToken.deleteMany({ where: { userId } });
-    await tx.emailVerificationToken.deleteMany({ where: { userId } });
-    await tx.pushSubscription.deleteMany({ where: { userId } });
+    await tx.adminAccess.updateMany({ where: { userId }, data: { loginAlias: null } });
+    const identities = await tx.account.findMany({ where: { userId }, select: { id: true } });
+    for (const identity of identities) await tx.account.update({ where: { id: identity.id }, data: {
+      providerAccountId: `mono:deleted:${identity.id}`, accessToken: null, refreshToken: null, idToken: null,
+      tokenType: null, scope: null, expiresAt: null,
+    } });
+    await tx.passwordResetToken.updateMany({ where: { userId, usedAt: null }, data: { usedAt: now } });
+    await tx.emailVerificationToken.updateMany({ where: { userId }, data: { email: retiredEmail } });
+    await tx.emailVerificationToken.updateMany({ where: { userId, usedAt: null }, data: { usedAt: now } });
+    const devices = await tx.pushSubscription.findMany({ where: { userId }, select: { id: true } });
+    for (const device of devices) await tx.pushSubscription.update({ where: { id: device.id }, data: {
+      endpoint: `https://retired.invalid/${device.id}`, data: {}, authSessionId: null,
+    } });
     await tx.notificationPreference.updateMany({
       where: { userId }, data: { pushEnabled: false, pushSubscription: Prisma.DbNull },
     });
@@ -200,6 +218,9 @@ export async function deleteAccountInTransaction(tx: Prisma.TransactionClient, u
       where: { createdById: userId, acceptedAt: null, revokedAt: null }, data: { revokedAt: now },
     });
     await tx.user.update({
-      where: { id: userId }, data: { deletedAt: now, name: "Deleted account", nickname: null, passwordHash: null, tokenVersion: { increment: 1 } },
+      where: { id: userId }, data: {
+        deletedAt: now, email: retiredEmail, emailVerified: null, moderationEmailHash: emailHash,
+        name: "Deleted account", nickname: null, passwordHash: null, tokenVersion: { increment: 1 },
+      },
     });
 }

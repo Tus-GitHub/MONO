@@ -8,7 +8,12 @@ import type { NotificationCategory } from "@/lib/notifications/prefs";
 import { enqueueNotification } from "@/server/services/notification-delivery-service";
 
 export async function getUnreadNotificationCount(userId: string): Promise<number> {
-  return prisma.notification.count({ where: { userId, readAt: null } });
+  return prisma.notification.count({ where: { ...visibleNotifications(userId), readAt: null } });
+}
+
+// Archived shared content stays locked even after the survivor joins a new couple.
+function visibleNotifications(userId: string): Prisma.NotificationWhereInput {
+  return { userId, OR: [{ coupleId: null }, { couple: { deletedAt: null, status: { in: ["ACTIVE", "PENDING"] }, members: { some: { userId, status: "ACTIVE" } } } }] };
 }
 
 interface FanParams {
@@ -109,7 +114,7 @@ async function fanOut(params: FanParams, opts: { includeActor: boolean }): Promi
 
 export async function listNotifications(userId: string, take = 50) {
   return prisma.notification.findMany({
-    where: { userId },
+    where: visibleNotifications(userId),
     orderBy: { createdAt: "desc" },
     take,
     select: {

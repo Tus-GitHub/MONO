@@ -9,7 +9,7 @@ import { errorMessage } from "@/lib/together/client";
 import type { ChatKey } from "@/lib/together/chat-crypto";
 import type { MessageDTO } from "@/lib/together/types";
 
-export function SecureVideo({ message, body, chatKey, coupleId }: { message: MessageDTO; body: string; chatKey: ChatKey; coupleId: string }) {
+export function SecureVideo({ message, body, chatKey, coupleId, videoUrl }: { message: MessageDTO; body: string; chatKey: ChatKey; coupleId: string; videoUrl?: string }) {
   const meta = videoMetadata(body), [url, setUrl] = useState(""), [busy, setBusy] = useState(false), [progress, setProgress] = useState(0), [error, setError] = useState("");
   const operation = useRef<AbortController | null>(null), resource = useRef(""), blob = useRef<Blob | null>(null);
   useEffect(() => () => { operation.current?.abort(); URL.revokeObjectURL(resource.current); blob.current = null; }, []);
@@ -17,7 +17,7 @@ export function SecureVideo({ message, body, chatKey, coupleId }: { message: Mes
     if (!meta || busy) return;
     const controller = new AbortController(); operation.current = controller; setBusy(true); setError(""); setProgress(0);
     try {
-      const result = await downloadVideo(message, meta, chatKey, coupleId, controller.signal, setProgress);
+      const result = await downloadVideo(message, meta, chatKey, coupleId, controller.signal, setProgress, videoUrl);
       if (controller.signal.aborted) return;
       URL.revokeObjectURL(resource.current); blob.current = result; resource.current = URL.createObjectURL(result); setUrl(resource.current);
     } catch (e) { if (!controller.signal.aborted) setError(errorMessage(e)); }

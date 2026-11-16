@@ -11,6 +11,7 @@ import { SESSION_COOKIE_NAME, verifySession } from "@/lib/auth/session";
 const PROTECTED_PREFIXES = [
   "/admin",
   "/report-account",
+  "/history-access",
   "/home",
   "/dashboard",
   "/onboarding",

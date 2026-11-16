@@ -22,10 +22,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   ]);
 
   return (
-    <AppShell user={user} couple={couple} members={members} unreadCount={unreadCount}>
-      <ThemeApplier theme={settings.theme} />
-      <CoupleSync revision={revision} />
-      {children}
-    </AppShell>
+    <CoupleSync revision={revision}>
+      <AppShell user={user} couple={couple} members={members} unreadCount={unreadCount}>
+        <ThemeApplier theme={settings.theme} />
+        {children}
+      </AppShell>
+    </CoupleSync>
   );
 }

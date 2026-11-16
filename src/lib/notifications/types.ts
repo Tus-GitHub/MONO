@@ -54,6 +54,8 @@ export function notificationHref(n: {
   entityId: string | null;
   data?: unknown;
 }): string {
+  if (n.entityType === "ArchiveAccessAdmin") return "/admin?view=archives";
+  if (n.entityType === "ArchiveAccess") return "/history-access";
   if (n.entityType === "CoupleCall" && n.entityId) return `/chat?call=${encodeURIComponent(n.entityId)}`;
   const dateId = n.entityType === "Date" ? n.entityId : null;
   if (dateId) {

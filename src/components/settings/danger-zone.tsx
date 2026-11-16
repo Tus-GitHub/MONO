@@ -58,8 +58,10 @@ export function DangerZone({
       <div className="rounded-xl border border-error/30 bg-error-tint/40 p-5">
         <p className="text-sm font-medium text-ink">Delete account</p>
         <p className="mt-1 text-sm text-muted">
-          Closes your account and signs you out everywhere. Your shared space is archived too.
-          {" "}Your name and nickname are cleared.
+          Signs you out everywhere and removes your email, name and nickname. Your account ID
+          and saved content are kept, including chat, photos and music. Your shared space is
+          locked; only your remaining partner can ask admin for read-only access. You can
+          register again with the same email as a new account, without access to the old space.
         </p>
 
         {showDelete ? (

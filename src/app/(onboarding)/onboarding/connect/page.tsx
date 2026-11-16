@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { SpaceVerificationGate } from "@/components/auth/space-verification-gate";
 
 import { InvitationManager } from "@/components/onboarding/invitation-manager";
@@ -42,6 +43,7 @@ export default async function ConnectStepPage() {
           </Card>
 
           <WaitingPoll />
+          <Link href="/history-access" className="inline-block text-sm text-primary underline">Your archived spaces</Link>
 
           <details className="rounded-lg border border-line bg-surface px-4 py-3 text-sm">
             <summary className="cursor-pointer font-medium text-ink">
@@ -69,6 +71,7 @@ export default async function ConnectStepPage() {
       </p>
 
       <div className="mt-6">
+        <div className="mb-5 rounded-xl border border-line bg-surface p-4 text-sm"><p className="text-muted">Partner deleted their account? Your saved history stays locked until admin approves access.</p><Link href="/history-access" className="mt-2 inline-block text-primary underline">Your archived spaces</Link></div>
         <SpaceVerificationGate verified={Boolean(user.emailVerified)} email={user.email}>
         <div className="space-y-4">
         <Card>

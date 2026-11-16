@@ -55,15 +55,15 @@ afterEach(async () => {
 });
 afterAll(() => prisma.$disconnect());
 
-it("deletes credentials and revokes access atomically while preserving shared authored history", async () => {
+it("retires credentials and revokes access atomically while preserving shared authored history", async () => {
   await asUser(users[0], () => deleteAccount(users[0]));
   const user = await prisma.user.findUniqueOrThrow({ where: { id: users[0] } });
   expect(user.deletedAt).not.toBeNull();
   expect(user.tokenVersion).toBe(1);
   expect(user.passwordHash).toBeNull();
-  expect(await prisma.account.count({ where: { userId: users[0] } })).toBe(0);
-  expect(await prisma.passwordResetToken.count({ where: { userId: users[0] } })).toBe(0);
-  expect(await prisma.pushSubscription.count({ where: { userId: users[0] } })).toBe(0);
+  expect(await prisma.account.findFirst({ where: { userId: users[0] } })).toMatchObject({ accessToken: null, providerAccountId: expect.stringMatching(/^mono:deleted:/) });
+  expect(await prisma.passwordResetToken.count({ where: { userId: users[0], usedAt: null } })).toBe(0);
+  expect(await prisma.pushSubscription.count({ where: { userId: users[0], NOT: { endpoint: { startsWith: "https://retired.invalid/" } } } })).toBe(0);
   expect(await prisma.authSession.count({ where: { userId: users[0], revokedAt: null } })).toBe(0);
   expect(await prisma.coupleMember.count({ where: { coupleId: couples[0], status: "ACTIVE" } })).toBe(0);
   expect((await prisma.couple.findUniqueOrThrow({ where: { id: couples[0] } })).status).toBe("ARCHIVED");
@@ -124,7 +124,7 @@ it("refuses stale invite and push writes after deletion or archiving", async () 
   await expect(asUser(users[2], () => acceptInvitation(invitationToken, users[2]))).rejects.toThrow();
   const curve = createECDH("prime256v1"); curve.generateKeys();
   await expect(setPushSubscription(users[0], { endpoint: "https://fcm.googleapis.com/fcm/send/fixture", keys: { p256dh: curve.getPublicKey().toString("base64url"), auth: randomBytes(16).toString("base64url") } })).rejects.toMatchObject({ httpStatus: 401 });
-  expect(await prisma.pushSubscription.count({ where: { userId: users[0] } })).toBe(0);
+  expect(await prisma.pushSubscription.count({ where: { userId: users[0], NOT: { endpoint: { startsWith: "https://retired.invalid/" } } } })).toBe(0);
 });
 
 it("revokes any invitation issued concurrently with archiving", async () => {
@@ -155,5 +155,5 @@ it("does not recreate a push capability when registration races account deletion
     asUser(users[0], () => deleteAccount(users[0])),
   ]);
   expect((await prisma.user.findUniqueOrThrow({ where: { id: users[0] } })).deletedAt).not.toBeNull();
-  expect(await prisma.pushSubscription.count({ where: { userId: users[0] } })).toBe(0);
+  expect(await prisma.pushSubscription.count({ where: { userId: users[0], NOT: { endpoint: { startsWith: "https://retired.invalid/" } } } })).toBe(0);
 });

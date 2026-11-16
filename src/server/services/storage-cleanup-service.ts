@@ -84,7 +84,9 @@ export async function processStorageCleanup(options: { now?: Date; limit?: numbe
           return;
         }
       }
-      if (await isActiveMediaKey(job.key)) report.kept++;
+      // Account closure keeps its current profile photo, even while access is locked.
+      const retainedAvatar = await prisma.user.findFirst({ where: { avatarKey: job.key }, select: { id: true } });
+      if (retainedAvatar || await isActiveMediaKey(job.key)) report.kept++;
       else { await storage.delete(job.key); report.removed++; }
       await prisma.storageCleanup.deleteMany({ where: owned });
     } catch {

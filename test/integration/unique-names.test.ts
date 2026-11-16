@@ -14,20 +14,24 @@ import { upsertUserFromOAuthProfile } from "@/lib/auth/oauth/google";
 import { isRegistrationEmailAvailable } from "@/server/services/email-availability-service";
 
 let run:string;
+let createdIds:string[];
 const email=(label:string)=>`names-${run}-${label}@example.invalid`;
-const account=(label:string,name:string)=>registerUser({name,email:email(label),password:"abcdef",confirmPassword:"abcdef"});
-beforeEach(()=>{run=randomUUID()});
-afterEach(async()=>{await prisma.user.deleteMany({where:{email:{in:["email","unused","email-race","a","duplicate","b","c","direct","race-a","race-b","first","second","old","replacement","existing","oauth"].map(email)}}})});
+const account=async(label:string,name:string)=>{const user=await registerUser({name,email:email(label),password:"abcdef",confirmPassword:"abcdef"});createdIds.push(user.id);return user};
+beforeEach(()=>{run=randomUUID();createdIds=[]});
+afterEach(async()=>{await prisma.user.deleteMany({where:{OR:[{id:{in:createdIds}},{email:{in:["email","unused","email-race","a","duplicate","b","c","direct","race-a","race-b","first","second","old","replacement","existing","oauth"].map(email)}}]}})});
 afterAll(()=>prisma.$disconnect());
 
-it("normalizes registration email checks, reports duplicate field errors and honors reserved closed-account emails", async () => {
+it("blocks active duplicate emails and releases a closed account's former email", async () => {
  const first = await account("email", `Email ${run}`);
  expect(await isRegistrationEmailAvailable(`  ${first.email.toUpperCase()}  `)).toBe(false);
  expect(await isRegistrationEmailAvailable(email("unused"))).toBe(true);
  await expect(registerUser({name:first.name,email:first.email.toUpperCase(),password:"abcdef",confirmPassword:"abcdef"})).rejects.toMatchObject({fieldErrors:{email:expect.any(Array)}});
  await expect(prisma.user.create({data:{email:first.email.toUpperCase(),name:first.name}})).rejects.toMatchObject({code:"P2002"});
  await asUser(first.id,()=>deleteAccount(first.id));
- expect(await isRegistrationEmailAvailable(first.email)).toBe(false);
+ expect(await isRegistrationEmailAvailable(first.email)).toBe(true);
+ const replacement=await registerUser({name:first.name,email:first.email.toUpperCase(),password:"newpass",confirmPassword:"newpass"});
+ expect(replacement.id).not.toBe(first.id);
+ expect((await prisma.user.findUniqueOrThrow({where:{id:first.id}})).deletedAt).not.toBeNull();
 });
 
 it("keeps email duplicate errors field-specific when two registrations race", async () => {
@@ -52,6 +56,7 @@ it("allows exact duplicate display names as well as capitalization variants",asy
 it("admits simultaneous registrations with the same name and different emails",async()=>{
  const name=`Race ${run}`;
  const results=await Promise.allSettled([account("race-a",name),account("race-b",name)]);
+ const failed=results.find(result=>result.status==="rejected");if(failed?.status==="rejected")throw failed.reason;
  expect(results.filter(r=>r.status==="fulfilled")).toHaveLength(2);
  expect(await prisma.user.count({where:{name,deletedAt:null}})).toBe(2);
 });

@@ -111,7 +111,7 @@ export async function moderateAccount(input: unknown) {
   return serializable(async (tx) => {
     const admin = await requireAdmin(tx);
     const target = await tx.user.findUnique({ where: { id: data.targetId }, select: {
-      id: true, email: true, moderationEmailHash: true, deletedAt: true, avatarKey: true,
+      id: true, email: true, moderationEmailHash: true, deletedAt: true,
     } });
     if (!target) throw new NotFoundError("Account not found.");
     const hash = target.moderationEmailHash ?? emailFingerprint(target.email);
@@ -130,13 +130,6 @@ export async function moderateAccount(input: unknown) {
     if (data.action === "DELETE") {
       if (target.deletedAt) throw new ConflictError("This account has already been deleted.");
       await deleteAccountInTransaction(tx, target.id);
-      if (target.avatarKey) await tx.storageCleanup.upsert({ where: { key: target.avatarKey },
-        create: { key: target.avatarKey }, update: { failedAt: null, nextAttemptAt: now } });
-      // Keep only a fingerprint for subsequent email blocking; self-deletion semantics stay unchanged.
-      await tx.user.update({ where: { id: target.id }, data: {
-        moderationEmailHash: hash, email: `deleted-${target.id}@accounts.invalid`, emailVerified: null,
-        avatarUrl: null, avatarKey: null, birthday: null, pronouns: null,
-      } });
     } else if (data.action === "BLOCK_EMAIL") {
       await tx.emailBlock.upsert({ where: { emailHash: hash }, create: {
         emailHash: hash, accountId: target.id, blockedById: admin.id, reason: data.reason,

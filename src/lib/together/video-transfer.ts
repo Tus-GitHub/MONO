@@ -41,8 +41,7 @@ export function videoMetadata(body: string) {
     return { name, type: m.type as string, size: m.size as number, chunkCount: m.chunkCount as number };
   } catch { return null; }
 }
-export async function downloadVideo(message: MessageDTO, metadata: NonNullable<ReturnType<typeof videoMetadata>>, key: ChatKey, coupleId: string, signal: AbortSignal, progress: (value: number) => void) {
-  const path = `/api/together/videos/${message.id}`;
+export async function downloadVideo(message: MessageDTO, metadata: NonNullable<ReturnType<typeof videoMetadata>>, key: ChatKey, coupleId: string, signal: AbortSignal, progress: (value: number) => void, path = `/api/together/videos/${message.id}`) {
   const manifest = await togetherFetch<{ chunkCount: number; byteLength: number }>(path, { signal });
   if (manifest.chunkCount !== metadata.chunkCount || manifest.byteLength !== metadata.size) throw new Error("Video metadata does not match its encrypted chunks.");
   const parts: Blob[] = [];

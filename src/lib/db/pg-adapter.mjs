@@ -25,5 +25,35 @@ export function databaseDriverConfig(connectionString) {
 
 export function createDatabaseAdapter(connectionString) {
   const { pool, schema } = databaseDriverConfig(connectionString);
-  return new PrismaPg(pool, { schema });
+  const factory = new PrismaPg(pool, { schema });
+  const connect = factory.connect.bind(factory);
+  factory.connect = async () => {
+    const adapter = await connect();
+    const startTransaction = adapter.startTransaction.bind(adapter);
+    adapter.startTransaction = async (...args) => releaseFailedCommit(await startTransaction(...args));
+    return adapter;
+  };
+  return factory;
+}
+
+/** Prisma 6's JS engine can skip adapter cleanup when the SQL COMMIT itself fails. */
+export function releaseFailedCommit(transaction) {
+  const execute = transaction.executeRaw.bind(transaction);
+  const commit = transaction.commit.bind(transaction), rollback = transaction.rollback.bind(transaction);
+  let released = false;
+  const release = async (finish) => { if (released) return; released = true; await finish(); };
+  transaction.commit = () => release(commit);
+  transaction.rollback = () => release(rollback);
+  transaction.executeRaw = async (query) => {
+    try { return await execute(query); }
+    catch (error) {
+      if (query.sql.trim().toUpperCase() === "COMMIT") {
+        try { await execute({ sql: "ROLLBACK", args: [], argTypes: [] }); }
+        catch { /* The database may already have rolled back or closed the connection. */ }
+        try { await release(rollback); } catch { /* Preserve the original database error. */ }
+      }
+      throw error;
+    }
+  };
+  return transaction;
 }

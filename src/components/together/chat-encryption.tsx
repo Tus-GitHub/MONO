@@ -7,7 +7,7 @@ import { chatAAD, decryptBytes, decryptText, encryptBytes, encryptText, newRecov
 import { togetherFetch, errorMessage } from "@/lib/together/client";
 import type { MessageDTO } from "@/lib/together/types";
 
-export function ChatEncryption({ coupleId, userId, keyId, onUnlock, refresh }: { coupleId: string; userId: string; keyId: string | null; onUnlock: (key: ChatKey) => void; refresh: () => Promise<void> }) {
+export function ChatEncryption({ coupleId, userId, keyId, onUnlock, refresh, readOnly = false }: { coupleId: string; userId: string; keyId: string | null; onUnlock: (key: ChatKey) => void; refresh: () => Promise<void>; readOnly?: boolean }) {
   const [code, setCode] = useState(""), [generated, setGenerated] = useState(false), [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [status, setStatus] = useState("Checking this device…");
   const scope = `${userId}:${coupleId}`;
@@ -17,18 +17,19 @@ export function ChatEncryption({ coupleId, userId, keyId, onUnlock, refresh }: {
     return () => { live = false; };
   }, [scope, keyId, onUnlock]);
   const unlock = async () => {
-    if (busy || (!keyId && (!generated || !saved))) return;
+    if (busy || (readOnly && !keyId) || (!keyId && (!generated || !saved))) return;
     setBusy(true); setError("");
     try {
       const key = await recoverChatKey(code, coupleId);
-      if (keyId && key.id !== keyId) throw new Error("That code does not match this chat. Ask your partner for the original code.");
+      if (keyId && key.id !== keyId) throw new Error(readOnly ? "That code does not match this archived chat. Use the original recovery code." : "That code does not match this chat. Ask your partner for the original code.");
       // Persist before registering. Failure must not leave a server key with no local copy.
       await storedChatKey(scope, key);
-      await togetherFetch("/api/together/encryption", { body: { action: "register", keyId: key.id } });
+      if (!readOnly) await togetherFetch("/api/together/encryption", { body: { action: "register", keyId: key.id } });
       setCode(""); await refresh(); onUnlock(key);
     } catch (error) { setError(errorMessage(error)); }
     finally { setBusy(false); }
   };
+  if (readOnly && !keyId) return null;
   return <div className="space-y-3 border-b border-line bg-surface p-4">
     <h2 className="font-display text-lg">{keyId ? "Unlock encrypted chat" : "Secure your chat"}</h2>
     <p className="text-sm text-muted">Messages, stickers, photos and documents are encrypted on your device. This browser remembers your key and unlocks automatically next time.</p>
