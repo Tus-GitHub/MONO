@@ -1,7 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { ConflictError, ValidationError } from "@/lib/errors";
-import { CHAT_IMAGE_SPACE } from "@/lib/together/catalog";
 import { STICKER_LIMIT } from "@/lib/together/stickers";
 import { encryptedStickerSchema } from "@/lib/validation/chat-security";
 import { assertChatKey } from "./chat-security-service";
@@ -30,8 +29,6 @@ export async function sendEncryptedSticker(value: unknown) {
       return existing;
     }
     await checkMessageRate(tx, context.user.id);
-    const used = await tx.chatImage.aggregate({ where: { coupleId: context.couple.id }, _sum: { byteLength: true } });
-    if ((used._sum.byteLength ?? 0) + bytes.length > CHAT_IMAGE_SPACE) throw new ValidationError("Your shared attachment storage is full (25 MB). Delete an attachment for everyone to free space.");
     const message = await tx.chatMessage.create({ data: { coupleId: context.couple.id, senderId: context.user.id, kind: "STICKER", encrypted: true, clientNonce: input.clientNonce, body: input.body,
       image: { create: { coupleId: context.couple.id, bytes, byteLength: bytes.length, width: input.width, height: input.height, contentType: "image/png", encrypted: true, iv: input.iv, viewLimit: 0 } },
     }, include: { image: { select: imageSelect } } });

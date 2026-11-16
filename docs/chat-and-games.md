@@ -32,7 +32,7 @@ game matches and call signaling to the existing PostgreSQL database. No addition
 service or provider account is required. Existing hosting/database/network quotas apply.
 
 Images are checked by byte signature and re-encoded by the existing Sharp pipeline, with
-a maximum stored size of 512 KiB per image and 25 MiB per couple. The browser previews the
+a maximum prepared encrypted photo size of 512 KiB per image, with no total per-couple quota. The browser previews the
 chosen image and sends only after an explicit Send image click. Images are served through
 an authenticated, couple-scoped endpoint with private no-store headers. Polling never selects
 blob bytes. Messages are paged in batches of 60 and use sender-scoped retry nonces. Message
@@ -40,8 +40,8 @@ sends are limited to 90/minute per sender; image uploads also use the existing u
 
 Incremental HTTP polling pauses in hidden tabs and backs off when idle. It is not a
 WebSocket/push service: both partners must have MONO open for live conversation and incoming
-calls. The header supplies an unread badge throughout the authenticated app. Chat data is
-access controlled but is not end-to-end encrypted. Existing planner portable archives (v1)
+calls. The header supplies an unread badge throughout the authenticated app. Chat text, documents, photos and custom stickers are
+end-to-end encrypted with device-held keys; see `encrypted-chat.md`. Existing planner portable archives (v1)
 do not include chat/game history or chat image blobs; use a complete database backup to
 back up these records. Restoring a planner archive into a space containing new chat/game/call
 history is blocked to avoid overwriting an occupied space.
@@ -92,3 +92,19 @@ pagination catch-up, hidden state, read receipts, image scope/quota, revoked mem
 concurrent results, score integrity and call signaling/expiry. Unit tests play all 24 games
 to terminal outcomes and cover media permission deadline/cancellation/late-stream cleanup.
 See `docs/testing.md` for the dated browser and build evidence.
+
+## Temporary match chat and rematches (2026-11-16)
+
+Active matches show inline text chat below the Resign control, alongside the board on desktop.
+Text stays in React memory and a DTLS-encrypted WebRTC data channel; it is never sent to a
+message API, database, localStorage or IndexedDB. Both players need the match open. There is
+no persisted fallback if the peer connection fails. Only bounded negotiation metadata goes
+through authenticated, couple-scoped signaling, encrypted at rest and pruned after two minutes
+or match finish. Existing configured ICE/TURN servers are reused. Reloading/leaving clears the
+local transcript; finishing unmounts chat for both players. Reconnect creates a new peer session.
+
+A result popup names the winner or draw, with reduced-motion-aware celebration. Play again
+creates a five-minute consent request on the finished match. The recipient sees a popup on
+Games, History or Scores; accepting atomically creates one new active match and alternates
+starters. Repeated acceptance is idempotent, old scores remain unchanged, and no rematch
+invitation is added to main chat. Decline/cancel/expiration never resets a board.

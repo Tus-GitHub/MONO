@@ -75,7 +75,7 @@ nonce. Retrying an unconfirmed send keeps its nonce to avoid duplicate messages.
 **Our stickers** shows up to 32 distinct creations from the most recent 120 accessible
 custom-sticker messages, deduplicated on the device. This is shared recent history, not a
 separate permanent sticker pack. Hide/delete actions also govern library availability.
-Stickers use the existing 25 MB shared attachment quota, membership checks, private media
+Stickers have no per-couple storage quota and retain membership checks, private media
 route and deletion rules. No database migration or added dependency is required.
 
 ## Security boundaries

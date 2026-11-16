@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { chatActionSchema, chatKeyIdSchema, encryptedImageSchema, migrateChatSchema } from "@/lib/validation/chat-security";
-import { CHAT_IMAGE_LIMIT, CHAT_IMAGE_SPACE } from "@/lib/together/catalog";
+import { CHAT_IMAGE_LIMIT } from "@/lib/together/catalog";
 import { requireTogether, withTogetherWrite, bumpTogether, type TogetherContext } from "./together-context";
 import { checkMessageRate, imageSelect, messageDTO } from "./together-service";
 
@@ -33,8 +33,6 @@ export async function sendEncryptedImage(value: unknown) {
     const existing = await tx.chatMessage.findUnique({ where: { senderId_clientNonce: { senderId: context.user.id, clientNonce: input.clientNonce } }, include: { image: { select: imageSelect } } });
     if (existing) { if (existing.coupleId !== context.couple.id || existing.kind !== "IMAGE") throw new ConflictError("Start a fresh image message."); return existing; }
     await checkMessageRate(tx, context.user.id);
-    const used = await tx.chatImage.aggregate({ where: { coupleId: context.couple.id }, _sum: { byteLength: true } });
-    if ((used._sum.byteLength ?? 0) + bytes.length > CHAT_IMAGE_SPACE) throw new ValidationError("Your shared chat image storage is full (25 MB).");
     const result = await tx.chatMessage.create({ data: { coupleId: context.couple.id, senderId: context.user.id, kind: "IMAGE", encrypted: true, clientNonce: input.clientNonce,
       image: { create: { coupleId: context.couple.id, bytes, byteLength: bytes.length, width: input.width, height: input.height, contentType: "image/jpeg", encrypted: true, iv: input.iv, viewLimit: input.viewLimit } } }, include: { image: { select: imageSelect } } });
     await bumpTogether(tx, context.couple.id); return result;

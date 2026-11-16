@@ -22,6 +22,7 @@ const suites = { journey: ["journey.mjs", "runJourney"], account: ["account.mjs"
 suites.moderation = ["moderation.mjs", "runModeration"];
 suites.chatPlanner = ["chat-planner.mjs", "runChatPlanner"];
 suites.controls = ["custom-controls.mjs", "runControlsSuite"];
+suites.gameExperience = ["game-experience.mjs", "runGameExperience"];
 suites.chatStickers = ["chat-stickers.mjs", "runChatStickers"];
 const selected = process.argv.slice(2).length ? process.argv.slice(2) : engine === "firefox" ? ["compatibility"] : Object.keys(suites);
 if (selected.some((name) => !suites[name])) throw new Error("Choose journey, account, pagination, workflows, compatibility, settings, registration, states, or moderation.");
@@ -58,7 +59,8 @@ Object.assign(process.env, {
   MONO_DISABLE_BUILD_CACHE: "1",
   MONO_QA_DIST_DIR: `.next-qa/${runId}`,
 });
-const serverEnv = { ...process.env };
+const prebuilt = process.env.MONO_E2E_PREBUILT === "1";
+const serverEnv = { ...process.env, ...(prebuilt ? { NODE_ENV: "test", MONO_QA_DIST_DIR: "" } : {}) };
 const trackedGeneratedFiles = ["next-env.d.ts", "tsconfig.json"];
 const originals = new Map(await Promise.all(trackedGeneratedFiles.map(async (file) => {
   try { return [file, await readFile(file)]; }
@@ -144,7 +146,7 @@ try {
   }
   for (const name of selected) {
     await assertFreePort();
-    server = launch(["node_modules/next/dist/bin/next", "dev", ...(process.env.MONO_E2E_BUNDLER === "webpack" ? ["--webpack"] : []), "--hostname", "127.0.0.1", "--port", String(port)]);
+    server = launch(["node_modules/next/dist/bin/next", prebuilt ? "start" : "dev", ...(!prebuilt && process.env.MONO_E2E_BUNDLER === "webpack" ? ["--webpack"] : []), "--hostname", "127.0.0.1", "--port", String(port)]);
     await ready(server);
     console.log(`RUN ${name} (${baseUrl}, isolated fixtures)`);
     const [file, entry] = suites[name];

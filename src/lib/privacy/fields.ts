@@ -1,6 +1,6 @@
 /** Public venue catalog fields and operational IDs/statuses/dates are intentionally searchable. */
 export const privateTextFields: Record<string, readonly string[]> = {
-  UserAudio: ["filename"], SiteAudio: ["title"],
+  AudioUpload: ["name"], UserAudio: ["filename"], SiteAudio: ["title"],
   User: ["email", "name", "nickname", "pronouns"],
   AdminAccess: ["loginAlias"],
   Account: ["accessToken", "refreshToken", "idToken"],
@@ -26,10 +26,10 @@ export const privateTextFields: Record<string, readonly string[]> = {
   EmailBlock: ["reason"],
 };
 export const privateJsonFields: Record<string, readonly string[]> = {
-  Notification: ["data"], DateEvent: ["meta"], GameMatch: ["state"], CallSignal: ["payload"],
+  Notification: ["data"], DateEvent: ["meta"], GameMatch: ["state"], CallSignal: ["payload"], GameChatSignal: ["payload"],
   PushSubscription: ["data"], NotificationPreference: ["pushSubscription"],
 };
-export const privateBytesFields: Record<string, readonly string[]> = { ChatImage: ["bytes"], UserAudio: ["ringtone"], SiteAudio: ["bytes"] };
+export const privateBytesFields: Record<string, readonly string[]> = { AudioUpload: ["bytes"], ChatImage: ["bytes"], UserAudio: ["ringtone"], SiteAudio: ["bytes"] };
 export const identityLookupFields: Record<string, Record<string, string>> = {
   User: { email: "emailLookup", name: "nameLookup" },
   AdminAccess: { loginAlias: "aliasLookup" },

@@ -1,3 +1,30 @@
+## Game chat, rematches, audio and storage release (2026-11-16) — READY TO DEPLOY
+Removed total per-couple attachment quotas and the user-facing 25 MB counter. Photo,
+document and custom-sticker sends retain encryption, authentication, per-file bounds and
+rate protection. Admin sees aggregate attachment bytes/count and actual PostgreSQL size;
+provider capacity remains admin-managed. No existing user files were deleted.
+
+Game chat is inline beneath Resign, uses a DTLS WebRTC data channel, and keeps message text
+only in open-browser memory. Metadata-only signaling is encrypted, scoped and expiring.
+Finish clears chat and shows a winner/draw popup. Rematch consent is stored on the finished
+match; accept creates one new match with alternating starters and no main-chat invitation.
+Custom stickers have a direct attachment-sheet shortcut. Admin songs use bounded encrypted
+1 MiB upload chunks up to 10 MiB; full/range playback streams. Personal ringtone bounds remain
+2 MiB. Videos remain explicitly deferred until after this game release.
+
+Validation: 579 unit tests; 46 focused database tests; focused ESLint and TypeScript; successful
+production build (97 routes, largest trace 27.35 MiB). Production-bundle browser verification
+passed 7 game/admin groups (.postgres-test/e2e/541860f74ab3c259) and 7 sticker groups
+(.postgres-test/e2e/3014b8f93879e5ab). Game checks prove two-way text without message API/DB
+writes, finish cleanup, result popup, accepted rematch opening for both users, responsive
+320/390/768/1440 widths and admin usage/10 MB controls. Sticker shortcut, documents, retries,
+encrypted bytes, reload/partner reuse passed. All disposable local accounts were cleaned.
+Initial dev-mode runs were interrupted by on-demand compilation reloads and synthetic clicks
+under the fixed navigation; production bundles plus hit-tested clicks resolve the harness
+failures. An immediate resize measurement now waits for viewport animation to settle.
+The prebuilt QA runner uses NODE_ENV=test with production bundles against loopback fixtures;
+production's environment guards were not weakened. Live verification follows deployment.
+
 ## Chat sticker release (2026-11-16) — PUBLISHED
 Published 7fac26ab38e45203c0810683102cd6a5acb7e99a to origin/main successfully, retaining
 upstream f55ee1c and the completed venue/control work. Vercel deployment
@@ -92,6 +119,8 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Game experience and audio (2026-11-16)** — temporary inline chat, result/rematch flow, sticker discovery and 10 MB admin songs; implementation and verification underway.
 
 
 
@@ -1823,6 +1852,10 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-16 — Game chat, rematches and 10 MB admin audio — IN PROGRESS
+User requests 10 MB admin soundtrack uploads; same-page temporary game chat below a raised Resign control; winner celebration; mutual rematch popup without a new main-chat invitation; and discoverable custom stickers. Inspecting existing game/audio/sticker services and Plato's official game/chat reference. Use WebRTC data channels for chat content that never enters the database or browser storage; persist only bounded expiring negotiation metadata. Chunk admin uploads to respect Vercel request limits. Preserve encrypted storage, scores and couple isolation.
+
 
 ### 2026-11-16 — Chat expression picker and private custom stickers — DONE
 - Replaced crowded expanding tools with attachment cards under + and dedicated searchable Emoji/Stickers tabs. Added a local preview/name creator; explicit Send & save sends encrypted PNG and encrypted identity/name. Both partners can reuse accessible recent creations; fresh encryption per send, stable retry nonce, existing quota/auth/deletion rules.
@@ -4260,3 +4293,8 @@ Only synthetic QA data was used. Real-user recovery setup/history migration and 
 phone behavior are not claimed complete. Final evidence documentation is being published.
 ## Planner popup refinement (2026-11-16)
 User supplied a DateFlow reference and requested MONO-styled icon tiles in an Add-stop popup, replacing the crowded inline options and eliminating scrolling back up to add the next stop. Implement compact editable route cards with an Add a stop control below the route; selecting a tile goes directly to matching venues. Continue authorized deployment/privacy backfill and live validation alongside this refinement.
+
+### 2026-11-16 — Remove couple storage quota — IN PROGRESS
+- User requests no total storage quota or delete-old-images requirement. Remove the former 25 MB per-couple attachment cap/counter; admin-only aggregate storage overview. Physical hosting capacity remains admin-managed. Existing technical per-file limits remain; videos deferred explicitly until games complete.
+
+- Validation update: 46 focused integration checks passed across games, privacy/signaling, no-quota uploads, admin totals and 10 MB audio. A large-buffer assertion was changed to SHA-256 equality (same byte verification, avoids slow test comparison). Development-browser runs exposed first-compilation reloads and occluded synthetic clicks; moving final browser verification to the production build and using hit-tested controls.

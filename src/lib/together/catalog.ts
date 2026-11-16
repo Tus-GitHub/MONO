@@ -24,4 +24,3 @@ export const EMOJI_OPTIONS = [
   ["🏠", "home together"], ["🐱", "cat pet"], ["🐶", "dog pet"], ["🧸", "teddy bear hug"],
 ] as const;
 export const CHAT_IMAGE_LIMIT = 512 * 1024;
-export const CHAT_IMAGE_SPACE = 25 * 1024 * 1024;

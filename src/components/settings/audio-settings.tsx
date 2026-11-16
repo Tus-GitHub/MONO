@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { AUDIO_ACCEPT, AUDIO_LIMIT } from "@/lib/audio/file";
+import { AUDIO_ACCEPT, AUDIO_LIMIT, MUSIC_LIMIT } from "@/lib/audio/file";
 import { audioChanged, uploadAudio, type AudioSettings } from "@/lib/audio/client";
 import { togetherFetch, errorMessage } from "@/lib/together/client";
 import { CALL_TONE_URL } from "@/lib/together/ringtone";
@@ -11,13 +11,15 @@ import { MusicControls } from "./background-music";
 export function AudioSettingsCard({ admin = false }: { admin?: boolean }) {
   const [settings, setSettings] = useState<AudioSettings | null>(null), [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [success, setSuccess] = useState("");
+  const [progress, setProgress] = useState(0);
+  const limit = admin ? MUSIC_LIMIT : AUDIO_LIMIT, limitLabel = admin ? "10 MB" : "2 MB";
   const picker = useRef<HTMLInputElement | null>(null);
   useEffect(() => { let live = true; void togetherFetch<AudioSettings>("/api/audio").then((value) => { if (live) setSettings(value); }).catch((e) => { if (live) setError(errorMessage(e)); }); return () => { live = false; }; }, []);
   const save = async (remove = false) => {
     if (busy || (!file && !remove)) return;
-    setBusy(true); setError(""); setSuccess("");
+    setBusy(true); setProgress(0); setError(""); setSuccess("");
     try {
-      const next = remove ? await togetherFetch<AudioSettings>("/api/audio", { body: { action: admin ? "remove-music" : "remove-ringtone" } }) : await uploadAudio(file!, admin ? "music" : "ringtone");
+      const next = remove ? await togetherFetch<AudioSettings>("/api/audio", { body: { action: admin ? "remove-music" : "remove-ringtone" } }) : await uploadAudio(file!, admin ? "music" : "ringtone", setProgress);
       setSettings(next); audioChanged(next); setFile(null); setSuccess(remove ? "Sound removed." : admin ? "Background song updated for MONO users." : "Your ringtone is saved.");
     } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   };
@@ -26,9 +28,10 @@ export function AudioSettingsCard({ admin = false }: { admin?: boolean }) {
     <p className="text-sm text-muted">{admin ? "Share one background song across MONO. Each user controls playback and volume; their starting volume is 20%." : "Choose what plays on this account when making or receiving a call."}</p>
     <p className="break-all text-sm">{admin ? settings?.music?.title ?? "No background song" : settings?.ringtoneName ?? "Anywhere With You · default"}</p>
     {settings && (!admin || settings.music) ? <audio controls preload="none" className="w-full" aria-label={admin ? "Background song preview" : "Ringtone preview"} src={admin ? `/api/audio?kind=music&v=${encodeURIComponent(settings.music!.version)}` : settings.ringtoneVersion ? `/api/audio?kind=ringtone&v=${encodeURIComponent(settings.ringtoneVersion)}` : CALL_TONE_URL} /> : null}
-    <input ref={picker} className="sr-only" type="file" accept={AUDIO_ACCEPT} aria-label={admin ? "Choose background song" : "Choose ringtone"} disabled={busy} onChange={(event) => { const next = event.target.files?.[0]; event.target.value = ""; if (!next) return; setSuccess(""); if (!next.size || next.size > AUDIO_LIMIT) { setError("Choose an audio file up to 2 MB."); return; } setError(""); setFile(next); }} />
+    <input ref={picker} className="sr-only" type="file" accept={AUDIO_ACCEPT} aria-label={admin ? "Choose background song" : "Choose ringtone"} disabled={busy} onChange={(event) => { const next = event.target.files?.[0]; event.target.value = ""; if (!next) return; setSuccess(""); if (!next.size || next.size > limit) { setError(`Choose an audio file up to ${limitLabel}.`); return; } setError(""); setFile(next); }} />
     <div className="flex flex-wrap gap-2"><Button variant="secondary" disabled={busy} onClick={() => picker.current?.click()}><Icon name="upload" size="sm" />Choose audio</Button>{file ? <Button loading={busy} onClick={() => void save()}>{admin ? "Publish song to MONO" : "Save ringtone"}</Button> : null}{(admin ? settings?.music : settings?.ringtoneName) ? <Button variant="ghost" disabled={busy} onClick={() => void save(true)}>{admin ? "Remove song" : "Use default ringtone"}</Button> : null}</div>
-    {file ? <p className="break-all text-sm">Ready: {file.name}</p> : null}<p className="text-xs text-muted">MP3, M4A, WAV or Ogg · up to 2 MB. MP3 works across the most devices. {admin ? "Upload audio you have permission to share." : "Your browser may require a tap before it can play sound."}</p>
+    {file ? <p className="break-all text-sm">Ready: {file.name}</p> : null}<p className="text-xs text-muted">MP3, M4A, WAV or Ogg · up to {limitLabel}. MP3 works across the most devices. {admin ? "Upload audio you have permission to share." : "Your browser may require a tap before it can play sound."}</p>
+    {busy && file && admin ? <p role="status" className="text-xs text-muted">{progress < 100 ? `Uploading song · ${progress}%` : "Publishing song…"}</p> : null}
     {error ? <p role="alert" className="text-sm text-error">{error}</p> : null}{success ? <p role="status" className="text-sm text-success">{success}</p> : null}
     {!admin ? <div className="space-y-4 border-t border-line pt-4"><h3 className="font-medium">Background music</h3><MusicControls /></div> : null}
   </section>;

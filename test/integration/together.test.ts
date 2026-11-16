@@ -13,7 +13,6 @@ import { GAME_LABEL, newGame, movableTokens, type GameKind, type GameMove, type 
 import { getGameHistory } from "@/server/services/game-history-service";
 import { recentGames } from "@/lib/together/game-list";
 import { legalArcadeMoves } from "@/lib/together/arcade-view";
-import { CHAT_IMAGE_SPACE } from "@/lib/together/catalog";
 import { sendEncryptedImage, registerChatKey } from "@/server/services/chat-security-service";
 const keyId = "ab".repeat(32);
 
@@ -107,11 +106,11 @@ it("persists private images, deduplicates retries, excludes bytes from polling a
   await prisma.coupleMember.updateMany({ where: { userId: partner }, data: { status: "LEFT" } });
   expect((await asUser(partner, load)).status).not.toBe(200);
 });
-it("rejects an image once the shared quota is full without leaving a partial message", async () => {
+it("allows new attachments beyond the former 25 MB couple quota", async () => {
   // Simulate the existing usage total without allocating a full quota of image buffers.
-  await prisma.chatMessage.create({ data: { coupleId: couple, senderId: owner, clientNonce: randomUUID(), kind: "IMAGE", image: { create: { coupleId: couple, byteLength: CHAT_IMAGE_SPACE, bytes: new Uint8Array(png), contentType: "image/png", width: 1, height: 1 } } } });
-  await expect(asUser(owner, () => sendEncryptedImage({ ...image, clientNonce: randomUUID() }))).rejects.toThrow(/full/);
-  expect(await prisma.chatMessage.count({ where: { coupleId: couple } })).toBe(1);
+  await prisma.chatMessage.create({ data: { coupleId: couple, senderId: owner, clientNonce: randomUUID(), kind: "IMAGE", image: { create: { coupleId: couple, byteLength: 26 * 1024 * 1024, bytes: new Uint8Array(png), contentType: "image/png", width: 1, height: 1 } } } });
+  await asUser(owner, () => sendEncryptedImage({ ...image, clientNonce: randomUUID() }));
+  expect(await prisma.chatMessage.count({ where: { coupleId: couple } })).toBe(2);
 });
 function openingMove(state: GameState, side: Player): GameMove {
   if (state.type === "LUDO") return state.die ? { type: "token", token: movableTokens(state)[0] } : { type: "roll" };

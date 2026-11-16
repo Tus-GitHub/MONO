@@ -6,6 +6,7 @@ export const sequenceSchema = z.string().regex(/^\d{1,19}$/).transform(BigInt).r
 const nonce = z.string().uuid();
 export const gameMoveSchema = z.union([arcadeMove, z.object({ type: z.literal("token"), token: z.number().int().min(0).max(3) })]);
 export const gameActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.enum(["rematch-request", "rematch-accept", "rematch-decline", "rematch-cancel"]), id: idSchema, version: z.number().int().nonnegative() }),
   z.object({ action: z.literal("create"), kind: z.nativeEnum(MiniGameKind), clientNonce: nonce }),
   z.object({ action: z.literal("accept"), id: idSchema, version: z.number().int().nonnegative() }),
   z.object({ action: z.literal("decline"), id: idSchema, version: z.number().int().nonnegative() }),

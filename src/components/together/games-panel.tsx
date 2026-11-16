@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search";
 import { Icon } from "@/components/ui/icon";
@@ -11,14 +11,17 @@ import { recentGames } from "@/lib/together/game-list";
 import Link from "@/components/ui/app-link";
 import { GameMatchList } from "./game-match-list";
 import GameBoard from "./game-board";
+import { GameChat } from "./game-chat";
+import { GameOutcome, rematchPending } from "./game-rematch";
 
-export default function GamesPanel({ games, scores, userId, userName, partnerName, selectedId, onSelect, refresh, mode, observedAt, timezone, initialGame = null, onChat }: {
+export default function GamesPanel({ games, scores, userId, userName, partnerName, selectedId, onSelect, refresh, mode, observedAt, timezone, initialGame = null }: {
   games: GameDTO[]; scores: ScoreDTO[]; userId: string; userName: string; partnerName: string;
   selectedId: string | null; onSelect: (id: string | null) => void; refresh: () => Promise<void>; mode: "games" | "scores";
-  observedAt: string; timezone: string; initialGame?: GameDTO | null; onChat: () => void;
+  observedAt: string; timezone: string; initialGame?: GameDTO | null;
 }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null), [search, setSearch] = useState("");
   const [detail, setDetail] = useState<GameDTO | null>(initialGame), [confirmResign, setConfirmResign] = useState(false);
+  const awaitingRematch = useRef<string | null>(null);
   const latest = games.find((game) => game.id === selectedId), local = detail?.id === selectedId ? detail : null;
   const selected = local && (!latest || local.version > latest.version) ? local : latest ?? null;
   useEffect(() => {
@@ -27,10 +30,16 @@ export default function GamesPanel({ games, scores, userId, userName, partnerNam
     void togetherFetch<GameDTO>(`/api/together/games?id=${selectedId}`).then((game) => { if (live) setDetail(game); }).catch((error) => { if (live) setError(errorMessage(error)); });
     return () => { live = false; };
   }, [selectedId, selected]);
+  useEffect(() => {
+    if (selected?.rematchRequestedById === userId && rematchPending(selected)) awaitingRematch.current = selected.id;
+    if (selected?.rematchGameId && awaitingRematch.current === selected.id) {
+      awaitingRematch.current = null; onSelect(selected.rematchGameId);
+    }
+  }, [selected, userId, onSelect]);
   const act = async (body: unknown) => {
     if (busy) return;
     setBusy(true); setError(null);
-    try { const game = await togetherFetch<GameDTO>("/api/together/games", { body }); setDetail(game); onSelect(game.id); await refresh(); }
+    try { const game = await togetherFetch<GameDTO>("/api/together/games", { body }); setDetail(game); if (game.id !== selectedId) onSelect(game.id); await refresh(); }
     catch (error) { setError(errorMessage(error)); await refresh().catch(() => {}); }
     finally { setBusy(false); setConfirmResign(false); }
   };
@@ -42,16 +51,21 @@ export default function GamesPanel({ games, scores, userId, userName, partnerNam
       : selected.status === "ACTIVE" ? selected.kind === "ROCK_PAPER_SCISSORS" ? "Both choose privately" : currentName : selected.status === "CANCELLED" ? "Invitation cancelled" : "Invitation declined";
     const version = { id: selected.id, version: selected.version };
     return <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-2"><Button variant="ghost" onClick={() => { onSelect(null); setError(null); }}>← All 24 games</Button><Button variant="secondary" leadingIcon={<Icon name="message" />} onClick={onChat}>Chat while playing</Button></div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><Button variant="ghost" onClick={() => { onSelect(null); setError(null); }}>← All 24 games</Button></div>
       <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-display text-2xl text-ink">{GAME_LABEL[selected.kind]}</h2><p role="status" className="text-sm text-muted">{status} · You are Player {side + 1}</p></div>
-        {selected.status === "FINISHED" || selected.status === "DECLINED" || selected.status === "CANCELLED" ? <Button disabled={busy} onClick={() => void act({ action: "create", kind: selected.kind, clientNonce: crypto.randomUUID() })}>Invite for a rematch</Button> : null}</div>
+        {selected.status === "FINISHED" ? <GameOutcome game={selected} userId={userId} partnerName={partnerName} userName={userName} busy={busy} onRequest={() => { awaitingRematch.current = selected.id; void act({ ...version, action: "rematch-request" }); }} onCancel={() => { awaitingRematch.current = null; void act({ ...version, action: "rematch-cancel" }); }} onOpen={() => onSelect(selected.rematchGameId!)} /> : selected.status === "DECLINED" || selected.status === "CANCELLED" ? <Button disabled={busy} onClick={() => void act({ action: "create", kind: selected.kind, clientNonce: crypto.randomUUID() })}>Invite again</Button> : null}</div>
       <details className="rounded-xl border border-line bg-surface p-4"><summary className="cursor-pointer text-sm font-medium">How to play</summary><p className="mt-3 text-sm text-muted">{GAME_RULES[selected.kind]}</p></details>
       {error ? <p role="alert" className="text-sm text-error">{error}</p> : null}
       {selected.status === "WAITING" ? <div className="flex flex-wrap gap-2">{side === 1 ? <><Button loading={busy} onClick={() => void act({ ...version, action: "accept" })}>Accept game</Button><Button variant="secondary" disabled={busy} onClick={() => void act({ ...version, action: "decline" })}>Decline</Button></>
         : <Button variant="secondary" disabled={busy} onClick={() => void act({ ...version, action: "cancel" })}>Cancel invitation</Button>}</div> : null}
-      <GameBoard key={`${selected.id}:${selected.version}`} game={selected} userId={userId} busy={busy} play={(move: GameMove) => void act({ ...version, action: "move", move })} />
-      {selected.status === "ACTIVE" ? <div className="border-t border-line pt-4">{confirmResign ? <div className="flex flex-wrap items-center gap-2"><p className="text-sm text-muted">Your partner will receive the win for this match.</p><Button disabled={busy} onClick={() => void act({ ...version, action: "resign" })}>Confirm resignation</Button><Button variant="ghost" onClick={() => setConfirmResign(false)}>Keep playing</Button></div>
-        : <Button variant="ghost" onClick={() => setConfirmResign(true)}>Resign this match</Button>}</div> : null}
+      <div className="grid items-start gap-5 lg:grid-cols-2">
+        <div className="min-w-0"><GameBoard key={`${selected.id}:${selected.version}`} game={selected} userId={userId} busy={busy} play={(move: GameMove) => void act({ ...version, action: "move", move })} /></div>
+        {selected.status === "ACTIVE" ? <aside className="min-w-0 space-y-3" aria-label="Match controls and chat">
+          <div>{confirmResign ? <div className="flex flex-wrap items-center gap-2"><p className="w-full text-sm text-muted">Your partner will receive the win for this match.</p><Button disabled={busy} onClick={() => void act({ ...version, action: "resign" })}>Confirm resignation</Button><Button variant="ghost" onClick={() => setConfirmResign(false)}>Keep playing</Button></div>
+            : <Button variant="ghost" onClick={() => setConfirmResign(true)}>Resign this match</Button>}</div>
+          <GameChat key={selected.id} gameId={selected.id} initiator={selected.playerOneId === userId} partnerName={partnerName} />
+        </aside> : null}
+      </div>
     </div>;
   }
   const kinds = (Object.keys(GAME_LABEL) as GameKind[]).filter((kind) => GAME_LABEL[kind].toLowerCase().includes(search.toLowerCase()));

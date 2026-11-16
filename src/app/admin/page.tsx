@@ -26,6 +26,15 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <div><h1 className="font-display text-3xl text-ink">MONO admin</h1><p className="mt-2 text-sm text-muted">Account IDs and submitted reports. Private chats and photos stay private.</p></div>
       <form action={logoutAction}><input type="hidden" name="next" value="/admin/login" /><Button type="submit" variant="secondary">Sign out</Button></form>
     </header>
+    <section aria-labelledby="storage-heading" className="space-y-3 rounded-xl border border-line bg-surface p-5">
+      <h2 id="storage-heading" className="font-display text-xl">Storage overview</h2>
+      <dl className="grid gap-4 sm:grid-cols-3">{[
+        ["Chat attachments", `${(data.storage.attachmentBytes / 1024 / 1024).toFixed(1)} MB`],
+        ["Attachment count", data.storage.attachmentCount.toLocaleString()],
+        ["Database size", `${(data.storage.databaseBytes / 1024 / 1024).toFixed(1)} MB`],
+      ].map(([label, value]) => <div key={label}><dt className="text-sm text-muted">{label}</dt><dd className="mt-1 text-2xl font-display">{value}</dd></div>)}</dl>
+      <p className="text-xs text-muted">No per-couple storage quota. Database size includes indexes and other app data; external photo storage is separate. Manage provider capacity in your hosting dashboard. This overview exposes no private messages or files.</p>
+    </section>
     <AudioSettingsCard admin />
     <dl className="grid gap-4 sm:grid-cols-3">
       {[['Total accounts signed up', data.totalAccounts], ['Current accessible accounts', data.activeAccounts], ['Reports awaiting review', data.openReports]].map(([label, value]) => <div key={label} className="rounded-xl border border-line bg-surface p-5"><dt className="text-sm text-muted">{label}</dt><dd className="mt-2 font-display text-3xl text-ink">{value}</dd></div>)}

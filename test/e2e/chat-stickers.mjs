@@ -45,6 +45,10 @@ export async function runChatStickers({ browser, baseUrl, prisma, runId, artifac
     await owner.bringToFront(); await owner.locator('[aria-label="Add attachment"]').click(); await text(owner, "Share something");
     assert.equal(await owner.$$eval('[role="dialog"] button', (buttons) => buttons.some((button) => button.textContent === "Emoji")), false);
     await owner.screenshot({ path: path.join(artifactDir, "chat-attachments-mobile.png") });
+    assert.equal(await owner.evaluate(() => document.body.innerText.includes("25 MB used")), false);
+    await click(owner, "Stickers & custom stickers"); await text(owner, "Our stickers");
+    await click(owner, "Done"); await noDialog(owner);
+    await owner.locator('[aria-label="Add attachment"]').click(); await text(owner, "Share something");
     const documentPath = path.join(artifactDir, "sticker-plan.txt"); await writeFile(documentPath, "Synthetic private attachment");
     const documentChooser = owner.waitForFileChooser(); await owner.locator('xpath=//button[.//span[normalize-space(.)="Document"]]').click(); await (await documentChooser).accept([documentPath]);
     await click(owner, "Send document"); await noDialog(owner); await text(partner, "sticker-plan.txt");
@@ -66,7 +70,7 @@ export async function runChatStickers({ browser, baseUrl, prisma, runId, artifac
     for (const width of [320, 390, 1440]) {
       await owner.setViewport({ width, height: width === 1440 ? 900 : 844, isMobile: true, hasTouch: true });
       assert.equal(await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
-      assert.equal(await owner.$eval('[role="dialog"]', (el) => { const rect = el.getBoundingClientRect(); return rect.top >= -1 && rect.bottom <= innerHeight + 1; }), true);
+      await owner.waitForFunction(() => { const el = document.querySelector('[role="dialog"]'); if (!el) return false; const rect = el.getBoundingClientRect(); return rect.top >= -1 && rect.bottom <= innerHeight + 1; }, { timeout: 5000 });
     }
     await owner.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
     pass("tabs support keyboard navigation and the picker fits 320px, mobile and desktop");

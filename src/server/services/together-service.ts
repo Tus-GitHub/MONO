@@ -24,6 +24,7 @@ export function messageDTO(row: ChatMessage & { image: { width: number; height: 
 export function gameDTO(row: GameMatch, userId: string): GameDTO {
   const state = parseGame(row.kind, row.state);
   return { id: row.id, kind: row.kind, status: row.status, playerOneId: row.playerOneId, playerTwoId: row.playerTwoId,
+    rematchRequestedById: row.rematchRequestedById, rematchRequestedAt: row.rematchRequestedAt?.toISOString() ?? null, rematchGameId: row.rematchGameId,
     winnerId: row.winnerId, version: row.version, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(),
     state: state.type === "ARCADE" ? publicArcade(state, userId === row.playerOneId ? 0 : 1) : state };
 }
@@ -109,6 +110,29 @@ export async function actOnGame(value: unknown): Promise<GameDTO> {
     }
     const match = await tx.gameMatch.findFirst({ where: { id: input.id, coupleId: context.couple.id } });
     if (!match) throw new NotFoundError();
+    if (input.action.startsWith("rematch-")) {
+      if (match.status !== "FINISHED" || ![match.playerOneId, match.playerTwoId].includes(context.user.id)) throw new ValidationError("Finish this match before requesting a rematch.");
+      if (match.rematchGameId) return match;
+      const pending = !!match.rematchRequestedById && !!match.rematchRequestedAt && Date.now() - match.rematchRequestedAt.getTime() < 5 * 60_000;
+      if (input.action === "rematch-request" && pending) return match;
+      if (match.version !== input.version) throw new ConflictError("The rematch changed. Please try again.");
+      let data: Prisma.GameMatchUpdateInput = { version: { increment: 1 } };
+      if (input.action === "rematch-request") {
+        data = { ...data, rematchRequestedById: context.user.id, rematchRequestedAt: new Date() };
+      } else {
+        const own = match.rematchRequestedById === context.user.id;
+        if (!pending || (input.action === "rematch-cancel" ? !own : own)) throw new ValidationError("That rematch request is no longer available.");
+        data = { ...data, rematchRequestedById: null, rematchRequestedAt: null };
+        if (input.action === "rematch-accept") {
+          if (await tx.gameMatch.count({ where: { coupleId: context.couple.id, status: { in: ["WAITING", "ACTIVE"] } } }) >= 5) throw new ValidationError("Finish or cancel another game before the rematch.");
+          const next = await tx.gameMatch.create({ data: { coupleId: context.couple.id, playerOneId: match.playerTwoId, playerTwoId: match.playerOneId,
+            clientNonce: `rematch:${match.id}`, kind: match.kind, status: "ACTIVE", state: json(newGame(match.kind, (max) => randomInt(max))) } });
+          data.rematchGame = { connect: { id: next.id } };
+        }
+      }
+      const updated = await tx.gameMatch.update({ where: { id: match.id }, data });
+      await bumpTogether(tx, context.couple.id); return updated;
+    }
     if (match.version !== input.version) throw new ConflictError("The game has moved on. The latest board will appear now.");
     const side = context.user.id === match.playerOneId ? 0 : context.user.id === match.playerTwoId ? 1 : null;
     if (side == null) throw new NotFoundError();
@@ -124,7 +148,9 @@ export async function actOnGame(value: unknown): Promise<GameDTO> {
         try { const result = playGame(parseGame(match.kind, match.state), side, input.move, input.move.type === "roll" ? randomInt(1, 7) : undefined); data.state = json(result.state); outcome = result.outcome; }
         catch (error) { throw new ValidationError(error instanceof Error ? error.message : "Choose a legal move."); }
       }
-      if (outcome !== undefined) { data = { ...data, status: "FINISHED", finishedAt: new Date(), ...(outcome !== "draw" ? { winner: { connect: { id: outcome === 0 ? match.playerOneId : match.playerTwoId } } } : {}) };
+      if (outcome !== undefined) {
+        await tx.gameChatSignal.deleteMany({ where: { gameId: match.id } });
+        data = { ...data, status: "FINISHED", finishedAt: new Date(), ...(outcome !== "draw" ? { winner: { connect: { id: outcome === 0 ? match.playerOneId : match.playerTwoId } } } : {}) };
         await tx.chatMessage.create({ data: { coupleId: context.couple.id, senderId: context.user.id, clientNonce: `game-result:${match.id}`, kind: "GAME", encrypted: true, gameId: match.id,
           body: "" } });
       }

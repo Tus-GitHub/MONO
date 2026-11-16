@@ -218,6 +218,8 @@ model User {
   moderationEmailHash String?
   adminAccess AdminAccess?
   audio UserAudio?
+  audioUploads AudioUpload[]
+  gameChatSignals GameChatSignal[]
 
   accounts            Account[]
   sessions            AuthSession[]
@@ -589,6 +591,12 @@ model GameMatch {
   playerTwo    User @relation("GamePlayerTwo", fields: [playerTwoId], references: [id], onDelete: Restrict)
   winner       User? @relation("GameWinner", fields: [winnerId], references: [id], onDelete: Restrict)
   messages     ChatMessage[]
+  chatSignals  GameChatSignal[]
+  rematchRequestedById String?
+  rematchRequestedAt DateTime?
+  rematchGameId String? @unique
+  rematchGame GameMatch? @relation("GameRematch", fields: [rematchGameId], references: [id], onDelete: SetNull)
+  previousGame GameMatch? @relation("GameRematch")
   @@unique([playerOneId, clientNonce])
   @@index([coupleId, updatedAt])
   @@map("game_matches")
@@ -1230,4 +1238,39 @@ model RecommendationFeedback {
   @@unique([coupleId, targetType, targetKey])
   @@index([coupleId])
   @@map("recommendation_feedback")
+}
+
+
+/// Only WebRTC negotiation metadata; game chat content never reaches this table.
+model GameChatSignal {
+  id BigInt @id @default(autoincrement())
+  gameId String
+  senderId String
+  sessionId String
+  targetSessionId String?
+  kind String
+  payload Json
+  createdAt DateTime @default(now())
+  game GameMatch @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  @@index([gameId, id])
+  @@index([createdAt])
+  @@map("game_chat_signals")
+}
+
+/// Encrypted temporary staging for bounded, authenticated admin music uploads.
+model AudioUpload {
+  id String @id @default(cuid())
+  userId String
+  name String
+  totalBytes Int
+  bytes Bytes
+  nextPart Int @default(0)
+  lastDigest String?
+  published Boolean @default(false)
+  expiresAt DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("audio_uploads")
 }

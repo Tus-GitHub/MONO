@@ -1,4 +1,6 @@
 export const AUDIO_LIMIT = 2 * 1024 * 1024;
+export const MUSIC_LIMIT = 10 * 1024 * 1024;
+export const AUDIO_CHUNK_BYTES = 1024 * 1024;
 export const AUDIO_ACCEPT = ".mp3,.mpeg,.wav,.ogg,.m4a";
 /** Inspect the container rather than trusting a browser-supplied MIME type. */
 export function audioType(bytes: Uint8Array): string | null {

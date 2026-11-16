@@ -11,7 +11,6 @@ import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { ImageCropDialog } from "@/components/uploads/image-crop-dialog";
 import { useTogether } from "@/lib/hooks/use-together";
 import { togetherFetch, errorMessage } from "@/lib/together/client";
-import { CHAT_IMAGE_SPACE } from "@/lib/together/catalog";
 import type { MessageDTO, TogetherSnapshot } from "@/lib/together/types";
 import { chatAAD, encryptText, type ChatKey } from "@/lib/together/chat-crypto";
 import { encryptPhoto } from "@/lib/together/secure-photo";
@@ -53,7 +52,7 @@ export function ChatConversation({ chat, chatKey, onUnlock, userId, openGame }: 
       {!chatKey ? <div className="min-h-0 flex-1 overflow-y-auto"><ChatEncryption coupleId={chat.data.coupleId} userId={userId} keyId={chat.data.chatKeyId} onUnlock={onUnlock} refresh={chat.refresh} /></div> : <>
       <SecureHistory chatKey={chatKey} coupleId={chat.data.coupleId} refresh={chat.refresh} />
       <MessageList chatKey={chatKey} coupleId={chat.data.coupleId} append={chat.append} messages={chat.data.messages.filter((message) => !message.hidden)} userId={userId} lastRead={chat.data.partner.lastRead} timezone={chat.data.timezone} older={chat.older} hasOlder={chat.hasOlder} openGame={openGame} />
-      <Composer chatKey={chatKey} coupleId={chat.data.coupleId} userId={userId} append={chat.append} onTyping={chat.onTyping} imageBytes={chat.data.imageBytes ?? 0} revision={chat.data.revision} />
+      <Composer chatKey={chatKey} coupleId={chat.data.coupleId} userId={userId} append={chat.append} onTyping={chat.onTyping} revision={chat.data.revision} />
       </>}
     </section>;
 }
@@ -114,12 +113,13 @@ function MessageList({ chatKey, coupleId, append, messages, userId, lastRead, ti
     })}</div>
   </div>;
 }
-function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes, revision }: { chatKey: ChatKey; coupleId: string; userId: string; append: (message: MessageDTO) => void; onTyping: (value: boolean) => void; imageBytes: number; revision: string }) {
+function Composer({ chatKey, coupleId, userId, append, onTyping, revision }: { chatKey: ChatKey; coupleId: string; userId: string; append: (message: MessageDTO) => void; onTyping: (value: boolean) => void; revision: string }) {
   const [text, setText] = useState(""), [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null);
   const [failedText, setFailedText] = useState<{ body: string; clientNonce: string } | null>(null);
   const [palette, setPalette] = useState<"emoji" | "stickers" | null>(null), [picture, setPicture] = useState<File | null>(null);
   const [viewLimit, setViewLimit] = useState<0 | 1 | 2>(0);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const openStickersAfterTools = useRef(false);
   const [cropFiles, setCropFiles] = useState<File[] | null>(null);
   const input = useRef<HTMLTextAreaElement | null>(null), composer = useRef<HTMLDivElement | null>(null);
   const sending = useRef(false), draftVersion = useRef(0);
@@ -247,7 +247,7 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes, rev
         <input ref={file} type="file" accept="image/*" aria-label="Choose a chat image" className="sr-only" tabIndex={-1} onChange={(event) => { const next = event.target.files?.[0]; if (next && !busy && !cropFiles) setCropFiles([next]); event.target.value = ""; }} />
       <input ref={documentFile} type="file" accept={DOCUMENT_ACCEPT} aria-label="Choose a chat document" className="sr-only" tabIndex={-1} onChange={(event) => { const next = event.target.files?.[0]; event.target.value = ""; if (!next || sending.current || failedText) return; if (!next.size || next.size > DOCUMENT_LIMIT) { setError("Choose a document up to 2 MB."); return; } documentNonce.current = ""; setError(null); setDocument(next); }} />
       <div className="flex items-end gap-2">
-        <Button size="icon" variant="ghost" aria-label="Add attachment" title="Photos and documents" aria-haspopup="dialog" aria-expanded={toolsOpen} disabled={busy || !!failedText} onClick={() => setToolsOpen(true)} className="shrink-0"><Icon name="plus" /></Button>
+        <Button size="icon" variant="ghost" aria-label="Add attachment" title="Photos, documents and stickers" aria-haspopup="dialog" aria-expanded={toolsOpen} disabled={busy || !!failedText} onClick={() => setToolsOpen(true)} className="shrink-0"><Icon name="plus" /></Button>
         <div className="relative min-w-0 flex-1">
           <Textarea ref={input} aria-label="Message your partner" placeholder="Message…" className="mono-chat-input min-h-11 pr-12" maxLength={4000} rows={1} value={text} onChange={(event) => edit(event.target.value)} />
           <Button size="icon" variant="ghost" aria-label="Open emoji and stickers" title="Emoji and stickers" aria-haspopup="dialog" aria-expanded={palette != null} disabled={busy || !!failedText} onClick={openExpressions} className="absolute right-0 bottom-0 shrink-0"><Icon name="smile" /></Button>
@@ -259,12 +259,13 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes, rev
     </form>
     {cropFiles ? <ImageCropDialog files={cropFiles} onCancel={() => setCropFiles(null)}
       onConfirm={([cropped]) => { setCropFiles(null); setPicture(cropped); imageNonce.current = ""; }} /> : null}
-    <BottomSheet open={toolsOpen} onClose={() => setToolsOpen(false)} title="Share something" description="A photo, a plan, a little part of your day." footer={<Button variant="ghost" fullWidth onClick={() => setToolsOpen(false)}>Cancel</Button>}>
+    <BottomSheet open={toolsOpen} onClose={() => setToolsOpen(false)} onAfterClose={() => { if (openStickersAfterTools.current) { openStickersAfterTools.current = false; setPalette("stickers"); } }} title="Share something" description="A photo, a file, a sticker. A little part of your day." footer={<Button variant="ghost" fullWidth onClick={() => setToolsOpen(false)}>Cancel</Button>}>
       <div className="grid grid-cols-2 gap-3">
-        <button type="button" disabled={busy || !!failedText || imageBytes >= CHAT_IMAGE_SPACE} onClick={() => { setToolsOpen(false); file.current?.click(); }} className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-surface p-5 text-center transition-colors hover:border-primary disabled:opacity-50"><span className="grid size-12 place-items-center rounded-2xl bg-primary-tint text-primary"><Icon name="images" /></span><span className="text-sm font-medium">Photo</span><span className="text-xs text-muted">Keep it or limit views</span></button>
-        <button type="button" disabled={busy || !!failedText || imageBytes >= CHAT_IMAGE_SPACE} onClick={() => { setToolsOpen(false); documentFile.current?.click(); }} className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-surface p-5 text-center transition-colors hover:border-primary disabled:opacity-50"><span className="grid size-12 place-items-center rounded-2xl bg-accent-tint text-accent"><Icon name="document" /></span><span className="text-sm font-medium">Document</span><span className="text-xs text-muted">Share a file to keep</span></button>
+        <button type="button" disabled={busy || !!failedText} onClick={() => { setToolsOpen(false); file.current?.click(); }} className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-surface p-5 text-center transition-colors hover:border-primary disabled:opacity-50"><span className="grid size-12 place-items-center rounded-2xl bg-primary-tint text-primary"><Icon name="images" /></span><span className="text-sm font-medium">Photo</span><span className="text-xs text-muted">Keep it or limit views</span></button>
+        <button type="button" disabled={busy || !!failedText} onClick={() => { setToolsOpen(false); documentFile.current?.click(); }} className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-surface p-5 text-center transition-colors hover:border-primary disabled:opacity-50"><span className="grid size-12 place-items-center rounded-2xl bg-accent-tint text-accent"><Icon name="document" /></span><span className="text-sm font-medium">Document</span><span className="text-xs text-muted">Share a file to keep</span></button>
+        <button type="button" disabled={busy || !!failedText} onClick={() => { openStickersAfterTools.current = true; setToolsOpen(false); }} className="col-span-2 flex items-center justify-center gap-3 rounded-2xl border border-line bg-surface p-4 transition-colors hover:border-primary disabled:opacity-50"><Icon name="smile" /><span className="text-sm font-medium">Stickers & custom stickers</span></button>
       </div>
-      <p className="mt-4 text-center text-xs text-muted">End-to-end encrypted · {(imageBytes / 1024 / 1024).toFixed(1)} of {CHAT_IMAGE_SPACE / 1024 / 1024} MB used</p>
+      <p className="mt-4 text-center text-xs text-muted">End-to-end encrypted</p>
     </BottomSheet>
     <ChatExpressionPicker open={palette != null} tab={palette ?? "emoji"} onTab={setPalette} onClose={() => setPalette(null)}
       onEmoji={insertEmoji} onSticker={(id) => send("STICKER", id)} onCustom={sendCustomSticker} chatKey={chatKey} coupleId={coupleId} revision={revision} busy={busy || !!failedText}
