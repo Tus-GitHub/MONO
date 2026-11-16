@@ -133,7 +133,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (separate restaurant/café ratings verified; publishing)
+Last updated: 2026-11-16 (separate restaurant/café ratings live and verified)
 
 
 
@@ -157,8 +157,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-
-- **Separate restaurant/café ratings (2026-11-16)** — implemented per-partner/date/place 1–10 scores, complete-place validation, independent blind reveal, partner summaries, place-history aggregates, Admin venue rows, export and archive roundtrip. Existing date-wide scores remain separate. 31 feature/admin/archive checks plus 24 review regressions passed; caught/fixed existing archive rejection of external venue metadata. Right-panel browser verified both local partner accounts and Admin, café 9/7 → 8.0 and restaurant 3/5 → 4.0 while date stays 8.5, search, disabled incomplete save, and no overflow at 320/390/768/1440 and 844×390. Neon migration preflight succeeded on `br-plain-block-b3d31fhb`; user approved deletion and cleanup completed without applying to production. Synced published main `b8f5c87`; final regression/build/deployment pending.
 
 
 - **Planner and Memories panel verification (2026-11-16)** — implementation and deployment are complete (see Done and release record). User explicitly tagged Browser and asked to retry live mobile/desktop checks, café then movie, fixes and deployment. Retried the exact in-app selector using the existing runtime; still `Browser is not available: iab`. Supported recovery inventory is empty, and direct active-tab context reports `The Browser Use plugin is not available in this context.` No alternative browser was used under the panel-only constraint. Live planner was queued in the right panel; authenticated visual/click tests remain blocked, with no new app change or redeployment warranted solely by this failed connection. Local preview remains on port3247; prior HTTP200 responses do not establish visual or click-flow correctness.
@@ -380,6 +378,8 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+- **Separate restaurant/café ratings (2026-11-16)** — published `bc0be767694ba0d1a0236c503597101653953b0c`; production `dpl_J9U9Xdvk2Mp6h95kC5XKbVm6X4xB` is READY at https://mono-kappa-beryl.vercel.app. Each partner rates each food venue independently (1–10), with place-by-place blind reveal, editable shared scores, partner/date summaries, correct place-history averages, separate Admin venue rows and portable export/restore. Whole-date scores remain date-wide; no fabricated backfill. Fixed existing archive rejection of public venue metadata. 613 unit and 55 database checks, lint, TypeScript and full production build passed (99 routes; local largest 4.49 MiB, Vercel 44.83 MiB). Right-panel local browser verified both partners and Admin: café 9/7 → 8.0, restaurant 3/5 → 4.0, date overall unchanged at 8.5; incomplete save disabled, search, and widths 320/390/768/1440 plus 844×390 landscape. Neon migration preflight passed on `br-plain-block-b3d31fhb`; user explicitly approved deletion and it was removed without applying to production. Production migration later applied through the release pipeline; health200/database up, admin307 to sign-in, login200 and scoped error/fatal logs empty. No production test accounts/ratings created; retained local preview fixtures. Physical iPhone/PWA testing not performed.
+
 - **Personal music, direct match chat and movable calls (2026-11-16)** — Published c222316d815edcb4f5fc7f6df2ae2ebcdb16bc2f; push succeeded. Production dpl_2SB1AKTtsUnVsxF6E8ZJLNGRVsHm is READY at https://mono-kappa-beryl.vercel.app. Saved per-user volume/playlist/order/repeat, quieter gain, additive multi-song admin library (10 MB each), direct transient game chat with reconnect, draggable mini calls, optional browser PiP and win/loss/draw art are live. Local: 26 unit, 6 database, 22 browser groups; build/lint/TypeScript pass. Live: 3 music and 8 game groups (live-96670b54b8c6), then 7 call groups (live-8c570ef92481) passed with actual synthetic-media RTP and live mic tracks in both directions. All eight disposable accounts and their spaces were removed; existing songs/customer data unchanged. A test-only input replacement race was corrected before the successful targeted call rerun. Health200/database up, error/fatal logs empty. Physical phones and OS background/audio-routing guarantees are not claimed. Details: docs/reports/playlists-games-calls-2026-11-16.md.
 
 - **Admin restaurant ratings panel (2026-11-16)** — published `631cc5373c9ebd56a0b3672066d16c3621ef3028` to origin/main. Vercel production `dpl_H8LEyNoqnrVdGnsF54r9n4TvVthJ` is READY on https://mono-kappa-beryl.vercel.app. Admin → Restaurant ratings shows food venues beside each partner's revealed whole-date score, with IDs, search and 20-date pages. Excludes private prose, drafts and unrevealed scores; handles multiple stops, actual venue replacements and deletions. 25 database checks, focused lint, TypeScript and production build passed. Right-panel browser verified admin/ordinary-user access behavior, filters, pagination, empty states and 320/390/768/1440 layouts plus landscape. Live health200/database up, anonymous admin redirect307 and scoped error/fatal logs empty. Local preview port3249 with synthetic fixtures retained; physical iPhone/PWA checks were not run. No new dependencies, migration or paid service.
@@ -1905,11 +1905,11 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
-### 2026-11-16 — Separate food-venue ratings for both partners and Admin — IN PROGRESS
+### 2026-11-16 — Separate food-venue ratings for both partners and Admin — DONE
 
 - Started the requested place-specific rating flow. Existing numeric overall reviews will remain date-wide and will not be copied into venue scores. Planned separate 1–10 controls for eligible restaurant/café venues, independent persisted scores for each partner/date/place, reveal only after both submit, and matching Admin results. Preserve current visual components and review editing rules.
 - Implemented and verified as described in Status. Local browser fixtures retained in `mono_test_admin_ratings`, with the preview at port 3249. No production account or review was changed during testing. Screenshots: `.screenshots/place-ratings-admin-mobile.jpg` and `.screenshots/place-ratings-admin-desktop.jpg` in the isolated worktree. Physical iPhone/PWA testing was not performed.
-- Final checks after syncing main `b8f5c87`: 613/613 unit tests, 55 focused database checks (32 review/export/privacy checks repeated against the combined code), changed-file ESLint, TypeScript and full `npm run build` passed. Production build: 99 routes, largest local trace 4.49 MiB. Publishing the additive migration through the existing Vercel/Prisma release pipeline; production confirmation pending.
+- Final checks after syncing main `b8f5c87`: 613/613 unit tests, 55 focused database checks (32 review/export/privacy checks repeated against the combined code), changed-file ESLint, TypeScript and full `npm run build` passed. Production build: 99 routes, largest local trace 4.49 MiB. Published `bc0be767694ba0d1a0236c503597101653953b0c`; Vercel `dpl_J9U9Xdvk2Mp6h95kC5XKbVm6X4xB` READY on canonical URL with 44.83 MiB largest trace. Confirmed successful production Prisma migration, HTTP health/login/admin protection and no scoped error/fatal logs. Temporary Neon branch and local merge stash cleaned up; existing production data preserved.
 
 ### 2026-11-16 — Admin restaurant ratings panel — DONE
 
