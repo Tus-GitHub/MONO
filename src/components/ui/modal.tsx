@@ -35,6 +35,8 @@ interface ModalProps {
   /** Hide the default close button (e.g. for a forced choice). */
   hideClose?: boolean;
   closeLabel?: string;
+  /** Hide overlay controls for an immersive view while leaving its content mounted. */
+  chromeHidden?: boolean;
   className?: string;
 }
 
@@ -49,6 +51,7 @@ export function Modal({
   size = "md",
   hideClose,
   closeLabel = "Close",
+  chromeHidden = false,
   className,
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -79,6 +82,7 @@ export function Modal({
           aria-modal="true"
           aria-labelledby={title ? titleId : undefined}
           aria-describedby={description ? descId : undefined}
+          data-chrome-hidden={chromeHidden || undefined}
           className={cn(
             // Never taller than the *visible* viewport minus the inset gutters — `--vvh` tracks
             // the keyboard (set by <ViewportManager>); `100dvh` is the fallback. The body
@@ -91,7 +95,7 @@ export function Modal({
           )}
         >
           {(title || !hideClose) && (
-            <div className={cn("flex shrink-0 items-start justify-between gap-4", size === "full" ? "border-b border-line px-4 py-3" : "px-5 pt-5")}>
+            <div inert={chromeHidden} aria-hidden={chromeHidden || undefined} className={cn("flex shrink-0 items-start justify-between gap-4", size === "full" ? "border-b border-line px-4 py-3" : "px-5 pt-5", chromeHidden && "invisible pointer-events-none opacity-0")}>
               <div className="min-w-0">
                 {title ? (
                   <h2 id={titleId} className="font-display text-lg font-medium text-ink">
@@ -122,7 +126,7 @@ export function Modal({
           ) : null}
 
           {footer ? (
-            <div className={cn("shrink-0 border-t border-line", size === "full" ? "px-3 py-3 sm:px-5" : "flex flex-col-reverse gap-2 px-5 py-4 sm:flex-row sm:justify-end")}>
+            <div inert={chromeHidden} aria-hidden={chromeHidden || undefined} className={cn("shrink-0 border-t border-line", size === "full" ? "px-3 py-3 sm:px-5" : "flex flex-col-reverse gap-2 px-5 py-4 sm:flex-row sm:justify-end", chromeHidden && "invisible pointer-events-none opacity-0")}>
               {footer}
             </div>
           ) : null}

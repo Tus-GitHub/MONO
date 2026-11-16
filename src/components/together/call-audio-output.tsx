@@ -9,7 +9,7 @@ const subscribe = () => () => {};
 const routingSupported = () => elementRoutingSupported() || contextRoutingSupported();
 const pickerSupported = () => typeof (navigator.mediaDevices as OutputMediaDevices)?.selectAudioOutput === "function";
 
-export function CallAudioOutput({ audio, router }: { audio: RefObject<HTMLAudioElement | null>; router: RefObject<CallAudioRouter | null> }) {
+export function CallAudioOutput({ audio, router, onOpenChange }: { audio: RefObject<HTMLAudioElement | null>; router: RefObject<CallAudioRouter | null>; onOpenChange?: (open: boolean) => void }) {
   const [open, setOpen] = useState(false), [devices, setDevices] = useState<OutputDevice[]>([]);
   const [selected, setSelected] = useState(""), [message, setMessage] = useState(""), [busy, setBusy] = useState(false);
   const live = useRef(true);
@@ -17,6 +17,7 @@ export function CallAudioOutput({ audio, router }: { audio: RefObject<HTMLAudioE
   const canRoute = useSyncExternalStore(subscribe, routingSupported, () => false);
   const canBridge = useSyncExternalStore(subscribe, compatibilityRoutingSupported, () => false);
   const canChoose = useSyncExternalStore(subscribe, pickerSupported, () => false) && canRoute;
+  const changeOpen = (next: boolean) => { setOpen(next); onOpenChange?.(next); };
   useEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
   useEffect(() => {
     if (!open) return;
@@ -51,9 +52,9 @@ export function CallAudioOutput({ audio, router }: { audio: RefObject<HTMLAudioE
     finally { if (live.current) { setCompatibility(router.current?.compatibility ?? false); setBusy(false); } }
   };
   return <>
-    <CallControl icon="speaker" label="Audio" active={open} onClick={() => setOpen(!open)} />
+    <CallControl icon="speaker" label="Audio" active={open} onClick={() => changeOpen(!open)} />
     {open ? <section aria-label="Call audio output" className="mono-call-popover space-y-3 rounded-xl border border-line bg-elevated p-4 text-ink shadow-xl">
-      <div className="flex items-center justify-between gap-2"><h3 className="font-medium">Speaker & audio output</h3><Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Close</Button></div>
+      <div className="flex items-center justify-between gap-2"><h3 className="font-medium">Speaker & audio output</h3><Button size="sm" variant="ghost" onClick={() => changeOpen(false)}>Close</Button></div>
       {canRoute ? <div className="flex flex-col gap-2">{devices.map((device) => <Button key={device.deviceId} size="sm" variant="secondary" disabled={busy} aria-pressed={selected === device.deviceId} onClick={() => void choose(device.deviceId)}>{device.label}</Button>)}{canChoose ? <Button size="sm" disabled={busy} onClick={() => void choose()}>Choose audio device</Button> : null}</div> : null}
       <p className="text-xs text-muted">{canRoute ? "Only outputs offered by your browser appear here. If Speaker or Earpiece is missing, MONO cannot select it on this device." : "This browser exposes no audio-output switch to MONO. Your phone manages the route; headphones or Bluetooth may provide another output."}</p>
       {canRoute ? <Button size="sm" variant="ghost" disabled={busy} onClick={() => setRevision((value) => value + 1)}>Refresh outputs</Button> : null}

@@ -84,6 +84,7 @@
   --prose-max: 42rem;
   --crop-frame-max-height: min(22rem, 42dvh);
   --chat-message-min: min(3rem, calc(var(--vvh, 100dvh) * 0.2));
+  --call-preview-width: clamp(7.5rem, 30vw, 13rem);
 }
 
 .image-crop-frame {
@@ -575,12 +576,28 @@ html[data-kb="open"] .mono-call-panel > .scroll-area {
   background: linear-gradient(to top, rgb(0 0 0 / 0.9), rgb(0 0 0 / 0.6), transparent);
 }
 .mono-call-controls { max-width: 32rem; margin-inline: auto; }
-.mono-call-video-fit {
+.mono-call-main-video {
   position: absolute;
-  top: var(--call-header-space);
-  width: 100%;
-  height: max(0px, calc(100% - var(--call-header-space) - var(--call-controls-space)));
+  inset: 0;
 }
+.mono-call-panel > :first-child,
+.mono-call-panel > :last-child:not(.scroll-area),
+.mono-call-chrome {
+  transition: opacity var(--dur-2) var(--ease-out), visibility var(--dur-2);
+}
+.mono-call-panel[data-chrome-hidden="true"] > :first-child,
+.mono-call-panel[data-chrome-hidden="true"] > :last-child:not(.scroll-area),
+.mono-call-panel[data-chrome-hidden="true"] .mono-call-chrome {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.mono-call-stage-toggle,
+.mono-call-swap-target { position: absolute; inset: 0; cursor: pointer; touch-action: manipulation; }
+.mono-call-stage-toggle { z-index: 1; }
+.mono-call-swap-target { z-index: 1; border-radius: inherit; }
+.mono-call-stage-toggle:focus-visible,
+.mono-call-swap-target:focus-visible { outline: 2px solid white; outline-offset: -3px; }
 .mono-call-controls > div > button { width: 100%; }
 .mono-call-status {
   margin-top: var(--call-header-space);
@@ -597,14 +614,39 @@ html[data-kb="open"] .mono-call-panel > .scroll-area {
 .mono-call-status > .text-muted { color: rgb(255 255 255 / 0.85); }
 .mono-call-preview {
   position: absolute;
+  z-index: 3;
   right: max(0.75rem, var(--safe-right));
   bottom: var(--call-controls-space);
-  width: clamp(5rem, 22vw, 10rem);
+  width: min(var(--call-preview-width), calc(var(--vvh, 100dvh) * 0.4));
+  max-width: calc(100% - 1.5rem);
+  aspect-ratio: 4 / 3;
   overflow: hidden;
   border-radius: var(--radius-lg);
   border: 1px solid rgb(255 255 255 / 0.3);
 }
-.mono-call-view-control { position: absolute; bottom: var(--call-controls-space); left: max(0.75rem, var(--safe-left)); }
+.mono-call-preview-label {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background: rgb(0 0 0 / 0.7);
+  font-size: 0.625rem;
+  color: white;
+  pointer-events: none;
+}
+.mono-call-play { position: absolute; top: 50%; left: 0.5rem; right: 0.5rem; z-index: 5; transform: translateY(-50%); }
+.mono-call-main-video .mono-call-play { right: auto; }
+.mono-call-view-control {
+  position: absolute;
+  z-index: 4;
+  bottom: var(--call-controls-space);
+  left: max(0.75rem, var(--safe-left));
+  max-width: calc(100% - var(--call-preview-width) - 2rem);
+}
 .mono-call-popover {
   position: absolute;
   bottom: calc(100% + 0.75rem);

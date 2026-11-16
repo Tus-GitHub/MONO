@@ -2,12 +2,14 @@
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useCoupleCall } from "@/lib/hooks/use-couple-call";
 import { useCallRingtone } from "@/lib/hooks/use-call-ringtone";
+import { useCallControls } from "@/lib/hooks/use-call-controls";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { useRemoteCallAudio } from "@/components/together/remote-call-audio";
 import { CallControl } from "./call-control";
 import { CallAudioOutput } from "./call-audio-output";
+import { CallVideoStage } from "./call-video-stage";
 import { BackgroundMusic } from "@/components/settings/background-music";
 
 type CallContext = ReturnType<typeof useCoupleCall> & { soundsReady: boolean; enableCallSounds: () => void };
@@ -18,6 +20,7 @@ export function useTogetherCall() { const value = useContext(Context); if (!valu
 export function TogetherProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const calling = useCoupleCall(userId), [hiddenFor, setHidden] = useState<string | null>(null);
   const [screenHelp, setScreenHelp] = useState(false);
+  const [audioOpenFor, setAudioOpenFor] = useState<string | null>(null);
   const screenSupported = useSyncExternalStore(subscribeCapabilities, screenSharingAvailable, () => false);
   const { element: partnerAudioRef, router: audioRouter, blocked: partnerAudioBlocked, resume: resumePartnerAudio } = useRemoteCallAudio(calling.owned ? calling.remote : null);
   const preparing = calling.phase === "permission" || calling.phase === "preparing";
@@ -25,7 +28,11 @@ export function TogetherProvider({ userId, children }: { userId: string; childre
   const incoming = calling.call?.status === "RINGING" && calling.call.calleeId === userId && !calling.owned;
   const { audioRef, blocked: ringtoneBlocked, ready: soundsReady, play: playRingtone, enable: enableCallSounds, stop: stopRingtone } = useCallRingtone(calling.call?.id, calling.call?.status === "RINGING" && calling.phase === "ringing" && (incoming || calling.owned));
   const open = Boolean((id && hiddenFor !== id) || calling.error || calling.notice);
-  const close = () => { calling.dismissError(); if (id) setHidden(id); };
+  const close = () => { calling.dismissError(); setAudioOpenFor(null); if (id) setHidden(id); };
+  const autoHide = Boolean(calling.owned && calling.phase === "connected" && calling.call?.kind === "VIDEO" && calling.remote
+    && !calling.error && !calling.notice && !calling.syncError && !calling.mediaBusy && !calling.screenPaused
+    && !partnerAudioBlocked && !ringtoneBlocked && !(screenHelp && !screenSupported) && audioOpenFor !== id);
+  const chrome = useCallControls(open, autoHide, id);
   const previousCall = useRef<string | null>(null);
   useEffect(() => {
     const previous = previousCall.current;
@@ -43,7 +50,7 @@ export function TogetherProvider({ userId, children }: { userId: string; childre
     {calling.owned ? <>
       <CallControl icon={calling.muted ? "microphoneOff" : "microphone"} label={calling.muted ? "Unmute" : "Mute"} active={calling.muted} onClick={calling.toggleMute} />
       <CallControl icon="video" label={calling.call?.kind === "AUDIO" ? "Video" : calling.cameraOff ? "Camera on" : "Camera off"} active={!calling.cameraOff && !calling.sharing} disabled={calling.phase !== "connected" || calling.mediaBusy || calling.sharing} onClick={() => void calling.toggleCamera()} />
-      <CallAudioOutput key={id} audio={partnerAudioRef} router={audioRouter} />
+      <CallAudioOutput key={id} audio={partnerAudioRef} router={audioRouter} onOpenChange={(value) => setAudioOpenFor(value ? id : null)} />
       <CallControl icon="screenShare" label={calling.sharing ? "Stop sharing" : "Share"} active={calling.sharing} disabled={calling.phase !== "connected" || calling.mediaBusy} onClick={() => { if (calling.sharing) void calling.stopSharing(); else if (screenSupported) void calling.shareScreen(); else setScreenHelp(!screenHelp); }} />
     </> : null}
     {incoming && !preparing ? <><div className="col-start-2"><CallControl icon="phoneEnd" label="Decline" tone="danger" onClick={() => { stopRingtone(); void calling.decline(); }} /></div><div className="col-start-4"><CallControl icon="phone" label="Pick up" tone="success" onClick={() => { stopRingtone(); void calling.accept(); }} /></div></>
@@ -54,14 +61,13 @@ export function TogetherProvider({ userId, children }: { userId: string; childre
     <audio ref={partnerAudioRef} autoPlay aria-label="Partner call audio" />
     {children}
     {id && hiddenFor === id ? <div className="fixed right-4 bottom-[calc(var(--bottomnav-h)+1rem)] z-40 flex gap-2 lg:bottom-6"><Button className="shadow-lg" onClick={() => setHidden(null)}>Return to call</Button>{calling.sharing ? <Button variant="secondary" onClick={() => void calling.stopSharing()}>Stop sharing</Button> : null}</div> : null}
-    <Modal open={open} onClose={close} size={id ? "full" : "md"} className={id ? "mono-call-panel" : undefined} closeLabel={id ? "Minimize call" : "Close"} footer={controls} title={incoming ? `Incoming ${calling.call?.kind === "VIDEO" ? "video" : "voice"} call` : calling.call?.kind === "VIDEO" ? "Your video call" : "Your call"}>
+    <div className="contents" onPointerDownCapture={chrome.interact}>
+    <Modal open={open} onClose={close} size={id ? "full" : "md"} className={id ? "mono-call-panel" : undefined} chromeHidden={!chrome.visible} closeLabel={id ? "Minimize call" : "Close"} footer={controls} title={incoming ? `Incoming ${calling.call?.kind === "VIDEO" ? "video" : "voice"} call` : calling.call?.kind === "VIDEO" ? "Your video call" : "Your call"}>
       <div className={id ? "relative flex h-full min-h-0 flex-col" : "space-y-4"}>
-        {id ? <div className="absolute inset-0">
-          {calling.remote && calling.call?.kind === "VIDEO" ? <CallMedia key={id} stream={calling.remote} muted partner fill /> : <div className="absolute inset-0 grid place-content-center justify-items-center gap-4 text-white"><span className="grid size-24 place-items-center rounded-full bg-white/10"><Icon name={calling.call?.kind === "VIDEO" ? "video" : "phone"} size="xl" /></span><p className="font-display text-2xl">{incoming ? "Your partner is calling" : "Just the two of you"}</p></div>}
-          {calling.sharing && calling.screenPreview ? <div className="mono-call-preview"><CallMedia stream={calling.screenPreview} muted /><p className="bg-black/70 px-2 py-1 text-2xs text-white">Your shared screen</p></div>
-            : calling.local && !calling.cameraOff && calling.call?.kind === "VIDEO" ? <div className="mono-call-preview"><CallMedia stream={calling.local} muted /></div> : null}
-        </div> : null}
-        <div className={id ? "mono-call-status relative z-10 space-y-2" : "space-y-4"}>
+        {id ? calling.call?.kind === "VIDEO" ? <CallVideoStage key={id} local={calling.sharing ? calling.screenPreview : calling.cameraOff ? null : calling.local}
+          remote={calling.remote} sharing={calling.sharing} connected={calling.phase === "connected"} controlsVisible={chrome.visible} canHideControls={autoHide} onToggleControls={chrome.toggle} />
+          : <div className="absolute inset-0 grid place-content-center justify-items-center gap-4 text-white"><span className="grid size-24 place-items-center rounded-full bg-white/10"><Icon name="phone" size="xl" /></span><p className="font-display text-2xl">{incoming ? "Your partner is calling" : "Just the two of you"}</p></div> : null}
+        <div inert={!chrome.visible} aria-hidden={!chrome.visible || undefined} className={id ? "mono-call-status mono-call-chrome relative z-10 space-y-2" : "space-y-4"}>
         {calling.error ? <p role="alert" className="text-sm text-error">{calling.error}</p> : null}
         {calling.notice ? <p role="status" className="text-sm text-muted">{calling.notice}</p> : null}
         {ringtoneBlocked ? <div className="space-y-2"><p className="text-sm text-muted">Your browser paused call sounds. Tap to hear the ringtone.</p><Button variant="secondary" leadingIcon={<Icon name="speaker" />} onClick={playRingtone}>Play ringtone</Button></div> : null}
@@ -80,15 +86,6 @@ export function TogetherProvider({ userId, children }: { userId: string; childre
         </div>
       </div>
     </Modal>
+    </div>
   </BackgroundMusic></Context.Provider>;
-}
-function CallMedia({ stream, muted = false, partner = false, fill = false }: { stream: MediaStream; muted?: boolean; partner?: boolean; fill?: boolean }) {
-  const element = useRef<HTMLVideoElement | null>(null), [needsPlay, setNeedsPlay] = useState(false), [cover, setCover] = useState(false);
-  useEffect(() => { const media = element.current; if (!media) return; media.srcObject = stream; void media.play().catch(() => setNeedsPlay(true)); return () => { media.srcObject = null; }; }, [stream]);
-  return <div className={fill ? "absolute inset-0" : "relative"}>
-    {/* Live peer media has no prerecorded caption track. */}
-    <video ref={element} autoPlay playsInline muted={muted} aria-label={partner ? "Partner live video" : "Your camera preview"} className={fill ? `mono-call-video ${cover ? "h-full w-full object-cover" : "mono-call-video-fit object-contain"}` : "aspect-video w-full bg-(--photo-backdrop) object-contain"} />
-    {fill ? <div className="mono-call-view-control"><Button size="sm" variant="secondary" leadingIcon={<Icon name="expand" />} aria-pressed={cover} onClick={() => setCover(!cover)}>{cover ? "Fit whole view" : "Fill screen"}</Button></div> : null}
-    {needsPlay ? <Button className="absolute top-1/2 left-3" variant="secondary" onClick={() => void element.current?.play().then(() => setNeedsPlay(false)).catch(() => {})}>Play video</Button> : null}
-  </div>;
 }
