@@ -133,7 +133,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (normal/game chat reconnect recovery live and verified; duplicate names and camera fixes preserved)
+Last updated: 2026-11-16 (slow-network chat and call recovery deployed and live-tested; duplicate names and camera fixes preserved)
 
 
 
@@ -157,7 +157,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-- **Slow internet and network handoff (2026-11-16)** — test normal/game chat under latency, limited bandwidth and offline gaps, measure audio recovery on the same call, and add safe ICE renegotiation where the current one-off signaling rule blocks recovery. Browser emulation cannot prove a physical Wi-Fi/cellular IP change.
 
 
 - **Planner and Memories panel verification (2026-11-16)** — implementation and deployment are complete (see Done and release record). User explicitly tagged Browser and asked to retry live mobile/desktop checks, café then movie, fixes and deployment. Retried the exact in-app selector using the existing runtime; still `Browser is not available: iab`. Supported recovery inventory is empty, and direct active-tab context reports `The Browser Use plugin is not available in this context.` No alternative browser was used under the panel-only constraint. Live planner was queued in the right panel; authenticated visual/click tests remain blocked, with no new app change or redeployment warranted solely by this failed connection. Local preview remains on port3247; prior HTTP200 responses do not establish visual or click-flow correctness.
@@ -379,6 +378,7 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+- **Slow internet and network handoff (2026-11-16)** — published 0353d91; all six live network checks passed, including normal-chat retry/catch-up, queued game text and same-call two-way audio recovery after caller/receiver packet loss. Physical phone Wi-Fi/cellular switching remains unverified.
 - **Chat reconnect stability (2026-11-16)** — Published 2e7eb56f87adb97910725d90b5d2ed81d292d915; main push succeeded. Production dpl_jprD3m9Hbgu2Fn8dqgKiUh7mq92K READY at https://mono-kappa-beryl.vercel.app. Normal chat retries transient reads and serializes refreshes; game chat retains open peers through failed signaling reads, uses disconnect grace, coalesces historical greetings, and tolerates delayed shared-call presence without a reconnect loop. Persistent outages and access errors remain visible. Twelve unit tests, lint/TypeScript/build and seven local + seven live fault-injection browser groups passed. Live run live-86b079850c20 removed its two accounts/one space; health200/database up and scoped error/fatal logs empty. Existing PWA tabs need one reload. Work isolated in .postgres-test/reconnect-fix; preserved duplicate-name release and existing encryption. Details: docs/reports/chat-reconnect-recovery-2026-11-16.md.
 - **Duplicate display names, unique emails (2026-11-16)** — deployed `56972be709f20440d276fd789c442411a9f5c9d7`, production `dpl_AtkWY5HdFwvrifye3Bos5VFjKz98` READY at https://mono-kappa-beryl.vercel.app. Signup, profile editing and Google sign-in accept identical names without suffixes or name-check delays. Nonblank 1–80-character names and unique case-insensitive emails remain enforced. Seven database and fourteen API tests, changed-file lint, full production build, right-panel registration/profile checks and live API/schema verification passed. Production has six users, zero name-unique indexes, both email-unique indexes and a completed migration. Approved temporary test branch removed; no production accounts altered. Existing camera/game-chat release is preserved.
 - **Account deletion and duplicate identities explanation (2026-11-16)** — inspected the deployed account service, couple archive/access guards, registration/identity normalization, SQL constraints and existing integration tests. Self-deletion closes the account, revokes its access, archives the whole active space and retires both memberships while preserving shared records; the surviving account remains active and may start again. Exact names are case-sensitive, trim outer whitespace, and become reusable after deletion or a name change. Emails are case-insensitive and remain reserved after normal self-deletion. Admin deletion is different: it anonymizes/releases the email unless separately blocked. No accounts, application behavior or deployment changed for this explanation.
@@ -1912,7 +1912,8 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
-### 2026-11-16 — Slow internet and Wi-Fi/mobile-data recovery — IN PROGRESS
+### 2026-11-16 — Slow internet and Wi-Fi/mobile-data recovery — DONE
+Published `0353d918898ec81123f34210eac560cb2f7b0b95`; main push succeeded. Vercel `dpl_9JKsWuXCXo21VctoiDveNuVysoCz` READY with canonical alias. Live run `live-a8df951c4c7a` passed all six groups: 400 ms latency/512 kbps down/128 kbps up, normal offline draft retention and single resend/catch-up, standalone game queue delivery after 20 seconds, and caller/receiver 20-second HTTP-offline + 100% WebRTC packet-loss recovery on the same peer/call/microphone tracks with received audio energy in both directions. No uncaught browser errors; two disposable users and their space removed. Health HTTP200/database up; scoped production error/fatal logs empty. Reload both devices. Actual physical phone Wi-Fi/cellular handoff, carrier NAT and OS suspension are not verified. Normal fully offline outgoing text retains an explicit retry draft, not an automatic outbox. Evidence: docs/reports/network-handoff-2026-11-16.md.
 Checkpoint: implemented authenticated/idempotent ICE renegotiation on the original call, 60-second recovery grace, early-candidate buffering, preserved media tracks and hang-up cancellation. 13 focused unit tests, 38 integration checks, lint/TypeScript/build and six local network browser groups pass (ba04e8223b1e3689). Tests include 400 ms/512 kbps down/128 kbps up, 20-second packet-loss gaps, same-call two-way audio recovery and queued game text. Normal offline sends retain a retry draft. Publishing and testing live; physical phone interface switching remains untested.
 User requests slow-network and Wi-Fi/mobile-data handoff checks without lost messages or disconnected calls. Read current signaling/deadline/message retry code and official Chrome protocol/MDN ICE guidance. Existing call signaling rejects subsequent offers and the deadline ends disconnected calls after 15 seconds; testing and repairing bounded recovery on the existing peer. Preserve message encryption, explicit failed-send drafts, authorization and hang-up behavior.
 

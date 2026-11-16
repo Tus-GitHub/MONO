@@ -23,4 +23,12 @@ These tests use Chrome network/packet-loss emulation and generated microphone au
 
 [Chrome DevTools Network protocol](https://chromedevtools.github.io/devtools-protocol/tot/Network/) documents bandwidth/latency/packet-loss emulation. [MDN ICE restart](https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/restartIce) describes renegotiating ICE for network recovery.
 
-Production publication and live verification are pending.
+## Production verification
+
+Published commit `0353d918898ec81123f34210eac560cb2f7b0b95`; push to main succeeded. Vercel deployment `dpl_9JKsWuXCXo21VctoiDveNuVysoCz` is READY and serves https://mono-kappa-beryl.vercel.app.
+
+All six browser groups passed against production in run `live-a8df951c4c7a`, using the same latency/bandwidth, 20-second HTTP outages and 100% WebRTC packet-loss checks described above. Both caller-side and receiver-side restoration renegotiated ICE on the original call, retained the microphone track IDs and resumed received audio energy in both directions. Pending game messages arrived, normal chat retained its retry draft and caught up without duplicate stored messages, and there were no uncaught browser JavaScript errors.
+
+Artifacts: `.postgres-test/reconnect-fix/.postgres-test/network-handoff-live/live-a8df951c4c7a/results.json` and `network-handoff-mobile.png`. The suite removed its two disposable accounts and their space; the outer cleanup found no remaining test space. No customer records were changed. Health returned HTTP 200 with database up at 2026-11-16T16:36:51Z. Deployment-scoped error/fatal logs were empty in the final ten-minute check. Existing PWA tabs need a reload on both devices to load this release.
+
+The physical-phone and offline-send limitations above still apply; these results do not promise uninterrupted sound during a network outage or a successful handoff on every carrier.
