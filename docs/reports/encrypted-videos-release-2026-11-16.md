@@ -66,4 +66,30 @@ Vercel allowance is asserted here. No plan, billing setting or encryption key wa
 
 ## Live deployment
 
-Pending production publication and verification at the time of this report entry.
+Published feature commit `2290c87ec10ab09306bf9c82d1c327be117cb8e3` and follow-up
+`ccfb1edd13ca13f5e934341e278660a91b3ead17`. Final deployment
+`dpl_HCTzTBHdsx15eNaMwf1kChaDZBTS` is READY on
+https://mono-kappa-beryl.vercel.app.
+
+Seven live groups passed in `.postgres-test/release-live/live-339d52223892/results.json`.
+The source video was 32,683,735 bytes; the encrypted upload's prepared video was 3,194,456
+bytes. Both partners played moving frames with measurable audio. Retry, reload, responsive
+layout, ID-only admin grouping and both deletion modes passed. Delete API responses were
+200 in 232 ms and 243 ms. No uncaught browser JavaScript errors. Health returned 200,
+anonymous video access 401 with private/no-store, and the dependency license notice 200.
+
+The final follow-up also adds safe download extensions, the dependency's MPL-2.0 license
+and source notice, and makes deleted chunks immediately eligible for the existing cleanup
+worker. Two metadata unit checks and the six video integration checks passed again.
+
+Earlier live attempts encountered a tsx serialization helper error, a Chromium navigation
+stall, a timed-out delete request and an async-form readiness race. Missing local dependency
+files were restored using the unchanged lockfile. These attempts are not counted as passes.
+The successful final run used bounded DOM navigation, explicit form readiness and HTTP/1.1
+in headless Chromium to avoid the local transport stalls; TLS validation stayed enabled.
+This establishes live browser/API/storage behavior, not physical iPhone/Samsung compatibility.
+
+Every run removed its own disposable accounts and spaces. Eight encrypted objects from the
+successful and earlier partial upload runs were queued for immediate cleanup; physical
+removal awaits the existing worker. Existing user media and the global soundtrack were
+untouched. No paid service, plan change or key rotation was introduced.

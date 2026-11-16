@@ -42,7 +42,7 @@ export async function runChatVideos({ browser, baseUrl, prisma, runId, artifactD
     const owner = await pageFor(users[0]); await click(owner, "Generate recovery code");
     const code = await owner.$eval("p.select-all", el => el.textContent);
     await target(owner, 'input[type="checkbox"]'); await click(owner, "Enable encrypted chat"); await owner.waitForSelector('[aria-label="Message your partner"]');
-    const partner = await pageFor(users[1]); await partner.type('[aria-label="Private recovery code"]', code); await click(partner, "Unlock on this device"); await partner.waitForSelector('[aria-label="Message your partner"]');
+    const partner = await pageFor(users[1]); await partner.waitForSelector('[aria-label="Private recovery code"]', { visible: true }); await partner.type('[aria-label="Private recovery code"]', code); await click(partner, "Unlock on this device"); await partner.waitForSelector('[aria-label="Message your partner"]');
     pass("both partners unlock encrypted chat");
     await owner.bringToFront(); await target(owner, '[aria-label="Add attachment"]'); await text(owner, "Share something");
     // Record genuine moving frames and an audio tone locally. No personal camera/microphone.
