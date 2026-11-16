@@ -82,10 +82,26 @@ export async function actOnCall(value: unknown): Promise<CallDTO> {
       return tx.coupleCall.update({ where: { id: call.id }, data: { kind: "VIDEO" } });
     }
     if (input.action === "heartbeat") return tx.coupleCall.update({ where: { id: call.id }, data: context.user.id === call.callerId ? { callerSeenAt: now } : { calleeSeenAt: now } });
+    if (input.action === "restart") {
+      if (context.user.id !== call.calleeId || status !== "ACCEPTED") throw new ValidationError("Only the connected receiver can request recovery.");
+      if (!await tx.callSignal.findFirst({ where: { callId: call.id, kind: "restart", createdAt: { gt: new Date(now.getTime() - 5000) } } })) {
+        await tx.callSignal.create({ data: { callId: call.id, senderId: context.user.id, kind: "restart", payload: {} } });
+      }
+      return call;
+    }
     if (input.action === "signal") {
       if ((input.signal.kind === "offer" && context.user.id !== call.callerId) || (input.signal.kind === "answer" && (context.user.id !== call.calleeId || status !== "ACCEPTED"))) throw new ValidationError("This call signal isn't allowed.");
       if (await tx.callSignal.count({ where: { callId: call.id } }) >= 512) throw new ValidationError("The call could not connect. Start a new call.");
-      if (input.signal.kind !== "ice" && await tx.callSignal.findFirst({ where: { callId: call.id, kind: input.signal.kind } })) throw new ConflictError("This call was already negotiated.");
+      if (input.signal.kind !== "ice") {
+        const previous = await tx.callSignal.findFirst({ where: { callId: call.id, kind: input.signal.kind }, orderBy: { id: "desc" } });
+        if (previous && (previous.payload as { sdp?: string }).sdp === input.signal.payload.sdp) return call;
+        const opposite = await tx.callSignal.findFirst({ where: { callId: call.id, kind: input.signal.kind === "offer" ? "answer" : "offer" }, orderBy: { id: "desc" } });
+        if (input.signal.kind === "offer") {
+          if (previous && (!opposite || previous.id > opposite.id)) throw new ConflictError("Wait for the pending connection answer.");
+          if (previous && status !== "ACCEPTED") throw new ConflictError("Wait for pickup before recovering the call.");
+          if (await tx.callSignal.count({ where: { callId: call.id, kind: "offer", createdAt: { gt: new Date(now.getTime() - 60_000) } } }) >= 6) throw new ValidationError("Give the connection a moment to recover.");
+        } else if (!opposite || previous && previous.id > opposite.id) throw new ConflictError("There is no pending connection offer.");
+      }
       await tx.callSignal.create({ data: { callId: call.id, senderId: context.user.id, kind: input.signal.kind, payload: input.signal.payload as Prisma.InputJsonValue } });
     }
     return call;

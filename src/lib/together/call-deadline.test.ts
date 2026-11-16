@@ -23,7 +23,7 @@ it("allows a connected call and recovered connection to outlive all deadlines", 
   deadline.connection("connected"); vi.advanceTimersByTime(90_000);
   deadline.connection("disconnected"); vi.advanceTimersByTime(14_000); deadline.connection("connected");
   vi.advanceTimersByTime(90_000); expect(expired).not.toHaveBeenCalled();
-  deadline.connection("disconnected"); vi.advanceTimersByTime(15_000);
+  deadline.connection("disconnected"); vi.advanceTimersByTime(60_000);
   expect(expired.mock.calls).toEqual([["connection"]]);
 });
 it("cancels the deadline on hang-up and ignores late peer events", () => {
@@ -31,4 +31,11 @@ it("cancels the deadline on hang-up and ignores late peer events", () => {
   deadline.observe({ status: "RINGING", createdAt: new Date().toISOString() });
   deadline.stop(); deadline.connection("failed"); vi.advanceTimersByTime(120_000);
   expect(expired).not.toHaveBeenCalled();
+});
+
+it("allows a network handoff longer than 15 seconds without extending the recovery deadline", () => {
+  const expired = vi.fn(), deadline = callDeadline(expired);
+  deadline.observe({status:"ACCEPTED",createdAt:new Date().toISOString()}); deadline.connection("connected");
+  deadline.connection("disconnected"); vi.advanceTimersByTime(20_000); deadline.connection("failed"); expect(expired).not.toHaveBeenCalled();
+  vi.advanceTimersByTime(39_000); deadline.connection("connected"); vi.advanceTimersByTime(61_000); expect(expired).not.toHaveBeenCalled();
 });

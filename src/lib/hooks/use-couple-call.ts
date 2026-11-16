@@ -6,6 +6,8 @@ import { useVisiblePoll } from "./use-visible-poll";
 import { prepareCallMedia, acquireCameraMedia, acquireScreenMedia, switchCallCamera, type CameraFacing } from "@/lib/together/call-media";
 import { bindCallChatChannel, CALL_CHAT_LABEL } from "@/lib/together/call-chat-channel";
 import { offerCallTracks, answerCallTracks } from "@/lib/together/call-tracks";
+import { retryRead } from "@/lib/together/recovery";
+import { callRecovery, canApplyCallIce } from "@/lib/together/call-recovery";
 import { callDeadline } from "@/lib/together/call-deadline";
 
 type Phase = "idle" | "permission" | "preparing" | "ringing" | "connecting" | "connected" | "elsewhere";
@@ -22,6 +24,7 @@ export function useCoupleCall(userId: string) {
   const active = useRef<CallDTO | null>(null), peer = useRef<RTCPeerConnection | null>(null), stream = useRef<MediaStream | null>(null);
   const generation = useRef(0), starting = useRef(false), cursor = useRef("0"), heartbeat = useRef(0);
   const pendingIce = useRef<RTCIceCandidateInit[]>([]), queue = useRef<Promise<unknown>>(Promise.resolve());
+  const recovery = useRef<ReturnType<typeof callRecovery> | null>(null);
   const deadline = useRef<ReturnType<typeof callDeadline> | null>(null);
   const mediaRequest = useRef<AbortController | null>(null);
   const videoRequest = useRef<AbortController | null>(null), videoSender = useRef<RTCRtpSender | null>(null);
@@ -38,7 +41,7 @@ export function useCoupleCall(userId: string) {
   }, [screenPreview]);
 
   const release = useCallback(() => {
-    generation.current++; starting.current = false; deadline.current?.stop(); deadline.current = null; mediaRequest.current?.abort(); videoRequest.current?.abort();
+    generation.current++; recovery.current?.stop(); recovery.current = null; starting.current = false; deadline.current?.stop(); deadline.current = null; mediaRequest.current?.abort(); videoRequest.current?.abort();
     callChatCleanup.current?.(); callChatCleanup.current = null; setGameChatChannel(null); setCameraSwitching(false); setCameraFacing("user");
     for (const track of screenStream.current?.getTracks() ?? []) { track.onended = null; track.stop(); }
     screenStream.current = null; videoSender.current = null; videoRequest.current = null; setSharing(false); setScreenPreview(null); setMediaBusy(false);
@@ -54,7 +57,7 @@ export function useCoupleCall(userId: string) {
   const sendSignal = useCallback((id: string, signal: { kind: string; payload: unknown }, runId: number) => {
     const work = queue.current.catch(() => {}).then(async () => {
       if (generation.current !== runId) return;
-      await togetherFetch("/api/together/calls", { body: { action: "signal", id, signal } });
+      await retryRead(() => generation.current === runId ? togetherFetch("/api/together/calls", { body: { action: "signal", id, signal } }) : Promise.resolve());
     });
     queue.current = work; return work;
   }, []);
@@ -75,7 +78,7 @@ export function useCoupleCall(userId: string) {
     if (row.callerId === userId) videoSender.current = offerCallTracks(pc, media);
     setCameraOff(!media.getVideoTracks().length);
     setCameraFacing(media.getVideoTracks()[0]?.getSettings().facingMode === "environment" ? "environment" : "user");
-    pc.onicecandidate = (event) => { if (event.candidate) void sendSignal(row.id, { kind: "ice", payload: event.candidate.toJSON() }, runId).catch((error) => { if (generation.current === runId) { setError(errorMessage(error)); void end(); } }); };
+    pc.onicecandidate = (event) => { if (event.candidate) void sendSignal(row.id, { kind: "ice", payload: event.candidate.toJSON() }, runId).catch((error) => { if (generation.current === runId) { setSyncError(errorMessage(error)); } }); };
     pc.ontrack = (event) => {
       if (generation.current !== runId) return;
       if (!received.getTracks().includes(event.track)) received.addTrack(event.track);
@@ -88,11 +91,23 @@ export function useCoupleCall(userId: string) {
       void end();
     });
     deadline.current.observe(row);
+    recovery.current = callRecovery({
+      eligible: () => generation.current === runId && active.current?.status === "ACCEPTED" && !!pc.remoteDescription && pc.connectionState !== "closed",
+      online: () => navigator.onLine !== false,
+      stable: () => pc.connectionState === "connected" && pc.signalingState === "stable",
+      recover: async () => {
+        if (row.callerId !== userId) { await togetherFetch("/api/together/calls", { body: { action: "restart", id: row.id } }); return; }
+        if (pc.signalingState === "stable") await pc.setLocalDescription(await pc.createOffer({ iceRestart: true }));
+        if (generation.current !== runId || pc.localDescription?.type !== "offer") return;
+        await sendSignal(row.id, { kind: "offer", payload: { type: "offer", sdp: pc.localDescription.sdp } }, runId);
+      },
+      onError: error => { if (generation.current === runId) setSyncError(errorMessage(error)); },
+    });
     pc.onconnectionstatechange = () => {
       if (generation.current !== runId) return;
-      deadline.current?.connection(pc.connectionState);
+      deadline.current?.connection(pc.connectionState); recovery.current?.observe(pc.connectionState);
       if (pc.connectionState === "connected") setPhase("connected");
-      if (pc.connectionState === "disconnected") setPhase("connecting");
+      if (["disconnected", "failed"].includes(pc.connectionState)) setPhase("connecting");
     };
     return pc;
   }, [end, sendSignal, userId]);
@@ -180,15 +195,24 @@ export function useCoupleCall(userId: string) {
       if (result.call.status === "ACCEPTED" && pc.connectionState !== "connected") setPhase("connecting");
       for (const event of result.signals) {
         if (generation.current !== runId) return;
-        if (event.kind === "ice") {
-          if (pc.remoteDescription) await pc.addIceCandidate(event.payload as RTCIceCandidateInit); else pendingIce.current.push(event.payload as RTCIceCandidateInit);
+        if (event.kind === "restart") {
+          if (row.callerId === userId) recovery.current?.request();
+        } else if (event.kind === "ice") {
+          const candidate = event.payload as RTCIceCandidateInit;
+          if (canApplyCallIce(candidate, pc.remoteDescription?.sdp)) await pc.addIceCandidate(candidate).catch(() => {});
+          else pendingIce.current.push(candidate);
         } else {
-          await pc.setRemoteDescription(event.payload as RTCSessionDescriptionInit);
+          const description = event.payload as RTCSessionDescriptionInit;
+          if (pc.remoteDescription?.sdp === description.sdp && pc.signalingState === "stable") {
+            if (event.kind === "offer" && pc.localDescription?.type === "answer") await sendSignal(row.id, { kind: "answer", payload: { type: "answer", sdp: pc.localDescription.sdp } }, runId);
+            cursor.current = event.id; continue;
+          }
+          await pc.setRemoteDescription(description);
           if (generation.current !== runId) return;
-          for (const candidate of pendingIce.current.splice(0)) await pc.addIceCandidate(candidate);
+          for (const candidate of pendingIce.current.splice(0)) await pc.addIceCandidate(candidate).catch(() => {});
           if (event.kind === "offer") {
             if (!stream.current) return;
-            videoSender.current = await answerCallTracks(pc, stream.current);
+            if (!videoSender.current) videoSender.current = await answerCallTracks(pc, stream.current);
             if (generation.current !== runId) return;
             await pc.setLocalDescription(await pc.createAnswer());
             await sendSignal(row.id, { kind: "answer", payload: { type: "answer", sdp: pc.localDescription!.sdp } }, runId);
@@ -201,8 +225,14 @@ export function useCoupleCall(userId: string) {
       if (!signal.aborted && generation.current === runId) setSyncError(null);
     } catch (error) { if (!signal.aborted && generation.current === runId) setSyncError(errorMessage(error)); }
   }, 1000, owned, true);
+  useEffect(() => {
+    const network = (navigator as Navigator & { connection?: EventTarget }).connection;
+    const changed = () => recovery.current?.request();
+    window.addEventListener("online", changed); network?.addEventListener("change", changed);
+    return () => { window.removeEventListener("online", changed); network?.removeEventListener("change", changed); };
+  }, []);
   useEffect(() => () => {
-    callChatCleanup.current?.();
+    recovery.current?.stop(); callChatCleanup.current?.();
     generation.current++; mediaRequest.current?.abort(); videoRequest.current?.abort(); deadline.current?.stop(); peer.current?.close(); stream.current?.getTracks().forEach((track) => track.stop());
     screenStream.current?.getTracks().forEach((track) => { track.onended = null; track.stop(); });
     if (active.current && peer.current) void fetch("/api/together/calls", { method: "POST", keepalive: true, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "end", id: active.current.id }) }).catch(() => {});

@@ -26,6 +26,7 @@ export const callActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("decline"), id: idSchema }),
   z.object({ action: z.literal("end"), id: idSchema }),
   z.object({ action: z.literal("heartbeat"), id: idSchema }),
+  z.object({ action: z.literal("restart"), id: idSchema }),
   z.object({ action: z.literal("video"), id: idSchema }),
   z.object({ action: z.literal("signal"), id: idSchema, signal: signalSchema }),
 ]);

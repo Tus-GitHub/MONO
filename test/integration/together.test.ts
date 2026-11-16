@@ -257,3 +257,21 @@ it("refuses chat, games and call writes after a member leaves", async () => {
   await expect(asUser(owner, () => actOnCall({ action: "start", kind: "AUDIO", clientNonce: randomUUID() }))).rejects.toThrow();
   expect(await prisma.chatMessage.count({ where: { coupleId: couple } })).toBe(0);
 });
+
+it("renegotiates an accepted call for network handoff without another call or duplicate signaling", async () => {
+  const call=await asUser(owner,()=>actOnCall({action:"start",kind:"AUDIO",clientNonce:randomUUID()}));
+  const signal=(kind:"offer"|"answer",sdp:string)=>({action:"signal",id:call.id,signal:{kind,payload:{type:kind,sdp}}});
+  await asUser(owner,()=>actOnCall(signal("offer","first offer")));
+  await expect(asUser(partner,()=>actOnCall({action:"restart",id:call.id}))).rejects.toThrow();
+  await asUser(partner,()=>actOnCall({action:"accept",id:call.id}));await asUser(partner,()=>actOnCall(signal("answer","first answer")));
+  await expect(asUser(outsider,()=>actOnCall({action:"restart",id:call.id}))).rejects.toThrow();
+  await expect(asUser(owner,()=>actOnCall({action:"restart",id:call.id}))).rejects.toThrow();
+  await asUser(partner,()=>actOnCall({action:"restart",id:call.id}));await asUser(partner,()=>actOnCall({action:"restart",id:call.id}));
+  expect(await prisma.callSignal.count({where:{callId:call.id,kind:"restart"}})).toBe(1);
+  await asUser(owner,()=>actOnCall(signal("offer","new ICE offer")));await asUser(owner,()=>actOnCall(signal("offer","new ICE offer")));
+  await expect(asUser(owner,()=>actOnCall(signal("offer","overlapping offer")))).rejects.toThrow(/pending/);
+  await asUser(partner,()=>actOnCall(signal("answer","new ICE answer")));await asUser(partner,()=>actOnCall(signal("answer","new ICE answer")));
+  expect(await prisma.callSignal.count({where:{callId:call.id,kind:"offer"}})).toBe(2);expect(await prisma.callSignal.count({where:{callId:call.id,kind:"answer"}})).toBe(2);
+  expect(await prisma.coupleCall.count({where:{coupleId:couple}})).toBe(1);
+  await asUser(owner,()=>actOnCall({action:"end",id:call.id}));await expect(asUser(partner,()=>actOnCall({action:"restart",id:call.id}))).rejects.toThrow();
+});

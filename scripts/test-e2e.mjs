@@ -25,6 +25,7 @@ suites.controls = ["custom-controls.mjs", "runControlsSuite"];
 suites.gameExperience = ["game-experience.mjs", "runGameExperience"];
 suites.chatVideos = ["chat-videos.mjs", "runChatVideos"];
 suites.callMinimize = ["call-minimize.mjs", "runCallMinimize"];
+suites.networkHandoff = ["network-handoff.mjs", "runNetworkHandoff"];
 suites.chatStability = ["chat-stability.mjs", "runChatStability"];
 suites.musicLibrary = ["music-library.mjs", "runMusicLibrary"];
 suites.chatStickers = ["chat-stickers.mjs", "runChatStickers"];

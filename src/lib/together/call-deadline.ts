@@ -17,8 +17,8 @@ export function callDeadline(expire: (reason: "unanswered" | "connection") => vo
     connection(state: RTCPeerConnectionState) {
       if (stage === "stopped") return;
       if (state === "connected") { clearTimeout(timer); stage = "connected"; }
-      else if (state === "disconnected") arm("disconnected", 15_000, "connection");
-      else if (state === "failed" && stage !== "ringing") { clearTimeout(timer); stage = "stopped"; expire("connection"); }
+      else if (state === "disconnected") arm("disconnected", 60_000, "connection");
+      else if (state === "failed" && stage !== "ringing") arm("disconnected", 60_000, "connection");
     },
     stop() { clearTimeout(timer); stage = "stopped"; },
   };

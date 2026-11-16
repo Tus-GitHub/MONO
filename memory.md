@@ -157,6 +157,7 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+- **Slow internet and network handoff (2026-11-16)** — test normal/game chat under latency, limited bandwidth and offline gaps, measure audio recovery on the same call, and add safe ICE renegotiation where the current one-off signaling rule blocks recovery. Browser emulation cannot prove a physical Wi-Fi/cellular IP change.
 
 
 - **Planner and Memories panel verification (2026-11-16)** — implementation and deployment are complete (see Done and release record). User explicitly tagged Browser and asked to retry live mobile/desktop checks, café then movie, fixes and deployment. Retried the exact in-app selector using the existing runtime; still `Browser is not available: iab`. Supported recovery inventory is empty, and direct active-tab context reports `The Browser Use plugin is not available in this context.` No alternative browser was used under the panel-only constraint. Live planner was queued in the right panel; authenticated visual/click tests remain blocked, with no new app change or redeployment warranted solely by this failed connection. Local preview remains on port3247; prior HTTP200 responses do not establish visual or click-flow correctness.
@@ -1910,6 +1911,10 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-16 — Slow internet and Wi-Fi/mobile-data recovery — IN PROGRESS
+Checkpoint: implemented authenticated/idempotent ICE renegotiation on the original call, 60-second recovery grace, early-candidate buffering, preserved media tracks and hang-up cancellation. 13 focused unit tests, 38 integration checks, lint/TypeScript/build and six local network browser groups pass (ba04e8223b1e3689). Tests include 400 ms/512 kbps down/128 kbps up, 20-second packet-loss gaps, same-call two-way audio recovery and queued game text. Normal offline sends retain a retry draft. Publishing and testing live; physical phone interface switching remains untested.
+User requests slow-network and Wi-Fi/mobile-data handoff checks without lost messages or disconnected calls. Read current signaling/deadline/message retry code and official Chrome protocol/MDN ICE guidance. Existing call signaling rejects subsequent offers and the deadline ends disconnected calls after 15 seconds; testing and repairing bounded recovery on the existing peer. Preserve message encryption, explicit failed-send drafts, authorization and hang-up behavior.
 
 ### 2026-11-16 — Allow duplicate names while preserving unique emails — DONE
 - User explicitly overrode the earlier exact-case name uniqueness policy. Updating registration, profile, onboarding and Google sign-in; preserving case-insensitive email uniqueness and current account-deletion semantics. Retain the old name-check endpoint as validation-only compatibility for open older tabs. Migration removes only the two name-specific unique indexes, without changing account records or email indexes. Isolated migration and identity regression verification underway before deployment.

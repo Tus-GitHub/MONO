@@ -7,4 +7,4 @@ export interface ScoreDTO { kind: GameKind; userId: string; wins: number; losses
 export interface ChatPeer { id: string; name: string; avatarUrl: string | null; lastRead: string; lastSeenAt: string | null; typingUntil: string | null }
 export interface TogetherSnapshot { revision: string; cursor: string; messages: MessageDTO[]; updates?: MessageDTO[]; coupleId: string; chatKeyId: string | null; games?: GameDTO[]; scores?: ScoreDTO[]; imageBytes?: number; partner: ChatPeer; hasMore: boolean; timezone: string; observedAt: string }
 export interface CallDTO { id: string; callerId: string; calleeId: string; kind: "AUDIO" | "VIDEO"; status: "RINGING" | "ACCEPTED" | "ENDED" | "DECLINED" | "MISSED"; createdAt: string; acceptedAt: string | null }
-export interface SignalDTO { id: string; kind: "offer" | "answer" | "ice"; payload: RTCSessionDescriptionInit | RTCIceCandidateInit }
+export interface SignalDTO { id: string; kind: "offer" | "answer" | "ice" | "restart"; payload: RTCSessionDescriptionInit | RTCIceCandidateInit }
