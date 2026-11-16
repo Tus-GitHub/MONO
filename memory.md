@@ -133,7 +133,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-17 (Emoji Bounce, Snake and 2048 deployed; saved personal bests and mobile framing verified live)
+Last updated: 2026-11-17 (game score recovery, Games highlight and faster Emoji Bounce deployed; chat-key recovery options explained)
 
 
 
@@ -158,7 +158,6 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Games navigation highlight (2026-11-17):** Keep the Games header icon selected across the catalog, matches, solo games, History and Scores; preserve the existing active-tab design. Checking mobile/desktop and deploying from .postgres-test/emoji-bounce.
 
 
 - **Compact desktop date card (2026-11-17):** User screenshot identifies the home upcoming-date cover growing too tall on laptops. Preserve mobile styling, bound desktop media height and loading placeholder, verify in the right-panel browser. Work isolated from other ongoing branding changes.
@@ -384,6 +383,7 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+- **Games highlight and score recovery (2026-11-17):** Live 3057c38; durable round/best backups, automatic retry, selected Games icon and versioned 12% faster Emoji Bounce. Local failure/reload and live recovery verified in the right panel.
 
 - **Solo games and saved bests (2026-11-17):** Emoji Bounce, Snake and 2048 are live on AMOR with persistent per-partner bests, responsive controls and server-verified scores. Final code ff02cb7; deployment dpl_9owisBTJFh2scFqyU9TWLVdt9BxY READY. Local checks and live demo flows passed; approved temporary Neon branch deleted.
 - **AMOR readable logo, call reconnect and live history verification (2026-11-17)** — published merge ba1131d, production dpl_8kcbSCF2nwpANmrKM5MBcJsNxwJW READY on both origins. Live 13 chat/call, seven login/invite/responsive, three public-branding and PWA Refresh checks pass; 63 retained ciphertext fingerprints and all 12 storage objects unchanged. Test accounts/inbox removed; no database/key changes.
@@ -1923,12 +1923,13 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
-### 2026-11-17 — Games navigation highlight — IN PROGRESS
-- Final local production build passed (108 routes; 4.11 MiB largest local trace); final lint passed. Right-panel production-bundle test at 390x844: forced save HTTP503, earned 8 points, reloaded and restored exactly the same 16 tiles/current score/best paused; lifting the fault automatically saved the best, confirmed on Scores. Header active state verified on catalog/nested solo/Scores/History, inactive on Home; mobile and 1366x900 desktop have no overflow and preserve tokens. No physical iPhone/PWA hardware claim. Local dev preview/browser error-page issues were recovered using a fresh tab and production bundle, not counted as application passes. Publishing authorized game changes; live verification pending.
-- Current recovery verification: 13 deterministic unit checks and six local PostgreSQL/API checks passed, including interrupted-save persistence, exact replay restore, acknowledgement races, account/couple isolation, monotonic bests and old/new speed compatibility. Focused lint and TypeScript passed. Local dev preview did not hydrate; switching browser QA to the production bundle before publication.
-- Encryption questions: explained that an existing recovery code restores history; a still-unlocked device could support a future verified re-encryption flow; loss of every key/code makes old encrypted history unrecoverable. Proposed Recover chat first and a separately confirmed fresh start only if necessary. New shared-code activation could lock Chat for both partners without signing them out of AMOR. No chat key, history or security setting was changed or deleted; reset/rotation is not implemented.
-- Scope expanded: user reported a connection warning and lost score, requested slightly faster Emoji Bounce, and asked why. Explained the 15-second save request timeout and confirmed unsaved progress existed only in page memory. Adding account/couple-scoped device recovery, retries and versioned 12% faster physics so old rounds still verify. Initial navigation-only build/lint passed; no new code has been published yet.
-- User requests a highlighted tab/icon when Games is selected. Desktop sidebar already matches nested Games routes; the header gamepad link had no active state. Adding route-aware primary colour/tint and aria-current while retaining all layouts.
+### 2026-11-17 — Games highlight and connection recovery — DONE
+- Published 3057c386ddb7758cfd936417e0ed3357b2479041 to origin/main; push succeeded. Vercel production dpl_BHtzoCSqTiCVmcC8QyeepmAM8nQu is READY at https://amor-together.vercel.app. Games header icon now stays selected on all Games routes, using existing primary/tint tokens and aria-current.
+- Added account/couple/game-scoped local checkpoints and a pending-best queue. Interrupted saves keep the displayed best, retry with backoff/online events, and recover the exact board paused after reload; catalog/Scores also retry pending proofs. Storage failure is disclosed. Signed game proofs last 30 days while normal authentication and membership checks remain required. Version 2 makes Emoji Bounce 12% faster; legacy tickets and open clients retain version 1 physics.
+- Verification passed: 13 unit checks, six local PostgreSQL/API checks, focused lint, TypeScript and full production build. Tests cover failed saves/reload, acknowledgement races, scope isolation, monotonic scores, replay verification and old/new rule compatibility. Local build: 108 routes, largest trace 4.11 MiB; Vercel: 44.84 MiB, within guard. No database migration, dependency, billing or secret changes.
+- Right-panel production-bundle check at 390x844 forced score-save HTTP503: 8 points and all 16 tiles survived reload, restored paused; removing the fault automatically saved and displayed the best in Scores. Header selected on catalog/solo/Scores/History and inactive on Home; 390x844 and 1366x900 have no overflow. Initial dev hydration and stale browser-error-page problems were resolved with a fresh tab and production bundle; those attempts were not counted as passes. Physical iPhone/installed-PWA hardware was not tested.
+- Live right-panel check: Test2's 2048 round scored 8, survived reload with identical tiles and confirmed Best score saved. Scores shows Test2=8 and retained Test1=12; previous Test2 Bounce=1 is unchanged. Header and Scores selection verified. Health 200/database up; browser error log empty. Screenshot .postgres-test/emoji-bounce/.screenshots/games-recovery-live.jpg. Local preview processes stopped and generated QA cache removed; root checkout/unrelated work preserved. Live Scores remains open in the panel.
+- Encryption questions answered from actual code: an existing recovery code restores encrypted history; a still-unlocked device could support a future verified re-encryption flow; loss of every key/code makes old encrypted history unrecoverable. Recommended Recover chat first and a separately confirmed fresh start only if needed. A future key activation could lock Chat for both partners without signing them out of AMOR. No chat key/history/security setting was changed or deleted; reset/rotation is not implemented.
 
 ### 2026-11-17 — Solo games and saved bests — DONE
 - Added Emoji Bounce, Snake and 2048, bringing the catalog to 27 games. Touch, mouse and keyboard controls, pause/resume, responsive boards and each partner's saved personal best use the existing design. Signed user/couple-bound rounds and bounded server replays verify results; transactional writes prevent lower scores from replacing higher ones. Both partners see separate bests in Scores. No new package, integration key or paid service.
