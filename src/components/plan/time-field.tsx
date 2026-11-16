@@ -1,5 +1,6 @@
 "use client";
 
+import { Input } from "@/components/ui/input";
 import { Chip } from "@/components/ui/chip";
 import { useId } from "react";
 import { cn } from "@/lib/utils/cn";
@@ -49,7 +50,7 @@ export function TimeField({
             {preset.label}
           </Chip>
         ))}
-        <input
+        <Input uiSize="sm"
           type="time"
           id={id}
           disabled={disabled}

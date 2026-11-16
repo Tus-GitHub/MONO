@@ -1,10 +1,11 @@
 import type { ComponentPropsWithRef, ReactNode } from "react";
 
 import { controlSize, disabledControl, type ControlSize } from "@/components/ui/_shared";
+import { DateTimeInput } from "./date-time-input";
 import { cn } from "@/lib/utils/cn";
 
 export const fieldBase =
-  "w-full rounded-lg border border-line bg-surface text-ink shadow-xs transition-colors " +
+  "w-full rounded-xl border border-line bg-surface text-ink shadow-xs transition-colors " +
   "placeholder:text-faint hover:border-line-strong " +
   "focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/35 " +
   disabledControl;
@@ -29,6 +30,7 @@ const typeHints: Record<string, Partial<ComponentPropsWithRef<"input">>> = {
 };
 
 export function Input({ className, uiSize = "md", invalid, type, ...props }: InputProps) {
+  if (type === "date" || type === "time") return <DateTimeInput {...props} type={type as "date" | "time"} className={className} uiSize={uiSize} invalid={invalid} />;
   return (
     <input
       type={type}
@@ -84,7 +86,7 @@ export function InputGroup({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-lg border border-line bg-surface px-3 shadow-xs transition-colors",
+        "flex items-center gap-2 rounded-xl border border-line bg-surface px-3 shadow-xs transition-colors",
         "hover:border-line-strong focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/35",
         className,
       )}

@@ -145,7 +145,7 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
 export function useEscapeKey(onClose: () => void, active: boolean) {
   const handler = useCallback(
     (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape" && !event.defaultPrevented) onClose();
     },
     [onClose],
   );

@@ -21,6 +21,7 @@ if (!["chrome", "firefox"].includes(engine)) throw new Error("MONO_E2E_BROWSER m
 const suites = { journey: ["journey.mjs", "runJourney"], account: ["account.mjs", "runAccountControls"], pagination: ["pagination.mjs", "runPagination"], workflows: ["workflows.mjs", "runWorkflows"], compatibility: ["compatibility.mjs", "runCompatibility"], settings: ["settings.mjs", "runSettings"], registration: ["registration.mjs", "runRegistration"], states: ["state-machines.mjs", "runStateMachines"] };
 suites.moderation = ["moderation.mjs", "runModeration"];
 suites.chatPlanner = ["chat-planner.mjs", "runChatPlanner"];
+suites.controls = ["custom-controls.mjs", "runControlsSuite"];
 const selected = process.argv.slice(2).length ? process.argv.slice(2) : engine === "firefox" ? ["compatibility"] : Object.keys(suites);
 if (selected.some((name) => !suites[name])) throw new Error("Choose journey, account, pagination, workflows, compatibility, settings, registration, states, or moderation.");
 // The original suites use CDP-only timezone/offline emulation. Never count a skipped

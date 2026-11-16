@@ -41,7 +41,7 @@ hex or px in a component.**
 - **Typography** — `font-display` (Fraunces), `font-sans` (Inter), `font-mono`. Sizes: the
   Tailwind scale plus `text-2xs` (0.6875rem). `h1–h4` default to `font-display`, weight 500.
 - **Radius** — `rounded-xs .375` · `sm .5` · `md .75` · `lg 1` · `xl 1.5` · `2xl 2` (rem).
-  Controls use `lg`; cards `xl`; sheets `2xl` (top).
+  Controls use `xl`; large buttons and picker panels `2xl`; cards `xl`; sheets `2xl` (top).
 - **Shadows** — `shadow-xs … shadow-xl`, warm-tinted (`rgb(38 26 18 / …)`).
 - **Control heights** — 36 / 44 / 52 px = `sm` / `md` / `lg` (`h-9` / `h-11` / `h-13`).
   Default is `md` (44 px, touch-safe). Shared via `controlSize` in `components/ui/_shared.ts`.
@@ -102,3 +102,20 @@ The user designated the current UI as the reference for future development. Keep
 layouts, typography, colors, spacing, navigation, and component styling. Functional work
 must reuse the current primitives and feedback patterns. Do not redesign screens without
 an explicit request. Integration keys are configured separately from implementation work.
+
+
+### Custom form controls
+
+Use the shared `Select`, `Input`, `Button` and `Checkbox` components for application controls.
+`Select` renders a MONO menu with keyboard typeahead and selection indicators. `Input`
+with `type="date"` or `type="time"` renders a custom calendar or time panel. Their hidden
+native controls retain names, values, required/min/max validation, refs and form reset;
+validation messages remain visible beside the trigger. Menus portal above sheets, respect
+viewport bounds, close on Escape/Back, and return focus to their trigger. Native file and
+device-permission dialogs remain browser-owned.
+
+Radix Select and Popover supply unstyled focus, keyboard and collision handling; MONO's
+existing tokens supply the appearance. Range sliders and checkboxes use the same colours.
+The development-only `/style` page includes an interactive form and nested-dialog example.
+Run `npm run test:e2e -- controls` with the documented local test database to check values,
+reset/validation, keyboard selection, nested overlays, themes and responsive bounds.

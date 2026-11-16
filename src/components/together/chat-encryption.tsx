@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { chatAAD, decryptBytes, decryptText, encryptBytes, encryptText, newRecoveryCode, recoverChatKey, storedChatKey, type ChatKey } from "@/lib/together/chat-crypto";
@@ -36,7 +37,7 @@ export function ChatEncryption({ coupleId, userId, keyId, onUnlock, refresh }: {
       {!generated ? <Button size="sm" onClick={() => { setCode(newRecoveryCode()); setGenerated(true); }}>Generate recovery code</Button> : <>
         <p className="break-all rounded-lg bg-paper p-3 font-mono text-sm select-all">{code}</p>
         <Button size="sm" variant="secondary" onClick={async () => { try { await navigator.clipboard.writeText(code); setStatus("Code copied. Store it privately before continuing."); } catch { setError("Copy is unavailable. Select the code above and copy it manually."); } }}>Copy code</Button>
-        <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={saved} onChange={(event) => setSaved(event.target.checked)} />I saved this code privately. I understand that losing the code and my devices makes history unreadable.</label>
+        <label className="flex items-start gap-2 text-sm"><Checkbox checked={saved} onChange={(event) => setSaved(event.target.checked)} />I saved this code privately. I understand that losing the code and my devices makes history unreadable.</label>
       </>}
     </>}
     <Button size="sm" disabled={!code || (!keyId && !saved)} loading={busy} onClick={() => void unlock()}>{keyId ? "Unlock on this device" : "Enable encrypted chat"}</Button>

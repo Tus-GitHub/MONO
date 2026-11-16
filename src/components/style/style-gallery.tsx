@@ -10,6 +10,7 @@ import { Badge, DateStatusBadge } from "@/components/ui/badge";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardFooter, CardHeader } from "@/components/ui/card";
+import { CheckboxField } from "@/components/ui/checkbox";
 import { Chip } from "@/components/ui/chip";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { CoupleAvatar } from "@/components/ui/couple-avatar";
@@ -187,6 +188,7 @@ export function StyleGallery() {
               <option>Cinema</option>
             </Select>
           </Row>
+          <ControlExamples />
           <Row label="Search">
             <SearchInput placeholder="Search places" className="max-w-xs" />
           </Row>
@@ -414,7 +416,7 @@ export function StyleGallery() {
           </>
         }
       >
-        <p>Any content goes here. It scrolls if it gets tall.</p>
+        <ControlExamples />
       </Modal>
 
       <BottomSheet
@@ -434,4 +436,24 @@ export function StyleGallery() {
       </BottomSheet>
     </div>
   );
+}
+
+
+function ControlExamples() {
+  const [result, setResult] = useState("");
+  const [time, setTime] = useState("19:00");
+  return <form aria-label="Custom controls" className="space-y-4 rounded-2xl border border-line bg-surface p-4" onSubmit={(event) => {
+    event.preventDefault(); setResult(JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))));
+  }} onReset={() => { setResult(""); setTime("19:00"); }}>
+    <div className="grid gap-4 sm:grid-cols-2">
+      <label className="space-y-2 text-sm">Category<Select aria-label="Demo category" name="category" required defaultValue=""><option value="" disabled>Choose an activity</option><option value="cafe">Café</option><option value="cinema">Cinema</option><option value="arcade">Arcade</option><option disabled>Unavailable</option></Select></label>
+      <label className="space-y-2 text-sm">Date<Input aria-label="Demo date" name="date" type="date" required min="2020-01-01" max="2030-12-31" /></label>
+      <label className="space-y-2 text-sm">Time<Input aria-label="Demo time" name="time" type="time" value={time} onChange={(event) => setTime(event.target.value)} /></label>
+      <label className="space-y-2 text-sm">Disabled<Select aria-label="Disabled demo" disabled><option>Unavailable</option></Select></label>
+    </div>
+    <CheckboxField name="reminder" label="Remind me before our date" />
+    <label className="flex items-center gap-3 text-sm">Volume<input aria-label="Demo volume" type="range" min="0" max="100" defaultValue="20" className="min-w-0 flex-1" /></label>
+    <div className="flex flex-wrap gap-2"><Button type="submit">Save example</Button><Button type="reset" variant="secondary">Reset</Button></div>
+    <output className="block break-all text-xs text-muted">{result}</output>
+  </form>;
 }

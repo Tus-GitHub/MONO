@@ -8,7 +8,7 @@ export function Checkbox({ className, ...props }: ComponentPropsWithRef<"input">
     <input
       type="checkbox"
       className={cn(
-        "size-4 shrink-0 rounded border-line-strong accent-primary",
+        "mono-checkbox size-5 shrink-0 rounded-md border border-line-strong disabled:opacity-50",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-paper",
         className,
       )}

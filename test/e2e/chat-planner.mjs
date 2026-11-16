@@ -5,6 +5,25 @@ import path from "node:path";
 import bcrypt from "bcryptjs";
 import sharp from "sharp";
 
+// Exercise the visible custom menu, retaining compatibility with older deployments.
+async function chooseOption(page, selector, value) {
+  const control = await page.$(selector);
+  const info = await control.evaluate((node, value) => {
+    const native = node.tagName === "SELECT" ? node : node.parentElement.querySelector("select");
+    const trigger = native?.parentElement.querySelector('button[role="combobox"]');
+    return { label: Array.from(native?.options ?? []).find(o => o.value === value)?.textContent, triggerId: trigger?.id };
+  }, value);
+  if (!info.triggerId) { await page.select(selector, value); return; }
+  await page.locator(`[id=${JSON.stringify(info.triggerId)}]`).click();
+  await page.waitForSelector('[role="option"]');
+  const option = await page.evaluateHandle(label => Array.from(document.querySelectorAll('[role="option"]')).find(el => el.textContent.trim() === label.trim()), info.label);
+  await option.asElement().evaluate(el => el.scrollIntoView({block:"nearest",behavior:"instant"}));
+  await new Promise(resolve => setTimeout(resolve, 250));
+  await option.asElement().click();
+  await page.waitForFunction(() => !document.querySelector('[role="listbox"]'));
+  await new Promise(resolve => setTimeout(resolve, 300));
+}
+
 export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifactDir, allowGlobalAudio = true, responsiveSmoke = false, plannerOnly = false }) {
   let checks = 0; const contexts = [], errors = [];
   const pass = (label) => { checks++; console.log(`PASS chat-planner: ${label}`); };
@@ -75,9 +94,9 @@ export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifact
     await owner.locator('[aria-label="Message options"]').click(); await click(owner, "Delete for everyone");
     await text(owner, "Message deleted");
     pass("delete for me hides only the recipient copy; author can still delete for everyone");
-    await owner.locator('[aria-label="Emoji, stickers, photos and documents"]').click();
+    await owner.locator('[aria-label="Add attachment"]').click();
     const documentPath = path.join(artifactDir, "itinerary.txt"); await writeFile(documentPath, "Café -> Arcade -> Movie\nPrivate attachment fixture");
-    await (await owner.waitForSelector('[aria-label="Choose a chat document"]')).uploadFile(documentPath); await click(owner, "Send document"); await text(owner, "itinerary.txt");
+    const chooser = owner.waitForFileChooser(); await owner.locator('xpath=//button[.//span[normalize-space(.)="Document"]]').click(); await (await chooser).accept([documentPath]); await click(owner, "Send document"); await text(owner, "itinerary.txt");
     await partner.bringToFront(); await text(partner, "itinerary.txt");
     const download = partner.waitForResponse((r) => r.url().includes("/api/together/images/") && r.status() === 200);
     await click(partner, "Save document"); await download;
@@ -92,7 +111,7 @@ export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifact
     for (const limit of [0, 1, 2]) {
       await owner.bringToFront();
       await (await owner.waitForSelector('[aria-label="Choose a chat image"]')).uploadFile(photoPath);
-      await click(owner, "Use photo"); await owner.waitForSelector('[aria-label="Photo access"]', {visible:true}); await owner.select('[aria-label="Photo access"]', String(limit)); await click(owner, "Send image");
+      await click(owner, "Use photo"); await owner.waitForSelector('[aria-label="Photo access"]:not(select.mono-native-control)', {visible:true}); await chooseOption(owner, '[aria-label="Photo access"]', String(limit)); await click(owner, "Send image");
       await owner.waitForFunction(() => !document.querySelector('[aria-label="Photo access"]'));
       await partner.bringToFront();
       const openLabel = limit ? `Open photo · ${limit} ${limit === 1 ? "view" : "views"} left` : "Open photo";
@@ -154,7 +173,21 @@ export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifact
       pass("device location fills the area field, keeps radius search, and permits manual replacement");
     }
     await owner.keyboard.press("Escape"); await owner.waitForFunction(() => !document.querySelector('[role="dialog"]'));
-    await owner.locator('[aria-label="Edit stop 1"]').click(); await click(owner, "Afternoon"); await click(owner, "Done editing");
+    await owner.locator('[aria-label="Edit stop 1"]').click(); await click(owner, "Afternoon");
+    if (plannerOnly) {
+      const start = await owner.evaluateHandle(() => {
+        const label = Array.from(document.querySelectorAll("label")).find(el => el.textContent.trim() === "Stop 1 start");
+        return label ? document.getElementById(label.htmlFor) : null;
+      });
+      await start.asElement().click(); await owner.waitForSelector('.mono-date-menu');
+      await chooseOption(owner, 'button[aria-label="Hour"]', "15");
+      await chooseOption(owner, 'button[aria-label="Minute"]', "30");
+      await click(owner, "Set time");
+      await owner.waitForFunction(() => Array.from(document.querySelectorAll('input[type="time"]')).some(el => el.value === "15:30"));
+      await new Promise(resolve => setTimeout(resolve, 300));
+      pass("custom time picker updates the controlled date-stop field");
+    }
+    await click(owner, "Done editing");
     await click(owner, "Add a stop"); await click(owner, "Hotel"); await text(owner, "Choose on map");
     await owner.waitForFunction(() => [...document.querySelectorAll('[role="dialog"] button[aria-pressed="true"]')].some((el) => el.textContent.includes("Staycation")));
     assert.equal(await prisma.date.count({ where: { coupleId: couple.id } }), 0);
@@ -166,12 +199,12 @@ export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifact
       await owner.waitForFunction(() => Boolean(document.querySelector('input[aria-label="City, area or landmark"]')?.value) && document.querySelector('input[aria-label="City, area or landmark"]').value !== "Noida");
       pass("map location button fills its location field");
     } else await click(owner, "Use map centre");
-    await owner.select('[aria-label="Map search radius"]', "10");
+    await chooseOption(owner, '[aria-label="Map search radius"]', "10");
     await click(owner, "Search within 10 km of this pin"); await text(owner, "Within 10 km.");
     pass("nested Leaflet picker selects a pin and updates venue search radius");
     // Choose a clearly synthetic custom venue rather than inventing a real place at the map pin.
     await owner.locator('[role="tab"][id$="custom"]').click();
-    await fill(owner, "#cp-name", "QA private retreat"); await owner.select("#cp-category", "TRAVEL");
+    await fill(owner, "#cp-name", "QA private retreat"); await chooseOption(owner, "#cp-category", "TRAVEL");
     await click(owner, "Use this place"); await owner.waitForFunction(() => !document.querySelector('[role="dialog"]'));
     await text(owner, "QA private retreat");
     assert.equal(await prisma.date.count({ where: { coupleId: couple.id } }), 0);
@@ -194,6 +227,7 @@ export async function runChatPlanner({ browser, baseUrl, prisma, runId, artifact
     }
     await click(owner, "Save date"); await owner.waitForFunction(() => location.pathname.startsWith("/dates/"));
     const saved = await prisma.date.findFirst({ where: { coupleId: couple.id }, include: { activities: { orderBy: { sortOrder: "asc" } } } });
+    if (plannerOnly) assert.equal(new Intl.DateTimeFormat("en-GB", {hour:"2-digit",minute:"2-digit",timeZone:"Asia/Kolkata"}).format(saved.activities[0].startAt), "15:30");
     assert.equal(saved.activities.length, 2); assert.ok(saved.activities[0].startAt); assert.ok(saved.activities[1].startAt); assert.ok(saved.activities[1].placeId);
     pass("one-screen route saves both stops and their times in one explicit action");
     if (responsiveSmoke) {

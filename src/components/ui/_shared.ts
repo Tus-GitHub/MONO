@@ -47,7 +47,7 @@ export type ButtonVariant =
 export type ButtonSize = "sm" | "md" | "lg" | "icon";
 
 export const buttonBase =
-  "inline-flex max-w-full select-none items-center justify-center whitespace-normal text-center font-medium [overflow-wrap:anywhere] transition-[background-color,border-color,color,box-shadow,transform] duration-fast ease-out active:translate-y-px";
+  "mono-button inline-flex max-w-full select-none items-center justify-center whitespace-normal text-center font-medium [overflow-wrap:anywhere] transition-[background-color,border-color,color,box-shadow,transform] duration-fast ease-out active:translate-y-px";
 
 export const buttonVariants: Record<ButtonVariant, string> = {
   primary:
@@ -64,8 +64,8 @@ export const buttonVariants: Record<ButtonVariant, string> = {
 
 // Retain the usual heights while allowing enlarged labels to wrap and grow.
 export const buttonSizes: Record<ButtonSize, string> = {
-  sm: "min-h-9 gap-1.5 rounded-lg px-3 py-1.5 text-sm",
-  md: "min-h-11 gap-2 rounded-lg px-4 py-2 text-sm",
-  lg: "min-h-13 gap-2 rounded-xl px-5 py-2 text-base",
-  icon: "h-11 w-11 rounded-lg",
+  sm: "min-h-9 gap-1.5 rounded-xl px-3 py-1.5 text-sm",
+  md: "min-h-11 gap-2 rounded-xl px-4 py-2 text-sm",
+  lg: "min-h-13 gap-2 rounded-2xl px-5 py-2 text-base",
+  icon: "h-11 w-11 rounded-xl",
 };

@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Textarea } from "@/components/ui/input";
@@ -211,7 +212,7 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes }: {
     </BottomSheet>
     <BottomSheet open={picture != null} onClose={() => { if (!busy) { setPicture(null); imageNonce.current = ""; } }} title="Share a photo"
       footer={<div className="flex gap-2"><Button size="sm" loading={busy} onClick={() => void sendImage()}>Send image</Button><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setPicture(null); imageNonce.current = ""; }}>Cancel image</Button></div>}>
-      <label className="block space-y-2 text-sm">Photo access<select aria-label="Photo access" disabled={busy} value={viewLimit} onChange={(event) => { setViewLimit(Number(event.target.value) as 0 | 1 | 2); imageNonce.current = ""; }} className="block w-full rounded-lg border border-line bg-surface p-3"><option value={0}>Keep in chat</option><option value={1}>View once</option><option value={2}>View twice</option></select></label>
+      <label className="block space-y-2 text-sm">Photo access<Select aria-label="Photo access" disabled={busy} value={viewLimit} onChange={(event) => { setViewLimit(Number(event.target.value) as 0 | 1 | 2); imageNonce.current = ""; }} className="block w-full rounded-lg border border-line bg-surface p-3"><option value={0}>Keep in chat</option><option value={1}>View once</option><option value={2}>View twice</option></Select></label>
       {viewLimit > 0 ? <p className="my-2 text-xs text-muted">Your partner can open this photo {viewLimit === 1 ? "once" : "twice"}. MONO cannot block screenshots or recordings, or warn you about them.</p> : null}
       {picture ? <div className="space-y-2"><PhotoPreview file={picture} /><p className="truncate text-xs text-muted">{picture.name}</p>{error ? <p role="alert" className="text-sm text-error">{error}</p> : null}</div> : null}
     </BottomSheet>

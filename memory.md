@@ -1,5 +1,25 @@
-## Active follow-up (2026-11-16)
-User requests completion/deployment of the mobile Save bar and live planner verification; Use my location must populate the location input. Implementing reverse area naming with immediate coordinate fallback in shared Explore/date-stop search and the map picker, retaining the selected coordinates for radius searches and protecting manual edits from late lookup responses. Previous desktop tab cleanup was blocked by Computer Use URL verification; no closures confirmed. Do not retry desktop automation as part of this follow-up.
+## Chat expression picker and custom stickers (2026-11-16) — IMPLEMENTED; FINAL QA BLOCKED
+User asks to review the crowded chat plus menu against other apps and add custom stickers.
+Implemented separate + attachment sheet and searchable emoji/sticker sheet, cursor-aware
+emoji insertion, named PNG/JPEG/WebP custom sticker preparation/preview, encrypted sending,
+inline display and partner reuse from Our stickers. Preserved warm tokens and all existing
+chat retry/focus logic. No new dependency or migration. Official Telegram sticker maker and
+Signal sticker-library documentation informed the pattern. See docs/encrypted-chat.md.
+Validation: full 559-unit suite passed before adding the timeout regression; final focused
+crypto/timeout suite passed 8 tests. Production build passed (95 routes, largest 27.34 MiB).
+Initial and final full typecheck/lint passed; git diff --check and browser-script syntax checks passed. React review covered hook cleanup, scoped cancellation, keyboard tabs, labels and retained composer behavior.
+Integration and browser suites are written but NOT RUN successfully: default sandbox denied
+loopback DB access; automatic escalation review then failed because its service hit a usage
+limit (not a safety rejection). User said continue; completed unaffected local work without
+bypassing review. No browser/physical-device or two-partner visual success is claimed.
+Disposable local cluster: .postgres-test/chat-stickers/data, port55483, PID22412; test DBs
+mono_test_stickers and mono_test_e2e_stickers, no app data. Stop attempt was sandbox-denied;
+when approval service is restored, stop with pg_ctl -D .postgres-test/chat-stickers/data stop
+-m fast after verification. Failed E2E artifacts: .postgres-test/e2e/a3c410e9c025ea5c.
+Existing unrelated memory and simultaneous custom-controls changes are retained. Not published.
+
+## Completed follow-up (2026-11-16)
+User requests completion/deployment of the mobile Save bar and live planner verification; Use my location must populate the location input. Deployed reverse area naming with immediate coordinate fallback in shared Explore/date-stop search and the map picker, retaining the selected coordinates for radius searches and protecting manual edits from late lookup responses. Previous desktop tab cleanup was blocked by Computer Use URL verification; no closures confirmed. Do not retry desktop automation as part of this follow-up.
 
 ## Production verification update (2026-11-16)
 Planner popup release 148abb7 is READY on the canonical MONO URL. Approved production privacy backfill completed: 554 protected fields and 110 stored image objects converted; 47 unreferenced old objects retired through the reference-checked cleanup path; final audit remainingPlaintextFieldsOrFiles=0. One-time MONO_PRIVACY_BACKFILL flag disabled (0). Key unchanged and never exported.
@@ -17,7 +37,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (Games navigation and in-game chat live; 52 live checks passed)
+Last updated: 2026-11-16 (Local chat picker/custom stickers implemented; final DB/browser QA blocked; existing Games verification retained)
 
 Last updated: 2026-11-15 (admin panel and private data encryption)
 
@@ -44,7 +64,11 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Mobile Save bar and location field (2026-11-16)** — using bottom-nav-safe sticky placement, reverse area naming and coordinate fallback in both location pickers. 38 location tests, TypeScript and focused lint passed; synced published Games changes 99e2e7c before deployment. Preparing live GPS-emulation and 320/390/768/1440px Save-button checks.
+- **Chat expression picker/custom stickers (2026-11-16)** — implementation complete locally; final PostgreSQL and two-partner visual QA blocked by automatic approval-service usage limit. Unit, build and static checks recorded above.
+
+- **Custom controls refresh (2026-11-16)** — user requests consistent custom buttons, selectors and dropdowns throughout MONO. Audit found native select menus, date/time inputs and plain range/checkbox controls. Implement shared themed controls, preserve native form submission/validation and keyboard support, verify responsive interactions, and carry the approved publication workflow forward.
+
+
 
 
 - **Planner icon popup (2026-11-16)** — user requests Add a stop below compact route cards, category icon popup and direct matching venues; implementing and validating before deployment.
@@ -247,6 +271,9 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Mobile Save bar and location field (2026-11-16)** — published d70bc3c and deployed READY as dpl_CpaPZQtV87G9AMww1iMWgXrXRKYC on the canonical MONO URL. 38 unit tests, focused lint/type checks and production build passed. Six live planner checks passed with zero JavaScript errors: simulated GPS fills city/area, coordinate/radius request verified, manual replacement works, map location fills its field, map radius changes, Save remains hit-testable above navigation at 320/390/768px and fits 1440px, and two stops with times/venue persist only after explicit Save. Screenshots inspected. Both disposable accounts and their space removed. Artifacts: .postgres-test/release-live/live-4027ae15f664. Area naming is optional and bounded; coordinates remain visible when lookup is unavailable. Physical phone GPS/permission prompts were not tested.
+
 
 - **Separate Games and in-game chat (2026-11-16)** — live in `3a5f565`, production deployment
   `dpl_5XtpHpvWi32FD7dooLMdfUYeLsrE` READY on the canonical MONO URL. Direct Games navigation,
@@ -1747,6 +1774,20 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-16 — Chat expression picker and private custom stickers — QA BLOCKED
+- Replaced crowded expanding tools with attachment cards under + and dedicated searchable Emoji/Stickers tabs. Added a local preview/name creator; explicit Send & save sends encrypted PNG and encrypted identity/name. Both partners can reuse accessible recent creations; fresh encryption per send, stable retry nonce, existing quota/auth/deletion rules.
+- Added crypto/library/schema and deadline regression checks, real-DB security cases and a synthetic two-partner browser suite; updated the existing attachment browser selector. Unit/build pass; real DB/browser verification awaits restoration of the approval service. No publication in this turn.
+
+### 2026-11-16 — Custom controls refresh — IN PROGRESS
+User requests modern custom controls across MONO. Preserve warm colour tokens, privacy and app behavior. Implemented shared rounded buttons/inputs, Radix-backed custom dropdowns and date/time pickers, themed checkbox/range controls, and the chat photo-access selector. Native form values, reset and visible validation are retained. Eight isolated browser check groups passed (320/390/768/1440 widths, dark/light, keyboard, controlled time, form submission/reset and nested Escape), with zero page errors. Reviewed screenshots and fixed cramped month/year selection at 320px. Preparing a separate release checkout to exclude concurrent unfinished chat-sticker work. Isolated release TypeScript and focused ESLint passed; production build passed (94 routes). Deployment and live planner verification pending.
+
+
+### 2026-11-16 — Mobile Save and location filling — DONE
+- Published d70bc3c after merging the newer Games release 99e2e7c. Production deployment READY; privacy backfill remains disabled after its earlier successful zero-plaintext audit.
+- Applied the existing above-bottom-nav utility to the planner Save panel. Added authenticated reverse-area lookup with immediate coordinate fallback and cancellation on manual changes. Both shared venue search and the map picker fill their actual input values.
+- 38 focused tests passed, production build passed (94 routes), and six targeted live browser checks passed at phone/tablet/desktop widths with simulated GPS. Used isolated headless QA; no personal browser tabs were opened or changed. QA fixtures cleaned.
+
 
 ### 2026-11-16 — Planner popup and release follow-up
 - Replaced the crowded inline activity palette with a MONO-styled icon sheet. Category selection creates a local stop and opens matching venues after the previous sheet releases its browser history entry. Each route card expands for details; Add remains beneath the route. Only explicit Save buttons submit.
