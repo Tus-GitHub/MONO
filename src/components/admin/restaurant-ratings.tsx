@@ -9,7 +9,7 @@ export function RestaurantRatings({ data }: { data: AdminRestaurantRatings }) {
   return <section className="space-y-5" aria-labelledby="ratings-heading">
     <div className="space-y-2">
       <h2 id="ratings-heading" className="font-display text-2xl text-ink">Restaurant ratings</h2>
-      <p className="text-sm text-muted">Scores for the whole date, with its restaurants and cafés. Reviews appear after both partners submit, or after a solo submission.</p>
+      <p className="text-sm text-muted">Separate scores for each restaurant and café visited. A place appears after both partners submit its rating, or after a solo submission.</p>
     </div>
     <form className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-end" method="get">
       <input type="hidden" name="view" value="ratings" />
@@ -19,22 +19,22 @@ export function RestaurantRatings({ data }: { data: AdminRestaurantRatings }) {
       <Button type="submit" variant="secondary">Search ratings</Button>
       {data.query.venueQuery ? <Link href="/admin?view=ratings" className="py-3 text-center text-sm text-primary underline">Clear</Link> : null}
     </form>
-    <p className="text-sm text-muted" role="status">{data.count.toLocaleString()} reviewed {data.count === 1 ? "date" : "dates"}{data.query.venueQuery ? " matching your search" : " with a restaurant or café"}</p>
+    <p className="text-sm text-muted" role="status">{data.count.toLocaleString()} rated {data.count === 1 ? "venue visit" : "venue visits"}{data.query.venueQuery ? " matching your search" : ""}</p>
     {data.rows.length === 0 ? <div className="rounded-xl border border-line bg-surface p-6 text-sm text-muted">
-      {data.query.venueQuery ? "No matching ratings. Try a different venue, city or ID." : "No revealed restaurant or café ratings yet. Completed dates with submitted reviews will appear here."}
+      {data.query.venueQuery ? "No matching ratings. Try a different venue, city or ID." : "No revealed restaurant or café ratings yet. Each partner can add place ratings to their completed dates, including older reviews."}
     </div> : null}
-    {data.rows.map((date) => <article key={date.id} className="min-w-0 space-y-4 rounded-xl border border-line bg-surface p-4 sm:p-5">
+    {data.rows.map((date) => <article key={`${date.id}:${date.placeId}`} className="min-w-0 space-y-4 rounded-xl border border-line bg-surface p-4 sm:p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <ul className="min-w-0 flex-1 space-y-3">{date.venues.map((venue) => <li key={venue.id} className="space-y-1">
           <h3 className="break-words font-display text-lg font-medium text-ink">{venue.name}</h3>
           <p className="text-xs text-muted">{venue.category === "CAFE" ? "Café" : "Restaurant"} · {venue.recorded ? "Recorded venue" : "Planned venue"}</p>
           {venue.address || venue.city ? <p className="break-words text-sm text-muted">{[venue.address, venue.city].filter(Boolean).join(" · ")}</p> : null}
         </li>)}</ul>
-        <div className="shrink-0 self-start rounded-lg bg-primary-tint px-3 py-2 text-primary"><p className="text-xs">Combined date score</p><p className="font-display text-2xl">{date.average?.toFixed(1)}<span className="text-sm"> / 10</span></p></div>
+        <div className="shrink-0 self-start rounded-lg bg-primary-tint px-3 py-2 text-primary"><p className="text-xs">Combined place score</p><p className="font-display text-2xl">{date.average?.toFixed(1)}<span className="text-sm"> / 10</span></p></div>
       </div>
       <div className="grid min-w-0 gap-3 sm:grid-cols-2">{date.reviews.map((review) => <div key={review.accountId} className="min-w-0 rounded-lg bg-paper p-3">
         <p className="text-xs text-muted">Account</p><Link className="break-all font-mono text-xs text-primary underline" href={`/admin?view=accounts&query=${encodeURIComponent(review.accountId)}`}>{review.accountId}</Link>
-        <p className="mt-2 text-sm text-ink">Date score <strong>{review.score} / 10</strong></p>
+        <p className="mt-2 text-sm text-ink">Place score <strong>{review.score} / 10</strong></p>
         <p className="mt-1 text-xs text-muted">Updated {formatWallDate(review.updatedAt.toISOString().slice(0, 10), "medium")}</p>
       </div>)}</div>
       <div className="space-y-1 border-t border-line pt-3 text-xs text-muted">

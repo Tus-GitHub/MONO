@@ -51,7 +51,7 @@ beforeEach(async () => {
   await prisma.couple.update({ where: { id: sourceId }, data: { photoKey: key, photoUrl: storage.publicUrl(key) } });
   await prisma.dateActivity.create({ data: { dateId: sourceDate, title: "Walk", placeId: place.id, durationMinutes: 45, costCents: 50 } });
   const category = await prisma.reviewCategory.create({ data: { coupleId: sourceId, key: "company", label: "Company" } });
-  for (const authorId of users) await prisma.dateReview.create({ data: { dateId: sourceDate, authorId, overallRating: 9, submittedAt: new Date(), lovedText: "Shared after reveal", ratings: { create: { categoryId: category.id, score: 9, note: "Kept rating note" } } } });
+  for (const authorId of users) await prisma.dateReview.create({ data: { dateId: sourceDate, authorId, overallRating: 9, submittedAt: new Date(), lovedText: "Shared after reveal", ratings: { create: { categoryId: category.id, score: 9, note: "Kept rating note" } }, placeRatings: { create: { placeId: place.id, score: authorId === users[0] ? 8 : 6 } } } });
   await prisma.revisitDecision.create({ data: { dateId: sourceDate, decidedById: users[1], choice: "YES", reason: "Again" } });
   await prisma.expense.createMany({ data: [{ coupleId: sourceId, dateId: sourceDate, recordedById: users[1], description: "Dinner", amountCents: 1000, currency: "INR", paidBy: "CUSTOM", ownerShareCents: 400 }, { coupleId: sourceId, recordedById: users[0], description: "Standalone", amountCents: 200, currency: "USD" }] });
   await prisma.memory.createMany({ data: [{ coupleId: sourceId, dateId: sourceDate, authorId: users[1], title: "Kept memory", body: "Remember this", coverPhotoId: photoId }, { coupleId: sourceId, authorId: users[0], title: "Standalone memory", body: "Outside a date" }] });
@@ -102,6 +102,7 @@ it("round-trips shared history, standalone records, authors, references and embe
   expect(archive.photos[0].crop).toEqual(crop);
   expect(archive.media).toHaveLength(1);
   expect(archive.reminders).toHaveLength(1);
+  expect(archive.placeRatings?.map((rating) => rating.score).sort()).toEqual([6, 8]);
   expect(JSON.stringify(archive)).not.toMatch(/passwordHash|tokenVersion|inviteCode|pushSubscription|storageKey/);
   const target = await emptyTarget();
   const approved = await approvals(archive);
@@ -117,6 +118,9 @@ it("round-trips shared history, standalone records, authors, references and embe
   expect(date.memory?.coverPhotoId).toBe(date.photos[0].id);
   expect(date.memory?.authorId).toBe(users[1]);
   expect(date.reviews).toHaveLength(2);
+  const restoredRatings = await prisma.datePlaceRating.findMany({ where: { review: { dateId: date.id } } });
+  expect(restoredRatings.map((rating) => rating.score).sort()).toEqual([6, 8]);
+  expect(restoredRatings.every((rating) => rating.placeId === date.plannedPlaceId)).toBe(true);
   expect(date.reviews[0].ratings[0].note).toBe("Kept rating note");
   expect(date.expenses[0]).toMatchObject({ ownerShareCents: 400, recordedById: users[1] });
   expect(date.reminders[0].dismissedAt).toBeInstanceOf(Date);
@@ -141,10 +145,27 @@ it("keeps private partner submissions/drafts out while retaining the exporter's 
   await prisma.dateReview.update({ where: { dateId_authorId: { dateId: sourceDate, authorId: users[1] } }, data: { lovedText: "HIDDEN PARTNER SUBMISSION" } });
   const mine = await asUser(users[0], exportCoupleArchive);
   expect(mine.reviews).toHaveLength(1);
+  expect(mine.placeRatings).toHaveLength(1);
   expect(JSON.stringify(mine)).toContain("MY PRIVATE DRAFT");
   expect(JSON.stringify(mine)).not.toContain("HIDDEN PARTNER SUBMISSION");
   const theirs = await asUser(users[1], exportCoupleArchive);
   expect(JSON.stringify(theirs)).not.toContain("MY PRIVATE DRAFT");
+});
+
+it("accepts older archives without place scores and hides a newly added partner place score", async () => {
+  const full = await asUser(users[0], exportCoupleArchive);
+  const legacy = resign(full, (draft) => { delete draft.placeRatings; });
+  expect(parseArchive(legacy).placeRatings).toBeUndefined();
+  await prisma.datePlaceRating.deleteMany({ where: { review: { dateId: sourceDate, authorId: users[0] } } });
+  const mine = await asUser(users[0], exportCoupleArchive);
+  expect(mine.reviews).toHaveLength(2);
+  expect(mine.placeRatings).toEqual([]);
+  const partner = await asUser(users[1], exportCoupleArchive);
+  expect(partner.placeRatings).toHaveLength(1);
+  expect(() => parseArchive(resign(mine, (draft) => { draft.placeRatings = partner.placeRatings; }))).toThrow("private partner place rating");
+  const target = await emptyTarget();
+  await asUser(users[0], async () => restoreCoupleArchive(legacy, await approvals(legacy)));
+  expect(await prisma.datePlaceRating.count({ where: { review: { date: { coupleId: target } } } })).toBe(0);
 });
 
 it("refuses a populated destination or missing partner approval before writing any media", async () => {

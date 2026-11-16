@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { ValidationError } from "@/lib/errors";
 
 import { errorState, successState, type ActionState } from "@/lib/utils/result";
 import { idSchema, toFieldErrors } from "@/lib/validation/common";
@@ -36,6 +37,19 @@ function categoryScores(formData: FormData): Record<string, number> {
   return scores;
 }
 
+function placeScores(formData: FormData): Record<string, number> {
+  const entries: [string, number][] = [];
+  for (const [key, value] of formData.entries()) {
+    if (!key.startsWith("place-score:") || value === "") continue;
+    const score = typeof value === "string" ? Number(value) : NaN;
+    if (!Number.isInteger(score) || score < 1 || score > 10 || entries.some(([id]) => id === key.slice(12))) {
+      throw new ValidationError("Choose one score from 1 to 10 for each place.", { [key]: ["Choose a score from 1 to 10."] });
+    }
+    entries.push([key.slice(12), score]);
+  }
+  return Object.fromEntries(entries);
+}
+
 /** Save a private review draft — nothing revealed, half-answers fine, no redirect. */
 export async function saveReviewDraftAction(
   _prev: ActionState,
@@ -47,7 +61,7 @@ export async function saveReviewDraftAction(
     return errorState("Some of that didn't save.", toFieldErrors(parsed.error));
   }
   try {
-    await saveReviewDraft(id, parsed.data, categoryScores(formData));
+    await saveReviewDraft(id, parsed.data, categoryScores(formData), placeScores(formData));
   } catch (error) {
     return toActionError(error);
   }
@@ -71,7 +85,7 @@ export async function submitReviewAction(
   }
   let revealed = false;
   try {
-    revealed = (await submitReview(id, parsed.data, categoryScores(formData))).revealed;
+    revealed = (await submitReview(id, parsed.data, categoryScores(formData), placeScores(formData))).revealed;
   } catch (error) {
     return toActionError(error);
   }

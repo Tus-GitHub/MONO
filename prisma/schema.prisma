@@ -787,6 +787,7 @@ model Place {
   plannedDates   Date[]         @relation("DatePlannedPlace")
   actualDates    Date[]         @relation("DateActualPlace")
   dateActivities DateActivity[]
+  dateRatings    DatePlaceRating[]
 
   @@unique([coupleId, provider, providerPlaceId])
   @@index([coupleId])
@@ -993,11 +994,29 @@ model DateReview {
   date    Date               @relation(fields: [dateId], references: [id], onDelete: Cascade)
   author  User               @relation("DateReviewAuthor", fields: [authorId], references: [id], onDelete: Restrict)
   ratings DateReviewRating[]
+  placeRatings DatePlaceRating[]
 
   @@unique([dateId, authorId])
   @@index([authorId])
   @@index([dateId, submittedAt])
   @@map("date_reviews")
+}
+
+/// One partner's score for one venue on a date, separate from the date-wide score.
+model DatePlaceRating {
+  id        String @id @default(cuid())
+  reviewId  String
+  placeId   String
+  score     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  review DateReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  place  Place      @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, placeId])
+  @@index([placeId])
+  @@map("date_place_ratings")
 }
 
 /// Join row: a review's score for one category.

@@ -133,7 +133,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (personal music, game chat and movable calls live and verified)
+Last updated: 2026-11-16 (separate restaurant/café ratings verified; publishing)
 
 
 
@@ -158,6 +158,7 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
+- **Separate restaurant/café ratings (2026-11-16)** — implemented per-partner/date/place 1–10 scores, complete-place validation, independent blind reveal, partner summaries, place-history aggregates, Admin venue rows, export and archive roundtrip. Existing date-wide scores remain separate. 31 feature/admin/archive checks plus 24 review regressions passed; caught/fixed existing archive rejection of external venue metadata. Right-panel browser verified both local partner accounts and Admin, café 9/7 → 8.0 and restaurant 3/5 → 4.0 while date stays 8.5, search, disabled incomplete save, and no overflow at 320/390/768/1440 and 844×390. Neon migration preflight succeeded on `br-plain-block-b3d31fhb`; user approved deletion and cleanup completed without applying to production. Synced published main `b8f5c87`; final regression/build/deployment pending.
 
 
 - **Planner and Memories panel verification (2026-11-16)** — implementation and deployment are complete (see Done and release record). User explicitly tagged Browser and asked to retry live mobile/desktop checks, café then movie, fixes and deployment. Retried the exact in-app selector using the existing runtime; still `Browser is not available: iab`. Supported recovery inventory is empty, and direct active-tab context reports `The Browser Use plugin is not available in this context.` No alternative browser was used under the panel-only constraint. Live planner was queued in the right panel; authenticated visual/click tests remain blocked, with no new app change or redeployment warranted solely by this failed connection. Local preview remains on port3247; prior HTTP200 responses do not establish visual or click-flow correctness.
@@ -1903,6 +1904,12 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-16 — Separate food-venue ratings for both partners and Admin — IN PROGRESS
+
+- Started the requested place-specific rating flow. Existing numeric overall reviews will remain date-wide and will not be copied into venue scores. Planned separate 1–10 controls for eligible restaurant/café venues, independent persisted scores for each partner/date/place, reveal only after both submit, and matching Admin results. Preserve current visual components and review editing rules.
+- Implemented and verified as described in Status. Local browser fixtures retained in `mono_test_admin_ratings`, with the preview at port 3249. No production account or review was changed during testing. Screenshots: `.screenshots/place-ratings-admin-mobile.jpg` and `.screenshots/place-ratings-admin-desktop.jpg` in the isolated worktree. Physical iPhone/PWA testing was not performed.
+- Final checks after syncing main `b8f5c87`: 613/613 unit tests, 55 focused database checks (32 review/export/privacy checks repeated against the combined code), changed-file ESLint, TypeScript and full `npm run build` passed. Production build: 99 routes, largest local trace 4.49 MiB. Publishing the additive migration through the existing Vercel/Prisma release pipeline; production confirmation pending.
 
 ### 2026-11-16 — Admin restaurant ratings panel — DONE
 

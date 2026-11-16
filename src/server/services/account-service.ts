@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { requireCoupleContext } from "@/lib/authz";
 import { reviewsForViewer } from "@/lib/date/review-reveal";
+import { sharedPlaceRatings } from "@/lib/date/place-ratings";
 import { serializable } from "@/lib/db/serializable";
 import { requireSelf } from "@/lib/authz/user-write";
 import { AuthenticationError } from "@/lib/errors";
@@ -104,6 +105,7 @@ export async function exportCoupleData(): Promise<CoupleExport> {
               personalRevisit: true,
               personalRevisitNote: true,
               ratings: { select: { categoryId: true, score: true, note: true } },
+              placeRatings: { select: { placeId: true, score: true } },
             },
           },
           revisitDecision: { select: { choice: true, reason: true, targetTimeframe: true } },
@@ -135,6 +137,7 @@ export async function exportCoupleData(): Promise<CoupleExport> {
     },
   });
 
+  const memberIds = couple.members.filter((member) => member.status === "ACTIVE").map((member) => member.user.id);
   return {
     exportedAt: new Date().toISOString(),
     format: "mono.couple.v1",
@@ -145,8 +148,11 @@ export async function exportCoupleData(): Promise<CoupleExport> {
         reviews: reviewsForViewer(
           date.reviews,
           user.id,
-          couple.members.filter((member) => member.status === "ACTIVE").map((member) => member.user.id),
-        ),
+          memberIds,
+        ).map((review) => ({
+          ...review,
+          placeRatings: review.placeRatings.filter((rating) => review.authorId === user.id || sharedPlaceRatings(date.reviews, memberIds, rating.placeId).length > 0),
+        })),
       })),
     },
   };

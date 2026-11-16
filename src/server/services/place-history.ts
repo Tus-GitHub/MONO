@@ -4,10 +4,11 @@ import { DateStatus, RevisitChoice } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
 import { averageScore } from "@/lib/review/scale";
-import { sharedReviews } from "@/lib/date/review-reveal";
+import { sharedPlaceRatings } from "@/lib/date/place-ratings";
+import { DATE_VENUE_SELECT, visitedPlaces } from "./date-venues";
 
 export interface PlaceHistoryEntry {
-  /** submitted overall ratings, on the 1–10 scale */
+  /** Revealed venue ratings, on the 1–10 scale. Never date-wide scores. */
   scores: number[];
   visits: number;
   lastRevisit: RevisitChoice | null;
@@ -25,9 +26,8 @@ export async function getPlaceHistoryMap(
       orderBy: { completedAt: "asc" },
       select: {
         completedAt: true,
-        actualPlaceId: true,
-        plannedPlaceId: true,
-        reviews: { select: { authorId: true, submittedAt: true, overallRating: true } },
+        ...DATE_VENUE_SELECT,
+        reviews: { select: { authorId: true, submittedAt: true, placeRatings: { select: { placeId: true, score: true } } } },
         revisitDecision: { select: { choice: true } },
       },
     }),
@@ -36,17 +36,14 @@ export async function getPlaceHistoryMap(
 
   const map = new Map<string, PlaceHistoryEntry>();
   for (const date of dates) {
-    const placeId = date.actualPlaceId ?? date.plannedPlaceId;
-    if (!placeId) continue;
-    const entry =
-      map.get(placeId) ?? { scores: [], visits: 0, lastRevisit: null, lastCompletedAt: 0 };
-    entry.visits += 1;
-    for (const review of sharedReviews(date.reviews, memberIds)) {
-      if (review.overallRating != null) entry.scores.push(review.overallRating);
+    for (const { id: placeId } of visitedPlaces(date)) {
+      const entry = map.get(placeId) ?? { scores: [], visits: 0, lastRevisit: null, lastCompletedAt: 0 };
+      entry.visits += 1;
+      entry.scores.push(...sharedPlaceRatings(date.reviews, memberIds, placeId).map((rating) => rating.score));
+      if (date.revisitDecision) entry.lastRevisit = date.revisitDecision.choice;
+      entry.lastCompletedAt = date.completedAt?.getTime() ?? entry.lastCompletedAt;
+      map.set(placeId, entry);
     }
-    if (date.revisitDecision) entry.lastRevisit = date.revisitDecision.choice;
-    entry.lastCompletedAt = date.completedAt?.getTime() ?? entry.lastCompletedAt;
-    map.set(placeId, entry);
   }
   return map;
 }

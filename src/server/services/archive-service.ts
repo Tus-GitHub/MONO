@@ -10,6 +10,7 @@ import { requireCoupleContext } from "@/lib/authz";
 import { prisma } from "@/lib/db/prisma";
 import { serializable } from "@/lib/db/serializable";
 import { reviewsForViewer } from "@/lib/date/review-reveal";
+import { sharedPlaceRatings } from "@/lib/date/place-ratings";
 import { AuthorizationError, ConflictError, ValidationError } from "@/lib/errors";
 import { storage } from "@/lib/storage";
 import { isCanonicalStorageKey } from "@/lib/storage/key";
@@ -40,7 +41,7 @@ export function parseArchive(input: unknown): CoupleArchive {
   const archive = result.data;
   const { digest, ...payload } = archive;
   if (Buffer.byteLength(JSON.stringify(archive)) > ARCHIVE_MAX_BYTES || archiveDigest(payload) !== digest) throw new ValidationError("Archive size or checksum is invalid.");
-  const groups = [archive.places, archive.categories, archive.dates, archive.activities, archive.photos, archive.reviews, archive.ratings, archive.revisits, archive.expenses, archive.memories, archive.events, archive.reminders, archive.feedback];
+  const groups = [archive.places, archive.categories, archive.dates, archive.activities, archive.photos, archive.reviews, archive.ratings, archive.placeRatings ?? [], archive.revisits, archive.expenses, archive.memories, archive.events, archive.reminders, archive.feedback];
   if (groups.reduce((total, group) => total + group.length, 0) > ARCHIVE_MAX_ROWS) throw new ValidationError("Archive has too many records.");
   const index = (values: readonly { id: string }[]) => {
     const ids = new Set(values.map((value) => value.id));
@@ -55,6 +56,7 @@ export function parseArchive(input: unknown): CoupleArchive {
   unique(archive.categories.map((item) => item.key));
   unique(archive.reviews.map((item) => `${item.dateId}:${item.authorId}`));
   unique(archive.ratings.map((item) => `${item.reviewId}:${item.categoryId}`));
+  unique((archive.placeRatings ?? []).map((item) => `${item.reviewId}:${item.placeId}`));
   unique(archive.revisits.map((item) => item.dateId));
   unique(archive.memories.flatMap((item) => item.dateId ? [item.dateId] : []));
   unique(archive.reminders.map((item) => `${item.dateId}:${item.userId}:${item.kind}`));
@@ -78,6 +80,16 @@ export function parseArchive(input: unknown): CoupleArchive {
     if (author.email !== archive.exporterEmail && (!item.submittedAt || archive.members.some((member) => !archive.reviews.some((review) => review.dateId === item.dateId && review.authorId === member.id && review.submittedAt)))) throw new ValidationError("Archive includes a private partner review.");
   }
   for (const item of archive.ratings) { ref(reviews, item.reviewId); ref(categories, item.categoryId); }
+  for (const item of archive.placeRatings ?? []) {
+    ref(reviews, item.reviewId); ref(places, item.placeId);
+    const review = archive.reviews.find((review) => review.id === item.reviewId)!;
+    const place = archive.places.find((place) => place.id === item.placeId)!;
+    const date = archive.dates.find((date) => date.id === review.dateId)!;
+    if (!["CAFE", "RESTAURANT"].includes(place.category) || (date.actualPlaceId !== item.placeId && date.plannedPlaceId !== item.placeId && !archive.activities.some((activity) => activity.dateId === date.id && activity.placeId === item.placeId))) throw new ValidationError("Archive place rating has an invalid venue.");
+    const author = archive.members.find((member) => member.id === review.authorId)!;
+    const dateReviews = archive.reviews.filter((row) => row.dateId === date.id).map((row) => ({ ...row, placeRatings: (archive.placeRatings ?? []).filter((rating) => rating.reviewId === row.id) }));
+    if (author.email !== archive.exporterEmail && !sharedPlaceRatings(dateReviews, archive.members.map((member) => member.id), item.placeId).length) throw new ValidationError("Archive includes a private partner place rating.");
+  }
   for (const item of archive.revisits) { ref(dates, item.dateId); ref(members, item.decidedById); }
   for (const item of archive.expenses) {
     ref(dates, item.dateId); ref(members, item.recordedById);
@@ -126,9 +138,17 @@ export async function exportCoupleArchive(): Promise<CoupleArchive> {
     const members = couple.members.map((member) => member.userId);
     const reviews = dates.flatMap((date) => reviewsForViewer(rawReviews.filter((review) => review.dateId === date.id), context.user.id, members));
     const ratings = await tx.dateReviewRating.findMany({ where: { reviewId: { in: reviews.map((review) => review.id) } }, take: ARCHIVE_MAX_ROWS + 1, orderBy: { id: "asc" } });
-    const rowCount = [dates, places, categories, activities, photos, reviews, ratings, revisits, expenses, memories, events, reminders, feedback].reduce((count, items) => count + items.length, 0);
+    const rawPlaceRatings = await tx.datePlaceRating.findMany({ where: { reviewId: { in: reviews.map((review) => review.id) }, placeId: { in: places.filter((place) => ["CAFE", "RESTAURANT"].includes(place.category)).map((place) => place.id) } }, take: ARCHIVE_MAX_ROWS + 1, orderBy: { id: "asc" } });
+    if (rawPlaceRatings.length > ARCHIVE_MAX_ROWS) throw new ValidationError("This archive exceeds the portable record limit.");
+    const placeRatings = dates.flatMap((date) => {
+      const dateReviews = reviews.filter((review) => review.dateId === date.id).map((review) => ({ ...review, placeRatings: rawPlaceRatings.filter((rating) => rating.reviewId === review.id) }));
+      return dateReviews.flatMap((review) => review.placeRatings.filter((rating) =>
+        (date.actualPlaceId === rating.placeId || date.plannedPlaceId === rating.placeId || activities.some((activity) => activity.dateId === date.id && activity.placeId === rating.placeId)) &&
+        (review.authorId === context.user.id || sharedPlaceRatings(dateReviews, members, rating.placeId).length > 0)));
+    });
+    const rowCount = [dates, places, categories, activities, photos, reviews, ratings, placeRatings, revisits, expenses, memories, events, reminders, feedback].reduce((count, items) => count + items.length, 0);
     if (rowCount > ARCHIVE_MAX_ROWS) throw new ValidationError("This archive exceeds the portable record limit; use an operator database/media backup.");
-    return { couple, dates, places, categories, activities, photos, reviews, ratings, revisits, expenses, memories, events, reminders, feedback };
+    return { couple, dates, places, categories, activities, photos, reviews, ratings, placeRatings, revisits, expenses, memories, events, reminders, feedback };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 30_000 });
   const { couple, ...data } = snapshot;
   const keys = new Set<string>();
@@ -159,7 +179,7 @@ export async function exportCoupleArchive(): Promise<CoupleArchive> {
     dates: data.dates.map((item) => ({ ...omit(item, "coupleId", "deletedAt", "version", "clientDraftKey"), plannedPlaceId: item.plannedPlaceId && placeIds.has(item.plannedPlaceId) ? item.plannedPlaceId : null, actualPlaceId: item.actualPlaceId && placeIds.has(item.actualPlaceId) ? item.actualPlaceId : null, bestPhotoId: item.bestPhotoId && photoIds.has(item.bestPhotoId) ? item.bestPhotoId : null })),
     activities: data.activities.map((item) => ({ ...item, placeId: item.placeId && placeIds.has(item.placeId) ? item.placeId : null })),
     photos: data.photos.map((item) => ({ ...omit(item, "storageKey", "displayKey", "thumbKey", "blurDataUrl", "url", "contentType", "sizeBytes", "deletedAt"), originalMediaId: keyMap.get(item.storageKey)!, displayMediaId: item.displayKey ? keyMap.get(item.displayKey)! : null, thumbMediaId: item.thumbKey ? keyMap.get(item.thumbKey)! : null })),
-    reviews: data.reviews, ratings: data.ratings, revisits: data.revisits,
+    reviews: data.reviews, ratings: data.ratings, placeRatings: data.placeRatings, revisits: data.revisits,
     expenses: data.expenses.map((item) => omit(item, "coupleId", "deletedAt")), memories: data.memories.map((item) => ({ ...omit(item, "coupleId", "deletedAt"), coverPhotoId: item.coverPhotoId && photoIds.has(item.coverPhotoId) ? item.coverPhotoId : null })),
     events: data.events, reminders: data.reminders, feedback: data.feedback.filter((item) => item.targetType !== "PLACE" || placeIds.has(item.targetKey)).map((item) => omit(item, "coupleId")), media,
   }) as unknown as ArchivePayload;
@@ -291,6 +311,7 @@ export async function restoreCoupleArchive(input: unknown, approvals: readonly s
     }) });
     if (archive.reviews.length) await tx.dateReview.createMany({ data: archive.reviews.map((item) => ({ ...item, id: mapped(item.id)!, dateId: mapped(item.dateId)!, authorId: author(item.authorId) })) });
     if (archive.ratings.length) await tx.dateReviewRating.createMany({ data: archive.ratings.map((item) => ({ ...item, id: randomUUID(), reviewId: mapped(item.reviewId)!, categoryId: mapped(item.categoryId)! })) });
+    if (archive.placeRatings?.length) await tx.datePlaceRating.createMany({ data: archive.placeRatings.map((item) => ({ ...item, id: randomUUID(), reviewId: mapped(item.reviewId)!, placeId: mapped(item.placeId)! })) });
     if (archive.revisits.length) await tx.revisitDecision.createMany({ data: archive.revisits.map((item) => ({ ...item, id: randomUUID(), dateId: mapped(item.dateId)!, decidedById: author(item.decidedById) })) });
     if (archive.expenses.length) await tx.expense.createMany({ data: archive.expenses.map((item) => ({ ...item, id: randomUUID(), dateId: mapped(item.dateId), recordedById: author(item.recordedById), coupleId: fresh.couple.id })) });
     if (archive.memories.length) await tx.memory.createMany({ data: archive.memories.map((item) => ({ ...item, id: randomUUID(), dateId: mapped(item.dateId), coverPhotoId: mapped(item.coverPhotoId), authorId: author(item.authorId), coupleId: fresh.couple.id })) });

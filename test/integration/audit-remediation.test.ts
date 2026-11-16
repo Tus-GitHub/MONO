@@ -100,13 +100,13 @@ it("keeps partner drafts and unrevealed submissions out of exports and detail DT
 
 it("only includes revealed dates in place averages while retaining visit counts", async () => {
   const date = await newDate("COMPLETED", true);
-  await asUser(users[0], () => submitReview(date.id, { personalRevisit: "DEFINITELY", overallRating: 10 }, {}));
+  await asUser(users[0], () => submitReview(date.id, { personalRevisit: "DEFINITELY", overallRating: 10 }, {}, { [placeId]: 10 }));
   expect(score10((await getPlaceHistoryMap(coupleId)).get(placeId))).toBeNull();
   const hidden = await asUser(users[1], () => getPlaceDetail(placeId));
   expect(hidden.history.visitCount).toBe(1);
   expect(hidden.history.coupleScore10).toBeNull();
   expect(hidden.history.dates[0].score10).toBeNull();
-  await asUser(users[1], () => submitReview(date.id, { personalRevisit: "DEFINITELY", overallRating: 6 }, {}));
+  await asUser(users[1], () => submitReview(date.id, { personalRevisit: "DEFINITELY", overallRating: 6 }, {}, { [placeId]: 6 }));
   expect((await asUser(users[1], () => getPlaceDetail(placeId))).history.coupleScore10).toBe(8);
 });
 

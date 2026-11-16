@@ -12,6 +12,8 @@ import { DateResult } from "@/components/dates/date-result";
 import { PostDateChecklist } from "@/components/dates/post-date-checklist";
 import { ValueForMoneyCard } from "@/components/dates/value-for-money-card";
 import { ReviewReveal } from "@/components/dates/review-reveal";
+import { PlaceRatings } from "@/components/dates/place-ratings";
+import { getDatePlaceRatings } from "@/server/services/place-rating-service";
 import { ReviewStatus } from "@/components/dates/review-status";
 import { RevisitControl } from "@/components/dates/revisit-control";
 import { StatusControl } from "@/components/dates/status-control";
@@ -58,12 +60,6 @@ export default async function DateDetailPage({
     throw error;
   }
 
-  const events = await listDateEvents(id).catch(() => []);
-  const myReminders = await getUserDateReminders(id, user.id).catch(() => []);
-  const customReminderIso =
-    myReminders.find((r) => r.kind === "CUSTOM" && !r.sent && !r.dismissed)?.scheduledForIso ??
-    null;
-  const lastEdit = events[0];
   const { date, plan, actual, comparison, pipeline, photos, review, revisit, memory } = data;
 
   const status = date.status;
@@ -73,6 +69,13 @@ export default async function DateDetailPage({
     [DateStatus.DRAFT, DateStatus.PLANNED, DateStatus.TODAY] as DateStatus[]
   ).includes(status);
   const showActualsArea = status === DateStatus.IN_PROGRESS || isDone;
+  const [events, myReminders, placeRatings] = await Promise.all([
+    listDateEvents(id).catch(() => []),
+    getUserDateReminders(id, user.id).catch(() => []),
+    showActualsArea ? getDatePlaceRatings(id) : Promise.resolve([]),
+  ]);
+  const customReminderIso = myReminders.find((r) => r.kind === "CUSTOM" && !r.sent && !r.dismissed)?.scheduledForIso ?? null;
+  const lastEdit = events[0];
 
   return (
     <PageContainer className="space-y-6">
@@ -232,6 +235,7 @@ export default async function DateDetailPage({
       ) : null}
 
       {/* --- Reviews (blind until both submit) ------------------------------ */}
+      {showActualsArea ? <PlaceRatings dateId={date.id} places={placeRatings} /> : null}
       {showActualsArea ? (
         review.revealed && review.mine && review.partner && review.comparison ? (
           <ReviewReveal

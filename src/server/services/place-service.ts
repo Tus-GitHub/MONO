@@ -19,7 +19,8 @@ import { NotFoundError, ValidationError } from "@/lib/errors";
 import { getPlaceProviderByName } from "@/lib/places";
 import { indiaRestrosPhoto } from "@/lib/places/indiarestros-photos";
 import { averageScore } from "@/lib/review/scale";
-import { sharedReviews } from "@/lib/date/review-reveal";
+import { sharedPlaceRatings } from "@/lib/date/place-ratings";
+import { DATE_VENUE_SELECT, visitedPlaces } from "./date-venues";
 import { storage } from "@/lib/storage";
 import { logDateEvent } from "@/server/services/date-event-service";
 import { getPlaceHistoryMap, score10 } from "@/server/services/place-history";
@@ -250,20 +251,21 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
   const { context, resource } = await authorizePlace(placeId);
   const coupleId = context.couple.id;
 
-  const [datesHere, historyMap, sameCategory, members, photos] = await Promise.all([
+  const [candidateDates, historyMap, sameCategory, members, photos] = await Promise.all([
     prisma.date.findMany({
       where: {
         coupleId,
         deletedAt: null,
         status: DateStatus.COMPLETED,
-        OR: [{ plannedPlaceId: placeId }, { actualPlaceId: placeId }],
+        OR: [{ plannedPlaceId: placeId }, { actualPlaceId: placeId }, { activities: { some: { placeId } } }],
       },
       orderBy: { completedAt: "desc" },
       select: {
         id: true,
         title: true,
         completedAt: true,
-        reviews: { select: { authorId: true, submittedAt: true, overallRating: true } },
+        ...DATE_VENUE_SELECT,
+        reviews: { select: { authorId: true, submittedAt: true, placeRatings: { select: { placeId: true, score: true } } } },
         revisitDecision: { select: { choice: true, reason: true } },
         photos: {
           where: { deletedAt: null },
@@ -284,8 +286,9 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
   ]);
 
   const memberIds = members.map((member) => member.userId);
+  const datesHere = candidateDates.filter((date) => visitedPlaces(date).some((place) => place.id === placeId));
   const allScores = datesHere.flatMap((date) =>
-    sharedReviews(date.reviews, memberIds).map((r) => r.overallRating).filter((n): n is number => n != null),
+    sharedPlaceRatings(date.reviews, memberIds, placeId).map((rating) => rating.score),
   );
   const coupleScore10 = averageScore(allScores);
   const lastRevisitDate = datesHere.find((date) => date.revisitDecision);
@@ -352,14 +355,12 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetailView> 
       lastRevisit: lastRevisitDate?.revisitDecision?.choice ?? null,
       lastRevisitReason: lastRevisitDate?.revisitDecision?.reason ?? null,
       dates: datesHere.slice(0, 5).map((date) => {
-        const overalls = sharedReviews(date.reviews, memberIds)
-          .map((r) => r.overallRating)
-          .filter((n): n is number => n != null);
+        const scores = sharedPlaceRatings(date.reviews, memberIds, placeId).map((rating) => rating.score);
         return {
           id: date.id,
           title: date.title,
           completedAt: date.completedAt?.toISOString() ?? null,
-          score10: averageScore(overalls),
+          score10: averageScore(scores),
         };
       }),
     },

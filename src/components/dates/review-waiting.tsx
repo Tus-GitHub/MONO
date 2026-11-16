@@ -73,6 +73,7 @@ export function ReviewWaiting({ ctx }: { ctx: ReviewContext }) {
                   : "skipped"}
               </Row>
             ))}
+            {ctx.places.map((place) => <Row key={place.id} label={place.name}>{my.placeScores[place.id] != null ? `${my.placeScores[place.id]} / 10` : "not rated"}</Row>)}
             <Row label="Go again?">
               {my.personalRevisit ? REVIEW_REVISIT_META[my.personalRevisit].label : "—"}
             </Row>
@@ -116,8 +117,8 @@ export function ReviewWaiting({ ctx }: { ctx: ReviewContext }) {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-muted">{label}</dt>
-      <dd className="text-ink">{children}</dd>
+      <dt className="min-w-0 break-words text-muted">{label}</dt>
+      <dd className="shrink-0 whitespace-nowrap text-right text-ink">{children}</dd>
     </div>
   );
 }

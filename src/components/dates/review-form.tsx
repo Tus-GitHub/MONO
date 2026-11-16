@@ -53,6 +53,8 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
   const prefix = `mono:review:${userId}:${ctx.dateId}`;
   const scoresDraft = useDraftState(`${prefix}:scores`, Object.fromEntries(ctx.categories.map((c) => [c.id, my?.scores[c.id] ?? null])), scoresSchema);
   const { value: scores, setValue: setScores } = scoresDraft;
+  const placeDraft = useDraftState(`${prefix}:places`, Object.fromEntries(ctx.places.map((place) => [place.id, my?.placeScores[place.id] ?? null])), scoresSchema);
+  const { value: placeScores, setValue: setPlaceScores } = placeDraft;
   const overallDraft = useDraftState(`${prefix}:overall`, my?.overallRating ?? null, scoreSchema);
   const { value: overall, setValue: setOverall } = overallDraft;
   const touchedDraft = useDraftState(`${prefix}:touched`, my?.overallRating != null, touchedSchema);
@@ -71,7 +73,7 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
 
   useEffect(() => {
     if (state.status === "success") {
-      [scoresDraft, overallDraft, touchedDraft, revisitDraft, noteDraft, textsDraft].forEach((draft) => draft.clear());
+      [scoresDraft, placeDraft, overallDraft, touchedDraft, revisitDraft, noteDraft, textsDraft].forEach((draft) => draft.clear());
     }
     // A completed save is the event; subsequent edits must create a new draft.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -81,6 +83,7 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
   const suggested = suggestedOverall(scoredValues);
   const effectiveOverall = overallTouched ? overall : suggested;
   const reflectionsWritten = Object.values(texts).filter((t) => t.trim()).length;
+  const missingPlaces = ctx.places.filter((place) => placeScores[place.id] == null).length;
 
   const discard = async () => {
     const ok = await confirm({
@@ -98,7 +101,7 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
   return (
     <form action={reviewAction} className="space-y-7" noValidate>
       <PendingFields className="space-y-7">
-        <UnsavedGuard state={state} valueKey={JSON.stringify([scores, overall, revisit, revisitNote, texts])} />
+        <UnsavedGuard state={state} valueKey={JSON.stringify([scores, placeScores, overall, revisit, revisitNote, texts])} />
         <input type="hidden" name="dateId" value={ctx.dateId} />
         <input type="hidden" name="personalRevisitNote" value={revisitNote} />
 
@@ -133,7 +136,7 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
         <div className="flex items-start gap-2.5 rounded-lg border border-accent/25 bg-accent-tint/40 px-3.5 py-2.5 text-sm text-accent">
           <Icon name="lock" size="sm" className="mt-0.5 shrink-0" />
           <p>
-            {ctx.stage === "revealed" ? "This review is shared. Saved changes are immediately visible to your partner." : ctx.hasPartner
+            {ctx.stage === "revealed" ? "This review is shared. New place ratings appear when you have both rated that place; edits to shared scores appear when saved." : ctx.hasPartner
               ? `Only you can see this. Nothing is shared until ${ctx.partnerName} submits their side too.`
               : "Only you can see this."}
           </p>
@@ -146,8 +149,19 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
           </p>
         </div>
 
+        {ctx.places.length ? <fieldset className="min-w-0 space-y-4">
+          <legend className="font-display text-xl font-medium text-ink">Restaurants & cafés</legend>
+          <p className="text-sm text-muted">Rate each place you visited, from 1 to 10. Each score is separate from your overall date review. Submitted place scores are also visible to Admin after both sides are in.</p>
+          {ctx.places.map((place) => <div key={place.id} className={cn("min-w-0 space-y-2 rounded-xl border bg-surface p-4", fieldErrors?.[`place-score:${place.id}`] ? "border-error" : "border-line")}>
+            <p className="text-xs text-muted">{place.category === "CAFE" ? "Café" : "Restaurant"}{place.city ? ` · ${place.city}` : ""}</p>
+            <ScoreScale name={`place-score:${place.id}`} label={place.name} value={placeScores[place.id] ?? null} onChange={(score) => setPlaceScores((current) => ({ ...current, [place.id]: score }))} />
+            {place.address ? <p className="break-words text-xs text-muted">{place.address}</p> : null}
+            {fieldErrors?.[`place-score:${place.id}`] ? <p className="text-xs text-error" role="alert">{fieldErrors[`place-score:${place.id}`][0]}</p> : null}
+          </div>)}
+        </fieldset> : null}
+
         {/* Category ratings */}
-        <fieldset className="space-y-5">
+        {ctx.categories.length > 0 ? <fieldset className="space-y-5">
           <legend className="text-sm font-medium text-ink">Rate it, 1 to 10</legend>
           {ctx.categories.map((category) => (
             <div key={category.id}>
@@ -162,7 +176,7 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
               ) : null}
             </div>
           ))}
-        </fieldset>
+        </fieldset> : null}
 
         {/* Overall */}
         <div className="rounded-xl border border-line bg-surface p-4">
@@ -256,6 +270,7 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
                 ? `${effectiveOverall} · ${scoreLabel(effectiveOverall)}`
                 : "not set"}
             </SummaryRow>
+            {ctx.places.map((place) => <SummaryRow key={place.id} label={place.name}>{placeScores[place.id] != null ? `${placeScores[place.id]} / 10` : "not rated"}</SummaryRow>)}
             {ctx.categories.map((c) => (
               <SummaryRow key={c.id} label={c.label}>
                 {scores[c.id] != null ? `${scores[c.id]} · ${scoreLabel(scores[c.id])}` : "skipped"}
@@ -271,6 +286,7 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
         </div>
 
         {/* Actions */}
+        {missingPlaces > 0 ? <p className="text-sm text-muted" role="status">Rate {missingPlaces === 1 ? "the remaining place" : `the remaining ${missingPlaces} places`} to save.{ctx.stage !== "revealed" ? " You can save an unfinished draft." : ""}</p> : null}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-5">
           {my && ctx.stage !== "revealed" ? (
             <Button type="button" variant="ghost" size="sm" onClick={discard}>
@@ -283,7 +299,7 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
             {ctx.stage !== "revealed" ? <SubmitButton variant="secondary" pendingText="Saving…">
               Save draft
             </SubmitButton> : null}
-            <SubmitButton name="intent" value="submit" pendingText="Submitting…">
+            <SubmitButton name="intent" value="submit" pendingText="Submitting…" disabled={missingPlaces > 0}>
               {ctx.stage === "revealed" ? "Save changes" : "Submit my side"}
             </SubmitButton>
           </div>
@@ -296,8 +312,8 @@ export function ReviewForm({ ctx, userId }: { ctx: ReviewContext; userId: string
 function SummaryRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-muted">{label}</dt>
-      <dd className="text-ink">{children}</dd>
+      <dt className="min-w-0 break-words text-muted">{label}</dt>
+      <dd className="shrink-0 whitespace-nowrap text-right text-ink">{children}</dd>
     </div>
   );
 }

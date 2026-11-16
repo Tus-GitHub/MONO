@@ -24,8 +24,14 @@ const place = (name: string, category: "CAFE" | "RESTAURANT" | "CINEMA" = "CAFE"
 const date = (scores = [7, 9]) => prisma.date.create({ data: {
   coupleId: couples[0], createdById: users[1], title: "PRIVATE DATE TITLE", notes: "PRIVATE DATE NOTES",
   status: "COMPLETED", completedAt: new Date("2026-11-15T20:00:00Z"), plannedPlaceId: cafeId,
-  reviews: { create: scores.map((score, i) => ({ authorId: users[i + 1], overallRating: score, submittedAt: new Date(), lovedText: "PRIVATE REFLECTION" })) },
+  reviews: { create: scores.map((score, i) => ({ authorId: users[i + 1], overallRating: 10, submittedAt: new Date(), lovedText: "PRIVATE REFLECTION", placeRatings: { create: { placeId: cafeId, score } } })) },
 } });
+async function ratePlace(dateId: string, placeId: string, scores = [7, 9]) {
+  for (let i = 0; i < scores.length; i++) {
+    const review = await prisma.dateReview.findUniqueOrThrow({ where: { dateId_authorId: { dateId, authorId: users[i + 1] } } });
+    await prisma.datePlaceRating.create({ data: { reviewId: review.id, placeId, score: scores[i] } });
+  }
+}
 
 beforeEach(async () => {
   const key = randomUUID(); users = []; couples = [];
@@ -53,7 +59,7 @@ it("requires a signed-in verified current admin grant", async () => {
 it("excludes drafts and one-sided submissions from both rows and counts", async () => {
   const d = await date([7]);
   expect((await read()).count).toBe(0);
-  await prisma.dateReview.create({ data: { dateId: d.id, authorId: users[2], overallRating: 9 } });
+  await prisma.dateReview.create({ data: { dateId: d.id, authorId: users[2], overallRating: 9, placeRatings: { create: { placeId: cafeId, score: 9 } } } });
   expect((await read()).rows).toEqual([]);
   await prisma.dateReview.update({ where: { dateId_authorId: { dateId: d.id, authorId: users[2] } }, data: { submittedAt: new Date() } });
   const result = await read();
@@ -64,17 +70,21 @@ it("excludes drafts and one-sided submissions from both rows and counts", async 
 it("returns venue catalog data and numeric ratings without private prose or identities", async () => {
   await date(); const result = await read();
   expect(result.rows[0].venues[0]).toMatchObject({ id: cafeId, name: "100% Pure _Café_ & O'Brien", category: "CAFE", recorded: false });
-  expect(Object.keys(result.rows[0]).sort()).toEqual(["average", "completedAt", "coupleId", "id", "reviews", "venues"]);
+  expect(Object.keys(result.rows[0]).sort()).toEqual(["average", "completedAt", "coupleId", "id", "placeId", "reviews", "venues"]);
   const encoded = JSON.stringify(result);
   for (const value of ["PRIVATE", "example.invalid", "passwordHash", "lovedText", "photoUrl", "personalRevisit", "chatMessages"]) expect(encoded).not.toContain(value);
 });
 
-it("keeps café then movie in one date, deduplicates venues and never invents per-stop ratings", async () => {
+it("separates café and dinner scores on one date, deduplicates stops and excludes the movie", async () => {
   const d = await date(); const movie = await place("Test cinema", "CINEMA"), dinner = await place("Test dinner", "RESTAURANT");
   await prisma.dateActivity.createMany({ data: [cafeId, movie.id, dinner.id, cafeId].map((placeId, sortOrder) => ({ dateId: d.id, kind: "PLANNED", title: "PRIVATE EVENT", placeId, sortOrder })) });
-  const result = await read(); expect(result.count).toBe(1); expect(result.rows).toHaveLength(1);
-  expect(result.rows[0].venues.map((v) => v.id).sort()).toEqual([cafeId, dinner.id].sort());
-  expect(result.rows[0].reviews).toHaveLength(2); expect(result.rows[0].average).toBe(8);
+  expect((await read()).count).toBe(1);
+  await ratePlace(d.id, dinner.id, [3, 5]);
+  const result = await read(); expect(result.count).toBe(2); expect(result.rows).toHaveLength(2);
+  expect(result.rows.flatMap((row) => row.venues.map((v) => v.id)).sort()).toEqual([cafeId, dinner.id].sort());
+  expect(result.rows.find((row) => row.placeId === cafeId)?.average).toBe(8);
+  expect(result.rows.find((row) => row.placeId === dinner.id)?.average).toBe(4);
+  expect((await read({ venueQuery: "Test dinner" })).rows.map((row) => row.placeId)).toEqual([dinner.id]);
 });
 
 it("prefers recorded venues and actual stops over replaced planned venues", async () => {
@@ -84,9 +94,10 @@ it("prefers recorded venues and actual stops over replaced planned venues", asyn
     { dateId: d.id, kind: "PLANNED", title: "Skipped plan", placeId: cafeId },
     { dateId: d.id, kind: "ACTUAL", title: "Actual stop", placeId: stop.id },
   ] });
+  await ratePlace(d.id, actual.id); await ratePlace(d.id, stop.id);
   const result = await read();
-  expect(result.rows[0].venues.map((v) => v.id).sort()).toEqual([actual.id, stop.id].sort());
-  expect(result.rows[0].venues.every((v) => v.recorded)).toBe(true);
+  expect(result.rows.flatMap((row) => row.venues.map((v) => v.id)).sort()).toEqual([actual.id, stop.id].sort());
+  expect(result.rows.every((row) => row.venues.every((v) => v.recorded))).toBe(true);
   expect((await read({ venueQuery: "100% Pure" })).count).toBe(0);
   await prisma.date.update({ where: { id: d.id }, data: { actualPlaceId: null } });
   expect((await read()).rows[0].venues.map((v) => v.id)).toEqual([stop.id]);
@@ -116,7 +127,7 @@ it("supports current solo reviews, ignores former members and reflects score edi
   const d = await date();
   await prisma.coupleMember.updateMany({ where: { coupleId: couples[0], userId: users[2] }, data: { status: "LEFT" } });
   expect((await read()).rows[0].reviews).toEqual([expect.objectContaining({ accountId: users[1], score: 7 })]);
-  await prisma.dateReview.update({ where: { dateId_authorId: { dateId: d.id, authorId: users[1] } }, data: { overallRating: 4 } });
+  await prisma.datePlaceRating.updateMany({ where: { placeId: cafeId, review: { dateId: d.id, authorId: users[1] } }, data: { score: 4 } });
   expect((await read()).rows[0].average).toBe(4);
   await prisma.coupleMember.updateMany({ where: { coupleId: couples[0] }, data: { status: "LEFT" } });
   expect((await read()).count).toBe(0);
@@ -129,7 +140,7 @@ it("searches venue names, city and reviewer IDs with literal SQL wildcard charac
   expect((await read({ venueQuery: "Missing_venue" })).count).toBe(0);
 });
 
-it("paginates whole dates with stable ordering and clamps out-of-range pages", async () => {
+it("paginates venue visits with stable ordering and clamps out-of-range pages", async () => {
   await Promise.all(Array.from({ length: 21 }, () => date()));
   const first = await read(), second = await read({ page: 2 }), beyond = await read({ page: 9999 });
   expect(first.count).toBe(21); expect(first.pageCount).toBe(2); expect(first.rows).toHaveLength(20); expect(second.rows).toHaveLength(1);

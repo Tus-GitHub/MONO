@@ -17,6 +17,7 @@ import { PHOTO_SELECT, resolveDateCover } from "@/server/services/photo-service"
 import { ensureReviewReminders } from "@/server/services/reminder-service";
 
 import { withDateWrite } from "@/server/services/date-write";
+import { DATE_VENUE_SELECT, foodPlaces } from "@/server/services/date-venues";
 
 
 const REVIEW_SELECT = {
@@ -31,6 +32,7 @@ const REVIEW_SELECT = {
   rememberText: true,
   unexpectedText: true,
   ratings: { select: { categoryId: true, score: true } },
+  placeRatings: { select: { placeId: true, score: true } },
 } satisfies Prisma.DateReviewSelect;
 
 type ReviewRow = Prisma.DateReviewGetPayload<{ select: typeof REVIEW_SELECT }>;
@@ -46,6 +48,7 @@ export interface MyReviewView {
   rememberText: string | null;
   unexpectedText: string | null;
   scores: Record<string, number>;
+  placeScores: Record<string, number>;
 }
 
 export interface ReviewContext {
@@ -63,6 +66,7 @@ export interface ReviewContext {
   partnerName: string;
   partnerSubmitted: boolean;
   categories: { id: string; label: string; description: string | null }[];
+  places: ReturnType<typeof foodPlaces>;
   myReview: MyReviewView | null;
 }
 
@@ -78,24 +82,25 @@ function toMyReviewView(row: ReviewRow): MyReviewView {
     rememberText: row.rememberText,
     unexpectedText: row.unexpectedText,
     scores: Object.fromEntries(row.ratings.map((r) => [r.categoryId, r.score])),
+    placeScores: Object.fromEntries(row.placeRatings.map((r) => [r.placeId, r.score])),
   };
 }
 
 /** Everything the review page needs — the date's context, the categories, and my own draft. */
 export async function getReviewContext(dateId: string, userId: string): Promise<ReviewContext> {
   const { context, resource } = await authorizeDate(dateId);
+  if (context.user.id !== userId) throw new NotFoundError();
 
   const [date, categories, reviews, memberCount, partner] = await Promise.all([
     prisma.date.findUniqueOrThrow({
       where: { id: resource.id },
       select: {
+        ...DATE_VENUE_SELECT,
         title: true,
         status: true,
         scheduledFor: true,
         actualStartAt: true,
         actualLocationText: true,
-        plannedPlace: { select: { name: true, city: true, category: true } },
-        actualPlace: { select: { name: true, city: true, category: true } },
         bestPhoto: { select: PHOTO_SELECT },
         memory: { select: { coverPhoto: { select: PHOTO_SELECT } } },
         photos: {
@@ -111,7 +116,7 @@ export async function getReviewContext(dateId: string, userId: string): Promise<
       orderBy: { sortOrder: "asc" },
       select: { id: true, label: true, description: true },
     }),
-    prisma.dateReview.findMany({ where: { dateId: resource.id }, select: REVIEW_SELECT }),
+    prisma.dateReview.findMany({ where: { dateId: resource.id, author: { memberships: { some: { coupleId: context.couple.id, status: "ACTIVE" } } } }, select: REVIEW_SELECT }),
     prisma.coupleMember.count({ where: { coupleId: context.couple.id, status: "ACTIVE" } }),
     prisma.coupleMember.findFirst({
       where: { coupleId: context.couple.id, status: "ACTIVE", userId: { not: userId } },
@@ -154,6 +159,7 @@ export async function getReviewContext(dateId: string, userId: string): Promise<
     partnerName: partner?.user.nickname || partner?.user.name || "your partner",
     partnerSubmitted: partnerRow?.submittedAt != null,
     categories,
+    places: foodPlaces(date),
     myReview: mine ? toMyReviewView(mine) : null,
   };
 }
@@ -169,6 +175,7 @@ async function writeReview(
   dateId: string,
   input: ReviewDraftInput | ReviewSubmitInput,
   categoryScores: Record<string, number>,
+  placeScores: Record<string, number>,
   opts: { submit: boolean },
 ): Promise<WriteResult> {
   const { context, resource, submittedAt, isNew, nowRevealed, alreadyRevealed } = await withDateWrite(dateId, async (tx, resource, context) => {
@@ -176,19 +183,20 @@ async function writeReview(
       throw new ValidationError("Reviews open once the date has happened.");
     }
 
-    const [mine, partner, memberCount, categoryIds] = await Promise.all([
+    const [mine, partner, memberCount, categoryIds, venueDate] = await Promise.all([
       tx.dateReview.findUnique({
         where: { dateId_authorId: { dateId: resource.id, authorId: context.user.id } },
         select: { id: true, submittedAt: true },
       }),
       tx.dateReview.findFirst({
-        where: { dateId: resource.id, authorId: { not: context.user.id } },
+        where: { dateId: resource.id, authorId: { not: context.user.id }, author: { memberships: { some: { coupleId: context.couple.id, status: "ACTIVE" } } } },
         select: { submittedAt: true },
       }),
       tx.coupleMember.count({ where: { coupleId: context.couple.id, status: "ACTIVE" } }),
       tx.reviewCategory
         .findMany({ where: { coupleId: context.couple.id }, select: { id: true } })
         .then((rows) => new Set(rows.map((r) => r.id))),
+      tx.date.findUniqueOrThrow({ where: { id: resource.id }, select: DATE_VENUE_SELECT }),
     ]);
 
     const hasPartner = memberCount >= 2;
@@ -202,6 +210,16 @@ async function writeReview(
       ([id, score]) => categoryIds.has(id) && score >= SCORE_MIN && score <= SCORE_MAX,
     );
     const suggested = suggestedOverall(scores.map(([, score]) => score));
+    const venues = foodPlaces(venueDate);
+    const venueIds = new Set(venues.map((venue) => venue.id));
+    const placeEntries = Object.entries(placeScores);
+    if (placeEntries.some(([id, score]) => !venueIds.has(id) || !Number.isInteger(score) || score < SCORE_MIN || score > SCORE_MAX)) {
+      throw new ValidationError("Choose a score from 1 to 10 for a restaurant or café on this date.");
+    }
+    if (opts.submit) {
+      const missing = venues.filter((venue) => placeScores[venue.id] == null);
+      if (missing.length) throw new ValidationError("Rate each restaurant and café before submitting.", Object.fromEntries(missing.map((venue) => [`place-score:${venue.id}`, [`Rate ${venue.name} from 1 to 10.`]])));
+    }
 
     const submittedAt = opts.submit ? (mine?.submittedAt ?? new Date()) : (mine?.submittedAt ?? null);
     const isNew = mine == null;
@@ -229,6 +247,11 @@ async function writeReview(
         data: scores.map(([categoryId, score]) => ({ reviewId: review.id, categoryId, score })),
       });
     }
+    await tx.datePlaceRating.deleteMany({ where: { reviewId: review.id, placeId: { notIn: placeEntries.map(([id]) => id) } } });
+    for (const [placeId, score] of placeEntries) await tx.datePlaceRating.upsert({
+      where: { reviewId_placeId: { reviewId: review.id, placeId } },
+      create: { reviewId: review.id, placeId, score }, update: { score },
+    });
 
     const nowRevealed =
       opts.submit && (partner?.submittedAt != null || !hasPartner);
@@ -274,16 +297,18 @@ export function saveReviewDraft(
   dateId: string,
   input: ReviewDraftInput,
   categoryScores: Record<string, number>,
+  placeScores: Record<string, number> = {},
 ): Promise<WriteResult> {
-  return writeReview(dateId, input, categoryScores, { submit: false });
+  return writeReview(dateId, input, categoryScores, placeScores, { submit: false });
 }
 
 export function submitReview(
   dateId: string,
   input: ReviewSubmitInput,
   categoryScores: Record<string, number>,
+  placeScores: Record<string, number> = {},
 ): Promise<WriteResult> {
-  return writeReview(dateId, input, categoryScores, { submit: true });
+  return writeReview(dateId, input, categoryScores, placeScores, { submit: true });
 }
 
 /** Re-open a submitted-but-not-yet-revealed review for editing. */
@@ -295,7 +320,7 @@ export async function reopenReview(dateId: string) {
         select: { id: true, submittedAt: true },
       }),
       tx.dateReview.findFirst({
-        where: { dateId: resource.id, authorId: { not: context.user.id } },
+        where: { dateId: resource.id, authorId: { not: context.user.id }, author: { memberships: { some: { coupleId: context.couple.id, status: "ACTIVE" } } } },
         select: { submittedAt: true },
       }),
       tx.coupleMember.count({ where: { coupleId: context.couple.id, status: "ACTIVE" } }),
@@ -321,7 +346,7 @@ export async function deleteReview(dateId: string) {
         select: { id: true, submittedAt: true },
       }),
       tx.dateReview.findFirst({
-        where: { dateId: resource.id, authorId: { not: context.user.id } },
+        where: { dateId: resource.id, authorId: { not: context.user.id }, author: { memberships: { some: { coupleId: context.couple.id, status: "ACTIVE" } } } },
         select: { submittedAt: true },
       }),
       tx.coupleMember.count({ where: { coupleId: context.couple.id, status: "ACTIVE" } }),
