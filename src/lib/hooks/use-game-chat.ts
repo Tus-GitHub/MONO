@@ -8,7 +8,7 @@ interface Snapshot { active: boolean; iceServers: RTCIceServer[]; signals: Signa
 const endpoint = "/api/together/games/chat";
 
 /** Text only exists in this hook and the encrypted peer data channel. No storage/API fallback. */
-export function useGameChat(gameId: string, initiator: boolean) {
+export function useGameChat(gameId: string, initiator: boolean, callChannel: RTCDataChannel | null = null) {
   const [messages, setMessages] = useState<GameChatMessage[]>([]);
   const [phase, setPhase] = useState("connecting"), [generation, setGeneration] = useState(0);
   const channel = useRef<RTCDataChannel | null>(null), lastSend = useRef(0);
@@ -28,8 +28,10 @@ export function useGameChat(gameId: string, initiator: boolean) {
     const controller = new AbortController(), sessionId = crypto.randomUUID();
     let stopped = false, cursor = "0", peerId = "", pc: RTCPeerConnection | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined, queue = Promise.resolve();
+    let detachChannel = () => {};
+    const shared = callChannel?.readyState === "open";
     let servers: RTCIceServer[] = [], candidates: RTCIceCandidateInit[] = [];
-    const closePeer = () => { const old = pc; pc = null; channel.current?.close(); channel.current = null; old?.close(); candidates = []; };
+    const closePeer = () => { detachChannel(); const old = pc; pc = null; if (channel.current !== callChannel) channel.current?.close(); channel.current = null; old?.close(); candidates = []; };
     const stop = () => { stopped = true; controller.abort(); clearTimeout(timer); closePeer(); };
     const fail = () => { if (!stopped) { setPhase("error"); stop(); } };
     const post = (kind: Signal["kind"], payload: object, target = peerId) => {
@@ -39,32 +41,55 @@ export function useGameChat(gameId: string, initiator: boolean) {
       });
       queue = work.catch(() => {}); return work;
     };
-    const bind = (next: RTCDataChannel, owner: RTCPeerConnection) => {
-      if (next.label !== "mono-match-chat") { next.close(); return; }
+    const bind = (next: RTCDataChannel, owner: RTCPeerConnection | null, usingCall = false) => {
+      if (!usingCall && next.label !== "mono-match-chat") { next.close(); return; }
+      detachChannel();
       channel.current = next;
+      const current = () => !stopped && (usingCall ? channel.current === next : pc === owner);
+      let peerPresent = !usingCall, peerSeenAt = Date.now(), remoteSession = "";
       const replayed = new Set<string>();
       const flush = () => {
-        if (stopped || pc !== owner || next.readyState !== "open") return;
+        if (!current() || !peerPresent || next.readyState !== "open") return;
         for (const message of messagesRef.current) {
           if (!message.mine || message.delivered || replayed.has(message.id)) continue;
           if (next.bufferedAmount > 64 * 1024) break;
-          try { next.send(JSON.stringify({ type: "message", id: message.id, text: message.text })); replayed.add(message.id); } catch { break; }
+          try { next.send(JSON.stringify({ type: "message", gameId, id: message.id, text: message.text })); replayed.add(message.id); } catch { break; }
         }
       };
       next.bufferedAmountLowThreshold = 16 * 1024; next.onbufferedamountlow = flush;
-      next.onopen = () => { if (!stopped && pc === owner) { setPhase("connected"); flush(); } };
-      next.onclose = () => { if (!stopped && pc === owner) setPhase("waiting"); };
-      next.onerror = () => { if (!stopped && pc === owner) setPhase("error"); };
+      next.onopen = () => { if (current() && peerPresent) { setPhase("connected"); flush(); } };
+      next.onclose = () => { if (current()) setPhase("waiting"); };
+      next.onerror = () => { if (current()) setPhase("error"); };
       next.onmessage = event => {
-        if (stopped || pc !== owner || typeof event.data !== "string" || event.data.length > 6000) return;
+        if (!current() || typeof event.data !== "string" || event.data.length > 6000) return;
         try {
           const data = JSON.parse(event.data);
+          if ((usingCall || data.gameId !== undefined) && data.gameId !== gameId) return;
           if (typeof data.id !== "string" || !/^[a-f0-9-]{36}$/.test(data.id)) return;
+          if (usingCall && ["join", "joined", "leave"].includes(data.type)) {
+            if (data.type === "leave") { if (data.id === remoteSession) { peerPresent = false; setPhase("waiting"); } return; }
+            remoteSession = data.id; peerPresent = true; peerSeenAt = Date.now();
+            if (data.type === "join") next.send(JSON.stringify({ type: "joined", gameId, id: sessionId }));
+            setPhase("connected"); flush(); return;
+          }
           if (data.type === "ack") { setMessages(rows => rows.map(row => row.mine && row.id === data.id ? { ...row, delivered: true } : row)); return; }
           if (data.type !== "message" || typeof data.text !== "string" || !data.text.trim() || data.text.length > 1000) return;
           setMessages(rows => rows.some(row => row.id === data.id) ? rows : [...rows, { id: data.id, text: data.text, mine: false, delivered: true }].slice(-100));
-          if (next.readyState === "open") next.send(JSON.stringify({ type: "ack", id: data.id }));
+          if (next.readyState === "open") next.send(JSON.stringify({ type: "ack", gameId, id: data.id }));
         } catch { /* Ignore malformed peer packets; never render peer HTML. */ }
+      };
+      const join = () => {
+        if (!current() || next.readyState !== "open") return;
+        try { next.send(JSON.stringify({ type: "join", gameId, id: sessionId })); } catch { setPhase("waiting"); }
+        if (Date.now() - peerSeenAt > 7000) { peerPresent = false; setPhase("waiting"); }
+      };
+      const presence = usingCall ? setInterval(join, 2000) : undefined;
+      if (usingCall) { setPhase("connecting"); join(); }
+      else if (next.readyState === "open") { setPhase("connected"); flush(); }
+      detachChannel = () => {
+        clearInterval(presence);
+        if (usingCall && next.readyState === "open") try { next.send(JSON.stringify({ type: "leave", gameId, id: sessionId })); } catch { /* Call may be closing. */ }
+        next.onopen = null; next.onclose = null; next.onerror = null; next.onmessage = null; next.onbufferedamountlow = null;
       };
     };
     const connect = async (id: string) => {
@@ -104,25 +129,25 @@ export function useGameChat(gameId: string, initiator: boolean) {
         if (stopped) return;
         if (!data.active) { setMessages([]); setPhase("ended"); stop(); return; }
         servers = data.iceServers;
-        for (const signal of data.signals) { if (stopped) return; await receive(signal); cursor = signal.id; }
+        if (!shared) for (const signal of data.signals) { if (stopped) return; await receive(signal); cursor = signal.id; }
         if (!stopped) timer = setTimeout(() => void poll(), channel.current?.readyState === "open" ? 2000 : 700);
       } catch { fail(); }
     };
     void (async () => {
-      try { await post("hello", {}); if (!stopped) { setPhase("connecting"); await poll(); } } catch { fail(); }
+      try { if (shared && callChannel) bind(callChannel, null, true); else { await post("hello", {}); setPhase("connecting"); } if (!stopped) await poll(); } catch { fail(); }
     })();
     const pageHide = () => { setMessages([]); setPhase("waiting"); stop(); };
     window.addEventListener("pagehide", pageHide);
     return () => { window.removeEventListener("pagehide", pageHide); stop(); };
-  }, [gameId, initiator, generation]);
+  }, [gameId, initiator, generation, callChannel]);
   const send = (text: string) => {
     const value = text.trim(), current = channel.current;
-    if (!value || value.length > 1000 || current?.readyState !== "open" || current.bufferedAmount > 64 * 1024 || Date.now() - lastSend.current < 250) return false;
+    if (phase !== "connected" || !value || value.length > 1000 || current?.readyState !== "open" || current.bufferedAmount > 64 * 1024 || Date.now() - lastSend.current < 250) return false;
     const id = crypto.randomUUID();
     try {
-      current.send(JSON.stringify({ type: "message", id, text: value })); lastSend.current = Date.now();
+      current.send(JSON.stringify({ type: "message", gameId, id, text: value })); lastSend.current = Date.now();
       setMessages(rows => [...rows, { id, text: value, mine: true, delivered: false }].slice(-100)); return true;
     } catch { setPhase("error"); return false; }
   };
-  return { messages, phase, send, reconnect: () => setGeneration(value => value + 1) };
+  return { messages, phase, send, transport: callChannel?.readyState === "open" ? "call" : "standalone", reconnect: () => setGeneration(value => value + 1) };
 }

@@ -3,7 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { togetherFetch, errorMessage } from "@/lib/together/client";
 import type { CallDTO, SignalDTO } from "@/lib/together/types";
 import { useVisiblePoll } from "./use-visible-poll";
-import { prepareCallMedia, acquireCameraMedia, acquireScreenMedia } from "@/lib/together/call-media";
+import { prepareCallMedia, acquireCameraMedia, acquireScreenMedia, switchCallCamera, type CameraFacing } from "@/lib/together/call-media";
+import { bindCallChatChannel, CALL_CHAT_LABEL } from "@/lib/together/call-chat-channel";
 import { offerCallTracks, answerCallTracks } from "@/lib/together/call-tracks";
 import { callDeadline } from "@/lib/together/call-deadline";
 
@@ -15,6 +16,9 @@ export function useCoupleCall(userId: string) {
   const [notice, setNotice] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [muted, setMuted] = useState(false), [cameraOff, setCameraOff] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState<CameraFacing>("user"), [cameraSwitching, setCameraSwitching] = useState(false);
+  const [gameChatChannel, setGameChatChannel] = useState<RTCDataChannel | null>(null);
+  const callChatCleanup = useRef<(() => void) | null>(null);
   const active = useRef<CallDTO | null>(null), peer = useRef<RTCPeerConnection | null>(null), stream = useRef<MediaStream | null>(null);
   const generation = useRef(0), starting = useRef(false), cursor = useRef("0"), heartbeat = useRef(0);
   const pendingIce = useRef<RTCIceCandidateInit[]>([]), queue = useRef<Promise<unknown>>(Promise.resolve());
@@ -35,6 +39,7 @@ export function useCoupleCall(userId: string) {
 
   const release = useCallback(() => {
     generation.current++; starting.current = false; deadline.current?.stop(); deadline.current = null; mediaRequest.current?.abort(); videoRequest.current?.abort();
+    callChatCleanup.current?.(); callChatCleanup.current = null; setGameChatChannel(null); setCameraSwitching(false); setCameraFacing("user");
     for (const track of screenStream.current?.getTracks() ?? []) { track.onended = null; track.stop(); }
     screenStream.current = null; videoSender.current = null; videoRequest.current = null; setSharing(false); setScreenPreview(null); setMediaBusy(false);
     if (peer.current) { peer.current.onicecandidate = null; peer.current.onconnectionstatechange = null; peer.current.ontrack = null; peer.current.close(); peer.current = null; }
@@ -57,9 +62,19 @@ export function useCoupleCall(userId: string) {
     active.current = row; setCall(row); stream.current = media; setLocal(media); setOwned(true);
     cursor.current = "0"; pendingIce.current = []; queue.current = Promise.resolve(); heartbeat.current = 0;
     const pc = new RTCPeerConnection({ iceServers }); peer.current = pc;
+    const attachGameChat = (channel: RTCDataChannel) => {
+      if (generation.current !== runId || peer.current !== pc) { channel.close(); return; }
+      if (channel.label !== CALL_CHAT_LABEL) { channel.close(); return; }
+      callChatCleanup.current?.();
+      callChatCleanup.current = bindCallChatChannel(channel, ready => { if (generation.current === runId && peer.current === pc) setGameChatChannel(ready); });
+    };
+    pc.ondatachannel = event => attachGameChat(event.channel);
+    // Include SCTP in the initial offer; game chat can then reuse this call's working ICE path.
+    if (row.callerId === userId) attachGameChat(pc.createDataChannel(CALL_CHAT_LABEL, { ordered: true }));
     const received = new MediaStream();
     if (row.callerId === userId) videoSender.current = offerCallTracks(pc, media);
     setCameraOff(!media.getVideoTracks().length);
+    setCameraFacing(media.getVideoTracks()[0]?.getSettings().facingMode === "environment" ? "environment" : "user");
     pc.onicecandidate = (event) => { if (event.candidate) void sendSignal(row.id, { kind: "ice", payload: event.candidate.toJSON() }, runId).catch((error) => { if (generation.current === runId) { setError(errorMessage(error)); void end(); } }); };
     pc.ontrack = (event) => {
       if (generation.current !== runId) return;
@@ -187,6 +202,7 @@ export function useCoupleCall(userId: string) {
     } catch (error) { if (!signal.aborted && generation.current === runId) setSyncError(errorMessage(error)); }
   }, 1000, owned, true);
   useEffect(() => () => {
+    callChatCleanup.current?.();
     generation.current++; mediaRequest.current?.abort(); videoRequest.current?.abort(); deadline.current?.stop(); peer.current?.close(); stream.current?.getTracks().forEach((track) => track.stop());
     screenStream.current?.getTracks().forEach((track) => { track.onended = null; track.stop(); });
     if (active.current && peer.current) void fetch("/api/together/calls", { method: "POST", keepalive: true, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "end", id: active.current.id }) }).catch(() => {});
@@ -211,7 +227,7 @@ export function useCoupleCall(userId: string) {
     const controller = new AbortController(); videoRequest.current = controller; setMediaBusy(true); setError(null); setNotice(null);
     let captured: MediaStream | null = null;
     try {
-      captured = await (source === "screen" ? acquireScreenMedia(controller.signal) : acquireCameraMedia(controller.signal));
+      captured = await (source === "screen" ? acquireScreenMedia(controller.signal) : acquireCameraMedia(controller.signal, cameraFacing));
       if (controller.signal.aborted || generation.current !== runId) { captured.getTracks().forEach((track) => track.stop()); return; }
       const track = captured.getVideoTracks()[0];
       if (!track || track.readyState === "ended") throw new Error("No live video source was selected. Try again.");
@@ -253,6 +269,18 @@ export function useCoupleCall(userId: string) {
     } catch { if (generation.current === runId) setError("Couldn't turn off video. End the call to stop the camera."); }
     finally { if (videoRequest.current === controller) { videoRequest.current = null; setMediaBusy(false); } }
   };
-  return { call, phase, local, remote, error, syncError, notice, unread, owned, muted, cameraOff, sharing, screenPaused: sharing && screenPaused, screenSurface, screenPreview, mediaBusy, start, accept, decline, end,
+  const switchCamera = async () => {
+    const media = stream.current, sender = videoSender.current, runId = generation.current;
+    if (!media || !sender || !media.getVideoTracks().some(track => track.readyState === "live") || screenStream.current || videoRequest.current || phase !== "connected") return;
+    const controller = new AbortController(); videoRequest.current = controller; setMediaBusy(true); setCameraSwitching(true); setError(null);
+    const target = cameraFacing === "user" ? "environment" : "user";
+    try { await switchCallCamera(media, sender, target, controller.signal); if (generation.current === runId) setCameraFacing(target); }
+    catch (error) { if (!controller.signal.aborted && generation.current === runId) setError(errorMessage(error)); }
+    finally {
+      if (generation.current === runId) { setLocal(new MediaStream(media.getTracks())); setCameraOff(!media.getVideoTracks().some(track => track.readyState === "live")); }
+      if (videoRequest.current === controller) { videoRequest.current = null; setMediaBusy(false); setCameraSwitching(false); }
+    }
+  };
+  return { call, phase, local, remote, error, syncError, notice, unread, owned, muted, cameraOff, cameraFacing, cameraSwitching, gameChatChannel, sharing, screenPaused: sharing && screenPaused, screenSurface, screenPreview, mediaBusy, start, accept, decline, end, switchCamera,
     toggleMute, toggleCamera, shareScreen: () => changeVideo("screen"), stopSharing, cancelMediaChange: () => videoRequest.current?.abort(), dismissError: () => { setError(null); setNotice(null); } };
 }

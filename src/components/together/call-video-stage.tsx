@@ -6,12 +6,14 @@ import { Icon } from "@/components/ui/icon";
 import { useCallPictureInPicture } from "@/lib/hooks/use-call-picture-in-picture";
 import { leaveCallPip } from "@/lib/together/picture-in-picture";
 
-export function CallVideoStage({ local, remote, sharing, connected, controlsVisible, canHideControls, onToggleControls, minimized = false }: {
+export function CallVideoStage({ local, remote, sharing, connected, controlsVisible, canHideControls, onToggleControls, minimized = false, cameraFacing = "user", cameraBusy = false, onSwitchCamera }: {
   local: MediaStream | null; remote: MediaStream | null; sharing: boolean; connected: boolean;
   controlsVisible: boolean; canHideControls: boolean; onToggleControls: (fromKeyboard?: boolean) => void;
   minimized?: boolean;
+  cameraFacing?: "user" | "environment"; cameraBusy?: boolean; onSwitchCamera?: () => void;
 }) {
   const [selfMain, setSelfMain] = useState(false), [cover, setCover] = useState(false);
+  const [flipped, setFlipped] = useState({ self: false, partner: false });
   const toggleButton = useRef<HTMLButtonElement>(null);
   const remoteVideo = useRef<HTMLVideoElement>(null);
   const pip = useCallPictureInPicture(remoteVideo, connected && !!remote);
@@ -23,6 +25,8 @@ export function CallVideoStage({ local, remote, sharing, connected, controlsVisi
   const swapButton = useRef<HTMLButtonElement>(null), restoreSwapFocus = useRef(false);
   const localIsMain = (minimized ? !remote : selfMain) && Boolean(local);
   const canSwap = !minimized && connected && Boolean(local && remote);
+  const mainParticipant = localIsMain ? "self" : "partner";
+  const canFlip = !localIsMain || (!sharing && cameraFacing === "user");
   const swap = () => { restoreSwapFocus.current = true; setSelfMain((value) => !value); };
   useEffect(() => {
     if (!restoreSwapFocus.current) return;
@@ -42,12 +46,14 @@ export function CallVideoStage({ local, remote, sharing, connected, controlsVisi
       <p className="font-display text-2xl">Just the two of you</p>
     </div> : null}
     {/* Keep each participant's player mounted in place. Swapping only changes layout. */}
-    {remote ? <VideoView stream={remote} videoRef={remoteVideo} label="Partner" main={!localIsMain} cover={cover} canSwap={canSwap} onSwap={swap} swapButton={swapButton} /> : null}
-    {local ? <VideoView stream={local} label={sharing ? "Your shared screen" : "You"} main={localIsMain} cover={cover} canSwap={canSwap} onSwap={swap} swapButton={swapButton} /> : null}
+    {remote ? <VideoView stream={remote} videoRef={remoteVideo} label="Partner" main={!localIsMain} cover={cover} flipped={flipped.partner} canSwap={canSwap} onSwap={swap} swapButton={swapButton} /> : null}
+    {local ? <VideoView stream={local} label={sharing ? "Your shared screen" : "You"} main={localIsMain} cover={cover} flipped={!sharing && cameraFacing === "user" && flipped.self} canSwap={canSwap} onSwap={swap} swapButton={swapButton} /> : null}
     {canHideControls ? <button ref={toggleButton} type="button" className="mono-call-stage-toggle" aria-label={controlsVisible ? "Hide call controls" : "Show call controls"}
       aria-pressed={controlsVisible} onClick={(event) => onToggleControls(event.detail === 0)} /> : null}
     {remote || localIsMain ? <div className="mono-call-view-control mono-call-chrome" inert={!controlsVisible} aria-hidden={!controlsVisible}>
       <Button size="sm" variant="secondary" leadingIcon={<Icon name="expand" />} aria-pressed={cover} onClick={() => setCover(!cover)}>{cover ? "Fit whole view" : "Fill screen"}</Button>
+      {canFlip ? <Button size="sm" variant="secondary" leadingIcon={<Icon name="flipHorizontal" />} aria-label={localIsMain ? "Flip your camera view" : "Flip your partner's video view"} aria-pressed={flipped[mainParticipant]} onClick={() => setFlipped(value => ({ ...value, [mainParticipant]: !value[mainParticipant] }))}>Flip view</Button> : null}
+      {local && !sharing && onSwitchCamera ? <Button size="sm" variant="secondary" leadingIcon={<Icon name="switchCamera" />} aria-label={cameraFacing === "user" ? "Switch to rear camera" : "Switch to front camera"} disabled={!connected || cameraBusy} onClick={onSwitchCamera}>{cameraFacing === "user" ? "Rear camera" : "Front camera"}</Button> : null}
       {pip.supported ? <Button size="sm" variant="secondary" leadingIcon={<Icon name="pictureInPicture" />} onClick={pip.toggle}>{pip.outside ? "Bring video back" : "Pop out video"}</Button> : null}
       {pip.error ? <p role="status" className="rounded-lg bg-elevated p-2 text-xs text-ink">{pip.error}</p> : null}
     </div> : null}
@@ -56,8 +62,8 @@ export function CallVideoStage({ local, remote, sharing, connected, controlsVisi
   </div>;
 }
 
-function VideoView({ stream, label, main, cover, canSwap, onSwap, swapButton, videoRef }: {
-  stream: MediaStream; label: string; main: boolean; cover: boolean; canSwap: boolean; onSwap: () => void;
+function VideoView({ stream, label, main, cover, flipped, canSwap, onSwap, swapButton, videoRef }: {
+  stream: MediaStream; label: string; main: boolean; cover: boolean; flipped: boolean; canSwap: boolean; onSwap: () => void;
   swapButton: RefObject<HTMLButtonElement | null>;
   videoRef?: RefObject<HTMLVideoElement | null>;
 }) {
@@ -75,6 +81,7 @@ function VideoView({ stream, label, main, cover, canSwap, onSwap, swapButton, vi
   return <div className={main ? "mono-call-main-video" : "mono-call-preview"} data-call-participant={label === "Partner" ? "partner" : "self"} data-main={main}>
     {/* Audio stays on the provider's persistent audio element, including after a swap. */}
     <video ref={element} autoPlay playsInline muted aria-label={label === "Partner" ? "Partner live video" : label === "You" ? "Your camera preview" : label}
+      style={{ transform: flipped ? "scaleX(-1)" : "none" }}
       className={`mono-call-video h-full w-full bg-(--photo-backdrop) ${main && cover ? "object-cover" : "object-contain"}`} />
     {!main ? <>
       {canSwap ? <button ref={swapButton} type="button" className="mono-call-swap-target" aria-label={label === "Partner" ? "Make your partner's video the main view" : "Make your video the main view"} onClick={onSwap} /> : null}

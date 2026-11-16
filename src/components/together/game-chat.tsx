@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils/cn";
+import { useTogetherCall } from "./together-provider";
 
 export function GameChat({ gameId, initiator, partnerName }: { gameId: string; initiator: boolean; partnerName: string }) {
-  const chat = useGameChat(gameId, initiator), [text, setText] = useState("");
+  const { gameChatChannel } = useTogetherCall();
+  const chat = useGameChat(gameId, initiator, gameChatChannel), [text, setText] = useState("");
   const feed = useRef<HTMLDivElement>(null);
   useEffect(() => { const node = feed.current; if (node) node.scrollTop = node.scrollHeight; }, [chat.messages]);
-  return <section className="rounded-2xl border border-line bg-surface" data-game-chat data-chat-phase={chat.phase} aria-label="Match chat">
+  return <section className="rounded-2xl border border-line bg-surface" data-game-chat data-chat-phase={chat.phase} data-chat-transport={chat.transport} aria-label="Match chat">
     <h3 className="flex items-center gap-2 px-4 py-3 text-sm font-medium"><Icon name="message" size="sm" />Chat</h3>
     <div className="space-y-3 px-4 pb-4">
       <div ref={feed} role="log" aria-label="Temporary match messages" aria-live="polite" className="max-h-56 space-y-2 overflow-y-auto overscroll-contain">

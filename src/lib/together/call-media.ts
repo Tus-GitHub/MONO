@@ -33,11 +33,48 @@ export async function prepareCallMedia<T>(kind: "AUDIO" | "VIDEO", signal: Abort
     return { media, config };
   } catch (error) { media.getTracks().forEach((track) => track.stop()); throw error; }
 }
-export function acquireCameraMedia(signal: AbortSignal) {
+export type CameraFacing = "user" | "environment";
+export function acquireCameraMedia(signal: AbortSignal, facing: CameraFacing = "user", exact = false) {
   return capture(() => {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error("Camera access isn't supported in this browser.");
-    return navigator.mediaDevices.getUserMedia({ audio: false, video: camera });
+    return navigator.mediaDevices.getUserMedia({ audio: false, video: { ...camera, facingMode: exact ? { exact: facing } : facing } });
   }, signal, "Camera access wasn't allowed. Your voice call is still connected.", waiting);
+}
+
+/** Mobile browsers may only capture one camera at a time. Never release the microphone. */
+export async function switchCallCamera(media: MediaStream, sender: RTCRtpSender, facing: CameraFacing, signal: AbortSignal) {
+  const previous = media.getVideoTracks()[0];
+  const previousFacing: CameraFacing = previous?.getSettings().facingMode === "environment" ? "environment" : "user";
+  let captured: MediaStream | null = null;
+  const install = async (source: MediaStream) => {
+    signal.throwIfAborted();
+    const track = source.getVideoTracks()[0];
+    if (!track || track.readyState !== "live") throw new Error("The selected camera is not available.");
+    await sender.replaceTrack(track);
+    signal.throwIfAborted();
+    media.addTrack(track);
+  };
+  signal.throwIfAborted();
+  await sender.replaceTrack(null);
+  if (signal.aborted) {
+    if (previous?.readyState === "live") await sender.replaceTrack(previous);
+    signal.throwIfAborted();
+  }
+  for (const track of media.getVideoTracks()) { track.stop(); media.removeTrack(track); }
+  try {
+    captured = await acquireCameraMedia(signal, facing, true);
+    await install(captured);
+    captured = null;
+  } catch (error) {
+    captured?.getTracks().forEach(track => track.stop()); captured = null;
+    // A missing rear camera must not end the call or strand the previous camera.
+    if (!signal.aborted && previous) {
+      try { captured = await acquireCameraMedia(signal, previousFacing); await install(captured); captured = null; }
+      catch { /* Leave video off if the browser also refuses the previous camera. */ }
+    }
+    if (signal.aborted) throw error;
+    throw new Error(`Couldn't switch to the ${facing === "environment" ? "rear" : "front"} camera. ${media.getVideoTracks().some(track => track.readyState === "live") ? "Your previous camera is restored." : "Your call continues; tap Camera on to try again."}`);
+  } finally { captured?.getTracks().forEach(track => track.stop()); }
 }
 export function acquireScreenMedia(signal: AbortSignal) {
   return capture(() => {
