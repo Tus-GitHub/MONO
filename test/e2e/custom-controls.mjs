@@ -5,6 +5,7 @@ export async function runCustomControls({page, baseUrl, artifactDir}) {
   await page.emulateMediaFeatures([{name:'prefers-color-scheme',value:'light'}]);
   await page.goto(`${baseUrl}/style`,{waitUntil:'networkidle2',timeout:120000});
   await page.waitForSelector('form[aria-label="Custom controls"]');
+  await page.waitForFunction(()=>Object.keys(document.querySelector('form[aria-label="Custom controls"]')).some(key=>key.startsWith('__reactProps')));
   const form='form[aria-label="Custom controls"]';
   const first=async selector => (await page.$$(selector))[0];
   const click=async selector => {await page.waitForSelector(selector);const el=await first(selector); assert.ok(el,selector); await el.click();};
@@ -13,7 +14,12 @@ export async function runCustomControls({page, baseUrl, artifactDir}) {
     assert.equal(await el.asElement().evaluate(e=>{const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}),true,"Scrolled option must remain at its touch target");
     await el.asElement().click();await page.waitForFunction(()=>!document.querySelector('[role="listbox"]'));};
   await button('Save example');
-  await page.waitForSelector(`${form} [role="alert"]`);
+  try { await page.waitForSelector(`${form} [role="alert"]`); }
+  catch (error) {
+    await page.screenshot({path:`${artifactDir}/controls-validation-failure.png`,fullPage:true});
+    console.log('Control validation diagnostic:',await page.$eval(form,el=>({text:el.innerText,fields:[...el.elements].map(field=>({tag:field.tagName,name:field.name,type:field.type,value:field.value,required:field.required,valid:field.validity?.valid,message:field.validationMessage})),errors:document.querySelector('nextjs-portal')?.textContent})));
+    console.log('Browser errors:',errors);throw error;
+  }
   assert.equal(await page.$eval(`${form} output`,e=>e.textContent),'');
   await click('button[role="combobox"][aria-label="Demo category"]');
   assert.equal(await page.$eval('[role="option"][data-disabled]',e=>e.getAttribute('aria-disabled')),'true');

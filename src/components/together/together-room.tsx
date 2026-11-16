@@ -11,7 +11,7 @@ import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { ImageCropDialog } from "@/components/uploads/image-crop-dialog";
 import { useTogether } from "@/lib/hooks/use-together";
 import { togetherFetch, errorMessage } from "@/lib/together/client";
-import { CHAT_IMAGE_SPACE, EMOJI, STICKERS } from "@/lib/together/catalog";
+import { CHAT_IMAGE_SPACE } from "@/lib/together/catalog";
 import type { MessageDTO, TogetherSnapshot } from "@/lib/together/types";
 import { chatAAD, encryptText, type ChatKey } from "@/lib/together/chat-crypto";
 import { encryptPhoto } from "@/lib/together/secure-photo";
@@ -22,6 +22,8 @@ import { cn } from "@/lib/utils/cn";
 import { useTogetherCall } from "./together-provider";
 import { MusicControls } from "@/components/settings/background-music";
 import { CallSetup } from "./call-setup";
+import { ChatExpressionPicker } from "./chat-expression-picker";
+import { encryptSticker, type PreparedSticker } from "@/lib/together/stickers";
 
 export function TogetherRoom({ initial, userId }: { initial: TogetherSnapshot; userId: string }) {
   const router = useRouter();
@@ -51,7 +53,7 @@ export function ChatConversation({ chat, chatKey, onUnlock, userId, openGame }: 
       {!chatKey ? <div className="min-h-0 flex-1 overflow-y-auto"><ChatEncryption coupleId={chat.data.coupleId} userId={userId} keyId={chat.data.chatKeyId} onUnlock={onUnlock} refresh={chat.refresh} /></div> : <>
       <SecureHistory chatKey={chatKey} coupleId={chat.data.coupleId} refresh={chat.refresh} />
       <MessageList chatKey={chatKey} coupleId={chat.data.coupleId} append={chat.append} messages={chat.data.messages.filter((message) => !message.hidden)} userId={userId} lastRead={chat.data.partner.lastRead} timezone={chat.data.timezone} older={chat.older} hasOlder={chat.hasOlder} openGame={openGame} />
-      <Composer chatKey={chatKey} coupleId={chat.data.coupleId} userId={userId} append={chat.append} onTyping={chat.onTyping} imageBytes={chat.data.imageBytes ?? 0} />
+      <Composer chatKey={chatKey} coupleId={chat.data.coupleId} userId={userId} append={chat.append} onTyping={chat.onTyping} imageBytes={chat.data.imageBytes ?? 0} revision={chat.data.revision} />
       </>}
     </section>;
 }
@@ -103,7 +105,7 @@ function MessageList({ chatKey, coupleId, append, messages, userId, lastRead, ti
       const mine = message.senderId === userId;
       return <div key={message.id}>
         {index === 0 || day(messages[index - 1].createdAt) !== day(message.createdAt) ? <p className="my-3 text-center text-2xs text-faint">{day(message.createdAt)}</p> : null}
-        <article aria-label={`${mine ? "You" : "Partner"} ${time(message.createdAt)}`} className={cn("w-fit max-w-[85%] space-y-0.5 rounded-2xl px-3 py-1.5 sm:max-w-[65%]", mine ? "ml-auto rounded-br-sm bg-primary-tint text-ink" : "mr-auto rounded-bl-sm border border-line bg-surface text-ink")}>
+        <article aria-label={`${mine ? "You" : "Partner"} ${time(message.createdAt)}`} className={cn("w-fit max-w-[85%] space-y-0.5 rounded-2xl px-3 py-1.5 sm:max-w-[65%]", message.kind === "STICKER" && !message.deleted ? cn("bg-transparent text-ink", mine ? "ml-auto" : "mr-auto") : mine ? "ml-auto rounded-br-sm bg-primary-tint text-ink" : "mr-auto rounded-bl-sm border border-line bg-surface text-ink")}>
           <SecureMessage message={message} chatKey={chatKey} coupleId={coupleId} mine={mine} append={append} />
           {message.kind === "GAME" && message.gameId ? <Button variant="secondary" size="sm" onClick={() => openGame(message.gameId!)}>Open game</Button> : null}
           <p className="text-right text-2xs text-muted">{time(message.createdAt)}{mine ? ` · ${BigInt(lastRead) >= BigInt(message.sequence) ? "Read" : "Sent"}` : ""}</p>
@@ -112,7 +114,7 @@ function MessageList({ chatKey, coupleId, append, messages, userId, lastRead, ti
     })}</div>
   </div>;
 }
-function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes }: { chatKey: ChatKey; coupleId: string; userId: string; append: (message: MessageDTO) => void; onTyping: (value: boolean) => void; imageBytes: number }) {
+function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes, revision }: { chatKey: ChatKey; coupleId: string; userId: string; append: (message: MessageDTO) => void; onTyping: (value: boolean) => void; imageBytes: number; revision: string }) {
   const [text, setText] = useState(""), [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null);
   const [failedText, setFailedText] = useState<{ body: string; clientNonce: string } | null>(null);
   const [palette, setPalette] = useState<"emoji" | "stickers" | null>(null), [picture, setPicture] = useState<File | null>(null);
@@ -121,6 +123,7 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes }: {
   const [cropFiles, setCropFiles] = useState<File[] | null>(null);
   const input = useRef<HTMLTextAreaElement | null>(null), composer = useRef<HTMLDivElement | null>(null);
   const sending = useRef(false), draftVersion = useRef(0);
+  const selection = useRef({ start: 0, end: 0 }), customNonce = useRef({ identity: "", value: "" });
   const [pendingDocument, setDocument] = useState<File | null>(null);
   const documentFile = useRef<HTMLInputElement | null>(null), documentNonce = useRef("");
   const file = useRef<HTMLInputElement | null>(null), nonce = useRef({ identity: "", value: "" }), imageNonce = useRef("");
@@ -156,7 +159,7 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes }: {
     if (event.isPrimary && event.button === 0 && document.activeElement === input.current) event.preventDefault();
   };
   const send = async (kind: "TEXT" | "STICKER", body: string, retry?: NonNullable<typeof failedText>) => {
-    if (sending.current || !body.trim() || (failedText && !retry)) return;
+    if (sending.current || !body.trim() || (failedText && !retry)) return false;
     const identity = `${kind}:${body}`;
     if (!retry && nonce.current.identity !== identity) nonce.current = { identity, value: crypto.randomUUID() };
     const clientNonce = retry?.clientNonce ?? nonce.current.value;
@@ -167,14 +170,38 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes }: {
     const clearedVersion = draftVersion.current;
     try {
       const message = await togetherFetch<MessageDTO>("/api/together", { body: { kind, body: await encryptText(chatKey, body, chatAAD(coupleId, userId, clientNonce, kind)), clientNonce } });
-      append(message); setFailedText(null); nonce.current = { identity: "", value: "" }; setPalette(null);
+      append(message); setFailedText(null); nonce.current = { identity: "", value: "" }; if (kind === "TEXT") setPalette(null);
+      return true;
     } catch (error) {
       setError(errorMessage(error));
       if (kind === "TEXT" && !retry) {
         if (draftVersion.current === clearedVersion) edit(submittedDraft);
         else setFailedText({ body, clientNonce });
       }
+      return false;
     } finally { sending.current = false; setBusy(false); }
+  };
+  const sendCustomSticker = async (sticker: PreparedSticker, name: string) => {
+    if (sending.current || failedText) throw new Error("Finish the previous message before sending a sticker.");
+    const identity = `${sticker.id}:${name}`;
+    if (customNonce.current.identity !== identity) customNonce.current = { identity, value: crypto.randomUUID() };
+    sending.current = true; setBusy(true); setError(null);
+    try {
+      const payload = await encryptSticker(sticker, name, chatKey, coupleId, userId, customNonce.current.value);
+      append(await togetherFetch<MessageDTO>("/api/together/stickers", { body: payload }));
+      customNonce.current = { identity: "", value: "" };
+    } catch (failure) { setError(errorMessage(failure)); throw failure; }
+    finally { sending.current = false; setBusy(false); }
+  };
+  const openExpressions = () => {
+    selection.current = { start: input.current?.selectionStart ?? text.length, end: input.current?.selectionEnd ?? text.length };
+    setPalette("emoji");
+  };
+  const insertEmoji = (emoji: string) => {
+    const start = Math.min(selection.current.start, text.length), end = Math.min(selection.current.end, text.length);
+    const next = text.slice(0, start) + emoji + text.slice(end);
+    if (next.length > 4000) return;
+    edit(next); selection.current = { start: start + emoji.length, end: start + emoji.length };
   };
   const sendImage = async () => {
     if (sending.current || failedText || !picture) return;
@@ -217,16 +244,14 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes }: {
       {picture ? <div className="space-y-2"><PhotoPreview file={picture} /><p className="truncate text-xs text-muted">{picture.name}</p>{error ? <p role="alert" className="text-sm text-error">{error}</p> : null}</div> : null}
     </BottomSheet>
     <form onSubmit={(event) => { event.preventDefault(); void send("TEXT", text.trim()); }} className="space-y-1">
-      {toolsOpen ? <div className="flex flex-wrap items-center gap-1"><Button size="sm" variant="ghost" disabled={busy || !!failedText} onClick={() => setPalette("emoji")}><Icon name="smile" size="sm" />Emoji</Button><Button size="sm" variant="ghost" disabled={busy || !!failedText} onClick={() => setPalette("stickers")}><Icon name="heart" size="sm" />Stickers</Button>
-        <Button size="sm" variant="ghost" disabled={busy || !!failedText || imageBytes >= CHAT_IMAGE_SPACE} onClick={() => file.current?.click()}><Icon name="images" size="sm" />Photo</Button>
-        <Button size="sm" variant="ghost" disabled={busy || !!failedText || imageBytes >= CHAT_IMAGE_SPACE} onClick={() => documentFile.current?.click()}><Icon name="document" size="sm" />Document</Button>
-        <span className="ml-auto text-2xs text-faint">{(imageBytes / 1024 / 1024).toFixed(1)} / {CHAT_IMAGE_SPACE / 1024 / 1024} MB</span>
-      </div> : null}
         <input ref={file} type="file" accept="image/*" aria-label="Choose a chat image" className="sr-only" tabIndex={-1} onChange={(event) => { const next = event.target.files?.[0]; if (next && !busy && !cropFiles) setCropFiles([next]); event.target.value = ""; }} />
       <input ref={documentFile} type="file" accept={DOCUMENT_ACCEPT} aria-label="Choose a chat document" className="sr-only" tabIndex={-1} onChange={(event) => { const next = event.target.files?.[0]; event.target.value = ""; if (!next || sending.current || failedText) return; if (!next.size || next.size > DOCUMENT_LIMIT) { setError("Choose a document up to 2 MB."); return; } documentNonce.current = ""; setError(null); setDocument(next); }} />
       <div className="flex items-end gap-2">
-        <Button size="icon" variant="ghost" aria-label={toolsOpen ? "Hide message tools" : "Emoji, stickers, photos and documents"} aria-expanded={toolsOpen} onClick={() => setToolsOpen(!toolsOpen)} className="shrink-0"><Icon name={toolsOpen ? "x" : "plus"} /></Button>
-        <Textarea ref={input} aria-label="Message your partner" placeholder="Message…" className="mono-chat-input min-h-11 flex-1" maxLength={4000} rows={1} value={text} onChange={(event) => edit(event.target.value)} />
+        <Button size="icon" variant="ghost" aria-label="Add attachment" title="Photos and documents" aria-haspopup="dialog" aria-expanded={toolsOpen} disabled={busy || !!failedText} onClick={() => setToolsOpen(true)} className="shrink-0"><Icon name="plus" /></Button>
+        <div className="relative min-w-0 flex-1">
+          <Textarea ref={input} aria-label="Message your partner" placeholder="Message…" className="mono-chat-input min-h-11 pr-12" maxLength={4000} rows={1} value={text} onChange={(event) => edit(event.target.value)} />
+          <Button size="icon" variant="ghost" aria-label="Open emoji and stickers" title="Emoji and stickers" aria-haspopup="dialog" aria-expanded={palette != null} disabled={busy || !!failedText} onClick={openExpressions} className="absolute right-0 bottom-0 shrink-0"><Icon name="smile" /></Button>
+        </div>
         <span className="inline-flex shrink-0 touch-manipulation" onPointerDown={keepComposerFocus}>
           <Button size="icon" aria-label="Send message" type="submit" loading={busy} disabled={!text.trim() || busy || !!failedText}><Icon name="arrowRight" /></Button>
         </span>
@@ -234,10 +259,16 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, imageBytes }: {
     </form>
     {cropFiles ? <ImageCropDialog files={cropFiles} onCancel={() => setCropFiles(null)}
       onConfirm={([cropped]) => { setCropFiles(null); setPicture(cropped); imageNonce.current = ""; }} /> : null}
-    <BottomSheet open={palette != null} onClose={() => setPalette(null)} title={palette === "emoji" ? "Say it with an emoji" : "A little something for them"}>
-      {palette === "emoji" ? <div className="grid grid-cols-6 gap-2">{EMOJI.map((emoji) => <button key={emoji} type="button" aria-label={`Insert ${emoji}`} disabled={text.length + emoji.length > 4000} className="aspect-square rounded-xl bg-surface text-3xl disabled:opacity-40" onClick={() => { edit(text + emoji); setPalette(null); }}>{emoji}</button>)}</div>
-        : <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{STICKERS.map((sticker) => <button key={sticker.id} type="button" disabled={busy} aria-label={`Send ${sticker.label} sticker`} onClick={() => void send("STICKER", sticker.id)} className={cn("rounded-xl border border-line p-4 text-center", sticker.background)}><span className="text-5xl">{sticker.emoji}</span><span className="mt-3 block text-sm font-medium">{sticker.label}</span></button>)}</div>}
+    <BottomSheet open={toolsOpen} onClose={() => setToolsOpen(false)} title="Share something" description="A photo, a plan, a little part of your day." footer={<Button variant="ghost" fullWidth onClick={() => setToolsOpen(false)}>Cancel</Button>}>
+      <div className="grid grid-cols-2 gap-3">
+        <button type="button" disabled={busy || !!failedText || imageBytes >= CHAT_IMAGE_SPACE} onClick={() => { setToolsOpen(false); file.current?.click(); }} className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-surface p-5 text-center transition-colors hover:border-primary disabled:opacity-50"><span className="grid size-12 place-items-center rounded-2xl bg-primary-tint text-primary"><Icon name="images" /></span><span className="text-sm font-medium">Photo</span><span className="text-xs text-muted">Keep it or limit views</span></button>
+        <button type="button" disabled={busy || !!failedText || imageBytes >= CHAT_IMAGE_SPACE} onClick={() => { setToolsOpen(false); documentFile.current?.click(); }} className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-surface p-5 text-center transition-colors hover:border-primary disabled:opacity-50"><span className="grid size-12 place-items-center rounded-2xl bg-accent-tint text-accent"><Icon name="document" /></span><span className="text-sm font-medium">Document</span><span className="text-xs text-muted">Share a file to keep</span></button>
+      </div>
+      <p className="mt-4 text-center text-xs text-muted">End-to-end encrypted · {(imageBytes / 1024 / 1024).toFixed(1)} of {CHAT_IMAGE_SPACE / 1024 / 1024} MB used</p>
     </BottomSheet>
+    <ChatExpressionPicker open={palette != null} tab={palette ?? "emoji"} onTab={setPalette} onClose={() => setPalette(null)}
+      onEmoji={insertEmoji} onSticker={(id) => send("STICKER", id)} onCustom={sendCustomSticker} chatKey={chatKey} coupleId={coupleId} revision={revision} busy={busy || !!failedText}
+      emojiSpace={4000 - text.length} />
   </div>;
 }
 function PhotoPreview({ file }: { file: File }) {

@@ -22,6 +22,7 @@ const suites = { journey: ["journey.mjs", "runJourney"], account: ["account.mjs"
 suites.moderation = ["moderation.mjs", "runModeration"];
 suites.chatPlanner = ["chat-planner.mjs", "runChatPlanner"];
 suites.controls = ["custom-controls.mjs", "runControlsSuite"];
+suites.chatStickers = ["chat-stickers.mjs", "runChatStickers"];
 const selected = process.argv.slice(2).length ? process.argv.slice(2) : engine === "firefox" ? ["compatibility"] : Object.keys(suites);
 if (selected.some((name) => !suites[name])) throw new Error("Choose journey, account, pagination, workflows, compatibility, settings, registration, states, or moderation.");
 // The original suites use CDP-only timezone/offline emulation. Never count a skipped

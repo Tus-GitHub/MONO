@@ -31,6 +31,17 @@ it("keeps ordinary chat requests bounded by their shorter deadline", async () =>
   expect(vi.getTimerCount()).toBe(0);
 });
 
+it("allows a slow custom sticker upload without extending library lookup deadlines", async () => {
+  serverAfter(20_000);
+  const saved = expect(togetherFetch("/api/together/stickers", { body: { encrypted: "fixture" } })).resolves.toEqual({ id: "saved-photo" });
+  await vi.advanceTimersByTimeAsync(20_000);
+  await saved;
+  const lookup = expect(togetherFetch("/api/together/stickers")).rejects.toThrow("took too long");
+  await vi.advanceTimersByTimeAsync(15_000);
+  await lookup;
+  expect(vi.getTimerCount()).toBe(0);
+});
+
 it("still times out a stalled upload and keeps the photo available to retry", async () => {
   serverAfter(180_000);
   const completed = expect(togetherFetch("/api/together/images?nonce=test", { body: new FormData() })).rejects.toThrow("your photo is kept");

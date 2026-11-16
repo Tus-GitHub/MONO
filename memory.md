@@ -1,4 +1,20 @@
-## Chat expression picker and custom stickers (2026-11-16) — IMPLEMENTED; FINAL QA BLOCKED
+## Chat sticker release resumed (2026-11-16) — IN PROGRESS
+User explicitly requests completion of browser testing and publication. Approval service is
+available again; 13 focused PostgreSQL chat-security tests pass on the isolated sticker DB.
+Merged upstream main through f55ee1c, retaining its venue ratings/pagination and control refresh.
+All 579 unit and 55 focused PostgreSQL checks pass. Seven isolated sticker browser groups
+and eight control browser groups pass; screenshot review confirms the mobile picker/creator.
+The broader regression passed encrypted editing/deletion, documents and photo view limits,
+then was interrupted by local ENOSPC disk errors during the audio/profile step. Do not claim
+a full audio/planner pass for this release. Cleared generated Next caches only, preserving
+source, databases and screenshots. Production build passed with caching disabled (95 routes;
+largest function trace 27.34 MiB). Clean focused browser run 61725817e85211a4 passed all
+15 groups with no page errors. Committing/pushing this tested release, then checking the
+live sticker flow with newly created disposable partners. User also requests admin credentials: documented sign-in
+alias admin@mono.com shares their existing verified MONO password; hashes are not recoverable,
+and Forgot password sends recovery to their linked receiving mailbox. No password changed.
+
+## Chat expression picker and custom stickers (2026-11-16) — INITIAL BLOCKER RESOLVED
 User asks to review the crowded chat plus menu against other apps and add custom stickers.
 Implemented separate + attachment sheet and searchable emoji/sticker sheet, cursor-aware
 emoji insertion, named PNG/JPEG/WebP custom sticker preparation/preview, encrypted sending,
@@ -37,7 +53,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (venue cards, pagination and public ratings live; API verification passed)
+Last updated: 2026-11-16 (Chat sticker browser QA and publish resumed; upstream venue and control changes retained)
 
 Last updated: 2026-11-15 (admin panel and private data encryption)
 
@@ -64,9 +80,8 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Chat expression picker/custom stickers (2026-11-16)** — implementation complete locally; final PostgreSQL and two-partner visual QA blocked by automatic approval-service usage limit. Unit, build and static checks recorded above.
+- **Chat expression picker/custom stickers (2026-11-16)** — 579 unit, 55 DB and seven sticker/eight control browser groups pass; reviewed mobile screenshots. Publication/live sticker verification in progress after clearing local build-cache disk pressure.
 
-- **Custom controls refresh (2026-11-16)** — user requests consistent custom buttons, selectors and dropdowns throughout MONO. Audit found native select menus, date/time inputs and plain range/checkbox controls. Implement shared themed controls, preserve native form submission/validation and keyboard support, verify responsive interactions, and carry the approved publication workflow forward.
 
 
 - **Venue cards visual verification (2026-11-16)** — implementation is live and live API checks passed (see Done). Browser/PWA visual checks remain pending because the user requires the right panel and its control runtime remains unavailable. Do not infer visual/device coverage from the API tests or substitute a separate browser.
@@ -284,6 +299,7 @@ components. Business rules never live only in React components — they live in
 ### Done
 
 - **Venue pagination, cards and public ratings (2026-11-16)** — released 1d6db07, deployment dpl_EbiRgSe9PYBMkXDdxC5EZw6VDZ6X READY on the canonical MONO URL, preserving e2f6af9 shared controls. Keyless IndiaRestros pagination for Indian food categories, photo cards in planner/Explore, sourced public rating/count, persisted attribution, safe retries/deduplication and per-page radius/couple checks. 63 focused unit, 25 local PostgreSQL and 15 live API checks passed for both retained test partners; a live 50 km search included cafés up to 23.7656 km away and a 5 km search excluded them. TypeScript/lint/final build passed; no error/fatal runtime log groups. Both test sessions plus two cleanup sessions revoked; accounts/data retained. Report: docs/reports/venue-pagination-ratings-2026-11-16.md. Admin alias admin@mono.com uses the existing MONO password; none retrieved or reset. Visual Browser/PWA verification remains explicitly pending.
+- **Custom controls refresh (2026-11-16)** — published/deployed 6aea4f9; custom shared controls, stable long-menu scrolling, 8 local groups and 7 live planner checks passed.
 
 - **Mobile Save bar and location field (2026-11-16)** — published d70bc3c and deployed READY as dpl_CpaPZQtV87G9AMww1iMWgXrXRKYC on the canonical MONO URL. 38 unit tests, focused lint/type checks and production build passed. Six live planner checks passed with zero JavaScript errors: simulated GPS fills city/area, coordinate/radius request verified, manual replacement works, map location fills its field, map radius changes, Save remains hit-testable above navigation at 320/390/768px and fits 1440px, and two stops with times/venue persist only after explicit Save. Screenshots inspected. Both disposable accounts and their space removed. Artifacts: .postgres-test/release-live/live-4027ae15f664. Area naming is optional and bounded; coordinates remain visible when lookup is unavailable. Physical phone GPS/permission prompts were not tested.
 
@@ -1794,12 +1810,18 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
-### 2026-11-16 — Chat expression picker and private custom stickers — QA BLOCKED
+### 2026-11-16 — Chat expression picker and private custom stickers — RELEASE IN PROGRESS
 - Replaced crowded expanding tools with attachment cards under + and dedicated searchable Emoji/Stickers tabs. Added a local preview/name creator; explicit Send & save sends encrypted PNG and encrypted identity/name. Both partners can reuse accessible recent creations; fresh encryption per send, stable retry nonce, existing quota/auth/deletion rules.
 - Added crypto/library/schema and deadline regression checks, real-DB security cases and a synthetic two-partner browser suite; updated the existing attachment browser selector. Unit/build pass; real DB/browser verification awaits restoration of the approval service. No publication in this turn.
 
-### 2026-11-16 — Custom controls refresh — IN PROGRESS
-User requests modern custom controls across MONO. Preserve warm colour tokens, privacy and app behavior. Implemented shared rounded buttons/inputs, Radix-backed custom dropdowns and date/time pickers, themed checkbox/range controls, and the chat photo-access selector. Native form values, reset and visible validation are retained. Eight isolated browser check groups passed (320/390/768/1440 widths, dark/light, keyboard, controlled time, form submission/reset and nested Escape), with zero page errors. Reviewed screenshots and fixed cramped month/year selection at 320px. Preparing a separate release checkout to exclude concurrent unfinished chat-sticker work. Isolated release TypeScript and focused ESLint passed; production build passed (94 routes). Published e2f6af9; deployment dpl_oXu9WuArnhLx47SNi3yMpVNrBcN7 is READY on the canonical domain. Live custom menus/time selection, location/map radius and mobile Save placement passed. First run saved successfully but the new assertion mistakenly converted UTC-encoded wall time; corrected to the documented storage contract. Next run hit a browser network timeout on Save, cleaned fixtures, and is being retried in a fresh browser. Runtime error/fatal log groups were empty. Final live verification pending.
+### 2026-11-16 — Custom controls refresh — DONE
+- Published e2f6af9 and scrolling correction 6aea4f9 from the isolated `.postgres-test/controls-release` checkout. Both pushes succeeded; final deployment dpl_7QDGJ8amMaLSSgJCnvWMaMbGhKfr is READY on https://mono-kappa-beryl.vercel.app. Preserved the newer venue-card release 1d6db07 and Games test update 984ee38.
+- Shared buttons/inputs use the refreshed rounded MONO styling. Selects, date/time inputs, checkboxes and range sliders now use custom themed controls. Radix Select/Popover provide keyboard/focus/collision behavior; native hidden fields preserve form submission, reset and visible validation. Photo access uses the shared select.
+- Fixed a live long-menu regression: optional scroll arrows could refocus the selected item and snap scrolling back. Removed them in favor of native touch/wheel scrolling and a scrollbar; added an exact hit-target regression check. Calendar month/year controls remain readable at 320px.
+- TypeScript, focused lint, and merged production build passed. Eight local browser groups passed in light/dark and at 320/390/768/1440px, including controlled/uncontrolled values, validation, reset, keyboard and nested popups. No page errors.
+- Final live run used the committed release test module to avoid concurrent workspace edits: 7 checks passed, 0 JS errors. Confirmed simulated GPS fills fields, manual replacement, custom 15:30 time persistence, no date before explicit Save, map radius, two saved stops, and accessible Save across all four widths. Artifacts: `.postgres-test/release-live/live-400b7ced4878`; log `.postgres-test/controls-live-verified.log`.
+- Earlier attempts exposed the menu snap, a mistaken timezone assertion (plans intentionally store UTC-encoded wall time), and one browser network timeout. All runs removed their own disposable accounts/spaces. Final Vercel error/fatal log groups were empty. No personal browser tabs were controlled.
+- The temporary controls dev server is stopped. Other concurrent chat/sticker changes remain untouched in the shared workspace; final release notes are recorded locally after verification.
 
 
 - Live regression found Radix edge-scroll controls could refocus the selected item and snap long menus back while scrolling. Removed those optional edge controls, added stable native touch/wheel scrolling and a visible scrollbar. All eight local control groups passed again with a regression assertion that the scrolled option stays at its hit target; zero page errors. Publishing this correction before final live retry. Earlier live fixtures were removed.

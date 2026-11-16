@@ -9,6 +9,8 @@ import { documentName, downloadAttachment, photoForSaving, saveAttachment } from
 import { SavedPhotoCropDialog } from "@/components/uploads/saved-photo-crop-dialog";
 import { readSavedCrop } from "@/lib/images/saved-crop";
 import { STICKERS } from "@/lib/together/catalog";
+import { readStickerMetadata } from "@/lib/together/stickers";
+import { StickerImage } from "./sticker-image";
 import { chatAAD, decryptBytes, decryptText, encryptText, type ChatKey } from "@/lib/together/chat-crypto";
 import { togetherFetch, errorMessage } from "@/lib/together/client";
 import type { MessageDTO } from "@/lib/together/types";
@@ -43,7 +45,7 @@ export function SecureMessage({ message, chatKey, coupleId, mine, append }: { me
   }} onPointerMove={(event) => { if (press.current && Math.hypot(event.clientX - press.current.x, event.clientY - press.current.y) > 10) cancelPress(); }} onPointerUp={cancelPress} onPointerCancel={cancelPress} onPointerLeave={cancelPress}
     onClickCapture={(event) => { if (held.current) { held.current = false; event.preventDefault(); event.stopPropagation(); } }}
     onContextMenu={(event) => { if ((event.target as Element).closest('[role="dialog"]')) return; event.preventDefault(); cancelPress(); setMenu(true); }}>
-    {message.deleted ? <p className="text-sm italic text-muted">Message deleted</p> : message.kind === "DOCUMENT" && message.image ? <SecureDocument message={message} body={body} chatKey={chatKey} coupleId={coupleId} /> : message.image ? <SecurePhoto message={message} chatKey={chatKey} coupleId={coupleId} mine={mine} append={append} /> : sticker ? <div className="py-1 text-center"><span role="img" aria-label={sticker.label} className="block text-5xl">{sticker.emoji}</span><p className="text-xs">{sticker.label}</p></div> : <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{body || (message.kind === "GAME" ? "Game update" : error ? "Unable to decrypt" : "Decrypting…")}</p>}
+    {message.deleted ? <p className="text-sm italic text-muted">Message deleted</p> : message.kind === "STICKER" && message.image ? <StickerImage message={message} chatKey={chatKey} coupleId={coupleId} label={readStickerMetadata(body)?.name ?? "Custom sticker"} className="size-32 sm:size-36" /> : message.kind === "DOCUMENT" && message.image ? <SecureDocument message={message} body={body} chatKey={chatKey} coupleId={coupleId} /> : message.image ? <SecurePhoto message={message} chatKey={chatKey} coupleId={coupleId} mine={mine} append={append} /> : sticker ? <div className="py-1 text-center"><span role="img" aria-label={sticker.label} className="block text-5xl">{sticker.emoji}</span><p className="text-xs">{sticker.label}</p></div> : <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{body || (message.kind === "GAME" ? "Game update" : error ? "Unable to decrypt" : "Decrypting…")}</p>}
     {message.editedAt ? <span className="text-2xs text-muted">Edited</span> : null}
     <button type="button" aria-label="Message options" title="Hold a message or right-click for options" className="absolute -right-1 -top-1 rounded-md p-1 text-muted opacity-0 transition-opacity hover:bg-surface group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100" onClick={() => setMenu(true)}><Icon name="moreHorizontal" size="sm" /></button>
     {error && !menu ? <p role="alert" className="text-xs text-error">{error}</p> : null}

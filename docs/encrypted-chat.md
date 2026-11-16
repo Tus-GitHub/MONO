@@ -59,6 +59,25 @@ retain old plaintext. Client migration cannot erase those external copies.
   Version-aware merge prevents an older poll from resurrecting deleted/edited content.
   A revision stream carries changes to messages older than the new-message cursor.
 
+## Custom stickers
+
+The composer keeps photos/documents under **+**, with a separate emoji/sticker button.
+In **Stickers → Create**, choose a PNG, JPEG or WebP (up to 10 MB), preview it, give it a
+name and select **Send & save sticker**. Preparation happens locally: a transparent square
+PNG up to 512 × 512 and 256 KB preserves existing transparency and fits the entire image.
+It does not remove photo backgrounds automatically. Cancelling the preview uploads nothing.
+
+Names and stable sticker identities are encrypted in the STICKER message body. Pixels use a
+separate `STICKER_BYTES` AAD bound to the couple, original sender and client nonce. Both
+partners can reuse a shared sticker; each reuse gets fresh encryption and a new message
+nonce. Retrying an unconfirmed send keeps its nonce to avoid duplicate messages.
+
+**Our stickers** shows up to 32 distinct creations from the most recent 120 accessible
+custom-sticker messages, deduplicated on the device. This is shared recent history, not a
+separate permanent sticker pack. Hide/delete actions also govern library availability.
+Stickers use the existing 25 MB shared attachment quota, membership checks, private media
+route and deletion rules. No database migration or added dependency is required.
+
 ## Security boundaries
 
 This protects content against passive database/server-storage disclosure. It does not hide

@@ -9,5 +9,19 @@ export const STICKERS = [
   { id: "sleep", emoji: "🌙", label: "Sweet dreams", background: "bg-accent-tint" },
 ] as const;
 export const EMOJI = ["❤️", "🥰", "😂", "😘", "🥺", "🫂", "😍", "🎉", "🌹", "✨", "👍", "💕"];
+export const EMOJI_OPTIONS = [
+  ["❤️", "love heart"], ["🥰", "love smile happy"], ["😂", "laugh tears funny"], ["😘", "kiss love"],
+  ["🥺", "please miss you"], ["🫂", "hug comfort"], ["😍", "love heart eyes"], ["🎉", "celebrate party"],
+  ["🌹", "rose flower"], ["✨", "sparkles magic"], ["👍", "yes thumbs up"], ["💕", "two hearts love"],
+  ["😊", "smile happy"], ["🤗", "hug smile"], ["😎", "cool sunglasses"], ["🙈", "shy monkey"],
+  ["😴", "sleep good night"], ["😭", "cry sad"], ["😅", "nervous laugh"], ["🤭", "giggle shy"],
+  ["😋", "yummy food"], ["🤩", "excited star eyes"], ["💋", "kiss lips"], ["💌", "love letter"],
+  ["💖", "sparkling heart"], ["💐", "flowers bouquet"], ["🌻", "sunflower sunshine"], ["🌙", "moon night"],
+  ["☀️", "sun morning"], ["⭐", "star proud"], ["🔥", "fire hot"], ["💯", "hundred perfect"],
+  ["🙏", "please thank you"], ["🤞", "luck fingers crossed"], ["🤝", "together handshake"], ["🫶", "heart hands love"],
+  ["☕", "coffee cafe"], ["🍿", "popcorn movie"], ["🍕", "pizza food"], ["🍰", "cake dessert"],
+  ["🥂", "cheers date"], ["🎵", "music song"], ["🎮", "game play"], ["✈️", "travel trip"],
+  ["🏠", "home together"], ["🐱", "cat pet"], ["🐶", "dog pet"], ["🧸", "teddy bear hug"],
+] as const;
 export const CHAT_IMAGE_LIMIT = 512 * 1024;
 export const CHAT_IMAGE_SPACE = 25 * 1024 * 1024;

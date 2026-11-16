@@ -11,6 +11,8 @@ import { changeChatMessage, legacyChatPage, migrateChatMessage, readChatImage, r
 import { chatAAD, decryptBytes, decryptText, encryptBytes, encryptText, newRecoveryCode, recoverChatKey, type ChatKey } from "@/lib/together/chat-crypto";
 import { POST as consumePOST } from "@/app/api/together/images/[id]/route";
 import { sendEncryptedDocument } from "@/server/services/chat-document-service";
+import { listChatStickers, sendEncryptedSticker } from "@/server/services/chat-sticker-service";
+import { encryptSticker, readStickerMetadata, STICKER_LIMIT } from "@/lib/together/stickers";
 let owner: string, partner: string, outsider: string, otherPartner: string, couple: string, otherCouple: string, key: ChatKey;
 beforeEach(async () => {
   const run = randomUUID();
@@ -38,6 +40,36 @@ async function photo(viewLimit: 0 | 1 | 2) {
   const payload = { ...await encryptBytes(key, bytes, chatAAD(couple, owner, clientNonce, `IMAGE_BYTES:${viewLimit}`)), keyId: key.id, clientNonce, width: 1, height: 1, viewLimit };
   const row = await asUser(owner, () => sendEncryptedImage(payload)); return { row, bytes, payload };
 }
+it("shares encrypted custom stickers, deduplicates retries and scopes the reusable library to the couple", async () => {
+  const clientNonce = randomUUID(), pixels = new TextEncoder().encode("private sticker pixels");
+  const payload = await encryptSticker({ id: randomUUID(), bytes: pixels, width: 512, height: 512 }, "Our private joke", key, couple, owner, clientNonce);
+  const results = await Promise.all([asUser(owner, () => sendEncryptedSticker(payload)), asUser(owner, () => sendEncryptedSticker(payload))]);
+  expect(results[0].id).toBe(results[1].id);
+  expect(results[0].kind).toBe("STICKER"); expect(results[0].image?.contentType).toBe("image/png");
+  expect(results[0].body).not.toContain("private joke");
+  expect((await asUser(partner, () => listChatStickers())).map((row) => row.id)).toEqual([results[0].id]);
+  expect(await asUser(outsider, () => listChatStickers())).toEqual([]);
+  const image = await asUser(partner, () => readChatImage(results[0].id, false));
+  expect(await decryptBytes(key, { iv: image.iv!, data: Buffer.from(image.bytes).toString("base64") }, chatAAD(couple, owner, clientNonce, "STICKER_BYTES"))).toEqual(pixels);
+  expect(readStickerMetadata(await decryptText(key, results[0].body, chatAAD(couple, owner, clientNonce, "STICKER")))?.name).toBe("Our private joke");
+  await expect(asUser(outsider, () => readChatImage(results[0].id, false))).rejects.toThrow();
+  await asUser(partner, () => changeChatMessage({ action: "delete-me", id: results[0].id }));
+  expect(await asUser(partner, () => listChatStickers())).toEqual([]);
+  expect(await asUser(owner, () => listChatStickers())).toHaveLength(1);
+  await asUser(owner, () => changeChatMessage({ action: "delete-everyone", id: results[0].id }));
+  expect(await asUser(owner, () => listChatStickers())).toEqual([]);
+  expect(await prisma.chatImage.count({ where: { messageId: results[0].id } })).toBe(0);
+});
+it("rejects oversized stickers, key mismatches and nonce collisions with other message kinds", async () => {
+  const clientNonce = randomUUID();
+  const payload = await encryptSticker({ id: randomUUID(), bytes: new Uint8Array(8), width: 512, height: 512 }, "Safe sticker", key, couple, owner, clientNonce);
+  await expect(asUser(owner, () => sendEncryptedSticker({ ...payload, width: 513 }))).rejects.toThrow();
+  await expect(asUser(owner, () => sendEncryptedSticker({ ...payload, data: Buffer.alloc(STICKER_LIMIT + 17).toString("base64") }))).rejects.toThrow();
+  await expect(asUser(owner, () => sendEncryptedSticker({ ...payload, keyId: "ff".repeat(32) }))).rejects.toThrow();
+  await asUser(owner, () => sendChatMessage({ kind: "TEXT", clientNonce, body: payload.body }));
+  await expect(asUser(owner, () => sendEncryptedSticker(payload))).rejects.toThrow("fresh sticker");
+  expect(await prisma.chatImage.count({ where: { coupleId: couple } })).toBe(0);
+});
 it("encrypts document content and filename, deduplicates sends, isolates readers and deletes bytes", async () => {
   const clientNonce = randomUUID(), aad = (kind: string) => chatAAD(couple, owner, clientNonce, kind);
   const bytes = new TextEncoder().encode("%PDF-1.4 private itinerary");
