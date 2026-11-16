@@ -116,7 +116,7 @@ export function StyleGallery() {
             <Logo variant="lockup" size="sm" href={null} />
           </Row>
           <Row label="Mark / word">
-            <AmorMark className="h-10 w-10 text-ink" />
+            <AmorMark className="h-10 w-24 text-ink" />
             <Logo variant="wordmark" href={null} />
           </Row>
         </Section>

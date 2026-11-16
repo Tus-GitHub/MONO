@@ -271,7 +271,13 @@ it("renegotiates an accepted call for network handoff without another call or du
   await asUser(owner,()=>actOnCall(signal("offer","new ICE offer")));await asUser(owner,()=>actOnCall(signal("offer","new ICE offer")));
   await expect(asUser(owner,()=>actOnCall(signal("offer","overlapping offer")))).rejects.toThrow(/pending/);
   await asUser(partner,()=>actOnCall(signal("answer","new ICE answer")));await asUser(partner,()=>actOnCall(signal("answer","new ICE answer")));
+  // Browser descriptions acquire candidates while an HTTP retry is in flight.
+  // A late offer retry must not reopen an already-answered negotiation.
+  await asUser(owner,()=>actOnCall(signal("offer","new ICE offer\r\na=candidate:1 1 udp 123 192.0.2.1 5678 typ host\r\na=end-of-candidates\r\n")));
+  await asUser(partner,()=>actOnCall(signal("answer","new ICE answer\r\na=candidate:2 1 udp 123 192.0.2.2 5679 typ host\r\n")));
   expect(await prisma.callSignal.count({where:{callId:call.id,kind:"offer"}})).toBe(2);expect(await prisma.callSignal.count({where:{callId:call.id,kind:"answer"}})).toBe(2);
   expect(await prisma.coupleCall.count({where:{coupleId:couple}})).toBe(1);
+  await asUser(owner,()=>actOnCall(signal("offer","next ICE offer")));
+  await asUser(partner,()=>actOnCall(signal("answer","next ICE answer")));
   await asUser(owner,()=>actOnCall({action:"end",id:call.id}));await expect(asUser(partner,()=>actOnCall({action:"restart",id:call.id}))).rejects.toThrow();
 });

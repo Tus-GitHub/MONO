@@ -9,6 +9,7 @@ import { offerCallTracks, answerCallTracks } from "@/lib/together/call-tracks";
 import { retryRead } from "@/lib/together/recovery";
 import { callRecovery, canApplyCallIce } from "@/lib/together/call-recovery";
 import { callDeadline } from "@/lib/together/call-deadline";
+import { sameCallDescription } from "@/lib/together/call-description";
 
 type Phase = "idle" | "permission" | "preparing" | "ringing" | "connecting" | "connected" | "elsewhere";
 export function useCoupleCall(userId: string) {
@@ -24,6 +25,9 @@ export function useCoupleCall(userId: string) {
   const active = useRef<CallDTO | null>(null), peer = useRef<RTCPeerConnection | null>(null), stream = useRef<MediaStream | null>(null);
   const generation = useRef(0), starting = useRef(false), cursor = useRef("0"), heartbeat = useRef(0);
   const pendingIce = useRef<RTCIceCandidateInit[]>([]), queue = useRef<Promise<unknown>>(Promise.resolve());
+  // Browser SDP grows as candidates gather. Retries must use the original wire payload.
+  const localOffer = useRef<RTCSessionDescriptionInit | null>(null), localAnswer = useRef<RTCSessionDescriptionInit | null>(null);
+  const remoteDescription = useRef<RTCSessionDescriptionInit | null>(null);
   const recovery = useRef<ReturnType<typeof callRecovery> | null>(null);
   const deadline = useRef<ReturnType<typeof callDeadline> | null>(null);
   const mediaRequest = useRef<AbortController | null>(null);
@@ -48,6 +52,7 @@ export function useCoupleCall(userId: string) {
     if (peer.current) { peer.current.onicecandidate = null; peer.current.onconnectionstatechange = null; peer.current.ontrack = null; peer.current.close(); peer.current = null; }
     for (const track of stream.current?.getTracks() ?? []) track.stop();
     stream.current = null; active.current = null; pendingIce.current = []; cursor.current = "0";
+    localOffer.current = null; localAnswer.current = null; remoteDescription.current = null;
     setLocal(null); setRemote(null); setOwned(false); setCall(null); setPhase("idle"); setMuted(false); setCameraOff(false); setSyncError(null);
   }, []);
   const end = useCallback(async () => {
@@ -64,6 +69,7 @@ export function useCoupleCall(userId: string) {
   const connect = useCallback((row: CallDTO, media: MediaStream, iceServers: RTCIceServer[], runId: number) => {
     active.current = row; setCall(row); stream.current = media; setLocal(media); setOwned(true);
     cursor.current = "0"; pendingIce.current = []; queue.current = Promise.resolve(); heartbeat.current = 0;
+    localOffer.current = null; localAnswer.current = null; remoteDescription.current = null;
     const pc = new RTCPeerConnection({ iceServers }); peer.current = pc;
     const attachGameChat = (channel: RTCDataChannel) => {
       if (generation.current !== runId || peer.current !== pc) { channel.close(); return; }
@@ -97,9 +103,13 @@ export function useCoupleCall(userId: string) {
       stable: () => pc.connectionState === "connected" && pc.signalingState === "stable",
       recover: async () => {
         if (row.callerId !== userId) { await togetherFetch("/api/together/calls", { body: { action: "restart", id: row.id } }); return; }
-        if (pc.signalingState === "stable") await pc.setLocalDescription(await pc.createOffer({ iceRestart: true }));
+        if (pc.signalingState === "stable") {
+          await pc.setLocalDescription(await pc.createOffer({ iceRestart: true }));
+          if (generation.current !== runId) return;
+          localOffer.current = { type: "offer", sdp: pc.localDescription!.sdp };
+        }
         if (generation.current !== runId || pc.localDescription?.type !== "offer") return;
-        await sendSignal(row.id, { kind: "offer", payload: { type: "offer", sdp: pc.localDescription.sdp } }, runId);
+        if (localOffer.current) await sendSignal(row.id, { kind: "offer", payload: localOffer.current }, runId);
       },
       onError: error => { if (generation.current === runId) setSyncError(errorMessage(error)); },
     });
@@ -129,7 +139,9 @@ export function useCoupleCall(userId: string) {
       if (generation.current !== runId) { void togetherFetch("/api/together/calls", { body: { action: "end", id: row.id } }).catch(() => {}); return; }
       const pc = connect(row, captured.media, captured.iceServers, runId); setPhase("ringing");
       await pc.setLocalDescription(await pc.createOffer());
-      await sendSignal(row.id, { kind: "offer", payload: { type: "offer", sdp: pc.localDescription!.sdp } }, runId);
+      if (generation.current !== runId) return;
+      localOffer.current = { type: "offer", sdp: pc.localDescription!.sdp };
+      await sendSignal(row.id, { kind: "offer", payload: localOffer.current }, runId);
     } catch (error) { if (generation.current === runId) { setError(errorMessage(error)); await end(); } }
     finally { starting.current = false; }
   };
@@ -203,19 +215,22 @@ export function useCoupleCall(userId: string) {
           else pendingIce.current.push(candidate);
         } else {
           const description = event.payload as RTCSessionDescriptionInit;
-          if (pc.remoteDescription?.sdp === description.sdp && pc.signalingState === "stable") {
-            if (event.kind === "offer" && pc.localDescription?.type === "answer") await sendSignal(row.id, { kind: "answer", payload: { type: "answer", sdp: pc.localDescription.sdp } }, runId);
+          if (remoteDescription.current?.type === description.type && sameCallDescription(remoteDescription.current.sdp, description.sdp) && pc.signalingState === "stable") {
+            if (event.kind === "offer" && localAnswer.current) await sendSignal(row.id, { kind: "answer", payload: localAnswer.current }, runId);
             cursor.current = event.id; continue;
           }
           await pc.setRemoteDescription(description);
           if (generation.current !== runId) return;
+          remoteDescription.current = { ...description };
           for (const candidate of pendingIce.current.splice(0)) await pc.addIceCandidate(candidate).catch(() => {});
           if (event.kind === "offer") {
             if (!stream.current) return;
             if (!videoSender.current) videoSender.current = await answerCallTracks(pc, stream.current);
             if (generation.current !== runId) return;
             await pc.setLocalDescription(await pc.createAnswer());
-            await sendSignal(row.id, { kind: "answer", payload: { type: "answer", sdp: pc.localDescription!.sdp } }, runId);
+            if (generation.current !== runId) return;
+            localAnswer.current = { type: "answer", sdp: pc.localDescription!.sdp };
+            await sendSignal(row.id, { kind: "answer", payload: localAnswer.current }, runId);
           }
           if (pc.connectionState !== "connected") setPhase("connecting");
         }

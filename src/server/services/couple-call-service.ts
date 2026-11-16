@@ -5,6 +5,7 @@ import { env } from "@/config/env";
 import { prisma } from "@/lib/db/prisma";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { callActionSchema } from "@/lib/validation/together";
+import { sameCallDescription } from "@/lib/together/call-description";
 import type { CallDTO, SignalDTO } from "@/lib/together/types";
 import { requireTogether, withTogetherWrite } from "./together-context";
 import { enqueueNotification } from "./notification-delivery-service";
@@ -94,7 +95,7 @@ export async function actOnCall(value: unknown): Promise<CallDTO> {
       if (await tx.callSignal.count({ where: { callId: call.id } }) >= 512) throw new ValidationError("The call could not connect. Start a new call.");
       if (input.signal.kind !== "ice") {
         const previous = await tx.callSignal.findFirst({ where: { callId: call.id, kind: input.signal.kind }, orderBy: { id: "desc" } });
-        if (previous && (previous.payload as { sdp?: string }).sdp === input.signal.payload.sdp) return call;
+        if (previous && sameCallDescription((previous.payload as { sdp?: string }).sdp, input.signal.payload.sdp)) return call;
         const opposite = await tx.callSignal.findFirst({ where: { callId: call.id, kind: input.signal.kind === "offer" ? "answer" : "offer" }, orderBy: { id: "desc" } });
         if (input.signal.kind === "offer") {
           if (previous && (!opposite || previous.id > opposite.id)) throw new ConflictError("Wait for the pending connection answer.");

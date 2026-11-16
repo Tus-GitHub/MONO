@@ -44,7 +44,7 @@ export default async function InvitePage({
   if (!result) {
     return (
       <Frame>
-        <AmorMark className="mb-4 h-10 w-10 text-ink" />
+        <AmorMark className="mb-4 h-10 w-24 text-ink" />
         <h1 className="font-display text-xl font-medium text-ink">Invitation not found</h1>
         <p className="mt-1.5 text-sm text-muted">
           This link isn&apos;t valid. Double-check it, or ask your partner to send a new one.
@@ -63,7 +63,7 @@ export default async function InvitePage({
   if (state !== "pending") {
     return (
       <Frame>
-        <AmorMark className="mb-4 h-10 w-10 text-ink" />
+        <AmorMark className="mb-4 h-10 w-24 text-ink" />
         <h1 className="font-display text-xl font-medium text-ink">Invitation unavailable</h1>
         <p className="mt-1.5 text-sm text-muted">{STATE_MESSAGE[state]}</p>
         <LinkButton href={user ? "/home" : "/login"} variant="secondary" className="mt-6">
@@ -82,7 +82,7 @@ export default async function InvitePage({
       <div className="text-center">
         <div className="mx-auto flex w-fit items-center gap-2">
           <Avatar name={inviter.name} src={inviter.avatarUrl} size="lg" />
-          <AmorMark className="h-6 w-6 text-faint" />
+          <AmorMark className="h-6 w-14 text-faint" />
         </div>
         <h1 className="mt-4 font-display text-2xl font-medium text-ink">
           {inviter.name} invited you

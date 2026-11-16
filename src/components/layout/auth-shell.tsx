@@ -21,7 +21,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
         <Logo />
 
         <div className="relative z-10 max-w-sm">
-          <AmorMark className="h-14 w-14 text-ink motion-safe:anim-breathe" />
+          <AmorMark className="h-14 w-32 text-ink motion-safe:anim-breathe" />
           <p className="mt-6 font-display text-[1.75rem] leading-snug text-ink">
             Your dates. Your memories. Your story.
           </p>

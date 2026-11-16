@@ -14,7 +14,7 @@
  * Updating: bump VERSION. The new worker precaches, `skipWaiting()`s on the page's nudge, and
  * on activate deletes every cache whose name doesn't start with the current VERSION.
  */
-const VERSION = "mono-v8-amor";
+const VERSION = "mono-v9-amor";
 const PRECACHE = VERSION + "-precache";
 const STATIC = VERSION + "-static";
 

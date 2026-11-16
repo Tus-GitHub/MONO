@@ -11,10 +11,10 @@ export function AmorWordmark({ className }: { className?: string }) {
   </svg>;
 }
 
-/** Shared-stem Mio monogram for the app tile and compact placements. */
+/** Compact AMOR signature, keeping the hidden Mio detail inside the complete name. */
 export function AmorMark({ className }: { className?: string }) {
-  return <svg viewBox="72 10 158 112" fill="currentColor" aria-hidden="true" className={cn("amor-mark shrink-0", className)}>
-    <path d={AMOR_M} /><path d={AMOR_O} fillRule="evenodd" />
+  return <svg viewBox="0 0 306 128" fill="currentColor" aria-hidden="true" className={cn("amor-mark shrink-0", className)}>
+    <path d={AMOR_LETTERS} fillRule="evenodd" /><path d={AMOR_M} /><path d={AMOR_O} fillRule="evenodd" />
     <path d={AMOR_STEM} className="fill-primary" /><circle cx="145" cy="23" r="4" className="fill-primary" />
   </svg>;
 }

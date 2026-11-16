@@ -35,16 +35,15 @@ export function AppHeader({ user, unreadCount }: AppHeaderProps) {
       )}
     >
       <div className="mr-auto min-w-0 lg:hidden">
-        <span className="sm:hidden"><Logo href="/home" size="md" variant="mark" /></span>
-        <span className="hidden sm:block"><Logo href="/home" size="sm" /></span>
+        <Logo href="/home" size="sm" />
       </div>
 
-      {/* Explore is a primary destination but not a bottom-nav tab — keep it one tap away on mobile. */}
+      {/* On narrow phones Explore stays in the account menu, leaving the name readable. */}
       <Link
         href="/explore"
         aria-label="Explore"
         className={cn(
-          "tap grid place-items-center rounded-lg text-muted transition-colors hover:bg-ink/[0.06] hover:text-ink lg:hidden",
+          "tap hidden place-items-center rounded-lg text-muted transition-colors hover:bg-ink/[0.06] hover:text-ink xs:grid lg:hidden",
           focusRing,
         )}
       >
@@ -91,6 +90,7 @@ function NotificationsBell({ unreadCount }: { unreadCount: number }) {
 }
 
 const MENU_LINKS = [
+  { href: "/explore", label: "Explore", icon: "compass" as const },
   { href: "/couple", label: "Couple space", icon: "users" as const },
   { href: "/settings/profile", label: "Your profile", icon: "user" as const },
   { href: "/settings", label: "Settings", icon: "settings" as const },

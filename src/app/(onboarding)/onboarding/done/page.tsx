@@ -30,7 +30,7 @@ export default async function OnboardingDonePage() {
         </div>
       </div>
 
-      <AmorMark className="mx-auto h-8 w-8 text-ink" />
+      <AmorMark className="mx-auto h-8 w-20 text-ink" />
       <h1 className="mt-4 font-display text-3xl font-medium text-ink">
         {couple.name ? couple.name : "You're connected"}
       </h1>

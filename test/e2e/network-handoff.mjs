@@ -37,6 +37,14 @@ export async function runNetworkHandoff({ browser, baseUrl, prisma, runId, artif
       };
     });
     page.on("pageerror", error => errors.push(error.message));
+    page.on("response", async response => {
+      const request = response.request();
+      if (new URL(request.url()).pathname === "/api/together/calls" && request.method() === "POST"
+        && JSON.parse(request.postData() ?? "{}").action === "signal" && response.status() >= 400) {
+        errors.push(`Call signaling HTTP ${response.status()}`);
+        console.log("Rejected fixture signal", JSON.parse(request.postData()).signal?.kind, await response.text());
+      }
+    });
     await page.goto(baseUrl+"/login",{waitUntil:"domcontentloaded"}); await page.locator('[name="email"]').fill(user.email); await page.locator('[name="password"]').fill(password); await click(page,button("Sign in")); await page.waitForFunction(()=>location.pathname==="/home");
     await page.goto(baseUrl+"/chat",{waitUntil:"domcontentloaded"}); return page;
   };
@@ -106,7 +114,7 @@ export async function runNetworkHandoff({ browser, baseUrl, prisma, runId, artif
     await owner.screenshot({path:path.join(artifactDir,"network-handoff-mobile.png"),fullPage:true});
     assert.deepEqual(errors,[]); pass("no browser JavaScript errors"); return {checks};
   } catch(error) {
-    for(const [i,context] of contexts.entries()) for(const page of await context.pages()) { console.log("NETWORK QA",(await page.evaluate(()=>document.body.innerText).catch(()=>"")).slice(-1400)); await page.screenshot({path:path.join(artifactDir,`network-failure-${i}.png`),timeout:5000}).catch(()=>{}); }
+    for(const [i,context] of contexts.entries()) for(const page of await context.pages()) { console.log("NETWORK RTC",await page.evaluate(async()=>Promise.all((window.__qaPeers??[]).map(async pc=>({state:pc.connectionState,signaling:pc.signalingState,localType:pc.localDescription?.type,remoteType:pc.remoteDescription?.type,localUfrag:pc.localDescription?.sdp.match(/a=ice-ufrag:([^\r\n]+)/)?.[1],remoteUfrag:pc.remoteDescription?.sdp.match(/a=ice-ufrag:([^\r\n]+)/)?.[1],audio:[...(await pc.getStats()).values()].filter(s=>s.type==='inbound-rtp'&&s.kind==='audio').map(s=>({packets:s.packetsReceived,energy:s.totalAudioEnergy}))})))).catch(()=>[])); console.log("NETWORK QA",(await page.evaluate(()=>document.body.innerText).catch(()=>"")).slice(-1400)); await page.screenshot({path:path.join(artifactDir,`network-failure-${i}.png`),timeout:5000}).catch(()=>{}); }
     throw error;
   } finally { await Promise.all(sessions.map(session=>session.detach().catch(()=>{}))); await Promise.all(contexts.map(context=>context.close())); await prisma.couple.deleteMany({where:{id:couple.id}}); await prisma.user.deleteMany({where:{id:{in:users.map(user=>user.id)}}}); }
 }
