@@ -17,6 +17,7 @@ import { encryptPhoto } from "@/lib/together/secure-photo";
 import { VideoComposer } from "./video-composer";
 import { DOCUMENT_ACCEPT, DOCUMENT_LIMIT, encryptDocument } from "@/lib/together/attachments";
 import { ChatEncryption, SecureHistory } from "./chat-encryption";
+import { ChatReset } from "./chat-reset";
 import { SecureMessage } from "./secure-message";
 import { cn } from "@/lib/utils/cn";
 import { useTogetherCall } from "./together-provider";
@@ -29,6 +30,7 @@ export function TogetherRoom({ initial, userId }: { initial: TogetherSnapshot; u
   const router = useRouter();
   const [chatKey, setChatKey] = useState<ChatKey | null>(null);
   const [soundsOpen, setSoundsOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
   const chat = useTogether(initial, chatKey != null), calling = useTogetherCall();
   const { partner } = chat.data;
   const callBusy = Boolean(calling.call) || calling.phase !== "idle";
@@ -41,7 +43,8 @@ export function TogetherRoom({ initial, userId }: { initial: TogetherSnapshot; u
       <div className="flex shrink-0 items-center gap-1">{callBusy ? calling.miniVideoVisible ? null : <Button size="icon" aria-label="Open current call" title="Open current call" onClick={calling.returnToCall}><Icon name={calling.call?.kind === "VIDEO" ? "video" : "phone"} /></Button> : <><Button size="icon" variant="ghost" aria-label="Voice call" title="Voice call" onClick={() => void calling.start("AUDIO")}><Icon name="phone" /></Button><Button size="icon" variant="ghost" aria-label="Video call" title="Video call" onClick={() => void calling.start("VIDEO")}><Icon name="video" /></Button></>}
         {!callBusy ? <Button variant="ghost" size="icon" aria-label="Chat sound settings" onClick={() => setSoundsOpen(true)}><Icon name="settings" /></Button> : null}</div>
     </header>
-    <BottomSheet open={soundsOpen} onClose={() => setSoundsOpen(false)} title="Sounds & notifications"><div className="space-y-5"><CallSetup soundsReady={calling.soundsReady} enableSounds={calling.enableCallSounds} /><MusicControls /><Link href="/settings/profile" className="text-sm text-primary underline">Change your ringtone in your profile</Link></div></BottomSheet>
+    <BottomSheet open={soundsOpen} onClose={() => setSoundsOpen(false)} title="Sounds & notifications"><div className="space-y-5"><CallSetup soundsReady={calling.soundsReady} enableSounds={calling.enableCallSounds} /><MusicControls /><Link href="/settings/profile" className="text-sm text-primary underline">Change your ringtone in your profile</Link>{chat.data.chatKeyId ? <div className="border-t border-line pt-4"><Button variant="link" onClick={() => { setSoundsOpen(false); setResetOpen(true); }}>Reset encrypted chat</Button></div> : null}</div></BottomSheet>
+    <ChatReset open={resetOpen} onClose={() => setResetOpen(false)} coupleId={chat.data.coupleId} userId={userId} currentKeyId={chat.data.chatKeyId} refresh={chat.refresh} />
     <ChatConversation chat={chat} chatKey={chatKey} onUnlock={setChatKey} userId={userId} openGame={(id) => router.push(`/games/${id}`)} />
   </div>;
 }
@@ -50,7 +53,7 @@ export function ChatConversation({ chat, chatKey, onUnlock, userId, openGame }: 
 }) {
   return <section aria-label="Chat conversation" className="flex min-h-0 flex-1 flex-col">
     {chat.error ? <p role="alert" className="shrink-0 px-3 py-1 text-sm text-error">{chat.error} <Button variant="link" onClick={() => void chat.refresh()}>Retry now</Button></p> : null}
-      {!chatKey ? <div className="min-h-0 flex-1 overflow-y-auto"><ChatEncryption coupleId={chat.data.coupleId} userId={userId} keyId={chat.data.chatKeyId} onUnlock={onUnlock} refresh={chat.refresh} /></div> : <>
+      {!chatKey || chatKey.id !== chat.data.chatKeyId ? <div className="min-h-0 flex-1 overflow-y-auto"><ChatEncryption coupleId={chat.data.coupleId} userId={userId} keyId={chat.data.chatKeyId} chatGeneration={chat.data.chatGeneration} onUnlock={onUnlock} refresh={chat.refresh} /></div> : <>
       <SecureHistory chatKey={chatKey} coupleId={chat.data.coupleId} refresh={chat.refresh} />
       <MessageList chatKey={chatKey} coupleId={chat.data.coupleId} append={chat.append} messages={chat.data.messages.filter((message) => !message.hidden)} userId={userId} lastRead={chat.data.partner.lastRead} timezone={chat.data.timezone} older={chat.older} hasOlder={chat.hasOlder} openGame={openGame} />
       <Composer chatKey={chatKey} coupleId={chat.data.coupleId} userId={userId} append={chat.append} onTyping={chat.onTyping} revision={chat.data.revision} />

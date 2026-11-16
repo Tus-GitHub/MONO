@@ -11,7 +11,7 @@ import { checkMessageRate, imageSelect, messageDTO } from "./together-service";
 export async function listChatStickers() {
   const context = await requireTogether();
   const messages = await prisma.chatMessage.findMany({ where: {
-    coupleId: context.couple.id, kind: "STICKER", encrypted: true, deletedAt: null,
+    coupleId: context.couple.id, generation: context.couple.chatGeneration, kind: "STICKER", encrypted: true, deletedAt: null,
     NOT: { hiddenFor: { has: context.user.id } }, image: { is: { encrypted: true, viewLimit: 0, contentType: "image/png" } },
   }, orderBy: { sequence: "desc" }, take: 120, include: { image: { select: imageSelect } } });
   return messages.map((row) => messageDTO(row, context.user.id));
@@ -25,11 +25,11 @@ export async function sendEncryptedSticker(value: unknown) {
     await assertChatKey(tx, context, input.keyId);
     const existing = await tx.chatMessage.findUnique({ where: { senderId_clientNonce: { senderId: context.user.id, clientNonce: input.clientNonce } }, include: { image: { select: imageSelect } } });
     if (existing) {
-      if (existing.coupleId !== context.couple.id || existing.kind !== "STICKER" || !existing.image) throw new ConflictError("Start a fresh sticker message.");
+      if (existing.coupleId !== context.couple.id || existing.generation !== context.couple.chatGeneration || existing.kind !== "STICKER" || !existing.image) throw new ConflictError("Start a fresh sticker message.");
       return existing;
     }
     await checkMessageRate(tx, context.user.id);
-    const message = await tx.chatMessage.create({ data: { coupleId: context.couple.id, senderId: context.user.id, kind: "STICKER", encrypted: true, clientNonce: input.clientNonce, body: input.body,
+    const message = await tx.chatMessage.create({ data: { coupleId: context.couple.id, generation: context.couple.chatGeneration, senderId: context.user.id, kind: "STICKER", encrypted: true, clientNonce: input.clientNonce, body: input.body,
       image: { create: { coupleId: context.couple.id, bytes, byteLength: bytes.length, width: input.width, height: input.height, contentType: "image/png", encrypted: true, iv: input.iv, viewLimit: 0 } },
     }, include: { image: { select: imageSelect } } });
     await bumpTogether(tx, context.couple.id);

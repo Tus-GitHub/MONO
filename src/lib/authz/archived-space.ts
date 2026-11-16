@@ -7,13 +7,13 @@ import { NotFoundError } from "@/lib/errors";
 /** Identity is the original membership ID, never an email or display name. */
 export async function eligibleArchivedPartner(coupleId: string, userId: string, tx: Prisma.TransactionClient = prisma) {
   const couple = await tx.couple.findFirst({ where: { id: coupleId, status: "ARCHIVED", deletedAt: null }, select: {
-    id: true, timezone: true, currency: true, chatKeyId: true,
+    id: true, timezone: true, currency: true, chatKeyId: true, chatGeneration: true,
     members: { select: { userId: true, user: { select: { deletedAt: true, blockedAt: true, emailVerified: true } } } },
   } });
   const member = couple?.members.find(row => row.userId === userId);
   const partner = couple?.members.find(row => row.userId !== userId);
   if (!couple || couple.members.length !== 2 || !member || member.user.deletedAt || member.user.blockedAt || !member.user.emailVerified || !partner?.user.deletedAt) throw new NotFoundError("This archived space is not available to this account.");
-  return { coupleId: couple.id, userId, partnerId: partner.userId, memberIds: couple.members.map(row => row.userId), timezone: couple.timezone, currency: couple.currency, chatKeyId: couple.chatKeyId };
+  return { coupleId: couple.id, userId, partnerId: partner.userId, memberIds: couple.members.map(row => row.userId), timezone: couple.timezone, currency: couple.currency, chatKeyId: couple.chatKeyId, chatGeneration: couple.chatGeneration };
 }
 
 export async function approvedArchivedPartner(coupleId: string, userId: string, tx: Prisma.TransactionClient = prisma) {

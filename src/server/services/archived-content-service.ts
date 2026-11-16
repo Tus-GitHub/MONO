@@ -91,7 +91,7 @@ export async function archivedCalls(coupleId: string, page: number) {
 export async function archivedChat(coupleId: string, rawBefore?: string | null) {
   const context = await requireArchivedRead(coupleId);
   const before = rawBefore ? z.string().regex(/^\d{1,19}$/).transform(BigInt).refine(value => value <= BigInt("9223372036854775807")).parse(rawBefore) : undefined;
-  const rows = await prisma.chatMessage.findMany({ where: { coupleId, NOT: { hiddenFor: { has: context.userId } }, ...(before ? { sequence: { lt: before } } : {}) },
+  const rows = await prisma.chatMessage.findMany({ where: { coupleId, generation: context.chatGeneration, NOT: { hiddenFor: { has: context.userId } }, ...(before ? { sequence: { lt: before } } : {}) },
     orderBy: { sequence: "desc" }, take: 41, include: { image: { select: imageSelect } } });
   return { messages: rows.slice(0, 40).reverse().map(row => { const dto = messageDTO(row, context.userId); if (dto.image) dto.image.url = `/api/history-access/${coupleId}/images/${row.id}`; return dto; }),
     nextCursor: rows.length > 40 ? String(rows[39].sequence) : null };
@@ -104,7 +104,7 @@ export async function readArchivedImage(coupleId: string, id: string, consume: b
     await lockVerifiedUser(tx, context.userId);
     await tx.$queryRaw`SELECT id FROM couples WHERE id = ${coupleId} FOR UPDATE`;
     await approvedArchivedPartner(coupleId, context.userId, tx);
-    const row = await tx.chatMessage.findFirst({ where: { id, coupleId, deletedAt: null, NOT: { hiddenFor: { has: context.userId } } }, include: { image: true } });
+    const row = await tx.chatMessage.findFirst({ where: { id, coupleId, generation: context.chatGeneration, deletedAt: null, NOT: { hiddenFor: { has: context.userId } } }, include: { image: true } });
     if (!row?.image) throw new NotFoundError();
     const image = row.image;
     if (image.viewLimit > 0) {
@@ -121,7 +121,7 @@ export async function readArchivedImage(coupleId: string, id: string, consume: b
 
 export async function readArchivedVideo(coupleId: string, messageId: string, index?: number) {
   const context = await requireArchivedRead(coupleId);
-  const read = () => prisma.chatVideo.findFirst({ where: { messageId, coupleId, message: { deletedAt: null, NOT: { hiddenFor: { has: context.userId } } } }, select: { id: true, chunkCount: true, byteLength: true } });
+  const read = () => prisma.chatVideo.findFirst({ where: { messageId, coupleId, message: { generation: context.chatGeneration, deletedAt: null, NOT: { hiddenFor: { has: context.userId } } } }, select: { id: true, chunkCount: true, byteLength: true } });
   const row = await read();
   if (!row) throw new NotFoundError();
   if (index == null) return { chunkCount: row.chunkCount, byteLength: row.byteLength };

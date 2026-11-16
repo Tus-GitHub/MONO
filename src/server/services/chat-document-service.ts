@@ -12,9 +12,9 @@ export async function sendEncryptedDocument(value: unknown) {
   const row = await withTogetherWrite(context, async (tx) => {
     await assertChatKey(tx, context, input.keyId);
     const existing = await tx.chatMessage.findUnique({ where: { senderId_clientNonce: { senderId: context.user.id, clientNonce: input.clientNonce } }, include: { image: { select: imageSelect } } });
-    if (existing) { if (existing.coupleId !== context.couple.id || existing.kind !== "DOCUMENT") throw new ConflictError("Start a new document message."); return existing; }
+    if (existing) { if (existing.coupleId !== context.couple.id || existing.generation !== context.couple.chatGeneration || existing.kind !== "DOCUMENT") throw new ConflictError("Start a new document message."); return existing; }
     await checkMessageRate(tx, context.user.id);
-    const message = await tx.chatMessage.create({ data: { coupleId: context.couple.id, senderId: context.user.id, kind: "DOCUMENT", encrypted: true, clientNonce: input.clientNonce, body: input.body,
+    const message = await tx.chatMessage.create({ data: { coupleId: context.couple.id, generation: context.couple.chatGeneration, senderId: context.user.id, kind: "DOCUMENT", encrypted: true, clientNonce: input.clientNonce, body: input.body,
       image: { create: { coupleId: context.couple.id, bytes, byteLength: bytes.length, width: 1, height: 1, contentType: "application/octet-stream", encrypted: true, iv: input.iv, viewLimit: 0 } } }, include: { image: { select: imageSelect } } });
     await bumpTogether(tx, context.couple.id); return message;
   });

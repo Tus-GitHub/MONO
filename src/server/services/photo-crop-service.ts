@@ -43,7 +43,7 @@ export async function getSavedPhotoCrop(value: unknown): Promise<SavedCropInfo> 
     return info(storage.publicUrl(resource.storageKey), resource.storageKey, resource.crop);
   }
   const { couple, user } = await requireTogether();
-  const message = await prisma.chatMessage.findFirst({ where: { id: target.id, coupleId: couple.id, senderId: user.id, kind: "IMAGE", deletedAt: null, NOT: { hiddenFor: { has: user.id } } }, include: { image: { select: imageSelect } } });
+  const message = await prisma.chatMessage.findFirst({ where: { id: target.id, coupleId: couple.id, generation: couple.chatGeneration, senderId: user.id, kind: "IMAGE", deletedAt: null, NOT: { hiddenFor: { has: user.id } } }, include: { image: { select: imageSelect } } });
   if (!message?.image) throw new NotFoundError();
   return info(`/api/together/images/${message.id}`, `${message.id}:${message.version}`, message.image.crop);
 }
@@ -89,7 +89,7 @@ export async function savePhotoCrop(value: unknown) {
   }
   const context = await requireTogether();
   return withTogetherWrite(context, async (tx) => {
-    const message = await tx.chatMessage.findFirst({ where: { id: target.id, coupleId: context.couple.id, senderId: context.user.id, kind: "IMAGE", deletedAt: null, NOT: { hiddenFor: { has: context.user.id } } }, include: { image: { select: imageSelect } } });
+    const message = await tx.chatMessage.findFirst({ where: { id: target.id, coupleId: context.couple.id, generation: context.couple.chatGeneration, senderId: context.user.id, kind: "IMAGE", deletedAt: null, NOT: { hiddenFor: { has: context.user.id } } }, include: { image: { select: imageSelect } } });
     if (!message?.image) throw new NotFoundError();
     unchanged(expected, `${message.id}:${message.version}`, message.image.crop);
     await tx.chatImage.update({ where: { messageId: message.id }, data: { crop: data } });

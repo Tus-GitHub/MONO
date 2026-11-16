@@ -32,9 +32,9 @@ export async function sendEncryptedImage(value: unknown) {
   const row = await withTogetherWrite(context, async (tx) => {
     await assertChatKey(tx, context, input.keyId);
     const existing = await tx.chatMessage.findUnique({ where: { senderId_clientNonce: { senderId: context.user.id, clientNonce: input.clientNonce } }, include: { image: { select: imageSelect } } });
-    if (existing) { if (existing.coupleId !== context.couple.id || existing.kind !== "IMAGE") throw new ConflictError("Start a fresh image message."); return existing; }
+    if (existing) { if (existing.coupleId !== context.couple.id || existing.generation !== context.couple.chatGeneration || existing.kind !== "IMAGE") throw new ConflictError("Start a fresh image message."); return existing; }
     await checkMessageRate(tx, context.user.id);
-    const result = await tx.chatMessage.create({ data: { coupleId: context.couple.id, senderId: context.user.id, kind: "IMAGE", encrypted: true, clientNonce: input.clientNonce,
+    const result = await tx.chatMessage.create({ data: { coupleId: context.couple.id, generation: context.couple.chatGeneration, senderId: context.user.id, kind: "IMAGE", encrypted: true, clientNonce: input.clientNonce,
       image: { create: { coupleId: context.couple.id, bytes, byteLength: bytes.length, width: input.width, height: input.height, contentType: "image/jpeg", encrypted: true, iv: input.iv, viewLimit: input.viewLimit } } }, include: { image: { select: imageSelect } } });
     await bumpTogether(tx, context.couple.id); return result;
   });
@@ -43,7 +43,7 @@ export async function sendEncryptedImage(value: unknown) {
 export async function changeChatMessage(value: unknown) {
   const input = chatActionSchema.parse(value), context = await requireTogether();
   const row = await withTogetherWrite(context, async (tx) => {
-    const message = await tx.chatMessage.findFirst({ where: { id: input.id, coupleId: context.couple.id }, include: { image: { select: imageSelect } } });
+    const message = await tx.chatMessage.findFirst({ where: { id: input.id, coupleId: context.couple.id, generation: context.couple.chatGeneration }, include: { image: { select: imageSelect } } });
     if (!message) throw new NotFoundError();
     if (input.action !== "delete-me" && (message.senderId !== context.user.id || message.hiddenFor.includes(context.user.id))) throw new NotFoundError();
     if (input.action === "delete-me" && message.hiddenFor.includes(context.user.id)) return message;
@@ -73,7 +73,7 @@ export async function changeChatMessage(value: unknown) {
 export async function readChatImage(id: string, consume: boolean, migration = false) {
   const context = await requireTogether();
   return withTogetherWrite(context, async (tx) => {
-    const row = await tx.chatMessage.findFirst({ where: { id, coupleId: context.couple.id }, include: { image: true } });
+    const row = await tx.chatMessage.findFirst({ where: { id, coupleId: context.couple.id, generation: context.couple.chatGeneration }, include: { image: true } });
     if (!row || row.deletedAt || (row.hiddenFor.includes(context.user.id) && !(migration && !row.encrypted)) || !row.image) throw new NotFoundError();
     const image = row.image;
     if (image.viewLimit > 0) {
@@ -91,7 +91,7 @@ export async function readChatImage(id: string, consume: boolean, migration = fa
 }
 export async function legacyChatPage() {
   const context = await requireTogether();
-  const rows = await prisma.chatMessage.findMany({ where: { coupleId: context.couple.id, encrypted: false, deletedAt: null }, orderBy: { sequence: "asc" }, take: 20, include: { image: { select: imageSelect } } });
+  const rows = await prisma.chatMessage.findMany({ where: { coupleId: context.couple.id, generation: context.couple.chatGeneration, encrypted: false, deletedAt: null }, orderBy: { sequence: "asc" }, take: 20, include: { image: { select: imageSelect } } });
   // Either authenticated partner may migrate history, including locally hidden messages.
   return rows.map((row) => messageDTO({ ...row, hiddenFor: [] }, context.user.id));
 }
@@ -99,7 +99,7 @@ export async function migrateChatMessage(value: unknown) {
   const input = migrateChatSchema.parse(value), context = await requireTogether();
   return withTogetherWrite(context, async (tx) => {
     await assertChatKey(tx, context, JSON.parse(input.body).keyId);
-    const row = await tx.chatMessage.findFirst({ where: { id: input.id, coupleId: context.couple.id }, include: { image: true } });
+    const row = await tx.chatMessage.findFirst({ where: { id: input.id, coupleId: context.couple.id, generation: context.couple.chatGeneration }, include: { image: true } });
     if (!row || row.deletedAt) throw new NotFoundError();
     if (row.encrypted) return { migrated: true };
     if (row.version !== input.version) throw new ConflictError("This message changed. Retry securing history.");

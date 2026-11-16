@@ -13,24 +13,32 @@ export const mergeMessages = (old: MessageDTO[], next: MessageDTO[]) => {
   }
   return [...rows.values()].sort((a, b) => BigInt(a.sequence) < BigInt(b.sequence) ? -1 : 1);
 };
+export function mergeTogetherSnapshot(previous: TogetherSnapshot, next: TogetherSnapshot): TogetherSnapshot {
+  const before = previous.chatGeneration ?? 0, after = next.chatGeneration ?? 0;
+  if (after < before) return previous;
+  return { ...previous, ...next, games: next.games ?? previous.games, scores: next.scores ?? previous.scores, soloScores: next.soloScores ?? previous.soloScores,
+    imageBytes: next.imageBytes ?? previous.imageBytes, messages: mergeMessages(after > before ? [] : previous.messages,
+      [...next.messages, ...(next.updates ?? [])].filter(message => (message.generation ?? 0) === after)) };
+}
 
 export function useTogether(initial: TogetherSnapshot, chatVisible: boolean) {
   const [data, setData] = useState(initial), [error, setError] = useState<string | null>(null), [hasOlder, setHasOlder] = useState(initial.hasMore);
-  const current = useRef({ cursor: initial.cursor, revision: initial.revision });
+  const current = useRef({ cursor: initial.cursor, revision: initial.revision, generation: initial.chatGeneration ?? 0 });
   const health = useRef(pollHealth()), inFlight = useRef<Promise<void> | null>(null);
   const [delay, setDelay] = useState(2500);
   const refresh = useCallback((signal?: AbortSignal): Promise<void> => {
     if (inFlight.current) return inFlight.current;
     const work = (async () => {
     try {
-      const params = new URLSearchParams(current.current);
-      params.set("after", current.current.cursor); params.delete("cursor");
+      const params = new URLSearchParams({ after: current.current.cursor, revision: current.current.revision });
       const next = await retryRead(() => togetherFetch<TogetherSnapshot>(`/api/together?${params}`, { signal }), signal);
       if (signal?.aborted) return;
+      const generation = next.chatGeneration ?? 0;
+      if (generation < current.current.generation) return;
+      if (generation > current.current.generation) setHasOlder(next.hasMore);
       const changed = next.revision !== current.current.revision || next.messages.length > 0;
-      current.current = { cursor: next.cursor, revision: next.revision };
-      setData((previous) => ({ ...previous, ...next, games: next.games ?? previous.games, scores: next.scores ?? previous.scores, soloScores: next.soloScores ?? previous.soloScores,
-        imageBytes: next.imageBytes ?? previous.imageBytes, messages: mergeMessages(previous.messages, [...next.messages, ...(next.updates ?? [])]) }));
+      current.current = { cursor: next.cursor, revision: next.revision, generation };
+      setData(previous => mergeTogetherSnapshot(previous, next));
       health.current.success(); setError(null); setDelay((old) => changed ? 2500 : Math.min(10_000, old + 1500));
     } catch (error) { if (!signal?.aborted) {
       const state = health.current.failure(error);
@@ -47,7 +55,7 @@ export function useTogether(initial: TogetherSnapshot, chatVisible: boolean) {
   const partnerTyping = Boolean(data.partner.typingUntil && new Date(data.partner.typingUntil).getTime() > observedAt);
   useVisiblePoll(refresh, error ? delay : partnerOnline || data.games?.some((game) => game.status === "ACTIVE") ? 2500 : delay);
   const append = useCallback((message: MessageDTO) => {
-    setData((previous) => ({ ...previous, messages: mergeMessages(previous.messages, [message]) }));
+    setData((previous) => (message.generation ?? 0) !== (previous.chatGeneration ?? 0) ? previous : ({ ...previous, messages: mergeMessages(previous.messages, [message]) }));
     setDelay(2500);
   }, []);
   const typingRef = useRef(false);
@@ -66,7 +74,8 @@ export function useTogether(initial: TogetherSnapshot, chatVisible: boolean) {
     if (!data.messages[0]) return;
     try {
       const page = await togetherFetch<TogetherSnapshot>(`/api/together?before=${data.messages[0].sequence}`);
-      setData((previous) => ({ ...previous, messages: mergeMessages(previous.messages, page.messages) })); setHasOlder(page.hasMore);
+      if ((page.chatGeneration ?? 0) !== current.current.generation) return;
+      setData((previous) => (page.chatGeneration ?? 0) !== (previous.chatGeneration ?? 0) ? previous : ({ ...previous, messages: mergeMessages(previous.messages, page.messages) })); setHasOlder(page.hasMore);
     } catch (error) { setError(errorMessage(error)); }
   };
   return { data, error, refresh, append, older, hasOlder, onTyping, partnerOnline, partnerTyping };

@@ -32,7 +32,7 @@ export async function actOnChatVideo(value: unknown) {
     }
     await checkMessageRate(tx, context.user.id);
     // Limit simultaneous unfinished work, never a couple's stored history.
-    if (await tx.chatVideo.count({ where: { senderId: context.user.id, messageId: null, expiresAt: { gt: new Date() } } }) >= 3) throw new ValidationError("Finish or cancel your other video uploads first.");
+    if (await tx.chatVideo.count({ where: { senderId: context.user.id, keyId: context.couple.chatKeyId!, messageId: null, expiresAt: { gt: new Date() } } }) >= 3) throw new ValidationError("Finish or cancel your other video uploads first.");
     const row = await tx.chatVideo.create({ data: { coupleId: context.couple.id, senderId: context.user.id,
       clientNonce: input.clientNonce, keyId: input.keyId, body: input.body, byteLength: input.byteLength,
       chunkCount: videoChunkCount(input.byteLength), expiresAt: new Date(Date.now() + UPLOAD_LIFETIME) }, select: { id: true } });
@@ -82,7 +82,7 @@ export async function actOnChatVideo(value: unknown) {
     if (parts._count._all !== row.chunkCount || parts._sum.byteLength !== row.byteLength + row.chunkCount * 16) throw new ValidationError("Some video chunks are missing. Retry to continue the upload.");
     await checkMessageRate(tx, context.user.id);
     const revision = (await bumpTogether(tx, context.couple.id)).togetherRevision;
-    const message = await tx.chatMessage.create({ data: { coupleId: row.coupleId, senderId: row.senderId, clientNonce: row.clientNonce,
+    const message = await tx.chatMessage.create({ data: { coupleId: row.coupleId, generation: context.couple.chatGeneration, senderId: row.senderId, clientNonce: row.clientNonce,
       kind: "VIDEO", body: row.body, encrypted: true, revision }, include: { image: { select: imageSelect } } });
     await tx.chatVideo.update({ where: { id: row.id }, data: { messageId: message.id } });
     return messageDTO(message, context.user.id);
@@ -92,7 +92,7 @@ export async function actOnChatVideo(value: unknown) {
 export async function readChatVideo(messageId: string, index?: number) {
   const context = await requireTogether();
   const read = () => prisma.chatVideo.findFirst({ where: { messageId, coupleId: context.couple.id,
-    message: { deletedAt: null, NOT: { hiddenFor: { has: context.user.id } } } }, select: { id: true, chunkCount: true, byteLength: true } });
+    message: { generation: context.couple.chatGeneration, deletedAt: null, NOT: { hiddenFor: { has: context.user.id } } } }, select: { id: true, chunkCount: true, byteLength: true } });
   const row = await read();
   if (!row) throw new NotFoundError("Video unavailable.");
   if (index == null) return { chunkCount: row.chunkCount, byteLength: row.byteLength };
@@ -102,6 +102,6 @@ export async function readChatVideo(messageId: string, index?: number) {
   const bytes = await storage.get(part.storageKey);
   // Recheck deletion/disconnection after external storage I/O.
   const latest = await requireTogether();
-  if (latest.couple.id !== context.couple.id || !await read()) throw new NotFoundError();
+  if (latest.couple.id !== context.couple.id || latest.couple.chatGeneration !== context.couple.chatGeneration || !await read()) throw new NotFoundError();
   return { iv: part.iv, data: bytes.toString("base64") };
 }

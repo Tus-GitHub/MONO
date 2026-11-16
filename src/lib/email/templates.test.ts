@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { passwordResetEmail, welcomeEmail, verificationEmail } from "./templates";
+import { passwordResetEmail, welcomeEmail, verificationEmail, chatResetEmail } from "./templates";
 
 const args = { to: "person@example.test", name: "Alex", resetUrl: "https://mono.example/reset-password?token=private-token&source=email", expiresInMinutes: 30 };
+it("explains both-partner chat approval without placing an OTP in a URL", () => {
+  const message = chatResetEmail({ to: args.to, name: "Alex", requesterName: "<Partner>", code: "012345", reference: "abcdef01", chatUrl: "https://mono.example/chat" });
+  expect(message.html).toContain("&lt;Partner&gt;");
+  expect(message.text).toContain("012345");
+  expect(message.text).toContain("Both email codes must be entered together");
+  expect(message.text).toContain("10 minutes");
+  expect(message.text).toContain("dates, Memories, expenses and games stay unchanged");
+  expect(message.text).toContain("never sent in email");
+  expect(message.html!.match(/href="[^"]*012345/g)).toBeNull();
+});
 
 describe("AMOR password recovery email", () => {
   it("contains its own branding, HTML and plain-text recovery instructions", () => {

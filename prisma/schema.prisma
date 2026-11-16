@@ -228,6 +228,8 @@ model User {
   sessions            AuthSession[]
   passwordResetTokens PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
+  chatResetRequests ChatResetRequest[] @relation("ChatResetRequester")
+  chatResetApprovals ChatResetRequest[] @relation("ChatResetPartner")
   memberships         CoupleMember[]
   notifications       Notification[]
   sentInvitations     CoupleInvitation[]   @relation("InvitationCreatedBy")
@@ -437,6 +439,7 @@ model Couple {
   setupCompletedAt DateTime?
   togetherRevision BigInt @default(0)
   chatKeyId        String?
+  chatGeneration   Int @default(0)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -457,6 +460,7 @@ model Couple {
   chatImages       ChatImage[]
   chatVideos       ChatVideo[]
   chatStates       ChatMemberState[]
+  chatReset        ChatResetRequest?
   games            GameMatch[]
   soloScores       SoloGameScore[]
   calls            CoupleCall[]
@@ -529,6 +533,7 @@ model ChatMessage {
   id          String @id @default(cuid())
   sequence    BigInt @unique @default(autoincrement())
   coupleId    String
+  generation  Int @default(0)
   senderId    String
   clientNonce String
   kind        ChatMessageKind
@@ -549,6 +554,8 @@ model ChatMessage {
   @@unique([senderId, clientNonce])
   @@index([coupleId, sequence])
   @@index([coupleId, revision])
+  @@index([coupleId, generation, sequence])
+  @@index([coupleId, generation, revision])
   @@map("chat_messages")
 }
 
@@ -618,6 +625,31 @@ model ChatMemberState {
   user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@id([coupleId, userId])
   @@map("chat_member_states")
+}
+
+// One expiring dual-mailbox approval per couple. Never store OTPs or recovery secrets.
+model ChatResetRequest {
+  coupleId            String @id
+  requestId           String @unique
+  requestedById       String
+  partnerId           String
+  generation          Int
+  newKeyId            String
+  requesterEmailHash  String
+  partnerEmailHash    String
+  requesterOtpHash    String
+  partnerOtpHash      String
+  expiresAt           DateTime
+  requestedAt         DateTime @default(now())
+  sentAt              DateTime?
+  usedAt              DateTime?
+  attempts            Int @default(0)
+  windowStartedAt     DateTime @default(now())
+  windowCount         Int @default(1)
+  couple              Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  requester           User @relation("ChatResetRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  partner             User @relation("ChatResetPartner", fields: [partnerId], references: [id], onDelete: Restrict)
+  @@map("chat_reset_requests")
 }
 
 model SoloGameScore {

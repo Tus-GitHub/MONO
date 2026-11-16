@@ -4,7 +4,7 @@ import { requireCoupleContext } from "@/lib/authz";
 import { prisma } from "@/lib/db/prisma";
 import { serializable } from "@/lib/db/serializable";
 import { lockLivingUser } from "@/lib/authz/user-write";
-import { AuthorizationError } from "@/lib/errors";
+import { AuthorizationError, ConflictError } from "@/lib/errors";
 
 export async function requireTogether() {
   const context = await requireCoupleContext();
@@ -19,9 +19,10 @@ export async function withTogetherWrite<T>(context: TogetherContext, work: (tx: 
   return serializable(async (tx) => {
     await lockLivingUser(tx, context.user.id);
     await tx.$queryRaw`SELECT id FROM couples WHERE id = ${context.couple.id} FOR UPDATE`;
-    const current = await tx.couple.findFirst({ where: { id: context.couple.id, status: "ACTIVE", deletedAt: null }, select: { members: { where: { status: "ACTIVE", user: { deletedAt: null } }, select: { userId: true } } } });
+    const current = await tx.couple.findFirst({ where: { id: context.couple.id, status: "ACTIVE", deletedAt: null }, select: { chatGeneration: true, members: { where: { status: "ACTIVE", user: { deletedAt: null } }, select: { userId: true } } } });
     const ids = current?.members.map((member) => member.userId) ?? [];
     if (ids.length !== 2 || !ids.includes(context.user.id) || !ids.includes(context.partner.id)) throw new AuthorizationError("This shared space is no longer available.");
+    if (current!.chatGeneration !== context.couple.chatGeneration) throw new ConflictError("Chat was reset. Refresh to continue with the current conversation.");
     return work(tx);
   });
 }

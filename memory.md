@@ -157,6 +157,7 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+- **Chat reset with both email OTPs (2026-11-17):** Implement an authenticated fresh-chat reset requiring both registered mailbox codes in one submission; preserve accounts, couple/date/memory/expense/game data and retain old ciphertext outside the new chat. Test isolation and deploy.
 
 
 
@@ -383,6 +384,7 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+- **Both partners lose chat keys (2026-11-17):** Explained the proposed shared chat-reset flow, preserving accounts/couple space while starting new encrypted messages; old encrypted history is unrecoverable if every key/code is lost. Implementation and deletion were not requested or performed.
 - **Games highlight and score recovery (2026-11-17):** Live 3057c38; durable round/best backups, automatic retry, selected Games icon and versioned 12% faster Emoji Bounce. Local failure/reload and live recovery verified in the right panel.
 
 - **Solo games and saved bests (2026-11-17):** Emoji Bounce, Snake and 2048 are live on AMOR with persistent per-partner bests, responsive controls and server-verified scores. Final code ff02cb7; deployment dpl_9owisBTJFh2scFqyU9TWLVdt9BxY READY. Local checks and live demo flows passed; approved temporary Neon branch deleted.
@@ -1922,6 +1924,15 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-17 — Chat reset with both email OTPs — IN PROGRESS
+- User requires both email OTPs entered together for reset and asks whether only Chat is affected. Confirmed that old chat messages/attachments leave the active conversation while all other app data remains. Implemented two distinct OTPs, keyed hashes bound to both current verified mailboxes, 10-minute expiry, five failed attempts, shared 60-second resend cooldown and three requests/hour. Both codes and consent are required in one atomic submission; the browser creates the new recovery secret and sends only its fingerprint.
+- Added chat generations across messages, attachments, crop/edit actions, video, unread counts and archive reads. Existing ciphertext is retained. Old-key sends and stale client responses cannot reintroduce old history. Both connected devices lock Chat and require the new shared code; account sessions remain signed in. A lost reset response is reconciled by polling.
+- Verification: 82 integration tests across Chat/security/video/crop/archive/games (81 initial plus an added video-reset check); 11 targeted unit tests; TypeScript, focused lint and production build/size checks passed. Right-panel localhost test used two synthetic partners and console-only mail: original chat visible, incomplete codes and missing consent disabled submission, both codes reset once, both screens locked without reloading, old code rejected, new code unlocked and messages decrypted both ways, and the sample date remained intact. Checked 320x568, 390x844, 844x390 and 1440x900; no horizontal overflow and footer stayed reachable. Physical iPhone/installed PWA not tested; no real mailbox delivery or production chat reset performed.
+- Neon migration check on br-flat-hill-b3yyauuy preserved all six accounts, three couples and 54 messages; generation remained zero and no reset request existed. User explicitly approved cleanup; temporary branch was deleted with apply_changes:false. Production migration will run through the normal Vercel pipeline. Publishing after the final build.
+
+### 2026-11-17 — Both partners lose chat keys — DONE
+- User clarified the case where both partners lose access. Explained that account login/couple space can remain usable, but current AMOR has no encrypted-chat reset: if no device key or recovery code survives, the existing encrypted chat cannot be unlocked. Recommended an authenticated reset with both partners' confirmation, a new privately shared recovery code, and fresh chat; never claim a new key decrypts old history. No code, production data, keys or security settings changed; no history deleted.
 
 ### 2026-11-17 — Games highlight and connection recovery — DONE
 - Published 3057c386ddb7758cfd936417e0ed3357b2479041 to origin/main; push succeeded. Vercel production dpl_BHtzoCSqTiCVmcC8QyeepmAM8nQu is READY at https://amor-together.vercel.app. Games header icon now stays selected on all Games routes, using existing primary/tint tokens and aria-current.

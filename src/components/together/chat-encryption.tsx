@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import { chatAAD, decryptBytes, decryptText, encryptBytes, encryptText, newRecoveryCode, recoverChatKey, storedChatKey, type ChatKey } from "@/lib/together/chat-crypto";
 import { togetherFetch, errorMessage } from "@/lib/together/client";
 import type { MessageDTO } from "@/lib/together/types";
+import { ChatReset } from "./chat-reset";
 
-export function ChatEncryption({ coupleId, userId, keyId, onUnlock, refresh, readOnly = false }: { coupleId: string; userId: string; keyId: string | null; onUnlock: (key: ChatKey) => void; refresh: () => Promise<void>; readOnly?: boolean }) {
+export function ChatEncryption({ coupleId, userId, keyId, onUnlock, refresh, readOnly = false, chatGeneration = 0 }: { coupleId: string; userId: string; keyId: string | null; onUnlock: (key: ChatKey) => void; refresh: () => Promise<void>; readOnly?: boolean; chatGeneration?: number }) {
   const [code, setCode] = useState(""), [generated, setGenerated] = useState(false), [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [status, setStatus] = useState("Checking this device…");
+  const [resetOpen, setResetOpen] = useState(false);
   const scope = `${userId}:${coupleId}`;
   useEffect(() => {
     let live = true;
@@ -21,7 +23,7 @@ export function ChatEncryption({ coupleId, userId, keyId, onUnlock, refresh, rea
     setBusy(true); setError("");
     try {
       const key = await recoverChatKey(code, coupleId);
-      if (keyId && key.id !== keyId) throw new Error(readOnly ? "That code does not match this archived chat. Use the original recovery code." : "That code does not match this chat. Ask your partner for the original code.");
+      if (keyId && key.id !== keyId) throw new Error(readOnly ? "That code does not match this archived chat. Use the original recovery code." : "That code does not match this chat. Use the latest shared recovery code.");
       // Persist before registering. Failure must not leave a server key with no local copy.
       await storedChatKey(scope, key);
       if (!readOnly) await togetherFetch("/api/together/encryption", { body: { action: "register", keyId: key.id } });
@@ -34,7 +36,7 @@ export function ChatEncryption({ coupleId, userId, keyId, onUnlock, refresh, rea
     <h2 className="font-display text-lg">{keyId ? "Unlock encrypted chat" : "Secure your chat"}</h2>
     <p className="text-sm text-muted">Messages, stickers, photos and documents are encrypted on your device. This browser remembers your key and unlocks automatically next time.</p>
     <p className="text-sm text-muted">The recovery code connects your partner’s device and restores access on a new phone or after browser data is cleared. Keep it safe and share it privately, outside AMOR. AMOR cannot recover it.</p>
-    {keyId ? <><p className="text-xs text-muted">Opening from a new address? Use your existing recovery code. Your key and encrypted history have not changed.</p><Input aria-label="Private recovery code" type="password" autoComplete="off" value={code} onChange={(event) => setCode(event.target.value)} placeholder="Your private recovery code" /></> : <>
+    {keyId ? <><p className="text-xs text-muted">{chatGeneration > 0 ? "Chat was reset with both partners’ approval. Enter your latest shared recovery code. Old chat stays outside this conversation." : "Opening from a new address? Use your existing recovery code. Your key and encrypted history have not changed."}</p><Input aria-label="Private recovery code" type="password" autoComplete="off" value={code} onChange={(event) => setCode(event.target.value)} placeholder="Your private recovery code" /></> : <>
       {!generated ? <Button size="sm" onClick={() => { setCode(newRecoveryCode()); setGenerated(true); }}>Generate recovery code</Button> : <>
         <p className="break-all rounded-lg bg-paper p-3 font-mono text-sm select-all">{code}</p>
         <Button size="sm" variant="secondary" onClick={async () => { try { await navigator.clipboard.writeText(code); setStatus("Code copied. Store it privately before continuing."); } catch { setError("Copy is unavailable. Select the code above and copy it manually."); } }}>Copy code</Button>
@@ -44,6 +46,8 @@ export function ChatEncryption({ coupleId, userId, keyId, onUnlock, refresh, rea
     <Button size="sm" disabled={!code || (!keyId && !saved)} loading={busy} onClick={() => void unlock()}>{keyId ? "Unlock on this device" : "Enable encrypted chat"}</Button>
     {status ? <p role="status" className="text-sm text-muted">{status}</p> : null}
     {error ? <p role="alert" className="text-sm text-error">{error}</p> : null}
+    {!readOnly && keyId ? <><Button size="sm" variant="link" onClick={() => setResetOpen(true)}>Lost the code? Reset encrypted chat</Button>
+      <ChatReset open={resetOpen} onClose={() => setResetOpen(false)} coupleId={coupleId} userId={userId} currentKeyId={keyId} refresh={refresh} /></> : null}
   </div>;
 }
 export function SecureHistory({ chatKey, coupleId, refresh }: { chatKey: ChatKey; coupleId: string; refresh: () => Promise<void> }) {
