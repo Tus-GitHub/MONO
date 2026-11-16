@@ -130,7 +130,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (admin restaurant ratings panel validation)
+Last updated: 2026-11-16 (admin restaurant ratings panel published)
 
 
 
@@ -155,7 +155,6 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Admin restaurant ratings panel (2026-11-16)** — requested a separate admin panel showing which restaurants/cafés users rated. Working in isolated `codex/admin-restaurant-ratings` from main `40c823e`. Existing reviews score the whole date, so show the associated food venues and revealed numeric date scores with account/couple IDs; preserve the blind-review reveal rule and omit private reflections. Reuse the admin design, add search/pagination, verify authorization and multi-stop attribution, then publish under the standing authorization.
 - Call minimization (2026-11-16): implemented header Return to call and persistent mini video after X/Back. 32 call tests, lint, initial build and six two-user local browser checks pass. Round hang-up button and audio-menu persistence finalized; final production build/lint pass (99 routes, largest trace 27.36 MiB). Production publication and live verification pending.
 
 
@@ -378,6 +377,8 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Admin restaurant ratings panel (2026-11-16)** — published `631cc5373c9ebd56a0b3672066d16c3621ef3028` to origin/main. Vercel production `dpl_H8LEyNoqnrVdGnsF54r9n4TvVthJ` is READY on https://mono-kappa-beryl.vercel.app. Admin → Restaurant ratings shows food venues beside each partner's revealed whole-date score, with IDs, search and 20-date pages. Excludes private prose, drafts and unrevealed scores; handles multiple stops, actual venue replacements and deletions. 25 database checks, focused lint, TypeScript and production build passed. Right-panel browser verified admin/ordinary-user access behavior, filters, pagination, empty states and 320/390/768/1440 layouts plus landscape. Live health200/database up, anonymous admin redirect307 and scoped error/fatal logs empty. Local preview port3249 with synthetic fixtures retained; physical iPhone/PWA checks were not run. No new dependencies, migration or paid service.
 
 - **Encrypted videos and admin Couples tab (2026-11-16)** — compressed E2EE video messages, retryable chunks, private playback/save/delete, ID grouping and known media usage deployed; seven live browser groups passed. See release record above.
 
@@ -1900,12 +1901,13 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
-### 2026-11-16 — Admin restaurant ratings panel — IN PROGRESS
+### 2026-11-16 — Admin restaurant ratings panel — DONE
 
 - User asks for a new Admin panel showing rated restaurants. Inspected admin permissions, saved places, multi-event date records and the blind-review state machine. There are no separate per-stop user ratings: existing reviews are date-wide, 1–10. Plan a clearly labelled, admin-only list of revealed date scores and associated restaurants/cafés, with bounded search/pagination and no private journal text, chat, photos, names or email addresses.
 - Implemented `/admin?view=ratings`, shared top-level admin tabs, venue/city/account/couple search, 20-date pages, clear/empty states, numeric reviewer scores and a combined date average. SQL applies reveal and place-ownership rules before counts/pagination; actual venues replace planned ones, food stops are deduplicated and films are omitted. Existing moderation pages retain their controls. No new dependency, schema migration or paid service.
 - 25 local PostgreSQL checks pass (10 new ratings checks plus 15 moderation checks), including denied ordinary/unverified/revoked admins, drafts/one-sided reviews, actual/free-text replacements, foreign place references, deletions, solo/former members, edits, wildcard-safe search and stable pagination. Focused lint and TypeScript pass. The restored right-panel connection has verified admin login, search, clear, page two and empty results against an isolated local fixture database on port3249. Fixed a mobile title squeeze by stacking the score badge beneath venue details. Widths 320/390/768/1440 show no horizontal document overflow; final browser checks/build remain underway.
 - Final right-panel checks also passed ordinary-account admin-login rejection, sign-out/re-entry, search resetting page two, the hidden fixture remaining excluded (21 revealed of 22 dates), and 844×390 landscape. No browser console errors were reported. Restored normal viewport width and left the synthetic local preview open at http://localhost:3249/admin?view=ratings&venueQuery=Garden+Table. Saved proof: `.screenshots/admin-restaurant-ratings-mobile.jpg`. These are automated viewport checks, not physical iPhone/PWA tests. Local fixtures are retained; no production accounts/data were modified for testing. Full production build passed, including TypeScript and function-size checks (99 routes; largest local trace 4.47 MiB). Publishing next.
+- Published `631cc5373c9ebd56a0b3672066d16c3621ef3028`; push succeeded. Vercel production deployment `dpl_H8LEyNoqnrVdGnsF54r9n4TvVthJ` is READY with the canonical MONO alias assigned. Live `/api/health` returned HTTP200/database up; anonymous `/admin?view=ratings` returned HTTP307 to admin login. The scoped production error/fatal query returned no entries. Authenticated UI/data verification used only the retained local synthetic dataset; no production customer reviews were opened or modified.
 
 ### 2026-11-16 — Call header and minimized video — IN PROGRESS
 User requested top-right Return to call replacing call-start icons, plus WhatsApp-like video minimization. Official WhatsApp help confirms continuing chat with minimized video. Implemented in-app mini view, preserving the existing peer connection, remote audio and video elements. Six local browser groups passed (.postgres-test/e2e/0daf59e5cad91d1e): real synthetic-media WebRTC in both directions, stable players/microphone after X, responsive 320px/landscape/desktop, Back, expansion/navigation/hang-up, and voice-only header return. Local fixtures removed. 32 focused call tests, lint and initial production build pass. A first harness run passed functional checks but recorded about:blank initialization errors; helper corrected and rerun cleanly. Final production build and live test pending.
