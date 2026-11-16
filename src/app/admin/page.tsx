@@ -8,8 +8,11 @@ import { ModerationForm, ReportReviewForm } from "@/components/admin/moderation-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { logoutAction } from "@/server/actions/auth";
 import { AudioSettingsCard } from "@/components/settings/audio-settings";
+import { AdminShell } from "@/components/admin/admin-shell";
+import { RestaurantRatings } from "@/components/admin/restaurant-ratings";
+import { getAdminRestaurantRatings } from "@/server/services/admin-restaurant-ratings";
+import { adminQuerySchema } from "@/lib/validation/moderation";
 
 export const metadata: Metadata = { title: "MONO admin", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -19,13 +22,13 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   if (!user) redirect("/admin/login");
   if (!user.emailVerified) redirect("/verify-email?next=/admin");
   if (!await hasAdminAccess(user.id)) notFound();
-  const data = await getAdminDashboard(await searchParams);
+  const params = await searchParams;
+  if (adminQuerySchema.parse(params).view === "ratings") {
+    return <AdminShell activeView="ratings"><RestaurantRatings data={await getAdminRestaurantRatings(params)} /></AdminShell>;
+  }
+  const data = await getAdminDashboard(params);
   const pageLink = (page: number) => `/admin?${new URLSearchParams({ view: data.query.view, query: data.query.query, reportStatus: data.query.reportStatus, page: String(page) })}`;
-  return <main className="mx-auto min-h-dvh w-full max-w-5xl space-y-8 px-4 py-8 sm:px-6">
-    <header className="flex flex-wrap items-center justify-between gap-4">
-      <div><h1 className="font-display text-3xl text-ink">MONO admin</h1><p className="mt-2 text-sm text-muted">Account IDs and submitted reports. Private chats and photos stay private.</p></div>
-      <form action={logoutAction}><input type="hidden" name="next" value="/admin/login" /><Button type="submit" variant="secondary">Sign out</Button></form>
-    </header>
+  return <AdminShell activeView={data.query.view}>
     <section aria-labelledby="storage-heading" className="space-y-3 rounded-xl border border-line bg-surface p-5">
       <h2 id="storage-heading" className="font-display text-xl">Storage overview</h2>
       <dl className="grid gap-4 sm:grid-cols-3">{[
@@ -41,7 +44,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       {[['Total accounts signed up', data.totalAccounts], ['Current accessible accounts', data.activeAccounts], ['Reports awaiting review', data.openReports]].map(([label, value]) => <div key={label} className="rounded-xl border border-line bg-surface p-5"><dt className="text-sm text-muted">{label}</dt><dd className="mt-2 font-display text-3xl text-ink">{value}</dd></div>)}
     </dl>
     <p className="text-xs text-muted">Total includes deleted and blocked accounts. Current accessible accounts excludes both.</p>
-    <nav aria-label="Admin account views" className="flex gap-2 rounded-xl border border-line bg-surface p-2">{(["couples", "accounts"] as const).map((view) => <Link key={view} aria-current={data.query.view === view ? "page" : undefined} href={`/admin?view=${view}`} className={`flex-1 rounded-lg px-4 py-3 text-center text-sm font-medium ${data.query.view === view ? "bg-primary-tint text-primary" : "text-muted hover:bg-paper"}`}>{view === "couples" ? "Couples" : "Accounts"}</Link>)}</nav>
     <form className="grid items-end gap-3 sm:grid-cols-3" method="get">
       <input type="hidden" name="view" value={data.query.view} />
       <div className="space-y-2"><label htmlFor="account-query" className="text-sm text-ink">{data.query.view === "couples" ? "Find a couple or account ID" : "Find an account ID"}</label><Input id="account-query" name="query" defaultValue={data.query.query} maxLength={64} /></div>
@@ -91,5 +93,5 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <span className="text-muted">Page {data.query.page}</span>
       {Math.max(data.query.view === "couples" ? data.couples.count : data.accountCount, data.reportCount) > data.query.page * data.pageSize || data.audit.length === data.pageSize ? <Link href={pageLink(data.query.page + 1)}>Next page</Link> : <span />}
     </nav>
-  </main>;
+  </AdminShell>;
 }

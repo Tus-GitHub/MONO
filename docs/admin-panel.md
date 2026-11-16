@@ -14,6 +14,28 @@ For this installation, use the operator's verified receiving mailbox, with `admi
 
 Existing accounts keep their password. New accounts are unverified: sign in with either address and request verification through MONO's verification page. Messages go only to the real mailbox. The grant becomes usable after verification; no verification bypass is provided. Password recovery entered with the alias is resolved to the same real mailbox. Verified admins land on `/admin` after sign-in without needing a couple space. There is no public admin bootstrap endpoint.
 
+## Restaurant ratings
+
+`/admin?view=ratings` is a separate, read-only tab protected by the same current,
+verified admin grant. It shows saved restaurant/café names and addresses, couple and
+reviewer account IDs, completion/update dates, each revealed 1–10 date score and its
+combined average. Search supports venue names, cities, addresses and account/couple/date
+IDs, with 20 dates per page. Filters reset pagination; out-of-range pages are clamped.
+
+These are **whole-date scores**, not per-restaurant ratings or public visitor ratings.
+A café → movie date is counted once; only its food venues appear. Duplicate venue links
+are collapsed. Recorded venues/actual stops take precedence over the planned route;
+fallback venues are explicitly labelled Planned venue. A free-text replacement location
+does not attribute the score to the old planned restaurant.
+
+Only completed, non-deleted dates/spaces with active members and revealed submitted
+scores appear. Solo submissions follow the existing reveal rule. Drafts, single-partner
+hidden scores, former-member scores and deleted venues are omitted, including from
+counts. Place references must belong to the date's own couple. Private reflections,
+review-category prose, personal notes, date titles, names, emails, photos and chat content
+are never selected for the panel. Numeric edits appear on the next request; no shared
+cache stores the results. Public app review permissions remain unchanged.
+
 ## Reports and decisions
 
 Settings links to `/report-account`, which also works after disconnecting a space. Users can report only people they have shared a space with. Server-side checks enforce this relation, verified status, one open report per pair and five reports per account in a rolling 24 hours. The reported partner receives no notification or report details.
