@@ -1,6 +1,6 @@
 import type { GeoPoint } from "./types";
 
-/** Called only by the location button. Keep coordinates in this picker, with bounded waiting. */
+/** Called on opening a new event's venue picker or using its location button. Bounded, picker-local coordinates. */
 export function getBrowserLocation(signal: AbortSignal): Promise<GeoPoint> {
   return new Promise((resolve, reject) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {

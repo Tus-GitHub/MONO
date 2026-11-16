@@ -21,7 +21,7 @@ export function MemoryTimelineItem({
   const href = item.memoryId ? `/memories/${item.memoryId}` : `/dates/${item.id}`;
 
   return (
-    <li className="relative pl-7">
+    <li className="relative min-w-0 pl-5 sm:pl-7">
       <span className="absolute left-0 top-7 -ml-[5px] size-2.5 rounded-full border-2 border-paper bg-primary" />
 
       <div className="mb-1.5 flex flex-wrap items-center gap-2">
@@ -62,7 +62,7 @@ export function MemoryTimelineItem({
           ) : null}
         </div>
 
-        <div className="space-y-2 p-4">
+        <div className="space-y-2 p-4 [overflow-wrap:anywhere]">
           <p className="text-xs text-muted">
             {[
               item.dateYmd ? formatWallDate(item.dateYmd, "long") : null,

@@ -37,8 +37,8 @@ export default async function MemoryTimelinePage() {
       <PageHeader
         title="Timeline"
         description="Every kept memory in order — the whole story, newest first."
-        action={<MemoriesNav />}
       />
+      <MemoriesNav />
 
       {totalCompleted === 0 ? (
         <EmptyState

@@ -11,15 +11,16 @@ export function GridDateCard({ item, memory = false }: { item: DateHistoryItem; 
   return (
     <Link
       href={memory && item.memoryId ? `/memories/${item.memoryId}` : `/dates/${item.id}`}
-      className="group relative block aspect-square overflow-hidden rounded-xl border border-line bg-line"
+      className={`group relative block min-w-0 overflow-hidden rounded-xl border border-line ${memory ? "h-full bg-surface" : "aspect-square bg-line"}`}
     >
+      <div className={`relative ${memory ? "aspect-[4/3]" : "size-full"}`}>
       {item.cover ? (
         <Photo
           thumbUrl={item.cover.thumbUrl}
           displayUrl={item.cover.displayUrl}
           blurDataUrl={item.cover.blurDataUrl}
           alt=""
-          aspect="1 / 1"
+          aspect={memory ? "4 / 3" : "1 / 1"}
           sizes="(min-width: 1024px) 20rem, (min-width: 640px) 33vw, 50vw"
           fill
         />
@@ -32,10 +33,11 @@ export function GridDateCard({ item, memory = false }: { item: DateHistoryItem; 
       {item.coupleScore != null ? (
         <ScorePill score={item.coupleScore} className="absolute right-2 top-2 shadow-sm" />
       ) : null}
+      </div>
 
-      <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/75 via-black/15 to-transparent p-2.5 pt-8">
-        <p className="line-clamp-1 text-sm font-medium text-white drop-shadow-sm">{memory ? item.memoryTitle || item.title : item.title}</p>
-        <p className="line-clamp-1 text-2xs text-white/80">
+      <div className={memory ? "space-y-1 p-3 [overflow-wrap:anywhere]" : "absolute inset-x-0 bottom-0 bg-linear-to-t from-black/75 via-black/15 to-transparent p-2.5 pt-8"}>
+        <p className={memory ? "text-sm font-medium text-ink" : "line-clamp-1 text-sm font-medium text-white drop-shadow-sm"}>{memory ? item.memoryTitle || item.title : item.title}</p>
+        <p className={memory ? "text-xs leading-relaxed text-muted" : "line-clamp-1 text-2xs text-white/80"}>
           {[item.placeName, item.dateYmd ? formatWallDate(item.dateYmd, "medium") : null]
             .filter(Boolean)
             .join(" · ")}

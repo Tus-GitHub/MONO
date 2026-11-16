@@ -7,7 +7,7 @@ import { ZodError } from "zod";
 import { isPlanStep, planGotoHref, planStepHref } from "@/lib/date/plan-steps";
 import { errorState, successState, type ActionState } from "@/lib/utils/result";
 import { localPlanSchema } from "@/lib/validation/new-plan";
-import { saveNewPlan } from "@/server/services/new-plan-service";
+import { saveEditedPlan, saveNewPlan } from "@/server/services/new-plan-service";
 import { idSchema, toFieldErrors } from "@/lib/validation/common";
 import {
   dateBasicsSchema,
@@ -62,6 +62,24 @@ export async function saveNewPlanAction(_previous: ActionState<{ id: string; hre
 }
 
 // --- step saves (basics + budget share one action) -------------------------
+
+export async function saveEditedPlanAction(_previous: ActionState<{ id: string; href: string }>, form: FormData): Promise<ActionState<{ id: string; href: string }>> {
+  const raw = form.get("payload"), mode = form.get("mode"), rawVersion = form.get("version");
+  if (typeof raw !== "string" || raw.length > 50_000) return { status: "error", message: "This plan is too large to save." };
+  if (mode !== "draft" && mode !== "plan") return { status: "error", message: "Choose how to save your plan." };
+  if (typeof rawVersion !== "string" || !/^\d+$/.test(rawVersion)) return { status: "error", message: "Reload this plan before saving." };
+  try {
+    const id = idSchema.parse(form.get("dateId"));
+    const input = localPlanSchema.extend({ key: localPlanSchema.shape.key.uuid() }).parse(JSON.parse(raw));
+    const saved = await saveEditedPlan(input, mode === "plan", id, Number(rawVersion));
+    for (const path of ["/plan", `/plan/${id}`, "/dates", `/dates/${id}`, "/dashboard"]) revalidatePath(path);
+    return successState({ id: saved.id, href: saved.status === "DRAFT" ? `/plan/${id}` : `/dates/${id}` }, "Saved.");
+  } catch (error) {
+    if (error instanceof ZodError) return errorState(error.issues[0]?.message ?? "Check your plan details.", toFieldErrors(error));
+    const result = toActionError(error);
+    return result.status === "error" ? result : { status: "error", message: "Couldn't save that plan." };
+  }
+}
 
 function dateId(formData: FormData): string {
   return idSchema.parse(formData.get("dateId"));

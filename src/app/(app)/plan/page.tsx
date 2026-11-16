@@ -24,10 +24,10 @@ export default async function PlanPage({
   const drafts = await listDrafts();
 
   return (
-    <div className="mx-auto max-w-xl">
+    <div className="mx-auto w-full min-w-0 max-w-2xl">
       <PageHeader
         title="Plan a date"
-        description="Plan on this device first. A shared date or draft is created only when you choose Save."
+        description="Set your day, time and budget. Then add the things you want to do together."
       />
 
       <form action={startPlanAction}>
@@ -35,7 +35,7 @@ export default async function PlanPage({
           {place ? <input type="hidden" name="place" value={place} /> : null}
           {idea ? <input type="hidden" name="idea" value={idea} /> : null}
           <SubmitButton size="lg" fullWidth leadingIcon={<Icon name="plus" size="sm" />}>
-            Start a new plan
+            Plan a new date
           </SubmitButton>
         </PendingFields>
       </form>
@@ -46,7 +46,7 @@ export default async function PlanPage({
           <EmptyState
             icon={<Icon name="pencil" size="md" />}
             title="Nothing half-planned right now"
-            description="Start above. Your new plan stays on this device until you choose Save."
+            description="Start a new date, or save a draft to finish together later."
           />
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">

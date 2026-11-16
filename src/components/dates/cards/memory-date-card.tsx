@@ -11,7 +11,7 @@ export function MemoryDateCard({ item, eyebrow, memory = false }: { item: DateHi
   return (
     <Link
       href={memory && item.memoryId ? `/memories/${item.memoryId}` : `/dates/${item.id}`}
-      className="group block overflow-hidden rounded-2xl border border-line bg-surface shadow-sm transition-colors hover:border-line-strong"
+      className="group block min-w-0 overflow-hidden rounded-2xl border border-line bg-surface shadow-sm transition-colors hover:border-line-strong"
     >
       <div className="relative aspect-[3/2] w-full bg-line sm:aspect-[2/1]">
         {item.cover ? (
@@ -30,14 +30,15 @@ export function MemoryDateCard({ item, eyebrow, memory = false }: { item: DateHi
             <Icon name="camera" size={40} className="text-accent/60" />
           </div>
         )}
-        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/75 via-black/25 to-transparent p-4 pt-16">
+      </div>
+        <div className="space-y-1 px-4 pt-4 [overflow-wrap:anywhere]">
           {eyebrow ? (
-            <p className="text-2xs font-medium uppercase tracking-wide text-white/70">{eyebrow}</p>
+            <p className="text-2xs font-medium uppercase tracking-wide text-primary">{eyebrow}</p>
           ) : null}
-          <p className="font-display text-xl font-medium text-white drop-shadow-sm">
+          <p className="font-display text-xl font-medium text-ink">
             {memory ? item.memoryTitle || item.title : item.title}
           </p>
-          <p className="text-sm text-white/85">
+          <p className="text-sm leading-relaxed text-muted">
             {[
               item.placeName,
               item.dateYmd ? formatWallDate(item.dateYmd, "long") : null,
@@ -46,15 +47,14 @@ export function MemoryDateCard({ item, eyebrow, memory = false }: { item: DateHi
               .join(" · ")}
           </p>
         </div>
-      </div>
 
       <div className="flex flex-wrap items-center gap-2 p-4">
         <ScorePill score={item.coupleScore} size="lg" />
         <RevisitTag revisit={item.revisit} />
         {item.memorySnippet ? (
-          <p className="mt-1 w-full text-sm leading-relaxed text-muted">“{item.memorySnippet}”</p>
+          <p className="mt-1 w-full text-sm leading-relaxed text-muted [overflow-wrap:anywhere]">“{item.memorySnippet}”</p>
         ) : null}
-        <span className="ml-auto inline-flex items-center gap-1 text-sm font-medium text-primary">
+        <span className="ml-auto inline-flex min-h-9 shrink-0 items-center gap-1 whitespace-nowrap text-sm font-medium text-primary">
           {memory && item.memoryId ? "Open memory" : "Open date"}
           <Icon name="arrowRight" size={14} />
         </span>

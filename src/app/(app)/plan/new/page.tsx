@@ -10,7 +10,7 @@ import { NotFoundError } from "@/lib/errors";
 
 export const metadata: Metadata = { title: "New date plan" };
 export default async function NewPlanPage({ searchParams }: { searchParams: Promise<{ idea?: string; place?: string; copy?: string; recreate?: string }> }) {
-  const { user, couple } = await requireCoupleContext();
+  const { user, couple, membership } = await requireCoupleContext();
   const params = await searchParams;
   let initial = emptyLocalPlan(couple.currency, params.idea?.slice(0, 160));
   if (params.place) {
@@ -23,6 +23,6 @@ export default async function NewPlanPage({ searchParams }: { searchParams: Prom
     initial = await getPlanTemplate(params.recreate, true);
     return <div className="mx-auto max-w-xl"><RecreatePlanEditor initial={initial} sourceId={params.recreate} userId={user.id} coupleId={couple.id} timezone={couple.timezone} /></div>;
   }
-  return <div className="mx-auto max-w-xl"><NewPlanEditor initial={initial} userId={user.id} coupleId={couple.id}
+  return <div className="mx-auto w-full min-w-0 max-w-2xl"><NewPlanEditor initial={initial} userId={user.id} coupleId={couple.id} myRole={membership.role}
     timezone={couple.timezone} savedPlaces={await listSavedPlaceOptions()} /></div>;
 }

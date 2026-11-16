@@ -15,7 +15,7 @@ const ymd = (date: Date) => `${date.getUTCFullYear()}-${String(date.getUTCMonth(
 const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T12:00:00Z`)) && ymd(new Date(`${value}T12:00:00Z`)) === value;
 
 /** Calendar/clock UI with native values retained for forms, refs and validation. */
-export function DateTimeInput({ type, className, uiSize = "md", invalid, value, defaultValue, onChange, id: providedId, ref, disabled, readOnly, ...props }: InputProps & { type: "date" | "time" }) {
+export function DateTimeInput({ type, className, uiSize = "md", invalid, compact = false, value, defaultValue, onChange, id: providedId, ref, disabled, readOnly, ...props }: InputProps & { type: "date" | "time" }) {
   const autoId = useId(), id = providedId ?? autoId;
   const native = useRef<HTMLInputElement>(null), trigger = useRef<HTMLButtonElement>(null);
   const [local, setLocal] = useState(String(defaultValue ?? ""));
@@ -60,9 +60,10 @@ export function DateTimeInput({ type, className, uiSize = "md", invalid, value, 
       onChange={reportChange} />
     <Popover.Root open={open} onOpenChange={(next) => { if (next) setLabel(props["aria-label"] ?? trigger.current?.labels?.[0]?.textContent?.trim() ?? label); setOpen(next); }}>
       <Popover.Trigger asChild><button ref={trigger} id={id} type="button" disabled={disabled || readOnly}
+        aria-invalid={!!validation || invalid || props["aria-invalid"] || undefined}
         aria-label={props["aria-label"]} aria-labelledby={props["aria-labelledby"]} aria-describedby={[props["aria-describedby"], validation && `${id}-validation`].filter(Boolean).join(" ") || undefined}
-        className={cn("flex w-full min-w-0 items-center gap-3 rounded-xl border border-line bg-surface px-3.5 text-left text-ink shadow-xs transition-colors hover:border-primary/50 data-[state=open]:border-primary", controlSize[uiSize], focusRing, disabledControl, (invalid || !!validation) && "border-error", className)}>
-        <Icon name={type === "date" ? "calendar" : "clock"} size="sm" className="shrink-0 text-primary" />
+        className={cn("flex w-full min-w-0 items-center rounded-xl border border-line bg-surface text-left text-ink shadow-xs transition-colors hover:border-primary/50 data-[state=open]:border-primary aria-[invalid=true]:border-error aria-[invalid=true]:hover:border-error aria-[invalid=true]:data-[state=open]:border-error", compact ? "gap-2 px-3" : "gap-3 px-3.5", controlSize[uiSize], focusRing, disabledControl, className)}>
+        {!compact ? <Icon name={type === "date" ? "calendar" : "clock"} size="sm" className="shrink-0 text-primary" /> : null}
         <span className={cn("min-w-0 flex-1 truncate", !display && "text-muted")}>{display || props.placeholder || (type === "date" ? "Choose a date" : "Choose a time")}</span>
         <Icon name="chevronDown" size="sm" className="shrink-0 text-muted" />
       </button></Popover.Trigger>

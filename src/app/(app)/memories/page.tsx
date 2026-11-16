@@ -25,7 +25,7 @@ export default async function MemoriesPage() {
   if (home.totalCompleted === 0) {
     return (
       <PageContainer className="space-y-6">
-        <PageHeader title="Memories" description="Your private photo journal." action={<MemoriesNav />} />
+        <div className="space-y-4"><PageHeader title="Memories" description="Your private photo journal." /><MemoriesNav /></div>
         <OngoingDatePhotos dates={ongoing} />
         <EmptyState
           icon={<Icon name="images" size="md" />}
@@ -40,11 +40,11 @@ export default async function MemoriesPage() {
   const [feature, ...restRecent] = home.recentMemories;
 
   return (
-    <PageContainer className="space-y-10">
-      <PageHeader title="Memories" description="Your private photo journal." action={<MemoriesNav />} />
+    <PageContainer className="min-w-0 space-y-8">
+      <div className="space-y-4"><PageHeader title="Memories" description="Your private photo journal." /><MemoriesNav /></div>
       <OngoingDatePhotos dates={ongoing} />
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat n={home.memoriesKept} label="memories" />
         <Stat n={home.favoriteMemories} label="favourites" />
         <Stat n={home.citiesExplored.length} label="cities" />
@@ -74,8 +74,8 @@ export default async function MemoriesPage() {
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-display text-lg font-medium text-ink">Recent memories</h2>
-            <Link href="/memories/timeline" className="text-sm font-medium text-primary hover:text-primary-hover">
-              Full timeline
+            <Link href="/memories/timeline" className="shrink-0 whitespace-nowrap py-2 text-sm font-medium text-primary hover:text-primary-hover">
+              See all
             </Link>
           </div>
           {feature ? <MemoryDateCard item={feature} eyebrow="Latest" memory /> : null}
@@ -93,8 +93,8 @@ export default async function MemoriesPage() {
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-display text-lg font-medium text-ink">Best of us</h2>
-            <Link href="/memories/photos" className="text-sm font-medium text-primary hover:text-primary-hover">
-              The whole wall
+            <Link href="/memories/photos" className="shrink-0 whitespace-nowrap py-2 text-sm font-medium text-primary hover:text-primary-hover">
+              See all
             </Link>
           </div>
           <PhotoWall photos={home.bestPhotos} />
@@ -105,8 +105,8 @@ export default async function MemoriesPage() {
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-display text-lg font-medium text-ink">Favourite dates</h2>
-            <Link href="/memories/favorites" className="text-sm font-medium text-primary hover:text-primary-hover">
-              Our Favourites
+            <Link href="/memories/favorites" className="shrink-0 whitespace-nowrap py-2 text-sm font-medium text-primary hover:text-primary-hover">
+              See all
             </Link>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -122,8 +122,8 @@ export default async function MemoriesPage() {
 
 function Stat({ n, label }: { n: number; label: string }) {
   return (
-    <span>
-      <span className="font-display text-lg font-semibold text-ink">{n}</span> {label}
-    </span>
+    <div className="min-w-0 rounded-xl border border-line bg-surface px-3 py-2.5">
+      <p className="font-display text-xl font-semibold text-ink">{n}</p><p className="text-xs text-muted">{label}</p>
+    </div>
   );
 }

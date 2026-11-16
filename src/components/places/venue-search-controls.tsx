@@ -16,11 +16,11 @@ export function VenueSearchControls({ search, disabled = false }: { search: Venu
   const [mapOpen, setMapOpen] = useState(false);
   return <div className="space-y-3">
     <SearchInput value={search.q} onValueChange={search.setQ} placeholder="Venue name, e.g. SOCIAL" />
-    <div className="grid grid-cols-[1fr_auto] gap-3">
-      <Field label="City, area or landmark" htmlFor={`${id}-city`} optional>
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3">
+      <Field label="Search area" htmlFor={`${id}-city`} className="min-w-0">
         <Input id={`${id}-city`} value={search.city} onChange={(event) => search.changeCity(event.target.value)} placeholder="City or Gaur City Mall" />
       </Field>
-      <Field label="Search radius" htmlFor={`${id}-radius`}>
+      <Field label="Radius" htmlFor={`${id}-radius`}>
         <Select id={`${id}-radius`} value={search.radiusKm} onChange={(event) => search.setRadius(Number(event.target.value))}>
           {NEARBY_RADII_KM.map((radius) => <option key={radius} value={radius}>{radius} km</option>)}
         </Select>

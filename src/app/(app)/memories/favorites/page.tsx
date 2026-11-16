@@ -24,8 +24,8 @@ export default async function FavoritesPage() {
       <PageHeader
         title="Our Favourites"
         description="The dates, photos and places you keep coming back to."
-        action={<MemoriesNav />}
       />
+      <MemoriesNav />
 
       {nothing ? (
         <EmptyState

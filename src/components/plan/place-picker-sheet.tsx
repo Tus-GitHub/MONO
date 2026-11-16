@@ -37,6 +37,8 @@ export function PlacePickerSheet({
   activities,
   onChooseLocal,
   onAddLocalIdea,
+  showIdeas = true,
+  autoLocationKey,
 }: {
   dateId?: string;
   open: boolean;
@@ -46,9 +48,11 @@ export function PlacePickerSheet({
   activities: PlanActivityDTO[];
   onChooseLocal?: (place: LocalPlaceChoice) => void;
   onAddLocalIdea?: (title: string) => void;
+  showIdeas?: boolean;
+  autoLocationKey?: string;
 }) {
   const router = useRouter();
-  const search = useVenueSearch({ active: open, categoryKey });
+  const search = useVenueSearch({ active: open, categoryKey, autoLocationKey });
   const { q, setQ, city, near, results, loading } = search;
   const selectionTask = useAsyncTask<void, "choosing">();
   const { reset: resetSelection } = selectionTask;
@@ -109,7 +113,7 @@ export function PlacePickerSheet({
             ))}
           </div>
 
-          {ideas.length > 0 ? <section className="space-y-2" aria-label="Matching date ideas">
+          {showIdeas && ideas.length > 0 ? <section className="space-y-2" aria-label="Matching date ideas">
             <h3 className="text-sm font-medium text-ink">{PLACE_CATEGORY_LABEL[selectedCategory?.match[0] ?? PlaceCategory.OTHER]} ideas</h3>
             <p className="text-xs text-muted">Add an idea to your plan. Choose a real venue separately below.</p>
             <ul className="space-y-2">{ideas.map((idea) => {

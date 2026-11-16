@@ -22,8 +22,8 @@ export default async function PhotoWallPage() {
       <PageHeader
         title="Photo wall"
         description="One photo from every date — the one that felt most like you."
-        action={<MemoriesNav />}
       />
+      <MemoriesNav />
 
       {first.photos.length === 0 ? (
         <EmptyState

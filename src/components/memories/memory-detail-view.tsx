@@ -11,7 +11,7 @@ import type { MemoryDetail } from "@/server/services/memory-service";
 
 export function MemoryDetailView({ detail }: { detail: MemoryDetail }) {
   return (
-    <article className="space-y-6">
+    <article className="min-w-0 space-y-6 [overflow-wrap:anywhere]">
       {/* Hero */}
       <div className="relative grid grid-cols-1 overflow-hidden rounded-2xl border border-line bg-line">
         {/* Keep the original photo ratio as a floor, with room for the full caption. */}
@@ -139,7 +139,7 @@ export function MemoryDetailView({ detail }: { detail: MemoryDetail }) {
 
       {/* Footer actions */}
       {detail.dateId ? (
-        <div className="flex flex-wrap gap-2 border-t border-line pt-5">
+        <div className="grid grid-cols-1 gap-2 border-t border-line pt-5 sm:grid-cols-2">
           <LinkButton href={`/dates/${detail.dateId}`}>Open the full date</LinkButton>
           <LinkButton href={`/dates/${detail.dateId}/memory`} variant="secondary">
             Edit the story

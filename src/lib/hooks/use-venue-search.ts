@@ -10,8 +10,8 @@ import { mergeVenueResults } from "@/lib/places/merge-search-results";
 
 interface SearchState { key: string; results: PlaceSearchResult[]; nextCursor?: string | null; error?: string; loadingMore?: boolean; moreError?: string }
 
-export function useVenueSearch({ active = true, categoryKey, initialQuery = "" }: {
-  active?: boolean; categoryKey: string | null; initialQuery?: string;
+export function useVenueSearch({ active = true, categoryKey, initialQuery = "", autoLocationKey }: {
+  active?: boolean; categoryKey: string | null; initialQuery?: string; autoLocationKey?: string;
 }) {
   const [q, setQ] = useState(initialQuery);
   const [city, setCity] = useState("");
@@ -22,7 +22,8 @@ export function useVenueSearch({ active = true, categoryKey, initialQuery = "" }
   const [search, setSearch] = useState<SearchState>({ key: "", results: [] });
   const moreRequest = useRef<AbortController | null>(null);
   const location = useAsyncTask<GeoPoint, "locating">();
-  const { reset } = location;
+  const { reset, run } = location;
+  const locatedEvent = useRef<string | undefined>(undefined);
   const searchCity = near ? "" : city;
   const key = JSON.stringify([q, searchCity, near, radiusKm, categoryKey, attempt]);
   const current = search.key === key;
@@ -92,10 +93,21 @@ export function useVenueSearch({ active = true, categoryKey, initialQuery = "" }
   const changeCity = useCallback((value: string) => { labelRequest.current?.abort(); reset(); setNear(null); setCity(value); }, [reset]);
   const clearLocation = useCallback(() => { labelRequest.current?.abort(); reset(); setNear(null); setCity(""); }, [reset]);
   const chooseLocation = useCallback((point: GeoPoint, radius: number) => { labelRequest.current?.abort(); reset(); setCity(coordinateLabel(point)); setNear(point); setRadius(radius); }, [reset]);
-  const locate = async () => {
-    const result = await location.run("locating", getBrowserLocation);
+  const locate = useCallback(async () => {
+    const result = await run("locating", getBrowserLocation);
     if (result) { setCity(coordinateLabel(result.data)); setNear(result.data); }
-  };
+  }, [run]);
+  useEffect(() => {
+    if (!active || !autoLocationKey || locatedEvent.current === autoLocationKey) return;
+    // Each new event starts near the user with a fresh venue query. A café name
+    // must not filter the next movie search. Manual choices survive reopening.
+    const timer = setTimeout(() => {
+      locatedEvent.current = autoLocationKey;
+      labelRequest.current?.abort(); reset(); setQ(""); setNear(null); setCity("");
+      void locate();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [active, autoLocationKey, locate, reset]);
   return {
     q, setQ, city, changeCity, near, radiusKm, setRadius, locate, clearLocation, chooseLocation,
     locating: location.state.status === "pending",

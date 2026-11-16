@@ -1,45 +1,32 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-
-import { ActivitiesStep } from "@/components/plan/activities-step";
-import { BasicsStep } from "@/components/plan/basics-step";
-import { BudgetStep } from "@/components/plan/budget-step";
-import { ReviewStep } from "@/components/plan/review-step";
-import { isPlanStep } from "@/lib/date/plan-steps";
+import { NewPlanEditor } from "@/components/plan/new-plan-editor";
+import { requireCoupleContext } from "@/lib/authz";
+import { emptyLocalPlan } from "@/lib/date/local-plan";
 import { isAppError } from "@/lib/errors";
 import { requireOnboarded } from "@/lib/onboarding";
 import { getPlan, listSavedPlaceOptions } from "@/server/services/plan-service";
 
-export const metadata: Metadata = { title: "Plan a date" };
+export const metadata: Metadata = { title: "Edit date plan" };
 
-export default async function PlanFlowPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ step?: string }>;
-}) {
-  const { user } = await requireOnboarded();
+export default async function PlanFlowPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireOnboarded();
+  const { user, couple, membership } = await requireCoupleContext();
   const { id } = await params;
-  const { step: rawStep } = await searchParams;
-  const step = isPlanStep(rawStep) ? rawStep : "basics";
-
   let plan;
-  try {
-    plan = await getPlan(id);
-  } catch (error) {
-    if (isAppError(error)) redirect(`/dates/${id}`);
-    throw error;
-  }
-
-  const savedPlaces = step === "activities" ? await listSavedPlaceOptions() : [];
-
-  return (
-    <div className="mx-auto max-w-xl">
-      {step === "basics" ? <BasicsStep plan={plan} userId={user.id} /> : null}
-      {step === "budget" ? <BudgetStep plan={plan} userId={user.id} /> : null}
-      {step === "activities" ? <ActivitiesStep plan={plan} savedPlaces={savedPlaces} /> : null}
-      {step === "review" ? <ReviewStep plan={plan} /> : null}
-    </div>
-  );
+  try { plan = await getPlan(id); }
+  catch (error) { if (isAppError(error)) redirect(`/dates/${id}`); throw error; }
+  const initial = emptyLocalPlan(plan.currency, plan.title);
+  const money = (value: number | null) => value == null ? "" : String(value / 100);
+  const place = (id: string | null, name: string | null) => id ? { name: name || "Saved place", selection: { mode: "saved" as const, savedPlaceId: id } } : null;
+  Object.assign(initial, {
+    category: plan.discoveryCategory ?? "", date: plan.date ?? "", startTime: plan.startTime ?? "", endTime: plan.endTime ?? "",
+    notes: plan.notes ?? "", expectedTotal: money(plan.expectedTotalCents), budgetMin: money(plan.budgetMinCents), budgetMax: money(plan.budgetMaxCents),
+    split: plan.budgetSplit, place: place(plan.place?.id ?? null, plan.place?.name ?? null),
+  });
+  initial.activities = plan.activities.map((event) => ({ key: event.id, title: event.title, description: event.description ?? "",
+    duration: String(event.durationMinutes ?? ""), cost: money(event.costCents), savedPlaceId: event.placeId ?? "",
+    place: place(event.placeId, event.placeName), startTime: event.startTime ?? "", endTime: event.endTime ?? "" }));
+  return <div className="mx-auto w-full min-w-0 max-w-2xl"><NewPlanEditor initial={initial} userId={user.id} coupleId={couple.id} myRole={membership.role}
+    timezone={couple.timezone} existing={{ id, version: plan.version, status: plan.status }} savedPlaces={await listSavedPlaceOptions()} /></div>;
 }

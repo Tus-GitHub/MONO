@@ -12,13 +12,15 @@ vi.mock("@/lib/places", () => ({ getPlaceProviderByName: (name: string) => name 
 
 import { prisma } from "@/lib/db/prisma";
 import { emptyLocalPlan } from "@/lib/date/local-plan";
-import { saveNewPlan } from "@/server/services/new-plan-service";
+import { saveEditedPlan, saveNewPlan } from "@/server/services/new-plan-service";
 import { firstCompletedDateId, getPlanTemplate } from "@/server/services/plan-template-service";
 import { coupleRevision } from "@/server/services/couple-sync-service";
-import { updateBasics } from "@/server/services/plan-service";
+import { getPlan, updateBasics } from "@/server/services/plan-service";
+import { transitionDate } from "@/server/services/date-service";
+import { getMemoryContext, getMemoryHome, getMemoryTimeline, saveMemory } from "@/server/services/memory-service";
 import { dateBasicsSchema } from "@/lib/validation/date";
 
-let owner: string, couple: string, outsider: string, otherCouple: string, foreignPlace: string;
+let owner: string, partner: string, couple: string, outsider: string, otherCouple: string, foreignPlace: string;
 beforeEach(async () => {
   provider.details.mockReset().mockResolvedValue(null);
   const run = randomUUID();
@@ -28,15 +30,16 @@ beforeEach(async () => {
     return { user: user.id, space: space.id };
   };
   const own = await make("explicit"); owner = own.user; couple = own.space;
+  partner = (await prisma.user.create({ data: { name: "Partner", email: `partner-${run}@example.invalid`, emailVerified: new Date(), memberships: { create: { coupleId: couple, role: "PARTNER", status: "ACTIVE" } } } })).id;
   const other = await make("outsider"); outsider = other.user; otherCouple = other.space;
   foreignPlace = (await prisma.place.create({ data: { name: "Private venue", coupleId: otherCouple, createdById: outsider } })).id;
 });
 afterEach(async () => {
   await prisma.couple.deleteMany({ where: { id: { in: [couple, otherCouple] } } });
-  await prisma.user.deleteMany({ where: { id: { in: [owner, outsider] } } });
+  await prisma.user.deleteMany({ where: { id: { in: [owner, partner, outsider] } } });
 });
 afterAll(() => prisma.$disconnect());
-const input = () => ({ ...emptyLocalPlan("INR", "Our night out"), key: randomUUID() });
+const input = () => ({ ...emptyLocalPlan("INR", "Our night out"), key: randomUUID(), expectedTotal: "1500" });
 
 it("atomically saves a staged place, budget and activities exactly once across concurrent retries", async () => {
   const plan = input();
@@ -74,6 +77,7 @@ it("requires a title and valid future date before finalizing", async () => {
   const plan = input();
   await expect(asUser(owner, () => saveNewPlan(plan, true))).rejects.toThrow();
   plan.date = "2099-01-01"; plan.startTime = "19:00"; plan.endTime = "21:00";
+  plan.activities = [{ key: "walk", title: "Walk", duration: "60", cost: "0", savedPlaceId: "", startTime: "19:00", endTime: "20:00" }];
   const result = await asUser(owner, () => saveNewPlan(plan, true));
   expect(result.status).toBe("PLANNED");
   expect(await prisma.date.count({ where: { coupleId: couple } })).toBe(1);
@@ -151,4 +155,75 @@ it("changes the partner revision after date status/version changes without retur
   await prisma.date.update({ where: { id: date.id }, data: { status: "IN_PROGRESS", version: { increment: 1 } } });
   const after = await coupleRevision(couple, space.updatedAt);
   expect(after).not.toBe(before); expect(after).toMatch(/^[a-f0-9]{64}$/);
+});
+
+const completeInput = () => ({ ...input(), date: "2099-01-01", startTime: "17:00", endTime: "22:00", activities: [
+  { key: "cafe", title: "Café", startTime: "17:00", endTime: "18:00", duration: "60", cost: "500", savedPlaceId: "" },
+  { key: "movie", title: "Movie", startTime: "18:15", endTime: "20:15", duration: "120", cost: "800", savedPlaceId: "" },
+] });
+it("rejects overspending and events outside the fixed window at the server boundary", async () => {
+  const plan = completeInput();
+  plan.expectedTotal = "1000";
+  await expect(asUser(owner, () => saveNewPlan(plan, true))).rejects.toThrow(/Check/);
+  plan.expectedTotal = "1500"; plan.activities[1].endTime = "23:00";
+  await expect(asUser(owner, () => saveNewPlan(plan, true))).rejects.toThrow(/Check/);
+  expect(await prisma.date.count({ where: { coupleId: couple } })).toBe(0);
+});
+it("lets both partners edit the same plan and refuses stale or foreign edits", async () => {
+  const plan = completeInput();
+  const saved = await asUser(owner, () => saveNewPlan(plan, true));
+  const initial = await prisma.date.findUniqueOrThrow({ where: { id: saved.id } });
+  const updated = { ...plan, title: "Our café and cinema evening", expectedTotal: "2000" };
+  await asUser(partner, () => saveEditedPlan(updated, true, saved.id, initial.version));
+  const row = await prisma.date.findUniqueOrThrow({ where: { id: saved.id }, include: { activities: true } });
+  expect(row).toMatchObject({ title: updated.title, expectedBudgetCents: 200000, version: initial.version + 1, createdById: owner });
+  expect(row.activities).toHaveLength(2);
+  expect(row.plannedEndAt?.toISOString()).toBe("2099-01-01T22:00:00.000Z");
+  await expect(asUser(owner, () => saveEditedPlan(plan, true, saved.id, initial.version))).rejects.toThrow(/partner changed/);
+  await expect(asUser(outsider, () => saveEditedPlan(plan, true, saved.id, row.version))).rejects.toThrow();
+  await asUser(owner, () => saveEditedPlan({ ...updated, notes: "Bring the tickets" }, true, saved.id, row.version));
+  expect((await prisma.date.findUniqueOrThrow({ where: { id: saved.id } })).notes).toBe("Bring the tickets");
+});
+it("does not overwrite a started date or change currency once spending exists", async () => {
+  const plan = completeInput();
+  const saved = await asUser(owner, () => saveNewPlan(plan, true));
+  const row = await prisma.date.findUniqueOrThrow({ where: { id: saved.id } });
+  await prisma.expense.create({ data: { coupleId: couple, dateId: saved.id, recordedById: owner, description: "Tickets", amountCents: 80000, currency: "INR", paidBy: "SHARED", category: "OTHER" } });
+  await expect(asUser(partner, () => saveEditedPlan({ ...plan, currency: "USD" }, true, saved.id, row.version))).rejects.toThrow(/original currency/);
+  await prisma.date.update({ where: { id: saved.id }, data: { status: "IN_PROGRESS" } });
+  await expect(asUser(owner, () => saveEditedPlan(plan, true, saved.id, row.version))).rejects.toThrow(/no longer be planned/);
+});
+
+it("keeps café then movie in one date through repeated draft saves, final save and both partners' Memories", async () => {
+  const plan = completeInput();
+  const cafe = { name: "Our café", selection: { mode: "custom" as const, name: "Our café", category: "CAFE" as const } };
+  const movie = { name: "Our cinema", selection: { mode: "custom" as const, name: "Our cinema", category: "CINEMA" as const } };
+  const first = { ...plan, place: cafe, activities: [{ ...plan.activities[0], place: cafe }] };
+  const saved = await asUser(owner, () => saveNewPlan(first, false));
+  const draft = await asUser(partner, () => getPlan(saved.id));
+  expect(draft.activities.map((event) => event.placeName)).toEqual(["Our café"]);
+  const both = { ...plan, place: cafe, split: "PARTNER" as const,
+    activities: [{ ...plan.activities[0], place: cafe }, { ...plan.activities[1], place: movie }] };
+  await asUser(partner, () => saveEditedPlan(both, false, saved.id, draft.version));
+  const next = await asUser(owner, () => getPlan(saved.id));
+  expect(next).toMatchObject({ status: "DRAFT", startTime: "17:00", endTime: "22:00", expectedTotalCents: 150000, budgetSplit: "PARTNER" });
+  expect(next.activities.map((event) => [event.title, event.placeName, event.startTime, event.endTime])).toEqual([
+    ["Café", "Our café", "17:00", "18:00"], ["Movie", "Our cinema", "18:15", "20:15"],
+  ]);
+  await asUser(owner, () => saveEditedPlan(both, true, saved.id, next.version));
+  expect(await prisma.date.count({ where: { coupleId: couple } })).toBe(1);
+  await asUser(owner, () => transitionDate(saved.id, { to: "IN_PROGRESS" }));
+  await asUser(partner, () => transitionDate(saved.id, { to: "COMPLETED" }));
+  const title = "Coffee, a movie and a whole evening of little moments together";
+  await asUser(partner, () => saveMemory(saved.id, { title, body: "Both venues, one shared day.", isFavorite: true }));
+  for (const user of [owner, partner]) {
+    const home = await asUser(user, getMemoryHome);
+    const timeline = await asUser(user, getMemoryTimeline);
+    expect(home).toMatchObject({ totalCompleted: 1, memoriesKept: 1, favoriteMemories: 1 });
+    expect(home.recentMemories[0]).toMatchObject({ id: saved.id, memoryTitle: title });
+    expect(timeline.items[0]).toMatchObject({ id: saved.id, memoryTitle: title });
+    expect((await asUser(user, () => getMemoryContext(saved.id))).memory?.title).toBe(title);
+  }
+  await asUser(owner, () => saveMemory(saved.id, { title: "Our day, kept", body: "Updated together", isFavorite: false }));
+  expect((await asUser(partner, () => getMemoryContext(saved.id))).memory).toMatchObject({ title: "Our day, kept", body: "Updated together" });
 });

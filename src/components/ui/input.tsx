@@ -15,6 +15,8 @@ const invalidRing = "aria-[invalid=true]:border-error aria-[invalid=true]:hover:
 export interface InputProps extends ComponentPropsWithRef<"input"> {
   uiSize?: ControlSize;
   invalid?: boolean;
+  /** Omit the decorative leading icon in narrow date/time fields. */
+  compact?: boolean;
 }
 
 /**
@@ -29,8 +31,8 @@ const typeHints: Record<string, Partial<ComponentPropsWithRef<"input">>> = {
   number: { inputMode: "decimal" },
 };
 
-export function Input({ className, uiSize = "md", invalid, type, ...props }: InputProps) {
-  if (type === "date" || type === "time") return <DateTimeInput {...props} type={type as "date" | "time"} className={className} uiSize={uiSize} invalid={invalid} />;
+export function Input({ className, uiSize = "md", invalid, type, compact, ...props }: InputProps) {
+  if (type === "date" || type === "time") return <DateTimeInput {...props} type={type as "date" | "time"} className={className} uiSize={uiSize} invalid={invalid} compact={compact} />;
   return (
     <input
       type={type}

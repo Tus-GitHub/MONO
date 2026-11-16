@@ -7,10 +7,10 @@ export function useValidationFocus(ref: RefObject<HTMLFormElement | null>, activ
   useEffect(() => {
     if (!active) return;
     const frame = requestAnimationFrame(() => {
-      const field = ref.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+      const field = ref.current?.querySelector<HTMLElement>('[aria-invalid="true"]:not([aria-hidden="true"])');
       if (!field) return;
       field.scrollIntoView({ block: "center", behavior: "smooth" });
-      if (field.matches("input,select,textarea")) field.focus({ preventScroll: true });
+      if (field.matches("input,select,textarea,button")) field.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
   }, [ref, active, step]);

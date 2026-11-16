@@ -31,8 +31,8 @@ export function CompactDateCard({ item }: { item: DateHistoryItem }) {
       </span>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-ink">{item.title}</p>
-        <p className="truncate text-xs text-muted">
+        <p className="break-words text-sm font-medium text-ink [overflow-wrap:anywhere]">{item.title}</p>
+        <p className="break-words text-xs text-muted [overflow-wrap:anywhere]">
           {[
             item.dateYmd ? formatWallDate(item.dateYmd, "medium") : null,
             item.placeName,
@@ -40,10 +40,10 @@ export function CompactDateCard({ item }: { item: DateHistoryItem }) {
             .filter(Boolean)
             .join(" · ")}
         </p>
+        <div className="mt-1"><RevisitTag revisit={item.revisit} /></div>
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        <RevisitTag revisit={item.revisit} />
         <ScorePill score={item.coupleScore} />
         <Icon name="chevronRight" size="sm" className="text-faint" />
       </div>
