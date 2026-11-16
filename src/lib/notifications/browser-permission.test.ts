@@ -21,7 +21,7 @@ it("bounds a silent permission prompt and gives stage-specific recovery", async 
   vi.stubGlobal("Notification", { permission: "default", requestPermission: () => undefined });
   const result = expect(requestNotificationPermission(new AbortController().signal)).rejects.toThrow("timed out");
   await vi.advanceTimersByTimeAsync(60_000); await result;
-  expect(notificationSetupError("permission", null)).toContain("Samsung Internet");
+  expect(notificationSetupError("permission", null)).toContain("Android");
   expect(notificationSetupError("device", new DOMException("denied", "NotAllowedError"))).toContain("blocked");
   expect(notificationSetupError("save", null)).toContain("account");
 });

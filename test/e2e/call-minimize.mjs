@@ -40,6 +40,7 @@ export async function runCallMinimize({ browser, baseUrl, prisma, runId, artifac
     }, {}, before, video);
     const after = await sample(page); assert.equal(after.count, before.count); assert.equal(after.state, "connected");
     assert.deepEqual(after.mic, [{ enabled: true, state: "live" }]);
+    assert.equal(await page.$eval('[aria-label="Partner call audio"]', el => !el.paused && !el.muted && el.volume > 0 && Boolean(el.srcObject?.getAudioTracks().some(track => track.readyState === "live"))), true);
   };
   const pageFor = async user => {
     const context = await browser.createBrowserContext(); contexts.push(context); const page = await context.newPage();
@@ -85,21 +86,30 @@ export async function runCallMinimize({ browser, baseUrl, prisma, runId, artifac
     await reveal(owner); await target(owner, '[aria-label="Minimize call"]'); await owner.waitForSelector('[aria-label="Minimized video call"]');
     assert.equal(await owner.$('[role="dialog"]'), null); assert.equal(await owner.$('[aria-label="Voice call"]'), null);
     assert.equal(await owner.evaluate(() => document.querySelector('[aria-label="Partner live video"]') === window.__qaVideo && document.querySelector('[aria-label="Partner call audio"]') === window.__qaAudio), true);
-    assert.equal(await owner.evaluate(() => [...document.querySelectorAll("button")].filter(b => b.textContent.trim() === "Return to call").length), 1);
-    await owner.waitForFunction(() => { const h = document.querySelector(".mono-chat-header"), b = [...h.querySelectorAll("button")].find(b => b.textContent.trim() === "Return to call"); return b && b.getBoundingClientRect().top < h.getBoundingClientRect().bottom; });
+    assert.equal(await owner.evaluate(() => [...document.querySelectorAll("button")].some(b => b.textContent.trim() === "Return to call")), false);
+    assert.equal(await owner.$('[aria-label="Open current call"]'), null);
     await target(owner, '[aria-label="Message your partner"]'); await owner.type('[aria-label="Message your partner"]', "Typing while the video continues");
     await preserved(owner, before); await preserved(partner, peerBefore); pass("X minimizes without replacing players or muting either microphone; chat stays usable");
+    const startRect = await owner.$eval('[aria-label="Minimized video call"]', el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
+    const touch = await owner.createCDPSession();
+    const startPoint = { x: startRect.x + startRect.width / 2, y: startRect.y + startRect.height / 2 };
+    await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [startPoint] });
+    await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: startPoint.x - 140, y: startPoint.y + 180 }] });
+    await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }); await touch.detach();
+    await owner.waitForFunction(x => document.querySelector('[aria-label="Minimized video call"]').getBoundingClientRect().x < x - 80, {}, startRect.x);
+    assert.equal(await owner.$('[role="dialog"]'), null);
+    await owner.focus('[aria-label="Expand video call"]'); await owner.keyboard.press("ArrowLeft");
+    await preserved(owner, before); pass("touch dragging and keyboard movement keep the mini call connected without opening it");
     await owner.screenshot({ path: path.join(artifactDir, "call-mini-mobile.png") });
     for (const [width, height] of [[320, 568], [844, 390], [1440, 900]]) {
       await owner.setViewport({ width, height, isMobile: true, hasTouch: true });
       await owner.waitForFunction(() => {
         const mini = document.querySelector('[aria-label="Minimized video call"]').getBoundingClientRect();
-        const composer = document.querySelector('[aria-label="Message your partner"]').getBoundingClientRect();
-        return mini.width > 60 && mini.right <= innerWidth && mini.bottom < composer.top && document.documentElement.scrollWidth <= innerWidth + 1;
+        return mini.width > 60 && mini.right <= innerWidth && mini.bottom <= innerHeight && document.documentElement.scrollWidth <= innerWidth + 1;
       });
     }
-    pass("mini view fits 320px mobile, landscape and desktop without covering the composer");
-    await click(owner, "Return to call"); await owner.waitForSelector('[role="dialog"]');
+    pass("mini view stays inside 320px mobile, landscape and desktop viewports");
+    await target(owner, '[aria-label="Expand video call"]'); await owner.waitForSelector('[role="dialog"]');
     await owner.evaluate(() => history.back()); await owner.waitForSelector('[aria-label="Minimized video call"]');
     assert.equal(new URL(owner.url()).pathname, "/chat"); await preserved(owner, before); pass("browser Back minimizes instead of leaving chat or ending the call");
     await target(owner, '[aria-label="Expand video call"]'); await owner.waitForSelector('[role="dialog"]');
@@ -112,7 +122,7 @@ export async function runCallMinimize({ browser, baseUrl, prisma, runId, artifac
     await reveal(owner); await target(owner, '[aria-label="Minimize call"]'); await owner.waitForSelector('[aria-label="Minimized video call"]');
     await target(owner, '[aria-label="Back to MONO"]'); await owner.waitForFunction(() => location.pathname === "/home");
     await owner.waitForSelector('[aria-label="Minimized video call"]'); await preserved(owner, before);
-    await click(owner, "Return to call"); await owner.waitForSelector('[role="dialog"]'); await reveal(owner); await target(owner, '[aria-label="Minimize call"]');
+    await target(owner, '[aria-label="Expand video call"]'); await owner.waitForSelector('[role="dialog"]'); await reveal(owner); await target(owner, '[aria-label="Minimize call"]');
     await target(owner, '[aria-label="Minimized video call"] [aria-label="End call"]');
     await owner.waitForFunction(() => !document.querySelector('[aria-label="Minimized video call"]'));
     await partner.bringToFront(); await partner.waitForFunction(() => window.__qaPeers.at(-1).connectionState === "closed");
@@ -122,8 +132,8 @@ export async function runCallMinimize({ browser, baseUrl, prisma, runId, artifac
     await Promise.all([connected(owner), connected(partner)]); const voice = await sample(owner);
     await target(owner, '[aria-label="Minimize call"]'); await owner.waitForFunction(() => !document.querySelector('[role="dialog"]'));
     assert.equal(await owner.$('[aria-label="Minimized video call"]'), null); await preserved(owner, voice, false);
-    await click(owner, "Return to call"); await target(owner, '[aria-label="End call"]');
-    pass("voice calls return through the header and preserve microphone audio");
+    await target(owner, '[aria-label="Open current call"]'); await target(owner, '[aria-label="End call"]');
+    pass("voice calls return through the header icon and preserve microphone audio");
     assert.deepEqual(errors, []); return { checks };
   } catch (error) {
     for (const [i, context] of contexts.entries()) for (const page of await context.pages()) {

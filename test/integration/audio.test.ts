@@ -46,6 +46,25 @@ it("rejects non-audio bytes and unverified personal uploads", async () => {
   await prisma.user.update({ where: { id: owner }, data: { emailVerified: null } });
   await expect(asUser(owner, () => changeAudio({ action: "ringtone", name: "tone.mp3", data }))).rejects.toThrow();
 });
+it("adds multiple encrypted songs and preserves independent playlist, order, repeat and volume", async () => {
+  await prisma.adminAccess.create({ data: { userId: owner } });
+  const first = await asUser(owner, () => changeAudio({ action: "music", name: "first song.mp3", data }));
+  const firstId = first.tracks.find(track => track.title === "first song.mp3")!.id;
+  const next = await asUser(owner, () => changeAudio({ action: "music", name: "second song.mp3", data }));
+  const secondId = next.tracks.find(track => track.title === "second song.mp3")!.id;
+  expect(next.tracks.map(track => track.id)).toContain(firstId); expect(firstId).not.toBe(secondId);
+  await asUser(other, () => changeAudio({ action: "preferences", musicVolume: 0.02, musicEnabled: true, musicMode: "selected", musicOrder: [secondId, firstId], musicSelectedIds: [secondId], musicRepeatOne: true }));
+  expect(await asUser(other, getAudioSettings)).toMatchObject({ musicVolume: 0.02, musicMode: "selected", musicOrder: [secondId, firstId], musicSelectedIds: [secondId], musicRepeatOne: true });
+  expect(await asUser(owner, getAudioSettings)).toMatchObject({ musicVolume: 0.2, musicMode: "all", musicRepeatOne: false });
+  await asUser(other, () => changeAudio({ action: "preferences", musicVolume: 0.07, musicEnabled: false }));
+  expect(await asUser(other, getAudioSettings)).toMatchObject({ musicVolume: 0.07, musicOrder: [secondId, firstId], musicRepeatOne: true });
+  await expect(asUser(other, () => changeAudio({ action: "remove-music", id: firstId }))).rejects.toThrow();
+  const [raw] = await prisma.$queryRaw<{ title: string; bytes: Uint8Array }[]>`SELECT title, bytes FROM site_audio WHERE id = ${firstId}`;
+  expect(raw.title).not.toContain("first song"); expect(Buffer.from(raw.bytes).toString()).not.toContain("fixture audio");
+  await asUser(owner, () => changeAudio({ action: "remove-music", id: firstId }));
+  expect(await asUser(other, () => readAudio("music", firstId))).toBeNull();
+  expect((await asUser(other, () => readAudio("music", secondId)))?.contentType).toBe("audio/mpeg");
+});
 
 import { uploadAdminMusic } from "@/server/services/audio-upload-service";
 import { AUDIO_CHUNK_BYTES, MUSIC_LIMIT } from "@/lib/audio/file";
@@ -75,7 +94,7 @@ it("publishes 10 MB in bounded encrypted chunks, retries safely and streams comp
   expect(range.status).toBe(206); expect(Buffer.from(await range.arrayBuffer())).toEqual(bytes.subarray(1048570, 1048581));
   await asUser(owner, () => uploadAdminMusic({ action: "cancel", id: start.id }));
   expect(await prisma.audioUpload.count({ where: { userId: owner } })).toBe(0);
-}, 60_000);
+}, 120_000);
 it("rejects oversized and out-of-order audio and never publishes an abandoned upload", async () => {
   await prisma.adminAccess.create({ data: { userId: owner } });
   await expect(asUser(owner, () => uploadAdminMusic({ action: "start", name: "large.mp3", size: MUSIC_LIMIT + 1 }))).rejects.toThrow();

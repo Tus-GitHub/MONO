@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/_dialog-primitives";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils/cn";
+import { useFloatingCall } from "@/lib/hooks/use-floating-call";
 
 type ModalSize = "sm" | "md" | "lg" | "full";
 
@@ -58,6 +59,8 @@ export function Modal({
   className,
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const floating = useFloatingCall(wrapRef, docked);
   const titleId = useId();
   const descId = useId();
   const { mounted, visible } = useMountTransition(open || docked);
@@ -71,7 +74,7 @@ export function Modal({
 
   return (
     <Portal>
-      <div inert={!open && !docked} className={docked ? "mono-call-mini-wrap" : cn("mono-modal-wrap fixed inset-0 z-50 flex items-center justify-center", size === "full" ? "mono-fullscreen-wrap" : "dialog-inset", !open && "pointer-events-none")}>
+      <div ref={wrapRef} {...floating} inert={!open && !docked} className={docked ? "mono-call-mini-wrap" : cn("mono-modal-wrap fixed inset-0 z-50 flex items-center justify-center", size === "full" ? "mono-fullscreen-wrap" : "dialog-inset", !open && "pointer-events-none")}>
         <div
           hidden={docked}
           className={cn(

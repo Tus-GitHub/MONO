@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Icon } from "@/components/ui/icon";
+import { GameResultScene } from "./game-result-scene";
 import { Modal } from "@/components/ui/modal";
 import { GAME_LABEL } from "@/lib/together/games";
 import { togetherFetch, errorMessage } from "@/lib/together/client";
@@ -45,6 +45,7 @@ export function GameOutcome({ game, userId, partnerName, userName, busy, onReque
   const pending = rematchPending(game), mine = game.rematchRequestedById === userId;
   const [open, setOpen] = useState(() => !game.rematchGameId && !pending && Date.now() - new Date(game.updatedAt).getTime() < 60_000);
   const title = game.winnerId ? `${game.winnerId === userId ? userName : partnerName} wins!` : "It's a draw!";
+  const outcome = !game.winnerId ? "draw" : game.winnerId === userId ? "win" : "loss";
   const nextAction = useRef<(() => void) | null>(null);
   useEffect(() => { if (pending || game.rematchGameId) { queueMicrotask(() => setOpen(false)); } }, [pending, game.rematchGameId]);
   const controls = game.rematchGameId ? <Button onClick={onOpen}>Open rematch</Button> : pending ? mine
@@ -55,9 +56,10 @@ export function GameOutcome({ game, userId, partnerName, userName, busy, onReque
     {controls}
     <Modal open={open && !pending && !game.rematchGameId} onClose={() => setOpen(false)} title={title} description={`${GAME_LABEL[game.kind]} · Score saved`}
       onHistoryClosed={(stayed) => { const action = nextAction.current; nextAction.current = null; if (stayed) action?.(); }}>
-      <div className="flex flex-col items-center gap-4 py-4 text-center">
-        <div aria-hidden className="mono-game-celebration grid size-24 place-items-center rounded-full bg-primary-tint text-primary"><Icon name="sparkles" size="lg" /></div>
-        <p className="text-sm text-muted">{game.winnerId === userId ? "That round is yours. Ready for another?" : game.winnerId ? "A little friendly competition. Fancy another round?" : "Evenly matched. Shall we settle it?"}</p>
+      <div className="flex flex-col items-center gap-4 pb-4 text-center">
+        <GameResultScene outcome={outcome} />
+        <p className="font-display text-xl text-ink">{outcome === "win" ? "Victory looks good on you." : outcome === "loss" ? "Oof. That one stung." : "Well… this is awkward."}</p>
+        <p className="text-sm text-muted">{outcome === "win" ? "Enjoy your moment. Your partner might want revenge." : outcome === "loss" ? "One round down, comeback loading. Rematch?" : "You both refused to lose. Very romantic. One more?"}</p>
         <div className="flex flex-wrap justify-center gap-3"><Button disabled={busy} onClick={() => { nextAction.current = onRequest; setOpen(false); }}>Play again</Button><Button variant="secondary" onClick={() => setOpen(false)}>Back to match</Button></div>
       </div>
     </Modal>

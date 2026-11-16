@@ -12,6 +12,18 @@ export function useGameChat(gameId: string, initiator: boolean) {
   const [messages, setMessages] = useState<GameChatMessage[]>([]);
   const [phase, setPhase] = useState("connecting"), [generation, setGeneration] = useState(0);
   const channel = useRef<RTCDataChannel | null>(null), lastSend = useRef(0);
+  const messagesRef = useRef(messages);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+  // A temporary API/network failure must not leave the composer disconnected forever.
+  useEffect(() => {
+    if (phase === "connected" || phase === "ended") return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const restart = () => { if (!document.hidden) { setPhase("connecting"); setGeneration(value => value + 1); } };
+    if (!document.hidden) timer = setTimeout(restart, phase === "connecting" ? (initiator ? 30_000 : 34_000) : 3000);
+    const visible = () => { if (!document.hidden) restart(); };
+    document.addEventListener("visibilitychange", visible); window.addEventListener("online", restart);
+    return () => { clearTimeout(timer); document.removeEventListener("visibilitychange", visible); window.removeEventListener("online", restart); };
+  }, [phase, generation, initiator]);
   useEffect(() => {
     const controller = new AbortController(), sessionId = crypto.randomUUID();
     let stopped = false, cursor = "0", peerId = "", pc: RTCPeerConnection | null = null;
@@ -30,7 +42,17 @@ export function useGameChat(gameId: string, initiator: boolean) {
     const bind = (next: RTCDataChannel, owner: RTCPeerConnection) => {
       if (next.label !== "mono-match-chat") { next.close(); return; }
       channel.current = next;
-      next.onopen = () => { if (!stopped && pc === owner) setPhase("connected"); };
+      const replayed = new Set<string>();
+      const flush = () => {
+        if (stopped || pc !== owner || next.readyState !== "open") return;
+        for (const message of messagesRef.current) {
+          if (!message.mine || message.delivered || replayed.has(message.id)) continue;
+          if (next.bufferedAmount > 64 * 1024) break;
+          try { next.send(JSON.stringify({ type: "message", id: message.id, text: message.text })); replayed.add(message.id); } catch { break; }
+        }
+      };
+      next.bufferedAmountLowThreshold = 16 * 1024; next.onbufferedamountlow = flush;
+      next.onopen = () => { if (!stopped && pc === owner) { setPhase("connected"); flush(); } };
       next.onclose = () => { if (!stopped && pc === owner) setPhase("waiting"); };
       next.onerror = () => { if (!stopped && pc === owner) setPhase("error"); };
       next.onmessage = event => {

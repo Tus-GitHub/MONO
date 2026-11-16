@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { requireUser } from "@/lib/auth/current-user";
@@ -7,22 +8,26 @@ import { lockVerifiedUser } from "@/lib/authz/user-write";
 import { ValidationError } from "@/lib/errors";
 import { AUDIO_LIMIT, audioType } from "@/lib/audio/file";
 
+const trackId = z.string().min(1).max(80).regex(/^[a-zA-Z0-9_-]+$/);
+const idList = z.array(trackId).max(1000).transform(ids => [...new Set(ids)]);
 const changeSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("preferences"), musicVolume: z.number().min(0).max(1), musicEnabled: z.boolean() }),
+  z.object({ action: z.literal("preferences"), musicVolume: z.number().min(0).max(1), musicEnabled: z.boolean(), musicMode: z.enum(["all", "selected"]).optional(), musicOrder: idList.optional(), musicSelectedIds: idList.optional(), musicRepeatOne: z.boolean().optional() }),
   z.object({ action: z.literal("ringtone"), name: z.string().trim().min(1).max(180), data: z.string().min(24).max(2800000).regex(/^[A-Za-z0-9+/]+={0,2}$/) }),
   z.object({ action: z.literal("music"), name: z.string().trim().min(1).max(180), data: z.string().min(24).max(2800000).regex(/^[A-Za-z0-9+/]+={0,2}$/) }),
   z.object({ action: z.literal("remove-ringtone") }),
-  z.object({ action: z.literal("remove-music") }),
+  z.object({ action: z.literal("remove-music"), id: trackId.optional() }),
 ]);
 export async function getAudioSettings() {
   const user = await requireUser();
-  const [own, music] = await Promise.all([
-    prisma.userAudio.findUnique({ where: { userId: user.id }, select: { filename: true, updatedAt: true, musicVolume: true, musicEnabled: true } }),
-    prisma.siteAudio.findUnique({ where: { id: "background" }, select: { title: true, updatedAt: true } }),
+  const [own, songs] = await Promise.all([
+    prisma.userAudio.findUnique({ where: { userId: user.id }, select: { filename: true, updatedAt: true, musicVolume: true, musicEnabled: true, musicMode: true, musicOrder: true, musicSelectedIds: true, musicRepeatOne: true } }),
+    prisma.siteAudio.findMany({ select: { id: true, title: true, updatedAt: true }, orderBy: [{ updatedAt: "asc" }, { id: "asc" }] }),
   ]);
+  const tracks = songs.map(song => ({ id: song.id, title: song.title, version: song.updatedAt.toISOString() }));
   return { ringtoneName: own?.filename ?? null, ringtoneVersion: own?.filename ? own.updatedAt.toISOString() : null,
     musicVolume: own?.musicVolume ?? 0.2, musicEnabled: own?.musicEnabled ?? false,
-    music: music ? { title: music.title, version: music.updatedAt.toISOString() } : null };
+    musicMode: own?.musicMode === "selected" ? "selected" as const : "all" as const, musicOrder: own?.musicOrder ?? [], musicSelectedIds: own?.musicSelectedIds ?? [], musicRepeatOne: own?.musicRepeatOne ?? false,
+    tracks, music: tracks[0] ?? null };
 }
 export async function changeAudio(input: unknown) {
   const user = await requireUser(), value = changeSchema.parse(input);
@@ -36,25 +41,26 @@ export async function changeAudio(input: unknown) {
   await prisma.$transaction(async (tx) => {
     if (global) await requireAdmin(tx); else await lockVerifiedUser(tx, user.id);
     if (value.action === "preferences") {
-      const data = { musicVolume: value.musicVolume, musicEnabled: value.musicEnabled };
+      const data = { musicVolume: value.musicVolume, musicEnabled: value.musicEnabled, musicMode: value.musicMode, musicOrder: value.musicOrder, musicSelectedIds: value.musicSelectedIds, musicRepeatOne: value.musicRepeatOne };
       await tx.userAudio.upsert({ where: { userId: user.id }, create: { userId: user.id, ...data }, update: data });
     } else if (value.action === "ringtone" || value.action === "remove-ringtone") {
       const data = value.action === "ringtone" ? { ringtone: new Uint8Array(bytes!), contentType: contentType!, filename: value.name } : { ringtone: null, contentType: null, filename: null };
       await tx.userAudio.upsert({ where: { userId: user.id }, create: { userId: user.id, ...data }, update: data });
     } else {
-      if (value.action === "remove-music") await tx.siteAudio.deleteMany({ where: { id: "background" } });
+      const id = value.action === "remove-music" ? value.id ?? "background" : randomUUID();
+      if (value.action === "remove-music") await tx.siteAudio.deleteMany({ where: { id } });
       else {
         const data = { bytes: new Uint8Array(bytes!), contentType: contentType!, title: value.name, updatedById: user.id };
-        await tx.siteAudio.upsert({ where: { id: "background" }, create: { id: "background", ...data }, update: data });
+        await tx.siteAudio.create({ data: { id, ...data } });
       }
-      await tx.moderationAudit.create({ data: { actorId: user.id, targetId: "background", action: "SITE_AUDIO_CHANGED", reason: value.action === "remove-music" ? "Removed background music" : "Changed background music" } });
+      await tx.moderationAudit.create({ data: { actorId: user.id, targetId: id, action: "SITE_AUDIO_CHANGED", reason: value.action === "remove-music" ? "Removed a background song" : "Added a background song" } });
     }
   });
   return getAudioSettings();
 }
-export async function readAudio(kind: "music" | "ringtone") {
+export async function readAudio(kind: "music" | "ringtone", id?: string | null) {
   const user = await requireUser();
-  if (kind === "music") return prisma.siteAudio.findUnique({ where: { id: "background" }, select: { bytes: true, contentType: true } });
+  if (kind === "music") return id ? prisma.siteAudio.findUnique({ where: { id: trackId.parse(id) }, select: { bytes: true, contentType: true } }) : prisma.siteAudio.findFirst({ orderBy: [{ updatedAt: "asc" }, { id: "asc" }], select: { bytes: true, contentType: true } });
   const own = await prisma.userAudio.findUnique({ where: { userId: user.id }, select: { ringtone: true, contentType: true } });
   return own?.ringtone && own.contentType ? { bytes: own.ringtone, contentType: own.contentType } : null;
 }

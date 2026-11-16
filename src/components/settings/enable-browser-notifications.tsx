@@ -196,7 +196,7 @@ export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?
     unsupported: "This browser can't show reminders — you'll still see everything inside MONO.",
     "not-configured": "Browser reminders aren't set up for this install. In-app notifications still work.",
     "ios-needs-install":
-      "On iPhone, add MONO to your Home Screen first — then you can turn on reminders here.",
+      "On iOS, add MONO to your Home Screen first — then you can turn on reminders here.",
     denied: "Your browser reports notifications are blocked. Allow MONO in browser or phone settings, then return here. MONO cannot change a blocked permission itself.",
     off: permission === "granted" ? "Notification permission is allowed. Finish enabling to connect this device to your MONO alerts." : purpose === "calls" ? "Allow notifications for incoming calls, even when MONO is closed. Tap the alert to open MONO and answer." : "Want MONO to remind you about your next date, and when your partner adds something — even when MONO is closed?",
     on: "Enabled on this device. Delivery depends on your connection and phone notification settings.",
@@ -228,7 +228,7 @@ export function EnableBrowserNotifications({ purpose = "reminders" }: { purpose?
             </Button></div>
           ) : null}
           <details className="mt-3 text-sm text-muted"><summary className="cursor-pointer">No popup, or enabled manually?</summary>
-            <div className="mt-2 space-y-2"><p>In Samsung Internet, check its notification/site settings and allow MONO. Also check phone Settings → Apps → Samsung Internet (or the installed MONO app) → Notifications.</p>
+            <div className="mt-2 space-y-2"><p>On Android, allow MONO in your browser’s site notification settings. Also check device Settings → Apps → your browser or installed MONO app → Notifications.</p>
               <p>Return here and tap Check again. If permission is allowed, tap Finish enabling notifications if shown, then Test notification popup. Check your notification shade too—your phone can deliver notifications without a popup or sound.</p>
               <p>MONO can request browser permission, but cannot turn on a phone-level notification switch for you.</p></div>
           </details>

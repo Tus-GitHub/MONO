@@ -1,0 +1,5 @@
+ALTER TABLE "user_audio"
+  ADD COLUMN "musicMode" TEXT NOT NULL DEFAULT 'all',
+  ADD COLUMN "musicOrder" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  ADD COLUMN "musicSelectedIds" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  ADD COLUMN "musicRepeatOne" BOOLEAN NOT NULL DEFAULT false;

@@ -1,6 +1,7 @@
 import { AUDIO_CHUNK_BYTES, AUDIO_LIMIT, MUSIC_LIMIT } from "./file";
 import { togetherFetch } from "@/lib/together/client";
-export interface AudioSettings { ringtoneName: string | null; ringtoneVersion: string | null; musicVolume: number; musicEnabled: boolean; music: { title: string; version: string } | null }
+import type { MusicPreferences, MusicTrack } from "./playlist";
+export interface AudioSettings extends MusicPreferences { ringtoneName: string | null; ringtoneVersion: string | null; music: MusicTrack | null; tracks: MusicTrack[] }
 export const AUDIO_CHANGED = "mono:audio-settings";
 export function audioChanged(settings: AudioSettings) { window.dispatchEvent(new CustomEvent(AUDIO_CHANGED, { detail: settings })); }
 const encode = (bytes: Uint8Array) => {

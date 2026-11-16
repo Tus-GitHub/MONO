@@ -41,8 +41,8 @@ export async function uploadAdminMusic(value: unknown) {
       const contentType = audioType(upload.bytes);
       if (upload.bytes.length !== upload.totalBytes || !contentType) throw new ValidationError("Upload a complete MP3, M4A, WAV or Ogg file up to 10 MB.");
       const data = { bytes: upload.bytes, contentType, title: upload.name, updatedById: admin.id };
-      await tx.siteAudio.upsert({ where: { id: "background" }, create: { id: "background", ...data }, update: data });
-      await tx.moderationAudit.create({ data: { actorId: admin.id, targetId: "background", action: "SITE_AUDIO_CHANGED", reason: "Changed background music" } });
+      await tx.siteAudio.create({ data: { id: upload.id, ...data } });
+      await tx.moderationAudit.create({ data: { actorId: admin.id, targetId: upload.id, action: "SITE_AUDIO_CHANGED", reason: "Added a background song" } });
       await tx.audioUpload.update({ where: { id: upload.id }, data: { published: true, bytes: new Uint8Array() } });
     }
     return { published: true };

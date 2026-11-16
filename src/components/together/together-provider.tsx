@@ -13,7 +13,7 @@ import { CallVideoStage } from "./call-video-stage";
 import { BackgroundMusic } from "@/components/settings/background-music";
 import { usePathname } from "next/navigation";
 
-type CallContext = ReturnType<typeof useCoupleCall> & { soundsReady: boolean; enableCallSounds: () => void; returnToCall: () => void };
+type CallContext = ReturnType<typeof useCoupleCall> & { soundsReady: boolean; enableCallSounds: () => void; returnToCall: () => void; miniVideoVisible: boolean };
 const Context = createContext<CallContext | null>(null);
 const subscribeCapabilities = () => () => {};
 const screenSharingAvailable = () => typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
@@ -60,11 +60,11 @@ export function TogetherProvider({ userId, children }: { userId: string; childre
     {incoming && !preparing ? <><div className="col-start-2"><CallControl icon="phoneEnd" label="Decline" tone="danger" onClick={() => { stopRingtone(); void calling.decline(); }} /></div><div className="col-start-4"><CallControl icon="phone" label="Pick up" tone="success" onClick={() => { stopRingtone(); void calling.accept(); }} /></div></>
       : calling.call || preparing ? <div className={calling.owned ? "" : "col-start-3"}><CallControl icon="phoneEnd" label={preparing ? "Cancel call" : "End call"} tone="danger" onClick={() => { stopRingtone(); void calling.end(); }} /></div> : <Button variant="secondary" onClick={close}>Close</Button>}
   </div>;
-  return <Context.Provider value={{ ...calling, soundsReady, enableCallSounds, returnToCall }}><BackgroundMusic pausedForCall={Boolean(id) || calling.phase !== "idle"}>
+  return <Context.Provider value={{ ...calling, soundsReady, enableCallSounds, returnToCall, miniVideoVisible: minimized }}><BackgroundMusic pausedForCall={Boolean(id) || calling.phase !== "idle"}>
     <audio ref={audioRef} preload="none" aria-label="Call ringtone" />
     <audio ref={partnerAudioRef} autoPlay aria-label="Partner call audio" />
     {children}
-    {id && !open && pathname !== "/chat" ? <div className="mono-call-return"><Button size="sm" leadingIcon={<Icon name={calling.call?.kind === "VIDEO" ? "video" : "phone"} />} onClick={returnToCall}>Return to call</Button></div> : null}
+    {id && !open && !minimized && pathname !== "/chat" ? <div className="mono-call-return"><Button size="icon" aria-label="Open current call" title="Open current call" onClick={returnToCall}><Icon name={calling.call?.kind === "VIDEO" ? "video" : "phone"} /></Button></div> : null}
     <div className="contents" onPointerDownCapture={chrome.interact}>
     <Modal open={open} docked={minimized} onClose={close} size={id ? "full" : "md"} className={id ? "mono-call-panel" : undefined} chromeHidden={minimized || !chrome.visible} closeLabel={id ? "Minimize call" : "Close"} footer={controls} title={incoming ? `Incoming ${calling.call?.kind === "VIDEO" ? "video" : "voice"} call` : calling.call?.kind === "VIDEO" ? "Your video call" : "Your call"}>
       <div className={id ? "relative flex h-full min-h-0 flex-col" : "space-y-4"}>
@@ -89,7 +89,7 @@ export function TogetherProvider({ userId, children }: { userId: string; childre
         </> : null}
         </div>
         {minimized ? <>
-          <button type="button" className="mono-call-mini-restore" aria-label="Expand video call" onClick={returnToCall}><span className="mono-call-mini-expand"><Icon name="expand" size="sm" /></span></button>
+          <button type="button" data-call-drag className="mono-call-mini-restore" aria-label="Expand video call" title="Drag to move, or use arrow keys. Tap to expand." onClick={returnToCall}><span className="mono-call-mini-expand"><Icon name="expand" size="sm" /></span></button>
           <div className="mono-call-mini-actions"><span className="text-xs">{calling.phase === "connected" ? "In call" : calling.phase === "ringing" ? "Calling…" : "Connecting…"}</span><Button size="icon" variant="danger" className="rounded-full" aria-label="End call" onClick={() => { stopRingtone(); void calling.end(); }}><Icon name="phoneEnd" /></Button></div>
         </> : null}
       </div>

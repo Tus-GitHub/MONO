@@ -27,30 +27,37 @@ export async function runGameExperience({ browser, baseUrl, prisma, runId, artif
   };
   const pageFor = async (user) => {
     const context = await browser.createBrowserContext(); contexts.push(context); const page = await context.newPage();
+    await page.evaluateOnNewDocument("globalThis.__name = (value) => value;");
     page.setDefaultTimeout(60000); page.setDefaultNavigationTimeout(180000);
     page.on("console", msg => { if (/reload|HMR|Fast Refresh/.test(msg.text())) console.log("DEV", msg.text()); });
     page.on("pageerror", (error) => { errors.push(error.message); console.log("BROWSER ERROR", error.message); });
     page.on("framenavigated", frame => { if (frame === page.mainFrame()) console.log("PAGE", new URL(frame.url()).pathname); });
     await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
-    await page.goto(`${baseUrl}/login`, { waitUntil: "networkidle2" });
+    await page.goto(`${baseUrl}/login`, { waitUntil: "domcontentloaded" });
     await fill(page, '[name="email"]', user.email); await fill(page, '[name="password"]', password); await click(page, "Sign in");
     await page.waitForFunction(() => location.pathname === "/home");
-    await page.goto(`${baseUrl}/games`, { waitUntil: "networkidle2" });
+    await page.goto(`${baseUrl}/games`, { waitUntil: "domcontentloaded" });
     return page;
   };
 
   const bodies = [];
   try {
     const owner = await pageFor(users[0]), partner = await pageFor(users[1]);
+    let failedSignal = false;
+    await owner.setRequestInterception(true);
+    owner.on("request", request => {
+      if (!failedSignal && request.method() === "GET" && new URL(request.url()).pathname === "/api/together/games/chat") { failedSignal = true; void request.respond({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Temporary QA interruption" }) }); }
+      else void request.continue();
+    });
     for (const page of [owner, partner]) page.on("request", request => { if (request.method() === "POST") bodies.push(request.postData() ?? ""); });
     await owner.bringToFront(); await clickTarget(owner, '[aria-label="Invite to Tic-tac-toe"]');
     await text(owner, "Waiting for");
     const game = await prisma.gameMatch.findFirstOrThrow({ where: { coupleId: couple.id }, orderBy: { createdAt: "desc" } });
-    await partner.bringToFront(); await partner.goto(`${baseUrl}/games/${game.id}`, { waitUntil: "networkidle2" });
+    await partner.bringToFront(); await partner.goto(`${baseUrl}/games/${game.id}`, { waitUntil: "domcontentloaded" });
     await click(partner, "Accept game");
-    await owner.bringToFront(); await text(owner, "Match chat");
-    await Promise.all([owner, partner].map(page => page.waitForFunction(() => { const el = document.querySelector('[aria-label="Temporary game message"]'); return el && !el.disabled; }, { timeout: 90000 })));
-    pass("two players connect a private inline match chat");
+    await owner.bringToFront(); await owner.waitForSelector("[data-game-chat]");
+    await Promise.all([owner, partner].map(page => page.waitForFunction(() => { return document.querySelector('[data-game-chat]')?.getAttribute("data-chat-phase") === "connected"; }, { timeout: 90000 })));
+    assert.equal(failedSignal, true); pass("match chat automatically recovers a failed signaling request and connects both players");
     const count = await prisma.chatMessage.count({ where: { coupleId: couple.id } });
     const first = `temporary-owner-${runId}`, second = `temporary-partner-${runId}`;
     await owner.type('[aria-label="Temporary game message"]', first); await clickTarget(owner, '[aria-label="Send game message"]');
@@ -74,6 +81,13 @@ export async function runGameExperience({ browser, baseUrl, prisma, runId, artif
     await owner.waitForSelector('[role="dialog"]');
     await partner.bringToFront(); await partner.waitForSelector('[role="dialog"]');
     await text(partner, `${users[1].name} wins!`);
+    await owner.waitForSelector('[data-game-outcome="loss"]');
+    await partner.waitForSelector('[data-game-outcome="win"]');
+    assert.equal(await partner.$$eval('.mono-result-confetti i', nodes => nodes.length), 38);
+    assert.equal(await partner.$eval('.mono-result-confetti i', el => getComputedStyle(el).animationName), "result-confetti");
+    await partner.screenshot({ path: path.join(artifactDir, "game-win-confetti.png") });
+    await owner.screenshot({ path: path.join(artifactDir, "game-loss.png") });
+    pass("winner gets real confetti and the other partner gets a sad result");
     for (const page of [owner, partner]) {
       assert.equal(await page.$('[data-game-chat]'), null);
       assert.equal(await page.evaluate(value => document.body?.innerText.includes(value), first), false);
@@ -97,9 +111,21 @@ export async function runGameExperience({ browser, baseUrl, prisma, runId, artif
     assert.equal(await owner.$$eval('[role="log"] p', nodes => nodes.length), 0);
     pass("accepted rematch opens for both players with a fresh chat and no main-chat invitation");
     await owner.screenshot({ path: path.join(artifactDir, "rematch-mobile.png"), fullPage: true });
+    for (const [index, cell] of [0, 1, 2, 4, 3, 5, 7, 6, 8].entries()) {
+      const player = index % 2 === 0 ? partner : owner, selector = `[aria-label="Square ${cell + 1}: empty"]`;
+      await player.waitForSelector(`${selector}:not([disabled])`);
+      await clickTarget(player, selector);
+    }
+    for (const page of [owner, partner]) await page.waitForSelector('[data-game-outcome="draw"]');
+    await text(owner, "Well… this is awkward.");
+    await owner.screenshot({ path: path.join(artifactDir, "game-draw.png") });
+    await owner.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
+    assert.equal(await owner.$eval('.mono-result-character', el => getComputedStyle(el).animationName), "none");
+    await click(owner, "Back to match"); await owner.waitForFunction(() => !document.querySelector('[role="dialog"]'));
+    pass("a real drawn rematch shows the funny result to both partners and respects reduced motion");
     if (new URL(baseUrl).hostname === "127.0.0.1") {
       await prisma.adminAccess.create({ data: { userId: users[0].id } });
-      await owner.goto(`${baseUrl}/admin`, { waitUntil: "networkidle2" });
+      await owner.goto(`${baseUrl}/admin`, { waitUntil: "domcontentloaded" });
       await text(owner, "Storage overview"); await text(owner, "No per-couple storage quota"); await text(owner, "up to 10 MB");
       await owner.screenshot({ path: path.join(artifactDir, "admin-storage-mobile.png"), fullPage: true });
       pass("admin sees aggregate storage and the 10 MB music upload option");

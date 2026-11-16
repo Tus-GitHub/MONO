@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const kind = request.nextUrl.searchParams.get("kind");
     if (kind !== "music" && kind !== "ringtone") return togetherJSON(await getAudioSettings());
-    const audio = await readAudio(kind);
+    const audio = await readAudio(kind, request.nextUrl.searchParams.get("id"));
     if (!audio) return new Response(null, { status: 404, headers: { "Cache-Control": "no-store" } });
     const range = audioRange(request.headers.get("range"), audio.bytes.length);
     const headers = new Headers({ "Content-Type": audio.contentType, "Cache-Control": "private, no-store", "Accept-Ranges": "bytes", "X-Content-Type-Options": "nosniff" });
