@@ -73,6 +73,17 @@ export async function processStorageCleanup(options: { now?: Date; limit?: numbe
     const owned = { id: job.id, leaseToken: token };
     try {
       if (!isCanonicalStorageKey(job.key)) throw new Error("Invalid key.");
+      if (job.key.includes("/chat-videos/")) {
+        const active = await prisma.chatVideoPart.findFirst({ where: { storageKey: job.key, video: {
+          couple: { deletedAt: null }, OR: [{ messageId: null, expiresAt: { gt: now } }, { message: { deletedAt: null } }],
+        } }, select: { videoId: true } });
+        if (active) {
+          // Retain a cleanup job so account/couple cascades cannot orphan encrypted files.
+          report.kept++;
+          await prisma.storageCleanup.updateMany({ where: owned, data: { attempts: 0, leaseToken: null, leaseUntil: null, nextAttemptAt: new Date(now.getTime() + MEDIA_RETENTION_MS) } });
+          return;
+        }
+      }
       if (await isActiveMediaKey(job.key)) report.kept++;
       else { await storage.delete(job.key); report.removed++; }
       await prisma.storageCleanup.deleteMany({ where: owned });

@@ -23,6 +23,7 @@ suites.moderation = ["moderation.mjs", "runModeration"];
 suites.chatPlanner = ["chat-planner.mjs", "runChatPlanner"];
 suites.controls = ["custom-controls.mjs", "runControlsSuite"];
 suites.gameExperience = ["game-experience.mjs", "runGameExperience"];
+suites.chatVideos = ["chat-videos.mjs", "runChatVideos"];
 suites.chatStickers = ["chat-stickers.mjs", "runChatStickers"];
 const selected = process.argv.slice(2).length ? process.argv.slice(2) : engine === "firefox" ? ["compatibility"] : Object.keys(suites);
 if (selected.some((name) => !suites[name])) throw new Error("Choose journey, account, pagination, workflows, compatibility, settings, registration, states, or moderation.");

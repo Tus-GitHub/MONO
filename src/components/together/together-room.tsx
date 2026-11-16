@@ -14,6 +14,7 @@ import { togetherFetch, errorMessage } from "@/lib/together/client";
 import type { MessageDTO, TogetherSnapshot } from "@/lib/together/types";
 import { chatAAD, encryptText, type ChatKey } from "@/lib/together/chat-crypto";
 import { encryptPhoto } from "@/lib/together/secure-photo";
+import { VideoComposer } from "./video-composer";
 import { DOCUMENT_ACCEPT, DOCUMENT_LIMIT, encryptDocument } from "@/lib/together/attachments";
 import { ChatEncryption, SecureHistory } from "./chat-encryption";
 import { SecureMessage } from "./secure-message";
@@ -124,6 +125,8 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, revision }: { c
   const input = useRef<HTMLTextAreaElement | null>(null), composer = useRef<HTMLDivElement | null>(null);
   const sending = useRef(false), draftVersion = useRef(0);
   const selection = useRef({ start: 0, end: 0 }), customNonce = useRef({ identity: "", value: "" });
+  const [pendingVideo, setVideo] = useState<File | null>(null);
+  const videoFile = useRef<HTMLInputElement | null>(null);
   const [pendingDocument, setDocument] = useState<File | null>(null);
   const documentFile = useRef<HTMLInputElement | null>(null), documentNonce = useRef("");
   const file = useRef<HTMLInputElement | null>(null), nonce = useRef({ identity: "", value: "" }), imageNonce = useRef("");
@@ -234,6 +237,7 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, revision }: { c
       <div className="flex flex-wrap gap-2"><Button size="sm" disabled={busy} onPointerDown={keepComposerFocus} onClick={() => void send("TEXT", failedText.body, failedText)}>Retry message</Button>
         <Button size="sm" variant="ghost" disabled={busy} onPointerDown={keepComposerFocus} onClick={() => { setFailedText(null); setError(null); }}>Dismiss retry</Button></div>
     </div> : null}
+    {pendingVideo ? <VideoComposer file={pendingVideo} chatKey={chatKey} coupleId={coupleId} userId={userId} onClose={() => setVideo(null)} onSent={append} /> : null}
     <BottomSheet open={pendingDocument != null} title="Share a document" onClose={() => { if (!busy) { setDocument(null); documentNonce.current = ""; } }} footer={<Button loading={busy} onClick={() => void sendDocument()}>Send document</Button>}>
       <div className="flex items-center gap-3"><Icon name="document" /><p className="break-all">{pendingDocument?.name}</p></div><p className="mt-3 text-sm text-muted">End-to-end encrypted · up to 2 MB. Your partner can save a copy.</p>{error ? <p role="alert" className="mt-2 text-sm text-error">{error}</p> : null}
     </BottomSheet>
@@ -245,9 +249,10 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, revision }: { c
     </BottomSheet>
     <form onSubmit={(event) => { event.preventDefault(); void send("TEXT", text.trim()); }} className="space-y-1">
         <input ref={file} type="file" accept="image/*" aria-label="Choose a chat image" className="sr-only" tabIndex={-1} onChange={(event) => { const next = event.target.files?.[0]; if (next && !busy && !cropFiles) setCropFiles([next]); event.target.value = ""; }} />
+      <input ref={videoFile} type="file" accept="video/*,.mov,.mp4,.webm" aria-label="Choose a chat video" className="sr-only" tabIndex={-1} onChange={(event) => { const next = event.target.files?.[0]; event.target.value = ""; if (next && !sending.current && !failedText) setVideo(next); }} />
       <input ref={documentFile} type="file" accept={DOCUMENT_ACCEPT} aria-label="Choose a chat document" className="sr-only" tabIndex={-1} onChange={(event) => { const next = event.target.files?.[0]; event.target.value = ""; if (!next || sending.current || failedText) return; if (!next.size || next.size > DOCUMENT_LIMIT) { setError("Choose a document up to 2 MB."); return; } documentNonce.current = ""; setError(null); setDocument(next); }} />
       <div className="flex items-end gap-2">
-        <Button size="icon" variant="ghost" aria-label="Add attachment" title="Photos, documents and stickers" aria-haspopup="dialog" aria-expanded={toolsOpen} disabled={busy || !!failedText} onClick={() => setToolsOpen(true)} className="shrink-0"><Icon name="plus" /></Button>
+        <Button size="icon" variant="ghost" aria-label="Add attachment" title="Photos, videos, documents and stickers" aria-haspopup="dialog" aria-expanded={toolsOpen} disabled={busy || !!failedText} onClick={() => setToolsOpen(true)} className="shrink-0"><Icon name="plus" /></Button>
         <div className="relative min-w-0 flex-1">
           <Textarea ref={input} aria-label="Message your partner" placeholder="Message…" className="mono-chat-input min-h-11 pr-12" maxLength={4000} rows={1} value={text} onChange={(event) => edit(event.target.value)} />
           <Button size="icon" variant="ghost" aria-label="Open emoji and stickers" title="Emoji and stickers" aria-haspopup="dialog" aria-expanded={palette != null} disabled={busy || !!failedText} onClick={openExpressions} className="absolute right-0 bottom-0 shrink-0"><Icon name="smile" /></Button>
@@ -259,11 +264,12 @@ function Composer({ chatKey, coupleId, userId, append, onTyping, revision }: { c
     </form>
     {cropFiles ? <ImageCropDialog files={cropFiles} onCancel={() => setCropFiles(null)}
       onConfirm={([cropped]) => { setCropFiles(null); setPicture(cropped); imageNonce.current = ""; }} /> : null}
-    <BottomSheet open={toolsOpen} onClose={() => setToolsOpen(false)} onAfterClose={() => { if (openStickersAfterTools.current) { openStickersAfterTools.current = false; setPalette("stickers"); } }} title="Share something" description="A photo, a file, a sticker. A little part of your day." footer={<Button variant="ghost" fullWidth onClick={() => setToolsOpen(false)}>Cancel</Button>}>
+    <BottomSheet open={toolsOpen} onClose={() => setToolsOpen(false)} onAfterClose={() => { if (openStickersAfterTools.current) { openStickersAfterTools.current = false; setPalette("stickers"); } }} title="Share something" description="A photo, a video, a file, a sticker. A little part of your day." footer={<Button variant="ghost" fullWidth onClick={() => setToolsOpen(false)}>Cancel</Button>}>
       <div className="grid grid-cols-2 gap-3">
         <button type="button" disabled={busy || !!failedText} onClick={() => { setToolsOpen(false); file.current?.click(); }} className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-surface p-5 text-center transition-colors hover:border-primary disabled:opacity-50"><span className="grid size-12 place-items-center rounded-2xl bg-primary-tint text-primary"><Icon name="images" /></span><span className="text-sm font-medium">Photo</span><span className="text-xs text-muted">Keep it or limit views</span></button>
         <button type="button" disabled={busy || !!failedText} onClick={() => { setToolsOpen(false); documentFile.current?.click(); }} className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-surface p-5 text-center transition-colors hover:border-primary disabled:opacity-50"><span className="grid size-12 place-items-center rounded-2xl bg-accent-tint text-accent"><Icon name="document" /></span><span className="text-sm font-medium">Document</span><span className="text-xs text-muted">Share a file to keep</span></button>
-        <button type="button" disabled={busy || !!failedText} onClick={() => { openStickersAfterTools.current = true; setToolsOpen(false); }} className="col-span-2 flex items-center justify-center gap-3 rounded-2xl border border-line bg-surface p-4 transition-colors hover:border-primary disabled:opacity-50"><Icon name="smile" /><span className="text-sm font-medium">Stickers & custom stickers</span></button>
+        <button type="button" disabled={busy || !!failedText} onClick={() => { setToolsOpen(false); videoFile.current?.click(); }} className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-surface p-5 text-center transition-colors hover:border-primary disabled:opacity-50"><span className="grid size-12 place-items-center rounded-2xl bg-primary-tint text-primary"><Icon name="video" /></span><span className="text-sm font-medium">Video</span><span className="text-xs text-muted">Compress & encrypt</span></button>
+        <button type="button" disabled={busy || !!failedText} onClick={() => { openStickersAfterTools.current = true; setToolsOpen(false); }} className="flex items-center justify-center gap-3 rounded-2xl border border-line bg-surface p-4 transition-colors hover:border-primary disabled:opacity-50"><Icon name="smile" /><span className="text-sm font-medium">Stickers & custom stickers</span></button>
       </div>
       <p className="mt-4 text-center text-xs text-muted">End-to-end encrypted</p>
     </BottomSheet>

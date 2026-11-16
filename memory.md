@@ -14,6 +14,8 @@ error/fatal log query is empty. Vercel's largest trace is 44.80 MiB (within the 
 The in-app Browser control remains unavailable; mobile/desktop/PWA visual and click-flow
 tests were NOT run. The user's panel-only constraint was preserved. Existing authenticated
 localhost preview remains at http://localhost:3247 with sample plans and memories.
+## Encrypted videos and couple storage (2026-11-16) - IN PROGRESS
+Added device-side compression via pinned Mediabunny 1.66.0, audio preservation or original fallback, retryable 1 MiB E2EE chunks, authenticated playback/save and cleanup. Production video ciphertext uses existing Neon object storage. Per-video transfer bound 512 MiB; no couple quota. Admin Couples tab groups both IDs and known media usage; labels disclose exclusions. Verified Neon Free database limit 1 GiB and current 5 GB file-storage allowance. 579 unit tests and 10 focused database checks passed. 28 additional chat-security/moderation checks passed. Pre-release build caught an admin-page UTF-8 encoding issue; source corrected, no publish attempted. First corrected production build passed (99 routes). Browser test identified CSP blocking the local conversion worker; worker-src now permits local blob workers, and isolated diagnostic compresses a genuine 31.3 MiB video to 3.05 MiB with audio preserved for subsequent playback checks. Merged upstream 0701007 planner work; all 591 unit tests pass. Final merged production build passed (99 routes; largest 27.35 MiB). Seven local production-bundle browser groups passed: genuine 32,773,295-byte video compressed to 3,202,228 bytes; simulated three failed chunk requests resumed without duplicate messages; both users played moving video with measurable audio; reload, 320/390/768/1440 layout, admin ID grouping and both deletion modes passed. Artifact .postgres-test/e2e/75f828ddb278bd96. Two fixture accounts/one space cleaned. Preparing authorized production publish and live QA.
 
 ## Game chat, rematches, audio and storage release (2026-11-16) — PUBLISHED & VERIFIED
 Removed total per-couple attachment quotas and the user-facing 25 MB counter. Photo,
@@ -143,6 +145,7 @@ components. Business rules never live only in React components — they live in
 ### In Progress
 
 - **Planner and Memories panel verification (2026-11-16)** — implementation and deployment are complete (see Done and release record). Mobile/desktop visual and browser interaction checks remain blocked: the in-app Browser connection returns `Browser is not available: iab` / plugin unavailable. No alternative browser was used under the panel-only constraint. Local preview stays authenticated on port3247; planner and Memories rendered with HTTP200 after refreshing the development process's stale Prisma client. These responses do not establish visual or click-flow correctness.
+- **Encrypted videos and admin couple usage (2026-11-16)** — client-side compression, encrypted retryable video chunks, couple/account-ID storage grouping, provider limit audit, deployment and live QA in progress.
 
 
 
@@ -4347,3 +4350,6 @@ User supplied a DateFlow reference and requested MONO-styled icon tiles in an Ad
 - User requests no total storage quota or delete-old-images requirement. Remove the former 25 MB per-couple attachment cap/counter; admin-only aggregate storage overview. Physical hosting capacity remains admin-managed. Existing technical per-file limits remain; videos deferred explicitly until games complete.
 
 - Validation update: 46 focused integration checks passed across games, privacy/signaling, no-quota uploads, admin totals and 10 MB audio. A large-buffer assertion was changed to SHA-256 equality (same byte verification, avoids slow test comparison). Development-browser runs exposed first-compilation reloads and occluded synthetic clicks; moving final browser verification to the production build and using hit-tested controls.
+
+### 2026-11-16 — Video messages, couple admin grouping and project limits — IN PROGRESS
+User requests compressed encrypted video messages, live verification, a Couples tab grouping both account IDs with storage usage, and actual project limits. Neon project lively-dawn-48315757 reports free_v3 and branch_logical_size_limit_bytes=1073741824. Investigating existing Cloudflare R2 file storage before implementation. No quota restoration or paid upgrade authorized.

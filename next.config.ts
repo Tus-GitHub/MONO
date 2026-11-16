@@ -19,8 +19,8 @@ const csp = [
   "font-src 'self' data:",
   `connect-src 'self'${isDev ? " ws:" : ""}`,
   "media-src 'self' blob:",
-  // The service worker and the web app manifest are same-origin only.
-  "worker-src 'self'",
+  // Local video conversion creates a blob worker; no third-party worker origins.
+  "worker-src 'self' blob:",
   "manifest-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",

@@ -21,6 +21,7 @@ export const reviewReportSchema = z.object({
   reason: z.string().trim().min(10, "Record your review (at least 10 characters).").max(1000),
 });
 export const adminQuerySchema = z.object({
+  view: z.enum(["couples", "accounts"]).default("couples").catch("couples"),
   page: z.coerce.number().int().min(1).max(10000).default(1).catch(1),
   query: z.string().trim().max(64).regex(/^[a-z0-9_-]*$/i).default("").catch(""),
   reportStatus: z.enum(["OPEN", "DISMISSED", "ACTIONED"]).default("OPEN").catch("OPEN"),

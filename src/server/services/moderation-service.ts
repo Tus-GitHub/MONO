@@ -1,4 +1,5 @@
 import "server-only";
+import { adminCoupleStorage } from "./admin-couple-storage";
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
@@ -19,6 +20,7 @@ export async function getAdminDashboard(rawQuery: unknown = {}) {
   const query = adminQuerySchema.parse(rawQuery);
   const skip = (query.page - 1) * PAGE_SIZE;
   const where = query.query ? { id: { contains: query.query } } : {};
+  const couples = await adminCoupleStorage(query.query, skip, PAGE_SIZE);
   const [totalAccounts, activeAccounts, openReports, accountCount, accounts, reportCount, reports, audit, attachments, database] = await prisma.$transaction([
     prisma.user.count(),
     prisma.user.count({ where: { deletedAt: null, blockedAt: null } }),
@@ -41,7 +43,7 @@ export async function getAdminDashboard(rawQuery: unknown = {}) {
   ]);
   return { storage: { attachmentBytes: attachments._sum.byteLength ?? 0, attachmentCount: attachments._count._all, databaseBytes: Number(database[0]?.bytes ?? 0) }, query, totalAccounts, activeAccounts, openReports, accountCount, reportCount, pageSize: PAGE_SIZE,
     accounts: accounts.map((row) => ({ id: row.id, deleted: !!row.deletedAt, blocked: !!row.blockedAt, admin: !!row.adminAccess })),
-    reports, audit,
+    reports, audit, couples,
   };
 }
 

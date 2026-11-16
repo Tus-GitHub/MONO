@@ -246,6 +246,7 @@ model User {
   notificationDeliveries NotificationDelivery[]
   recommendationFeedback RecommendationFeedback[]
   chatMessages           ChatMessage[]
+  chatVideos             ChatVideo[]
   chatStates             ChatMemberState[]
   gamesAsOne             GameMatch[] @relation("GamePlayerOne")
   gamesAsTwo             GameMatch[] @relation("GamePlayerTwo")
@@ -446,6 +447,7 @@ model Couple {
   archiveRestore   ArchiveRestore?
   chatMessages     ChatMessage[]
   chatImages       ChatImage[]
+  chatVideos       ChatVideo[]
   chatStates       ChatMemberState[]
   games            GameMatch[]
   calls            CoupleCall[]
@@ -458,6 +460,7 @@ model Couple {
 }
 
 enum ChatMessageKind {
+  VIDEO
   DOCUMENT
   TEXT
   STICKER
@@ -533,6 +536,7 @@ model ChatMessage {
   sender      User @relation(fields: [senderId], references: [id], onDelete: Restrict)
   game        GameMatch? @relation(fields: [gameId], references: [id], onDelete: SetNull)
   image       ChatImage?
+  video       ChatVideo?
   @@unique([senderId, clientNonce])
   @@index([coupleId, sequence])
   @@index([coupleId, revision])
@@ -558,6 +562,41 @@ model ChatImage {
   couple      Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
   @@index([coupleId])
   @@map("chat_images")
+}
+
+// Only ciphertext chunks live in object storage. Metadata in body is client encrypted.
+model ChatVideo {
+  id          String @id @default(cuid())
+  coupleId    String
+  senderId    String
+  clientNonce String
+  keyId       String
+  body        String
+  byteLength  Int
+  chunkCount  Int
+  messageId   String? @unique
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  couple      Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  sender      User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  message     ChatMessage? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  parts       ChatVideoPart[]
+  @@unique([senderId, clientNonce])
+  @@index([coupleId])
+  @@index([expiresAt])
+  @@map("chat_videos")
+}
+
+model ChatVideoPart {
+  videoId     String
+  index       Int
+  storageKey  String @unique
+  byteLength  Int
+  iv          String
+  digest      String
+  video       ChatVideo @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  @@id([videoId, index])
+  @@map("chat_video_parts")
 }
 
 model ChatMemberState {

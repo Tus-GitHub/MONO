@@ -21,6 +21,7 @@ export const privateTextFields: Record<string, readonly string[]> = {
   Notification: ["title", "body"],
   DateEvent: ["summary"],
   ChatMessage: ["body"],
+  ChatVideo: ["body"],
   AccountReport: ["details", "reviewNote"],
   ModerationAudit: ["reason"],
   EmailBlock: ["reason"],
