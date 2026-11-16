@@ -133,7 +133,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-17 (AMOR readable logo and call reconnect fix deployed; live login/invites/chat/calls and unchanged historical ciphertext verified)
+Last updated: 2026-11-17 (three solo games implemented and locally verified; production build and deployment in progress)
 
 
 
@@ -157,6 +157,8 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
+
+- **Solo games and saved bests (2026-11-17):** Emoji Bounce, Snake and 2048 implemented with touch/mouse/keyboard controls and server-verified personal bests visible to both partners. Local tests pass; building and publishing from .postgres-test/emoji-bounce.
 
 - **Compact desktop date card (2026-11-17):** User screenshot identifies the home upcoming-date cover growing too tall on laptops. Preserve mobile styling, bound desktop media height and loading placeholder, verify in the right-panel browser. Work isolated from other ongoing branding changes.
 - Temporary migration branch `br-lively-math-b329pbdl` is retained pending the already-requested explicit cleanup approval. Feature deployment is complete; do not delete the branch without that response.
@@ -1917,6 +1919,11 @@ components. Business rules never live only in React components — they live in
   in `(app)/layout`, switcher in `/settings` (`<PreferencesForm>`).
 
 ## Task Log
+
+### 2026-11-17 — Solo games and saved bests — IN PROGRESS
+- User expanded the emoji paddle request to more solo games and authorized deployment. Added Emoji Bounce, Snake and 2048, bringing the Games catalog to 27. Each player has a database-backed best for each game; Scores shows both partners. Signed, user/couple-bound rounds and bounded server replays verify scores, transactional writes retain the highest result, and existing updates notify the partner. Existing 24 multiplayer games and design retained; no new package or secret.
+- Additive solo_game_scores migration passed on temporary Neon branch br-spring-hat-b3ix7tys; all six accounts unchanged. User explicitly approved cleanup and the branch was deleted without applying production changes. Vercel's existing migration build will apply the production table.
+- Local verification passed: 41 game unit tests, five solo PostgreSQL/API tests and four existing game experience integration tests; focused ESLint passed. Right-panel browser verified 2048 buttons/keyboard/swipe, a saved 20-point best after reload, Emoji Bounce pointer catch/keyboard/pause and saved 1-point best, Snake direction/pause/resume/game-over, and the second partner's view of those scores. No browser console errors. Responsive measurements at 320/390/768/844-landscape/1366/1920 widths show no horizontal overflow and 44px controls. Fixed unequal 2048 row heights discovered during visual checks. Physical phone/installed-PWA testing is not claimed. Production build and TypeScript passed (108 routes); publishing and live verification pending.
 
 ### 2026-11-17 — AMOR live login, invites, chat, calls and existing history — DONE
 Completion: fix commit 5ee1868 merged concurrent desktop card changes in ba1131dd72dc7e1369b96551d3e62a01ff826387; push succeeded. Vercel dpl_8kcbSCF2nwpANmrKM5MBcJsNxwJW READY, both AMOR and old MONO aliases assigned. Final live run live-39f5d467eb3f passed all six network and seven voice/video/minimize groups with zero signaling errors; four fixture accounts removed. Final invitation run passed seven groups including real email confirmation/joining and 320/360/390/768/1440 responsive checks, then removed its two accounts, space and inbox. Earlier invitation harness attempts raced form hydration or waited for network-idle; explicit hydrated-form readiness passed without an application auth change. Three public branding checks on both origins pass. Existing-PWA Refresh moved v8 to v9, removed old cached name, retained a nonextractable IndexedDB key and saved preference, and rendered full AMOR artwork. Read-only final audit has zero issues and exactly matches all 63 pre-release ciphertext digests (53 nondeleted message bodies, seven chat images, three profile/space photos); 54 message rows remain including one previously deleted. All 12 bucket objects retain identical key/size/etag/time metadata. Runtime error/fatal scan empty. Physical phone hardware/audio routing was not retested; real two-browser WebRTC used generated media. Report docs/reports/amor-call-recovery-2026-11-17.md. No production schema, data, secret, encryption format, or storage change; unrelated root work preserved.

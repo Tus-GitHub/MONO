@@ -9,6 +9,7 @@
 
 :root {
   --game-cell-min: 2rem;
+  --solo-board-height: min(28rem, 58dvh);
   /* — surfaces & text (light) — */
   --paper: #f5f1ea; /* app background */
   --surface: #fdfbf7; /* cards, inputs */
@@ -95,6 +96,11 @@
   width: min(100%, calc(var(--crop-frame-max-height) * var(--crop-aspect)));
   aspect-ratio: var(--crop-aspect);
 }
+
+.solo-game-board { container-type: inline-size; }
+.solo-game-board-tall { width: min(100%, calc(var(--solo-board-height) * 9 / 13)); aspect-ratio: 9 / 13; }
+.solo-game-board-square { width: min(100%, var(--solo-board-height)); aspect-ratio: 1; }
+.solo-number-tile { font-size: clamp(0.625rem, 4cqw, 1.75rem); }
 
 /* Dark palette. Applied two ways:
    1. the OS is dark AND the user hasn't pinned a theme  → :root:not([data-theme])

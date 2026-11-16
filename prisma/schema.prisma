@@ -222,6 +222,7 @@ model User {
   audio UserAudio?
   audioUploads AudioUpload[]
   gameChatSignals GameChatSignal[]
+  soloScores SoloGameScore[]
 
   accounts            Account[]
   sessions            AuthSession[]
@@ -457,6 +458,7 @@ model Couple {
   chatVideos       ChatVideo[]
   chatStates       ChatMemberState[]
   games            GameMatch[]
+  soloScores       SoloGameScore[]
   calls            CoupleCall[]
 
   recommendationFeedback RecommendationFeedback[]
@@ -616,6 +618,19 @@ model ChatMemberState {
   user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@id([coupleId, userId])
   @@map("chat_member_states")
+}
+
+model SoloGameScore {
+  coupleId String
+  userId String
+  kind String
+  bestScore Int @default(0)
+  updatedAt DateTime @updatedAt
+  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  @@id([coupleId, userId, kind])
+  @@index([userId])
+  @@map("solo_game_scores")
 }
 
 model GameMatch {

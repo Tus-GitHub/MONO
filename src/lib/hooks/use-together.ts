@@ -29,7 +29,7 @@ export function useTogether(initial: TogetherSnapshot, chatVisible: boolean) {
       if (signal?.aborted) return;
       const changed = next.revision !== current.current.revision || next.messages.length > 0;
       current.current = { cursor: next.cursor, revision: next.revision };
-      setData((previous) => ({ ...previous, ...next, games: next.games ?? previous.games, scores: next.scores ?? previous.scores,
+      setData((previous) => ({ ...previous, ...next, games: next.games ?? previous.games, scores: next.scores ?? previous.scores, soloScores: next.soloScores ?? previous.soloScores,
         imageBytes: next.imageBytes ?? previous.imageBytes, messages: mergeMessages(previous.messages, [...next.messages, ...(next.updates ?? [])]) }));
       health.current.success(); setError(null); setDelay((old) => changed ? 2500 : Math.min(10_000, old + 1500));
     } catch (error) { if (!signal?.aborted) {

@@ -13,11 +13,16 @@ import { GameMatchList } from "./game-match-list";
 import GameBoard from "./game-board";
 import { GameChat } from "./game-chat";
 import { GameOutcome, rematchPending } from "./game-rematch";
+import { SOLO_GAMES, SOLO_KINDS, type SoloScore } from "@/lib/solo-games/catalog";
+import { SoloHighScores } from "@/components/solo-games/high-scores";
+import { LinkButton } from "@/components/ui/link-button";
 
-export default function GamesPanel({ games, scores, userId, userName, partnerName, selectedId, onSelect, refresh, mode, observedAt, timezone, initialGame = null }: {
+const gameCount = Object.keys(GAME_LABEL).length + SOLO_KINDS.length;
+
+export default function GamesPanel({ games, scores, soloScores = [], userId, userName, partnerName, selectedId, onSelect, refresh, mode, observedAt, timezone, initialGame = null }: {
   games: GameDTO[]; scores: ScoreDTO[]; userId: string; userName: string; partnerName: string;
   selectedId: string | null; onSelect: (id: string | null) => void; refresh: () => Promise<void>; mode: "games" | "scores";
-  observedAt: string; timezone: string; initialGame?: GameDTO | null;
+  observedAt: string; timezone: string; initialGame?: GameDTO | null; soloScores?: SoloScore[];
 }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null), [search, setSearch] = useState("");
   const [detail, setDetail] = useState<GameDTO | null>(initialGame), [confirmResign, setConfirmResign] = useState(false);
@@ -43,7 +48,7 @@ export default function GamesPanel({ games, scores, userId, userName, partnerNam
     catch (error) { setError(errorMessage(error)); await refresh().catch(() => {}); }
     finally { setBusy(false); setConfirmResign(false); }
   };
-  if (mode === "scores") return <Scoreboard scores={scores} userId={userId} userName={userName} partnerName={partnerName} />;
+  if (mode === "scores") return <div className="space-y-8"><SoloHighScores scores={soloScores} userId={userId} userName={userName} partnerName={partnerName} /><Scoreboard scores={scores} userId={userId} userName={userName} partnerName={partnerName} /></div>;
   if (selected) {
     const side = selected.playerOneId === userId ? 0 : 1, currentName = selected.state.turn === side ? "Your turn" : `${partnerName}'s turn`;
     const status = selected.status === "WAITING" ? side === 0 ? `Waiting for ${partnerName}` : `${partnerName} invited you` : selected.status === "FINISHED"
@@ -51,7 +56,7 @@ export default function GamesPanel({ games, scores, userId, userName, partnerNam
       : selected.status === "ACTIVE" ? selected.kind === "ROCK_PAPER_SCISSORS" ? "Both choose privately" : currentName : selected.status === "CANCELLED" ? "Invitation cancelled" : "Invitation declined";
     const version = { id: selected.id, version: selected.version };
     return <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-2"><Button variant="ghost" onClick={() => { onSelect(null); setError(null); }}>← All 24 games</Button></div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><Button variant="ghost" onClick={() => { onSelect(null); setError(null); }}>← All {gameCount} games</Button></div>
       <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-display text-2xl text-ink">{GAME_LABEL[selected.kind]}</h2><p role="status" className="text-sm text-muted">{status} · You are Player {side + 1}</p></div>
         {selected.status === "FINISHED" ? <GameOutcome key={selected.id} game={selected} userId={userId} partnerName={partnerName} userName={userName} busy={busy} onRequest={() => { awaitingRematch.current = selected.id; void act({ ...version, action: "rematch-request" }); }} onCancel={() => { awaitingRematch.current = null; void act({ ...version, action: "rematch-cancel" }); }} onOpen={() => onSelect(selected.rematchGameId!)} /> : selected.status === "DECLINED" || selected.status === "CANCELLED" ? <Button disabled={busy} onClick={() => void act({ action: "create", kind: selected.kind, clientNonce: crypto.randomUUID() })}>Invite again</Button> : null}</div>
       <details className="rounded-xl border border-line bg-surface p-4"><summary className="cursor-pointer text-sm font-medium">How to play</summary><p className="mt-3 text-sm text-muted">{GAME_RULES[selected.kind]}</p></details>
@@ -69,22 +74,28 @@ export default function GamesPanel({ games, scores, userId, userName, partnerNam
     </div>;
   }
   const kinds = (Object.keys(GAME_LABEL) as GameKind[]).filter((kind) => GAME_LABEL[kind].toLowerCase().includes(search.toLowerCase()));
+  const soloKinds = SOLO_KINDS.filter(kind => `${SOLO_GAMES[kind].name} solo`.toLowerCase().includes(search.toLowerCase()));
   const recent = recentGames(games, observedAt);
   const olderOpen = games.filter((game) => (game.status === "WAITING" || game.status === "ACTIVE") && !recent.some((row) => row.id === game.id)).length;
   return <div className="space-y-6">
-    <div><h2 className="font-display text-2xl text-ink">A little friendly competition</h2><p className="mt-1 text-sm text-muted">24 games, just for the two of you. Invite your partner to start a match. Scores save automatically when it finishes.</p></div>
+    <div><h2 className="font-display text-2xl text-ink">A little friendly competition</h2><p className="mt-1 text-sm text-muted">{gameCount} games, just for the two of you. Beat your personal best in a solo game, or invite your partner to a match. Scores save automatically.</p></div>
     {error ? <p role="alert" className="text-sm text-error">{error}</p> : null}
     <section aria-label="Your matches" className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="text-sm font-medium">Your matches</h3><p className="text-xs text-muted">Active in the last 60 minutes</p></div><Link href="/games/history" className="text-sm text-primary underline">Full history</Link></div>
       {recent.length ? <GameMatchList games={recent} userId={userId} timezone={timezone} /> : <p className="text-sm text-muted">No matches in the last hour. Pick a game below to play together.</p>}
       {olderOpen ? <p className="text-xs text-muted">{olderOpen} older {olderOpen === 1 ? "match is" : "matches are"} still open. <Link href="/games/history" className="text-primary underline">Open History to resume or close them.</Link></p> : null}
     </section>
     <SearchInput value={search} onValueChange={setSearch} placeholder="Find a mini-game" />
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{kinds.map((kind) => <article key={kind} className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{soloKinds.map(kind => <article key={kind} className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4">
+      <span aria-hidden="true" className="grid size-10 place-items-center rounded-xl bg-primary-tint text-xl">{SOLO_GAMES[kind].emoji}</span>
+      <h3 className="font-display text-lg leading-tight">{SOLO_GAMES[kind].name}</h3><p className="line-clamp-3 flex-1 text-xs text-muted">{SOLO_GAMES[kind].description}</p>
+      <p className="text-xs text-muted">Solo · Best: <span className="font-medium text-ink">{soloScores.find(s => s.kind === kind && s.userId === userId)?.bestScore.toLocaleString() ?? "—"}</span></p>
+      <LinkButton size="sm" variant="secondary" href={`/games/solo/${SOLO_GAMES[kind].slug}`} aria-label={`Play ${SOLO_GAMES[kind].name}`}>Play solo</LinkButton>
+    </article>)}{kinds.map((kind) => <article key={kind} className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4">
       <span className="grid size-10 place-items-center rounded-xl bg-primary-tint text-primary"><Icon name="gamepad" /></span>
       <h3 className="font-display text-lg leading-tight">{GAME_LABEL[kind]}</h3><p className="line-clamp-3 flex-1 text-xs text-muted">{GAME_RULES[kind]}</p>
       <Button size="sm" variant="secondary" disabled={busy} aria-label={`Invite to ${GAME_LABEL[kind]}`} onClick={() => void act({ action: "create", kind, clientNonce: crypto.randomUUID() })}>Invite to play</Button>
     </article>)}</div>
-    {!kinds.length ? <p className="text-sm text-muted">No games match that search.</p> : null}
+    {!kinds.length && !soloKinds.length ? <p className="text-sm text-muted">No games match that search.</p> : null}
   </div>;
 }
 function Scoreboard({ scores, userId, userName, partnerName }: { scores: ScoreDTO[]; userId: string; userName: string; partnerName: string }) {

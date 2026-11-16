@@ -26,7 +26,7 @@ export function GamesRoom({ initial, userId, userName, mode = "games", initialGa
     </div>
     {chat.error ? <p role="alert" className="text-sm text-error">{chat.error} <Button variant="link" onClick={() => void chat.refresh()}>Retry now</Button></p> : null}
     {mode === "history" ? <GameHistory initial={history ?? { games: [], nextCursor: null }} live={chat.data.games ?? []} userId={userId} timezone={chat.data.timezone} /> : <GamesPanel key={selectedId ?? mode}
-      games={chat.data.games ?? []} scores={chat.data.scores ?? []} userId={userId} userName={userName} partnerName={chat.data.partner.name}
+      games={chat.data.games ?? []} scores={chat.data.scores ?? []} soloScores={chat.data.soloScores ?? []} userId={userId} userName={userName} partnerName={chat.data.partner.name}
       selectedId={selectedId} initialGame={initialGame} onSelect={(id) => router.push(id ? `/games/${id}` : "/games")}
       refresh={chat.refresh} mode={mode} observedAt={chat.data.observedAt} timezone={chat.data.timezone} />}
     <RematchPrompt games={chat.data.games ?? []} userId={userId} partnerName={chat.data.partner.name} refresh={chat.refresh} onOpen={(id) => router.push(`/games/${id}`)} />

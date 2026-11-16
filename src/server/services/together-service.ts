@@ -12,6 +12,7 @@ import { assertChatKey } from "./chat-security-service";
 import type { GameDTO, MessageDTO, ScoreDTO, TogetherSnapshot } from "@/lib/together/types";
 import { bumpTogether, requireTogether, withTogetherWrite } from "./together-context";
 import { RECENT_GAME_WINDOW_MS } from "@/lib/together/game-list";
+import { SOLO_KINDS, type SoloScore } from "@/lib/solo-games/catalog";
 
 export const imageSelect = { width: true, height: true, contentType: true, encrypted: true, viewLimit: true, viewsUsed: true, crop: true } satisfies Prisma.ChatImageSelect;
 export function messageDTO(row: ChatMessage & { image: { width: number; height: number; contentType: string; encrypted: boolean; viewLimit: number; viewsUsed: number; crop?: unknown } | null }, userId: string): MessageDTO {
@@ -37,7 +38,7 @@ export async function getGame(id: string): Promise<GameDTO> {
 export async function togetherSnapshot(options: { after?: bigint; before?: bigint; revision?: string } = {}): Promise<TogetherSnapshot> {
   const context = await requireTogether(), { couple, user, partner } = context;
   const changed = options.revision !== String(couple.togetherRevision) || options.after == null;
-  const [messages, peer, games, grouped, imageUsage, updates] = await Promise.all([
+  const [messages, peer, games, grouped, imageUsage, updates, soloScores] = await Promise.all([
     changed || options.after != null || options.before != null ? prisma.chatMessage.findMany({ where: { coupleId: couple.id,
       ...(options.before != null ? { sequence: { lt: options.before } } : options.after != null ? { sequence: { gt: options.after } } : {}) },
       orderBy: { sequence: options.after != null && options.before == null ? "asc" : "desc" }, take: 60, include: { image: { select: imageSelect } } }) : Promise.resolve([]),
@@ -49,6 +50,7 @@ export async function togetherSnapshot(options: { after?: bigint; before?: bigin
     changed && options.before == null ? prisma.gameMatch.groupBy({ by: ["kind", "winnerId"], where: { coupleId: couple.id, status: "FINISHED" }, _count: { _all: true } }) : Promise.resolve(undefined),
     changed && options.before == null ? prisma.chatImage.aggregate({ where: { coupleId: couple.id }, _sum: { byteLength: true } }) : Promise.resolve(undefined),
     options.revision != null && options.before == null ? prisma.chatMessage.findMany({ where: { coupleId: couple.id, revision: { gt: BigInt(options.revision), lte: couple.togetherRevision } }, orderBy: [{ revision: "asc" }, { sequence: "asc" }], take: 60, include: { image: { select: imageSelect } } }) : Promise.resolve([]),
+    changed && options.before == null ? prisma.soloGameScore.findMany({ where: { coupleId: couple.id, userId: { in: [user.id, partner.id] }, kind: { in: SOLO_KINDS } }, select: { kind: true, userId: true, bestScore: true } }) : Promise.resolve(undefined),
   ]);
   if (!(options.after != null && options.before == null)) messages.reverse();
   const scores: ScoreDTO[] = [];
@@ -65,7 +67,7 @@ export async function togetherSnapshot(options: { after?: bigint; before?: bigin
     else score.losses += row._count._all;
   }
   return { coupleId: couple.id, chatKeyId: couple.chatKeyId, revision: String(updates.length === 60 ? updates[59].revision : couple.togetherRevision), updates: updates.map((row) => messageDTO(row, user.id)), cursor: messages.length ? String(messages[messages.length - 1].sequence) : String(options.after ?? 0),
-    messages: messages.map((row) => messageDTO(row, user.id)), games: games?.map((row) => gameDTO(row, user.id)), scores: grouped ? scores : undefined,
+    messages: messages.map((row) => messageDTO(row, user.id)), games: games?.map((row) => gameDTO(row, user.id)), scores: grouped ? scores : undefined, soloScores: soloScores as SoloScore[] | undefined,
     imageBytes: imageUsage?._sum.byteLength ?? (imageUsage ? 0 : undefined), hasMore: messages.length === 60,
     timezone: couple.timezone, observedAt: new Date().toISOString(), partner: { ...partner, lastRead: String(peer?.lastRead ?? 0), lastSeenAt: peer?.lastSeenAt.toISOString() ?? null, typingUntil: peer?.typingUntil?.toISOString() ?? null } };
 }
