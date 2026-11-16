@@ -25,4 +25,19 @@ References: [Telegram sticker maker](https://telegram.org/blog/sticker-maker/) a
 
 ## Production
 
-Publication and live two-partner sticker verification are in progress. Only newly created disposable fixture accounts/spaces will be used; no real-user chat will be modified.
+Published commit **7fac26a**; push to origin/main succeeded. Vercel deployment
+`dpl_BVPGg4Vk1aNLTMyoGXuFh7UwwhTx` is READY on https://mono-kappa-beryl.vercel.app.
+Vercel build completed; largest traced function was 44.79 MiB.
+
+Live health returned HTTP 200 with database up. Anonymous sticker-library GET returned 401
+and private/no-store; cross-origin POST returned 403. The additional production two-account
+UI run could not create fixtures because this machine could not resolve the configured
+DB endpoint (ENOTFOUND/P1001). Provider metadata reported active compute; app configuration
+was preserved. All attempted fixture runs created zero accounts/spaces. No real-user data,
+passwords, sessions or chat content were changed.
+
+Automatic approval review rejected sending the DB hostname to an independent public DNS
+resolver as an unapproved metadata disclosure. Optional approval was requested; that lookup
+was not sent. This limitation does not change the passing local two-partner browser result,
+but a live two-partner browser pass is not claimed. The local sticker test database server
+was stopped after verification.

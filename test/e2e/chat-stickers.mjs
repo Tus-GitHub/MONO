@@ -110,6 +110,7 @@ export async function runChatStickers({ browser, baseUrl, prisma, runId, artifac
     await owner.setViewport({ width: 1440, height: 900, isMobile: false, hasTouch: false });
     await owner.waitForSelector('[aria-label="Message your partner"]', { visible: true }); await open(owner); await click(owner, "Stickers");
     await owner.waitForSelector('[aria-label="Send Our QA smile custom sticker"]'); await readyImage(owner, "Our QA smile");
+    await owner.waitForFunction(() => { const image = document.querySelector('[aria-label="Send Our QA smile custom sticker"] img'); return image?.complete && image.naturalWidth > 0; });
     await owner.screenshot({ path: path.join(artifactDir, "chat-stickers-desktop.png") });
     assert.deepEqual(errors, []); pass("no uncaught browser errors");
     return { checks };

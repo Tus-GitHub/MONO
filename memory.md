@@ -1,18 +1,29 @@
-## Chat sticker release resumed (2026-11-16) — IN PROGRESS
-User explicitly requests completion of browser testing and publication. Approval service is
-available again; 13 focused PostgreSQL chat-security tests pass on the isolated sticker DB.
-Merged upstream main through f55ee1c, retaining its venue ratings/pagination and control refresh.
-All 579 unit and 55 focused PostgreSQL checks pass. Seven isolated sticker browser groups
-and eight control browser groups pass; screenshot review confirms the mobile picker/creator.
-The broader regression passed encrypted editing/deletion, documents and photo view limits,
-then was interrupted by local ENOSPC disk errors during the audio/profile step. Do not claim
-a full audio/planner pass for this release. Cleared generated Next caches only, preserving
-source, databases and screenshots. Production build passed with caching disabled (95 routes;
-largest function trace 27.34 MiB). Clean focused browser run 61725817e85211a4 passed all
-15 groups with no page errors. Committing/pushing this tested release, then checking the
-live sticker flow with newly created disposable partners. User also requests admin credentials: documented sign-in
-alias admin@mono.com shares their existing verified MONO password; hashes are not recoverable,
-and Forgot password sends recovery to their linked receiving mailbox. No password changed.
+## Chat sticker release (2026-11-16) — PUBLISHED
+Published 7fac26ab38e45203c0810683102cd6a5acb7e99a to origin/main successfully, retaining
+upstream f55ee1c and the completed venue/control work. Vercel deployment
+ dpl_BVPGg4Vk1aNLTMyoGXuFh7UwwhTx is READY with canonical MONO aliases assigned.
+579 unit tests, 55 focused PostgreSQL checks, full lint/TypeScript and production build
+passed (95 routes; largest local trace 27.34 MiB; Vercel trace 44.79 MiB). Clean browser
+run .postgres-test/e2e/61725817e85211a4 passed seven sticker and eight control groups,
+with no page errors; mobile creator/library and mobile/desktop layouts reviewed.
+The focused sticker flow covered two-device unlock, documents, cursor insertion/search,
+keyboard tabs, custom preview/cancel, failed-send retry, encrypted storage, reload and
+partner reuse. The broader audio/planner run was interrupted by local disk exhaustion
+after chat/photo passes; only generated caches were cleared, then focused suites/build
+passed. Do not claim a complete audio/planner or physical-phone pass in this release.
+Production health returned HTTP200/database up; anonymous sticker GET returned401 with
+no-store and foreign-origin POST403. Extra production two-account UI verification could
+not create fixtures: local DB DNS fails (ENOTFOUND/P1001), while Neon reports its endpoint
+active. All attempted live fixture runs created zero accounts/spaces. Public DNS diagnosis
+was rejected by automatic approval review because it would disclose the DB hostname to a
+third-party resolver; requested optional user approval, did not send that query or bypass
+the rejection. Existing provider metadata/direct-endpoint diagnostics did not resolve local
+connectivity. No app configuration, existing accounts, credentials or real chats changed.
+Local sticker Postgres was stopped cleanly; test data and screenshots retained. The two
+release-sync stashes remain as recovery copies. Final report: docs/reports/chat-stickers-2026-11-16.md.
+User also requested admin credentials: admin@mono.com is the documented alias sharing their
+existing verified MONO password. No recoverable plaintext password exists; Forgot password
+sends recovery to their linked receiving mailbox. No password was retrieved or changed.
 
 ## Chat expression picker and custom stickers (2026-11-16) — INITIAL BLOCKER RESOLVED
 User asks to review the crowded chat plus menu against other apps and add custom stickers.
@@ -53,7 +64,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-16 (Chat sticker browser QA and publish resumed; upstream venue and control changes retained)
+Last updated: 2026-11-16 (Chat picker/custom stickers published; 15 browser groups passed; live health/access checks passed)
 
 Last updated: 2026-11-15 (admin panel and private data encryption)
 
@@ -80,7 +91,6 @@ components. Business rules never live only in React components — they live in
 
 ### In Progress
 
-- **Chat expression picker/custom stickers (2026-11-16)** — 579 unit, 55 DB and seven sticker/eight control browser groups pass; reviewed mobile screenshots. Publication/live sticker verification in progress after clearing local build-cache disk pressure.
 
 
 
@@ -297,6 +307,8 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+
+- **Chat expression picker/custom stickers (2026-11-16)** — published 7fac26a; Vercel READY on canonical MONO. 579 unit, 55 DB and 15 local browser groups pass. Live health/access checks pass; additional live two-account UI check unverified due local DB DNS, zero fixture accounts created.
 
 - **Venue pagination, cards and public ratings (2026-11-16)** — released 1d6db07, deployment dpl_EbiRgSe9PYBMkXDdxC5EZw6VDZ6X READY on the canonical MONO URL, preserving e2f6af9 shared controls. Keyless IndiaRestros pagination for Indian food categories, photo cards in planner/Explore, sourced public rating/count, persisted attribution, safe retries/deduplication and per-page radius/couple checks. 63 focused unit, 25 local PostgreSQL and 15 live API checks passed for both retained test partners; a live 50 km search included cafés up to 23.7656 km away and a 5 km search excluded them. TypeScript/lint/final build passed; no error/fatal runtime log groups. Both test sessions plus two cleanup sessions revoked; accounts/data retained. Report: docs/reports/venue-pagination-ratings-2026-11-16.md. Admin alias admin@mono.com uses the existing MONO password; none retrieved or reset. Visual Browser/PWA verification remains explicitly pending.
 - **Custom controls refresh (2026-11-16)** — published/deployed 6aea4f9; custom shared controls, stable long-menu scrolling, 8 local groups and 7 live planner checks passed.
@@ -1810,9 +1822,9 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
-### 2026-11-16 — Chat expression picker and private custom stickers — RELEASE IN PROGRESS
+### 2026-11-16 — Chat expression picker and private custom stickers — DONE
 - Replaced crowded expanding tools with attachment cards under + and dedicated searchable Emoji/Stickers tabs. Added a local preview/name creator; explicit Send & save sends encrypted PNG and encrypted identity/name. Both partners can reuse accessible recent creations; fresh encryption per send, stable retry nonce, existing quota/auth/deletion rules.
-- Added crypto/library/schema and deadline regression checks, real-DB security cases and a synthetic two-partner browser suite; updated the existing attachment browser selector. Unit/build pass; real DB/browser verification awaits restoration of the approval service. No publication in this turn.
+- Added crypto/library/schema and deadline regression checks, real-DB security cases and a synthetic two-partner browser suite. Approval service recovered: 579 unit, 55 DB and 15 local browser groups pass. Build/lint/types pass. Published 7fac26a; Vercel READY, production health/access checks pass. Additional live two-account UI check unverified because local DB DNS fails; no fixtures created. See top release record and report for limits.
 
 ### 2026-11-16 — Custom controls refresh — DONE
 - Published e2f6af9 and scrolling correction 6aea4f9 from the isolated `.postgres-test/controls-release` checkout. Both pushes succeeded; final deployment dpl_7QDGJ8amMaLSSgJCnvWMaMbGhKfr is READY on https://mono-kappa-beryl.vercel.app. Preserved the newer venue-card release 1d6db07 and Games test update 984ee38.
