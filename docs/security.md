@@ -125,15 +125,20 @@ confirmed:
 | Delete account | `deleteAccountAction` → `requireUser` + typed `"DELETE"` → soft-delete user, bump `tokenVersion`, archive couple, clear cookie | typed confirmation phrase |
 | Export data | `GET /api/export` → `getCoupleContext` | n/a (read-only), `no-store` attachment |
 
-Account closure is a single serializable transaction: lock the authenticated user, archive the
-current space and release both memberships, revoke invitations and queued deliveries, dismiss
-reminders, revoke sessions, remove password/OAuth/reset credentials and push subscriptions, then
+Account closure is a single serializable transaction: lock the normalized email and authenticated
+user, archive the current space and release both memberships, revoke invitations and queued
+deliveries, dismiss reminders, revoke sessions and retire password/OAuth/reset/verification/push
+capabilities while retaining their rows. Replace the email with an unpredictable placeholder,
 mark the account deleted and advance its token version. A failure rolls back the entire operation.
-Profile identity and shared authored history remain retained; this is account closure, not a
-physical erasure of all historical content. The partner's account and credentials remain intact.
+The original ID, photo/music and shared authored history remain retained; this is account closure,
+not physical erasure. The partner's account and credentials remain intact. Re-signup with the
+released email or Google identity creates a new ID with no old memberships or archive grants.
 Creation/join/invitation acceptance and push registration share the living-user lock, so an
 in-flight request cannot recreate those capabilities after closure. Addressed invitations enforce
-the intended email. No support reactivation endpoint is exposed by this change.
+the intended email. The separate `/history-access` viewer requires original surviving-member
+eligibility plus a current admin approval on every read. Approval never reactivates memberships,
+allows writes or gives an admin chat decryption keys. Revocation locks an open archive viewer;
+account closure also removes already-open active-app content after its next authorization check.
 
 Portable archive restore uses a separate protected API with both members' approvals and an empty
 destination. See [archive/restore](archive-restore.md) for limits, data inclusion and steps. The

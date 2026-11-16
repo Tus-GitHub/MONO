@@ -61,9 +61,13 @@ private content a device has already downloaded.
 
 The existing typed DELETE action remains unchanged visually. Deletion is one serializable
 transaction: revoke sessions and integration capabilities, invalidate reset/invite tokens,
-archive shared spaces, retire memberships and mark the user deleted. Shared authored history
-is retained for the other person's recovery policy; this is soft account deletion, not a
-claim of irreversible data erasure. See `docs/security.md` and the integration tests.
+archive shared spaces, retire memberships and mark the user deleted. The email is replaced
+with an unpredictable placeholder so it can be used for a fresh signup with a new ID. The
+original ID, personal photo/music and shared authored history remain. Only the verified
+surviving original member can request read-only access at `/history-access`; an admin must
+approve it, and can revoke it. A replacement account never inherits that access. Encrypted
+chat still needs the original device key or recovery code. See
+[archived-space access](reports/archived-space-access-2026-11-16.md) and the integration tests.
 
 ## Verification
 

@@ -42,11 +42,20 @@ Settings links to `/report-account`, which also works after disconnecting a spac
 
 Reports never automatically delete/block accounts. An admin must choose an action, record a reason and type the exact target account ID. Admin accounts cannot be moderated through this panel. Reports can be dismissed or marked actioned; the latter requires an account deletion/block after the report was submitted. Every decision is recorded in `moderation_audit`.
 
-Deleting an account uses MONO's existing soft-deletion teardown: revoke credentials/sessions/push, cancel deliveries/invitations, archive its shared space and release memberships. It does not delete the partner or permanently erase shared history. Admin deletion replaces the mailbox with a tombstone so deletion alone permits a fresh signup. The old account remains as an ID in the audit/history. Normal self-deletion behavior is unchanged.
+Deleting an account uses the same retained-record closure as self-deletion: retire credentials/push and revoke sessions, cancel deliveries/invitations, archive its shared space and release memberships. It does not delete the partner or erase saved history, profile photo or personal music. Both self/admin deletion replace the mailbox with an unpredictable tombstone so deletion alone permits a fresh signup. The old account remains as an ID in audit/history; a new signup receives no old access.
 
 Blocking records a keyed HMAC-SHA-256 fingerprint of the lowercase/trimmed email, disables related existing accounts and revokes sessions. It prevents credential and Google signup with that same normalized address, even after deletion. A shared PostgreSQL transaction lock and serializable transactions coordinate signup, blocking and deletion. It does not claim to block different addresses, plus aliases or every account belonging to the same person. Fingerprints are lookup identifiers, not reversible encryption, and never leave the server. Email addresses themselves are stored as authenticated ciphertext.
 
 Unblocking allows fresh sign-in/signup where otherwise eligible. It never restores a deleted account or reactivates revoked sessions. Audit entries retain account IDs and submitted decision text.
+
+## Archived-space access
+
+`/admin?view=archives` lists requests made by verified surviving original couple members after
+the other member deletes their account. Admins can approve, deny or revoke read-only access;
+every decision is retained and the requester receives an internal notification. Eligibility
+is checked again when approving and reading. The panel shows IDs and request status, without
+granting the admin access to private shared content. Approval cannot recover encrypted chat
+without the original member's device key or recovery code.
 
 ## Local verification
 
