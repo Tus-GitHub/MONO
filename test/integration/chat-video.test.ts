@@ -83,7 +83,7 @@ it("delete for me affects only that user, delete for everyone revokes access and
   expect(await asUser(owner, () => readChatVideo(row.id))).toMatchObject({ byteLength: 32 });
   await asUser(owner, () => changeChatMessage({ action: "delete-everyone", id: row.id }));
   await expect(asUser(owner, () => readChatVideo(row.id))).rejects.toThrow();
-  await processStorageCleanup({ now: new Date(Date.now() + 2 * 86400_000), limit: 50 }); expect(objects.size).toBe(0);
+  await processStorageCleanup({ limit: 50 }); expect(objects.size).toBe(0);
 });
 it("cancellation removes staged bytes and disconnection prevents finishing", async () => {
   const u = await start(32); await act(u.parts[0]); await act({ action: "cancel", id: u.id });

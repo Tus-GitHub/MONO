@@ -36,7 +36,9 @@ export function videoMetadata(body: string) {
   try {
     const m = JSON.parse(body);
     if (m.v !== 1 || typeof m.name !== "string" || typeof m.type !== "string" || !/^video\/[a-z0-9.+-]+$/.test(m.type) || !Number.isInteger(m.size) || m.size <= 0 || m.size > VIDEO_MAX_BYTES || m.chunkCount !== videoChunkCount(m.size)) return null;
-    return { name: attachmentName(m.name), type: m.type as string, size: m.size as number, chunkCount: m.chunkCount as number };
+    const safe = attachmentName(m.name);
+    const name = /\.(mp4|mov|webm|m4v|3gp|3g2|avi|mkv|ogv|mpeg|mpg)$/i.test(safe) ? safe : `${safe}.video`;
+    return { name, type: m.type as string, size: m.size as number, chunkCount: m.chunkCount as number };
   } catch { return null; }
 }
 export async function downloadVideo(message: MessageDTO, metadata: NonNullable<ReturnType<typeof videoMetadata>>, key: ChatKey, coupleId: string, signal: AbortSignal, progress: (value: number) => void) {

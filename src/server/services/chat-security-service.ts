@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { queueStorageCleanup } from "./storage-cleanup-service";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { chatActionSchema, chatKeyIdSchema, encryptedImageSchema, migrateChatSchema } from "@/lib/validation/chat-security";
 import { CHAT_IMAGE_LIMIT } from "@/lib/together/catalog";
@@ -57,6 +58,8 @@ export async function changeChatMessage(value: unknown) {
     } else if (input.action === "delete-me") data = { hiddenFor: { push: context.user.id } };
     else {
       await tx.chatImage.deleteMany({ where: { messageId: message.id } });
+      const parts = await tx.chatVideoPart.findMany({ where: { video: { messageId: message.id } }, select: { storageKey: true } });
+      await queueStorageCleanup(parts.map((part) => part.storageKey), new Date(), tx);
       // Chunk cleanup jobs survive this cascade and remove the now unreferenced ciphertext.
       await tx.chatVideo.deleteMany({ where: { messageId: message.id } });
       data = { body: "", deletedAt: new Date() };

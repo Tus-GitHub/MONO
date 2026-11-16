@@ -3,7 +3,7 @@
 ## Change
 
 Chat accepts video files, prepares larger files locally with WebCodecs/Mediabunny 1.66.0,
-and encrypts them with the existing private chat key before uploading. The added MIT
+and encrypts them with the existing private chat key before uploading. The added MPL-2.0
 dependency supplies container parsing, encoding and muxing; no paid compression service
 receives plaintext. Audio tracks must survive conversion, otherwise the original is kept.
 The preview shows the original/prepared size, progress, cancel and retry controls.

@@ -1,3 +1,10 @@
+## Video live verification follow-up (2026-11-16)
+Live run 0763c51ef89b passed six groups: two-user unlock, 32,849,663-byte source compressed to 3,200,598 bytes, failed-chunk retry without duplication, playback/audio both directions, reload, responsive layout and admin ID/storage grouping. Final Delete for me timed out in the QA browser; not counted as a full live pass. Both accounts and space removed; four encrypted objects queued for immediate scoped cleanup. Production error/fatal logs remain empty. Follow-up production build passes after restoring missing local packages from unchanged lockfile. Safe-download metadata unit tests (2) and video database tests (6) pass. Publishing follow-up and repeating final live checks.
+
+## Video release live verification (2026-11-16) - IN PROGRESS
+Published 2290c87ec10ab09306bf9c82d1c327be117cb8e3; Vercel dpl_Eq3bjQYMngXZBHkvT3g8WBGqWr7s is READY at the canonical MONO URL. Local full flow passed seven groups. First live attempt hit a tsx test-serialization helper error; second hit a stalled headless login navigation. Both runs removed their own two accounts and one space, with no uploaded video objects. Site health/login return 200 and scoped error logs are empty. Retrying live; do not claim it passed yet.
+Follow-up: verified package is MPL-2.0, corrected the report and added its license/source notice; safe video download extensions; deleted chunks become immediately eligible for existing cleanup worker. Two filename/metadata unit checks and repeated six database checks pass.
+
 ## Planner and Memories release (2026-11-16) — PUBLISHED; PANEL VISUAL CHECKS BLOCKED
 Published `5fbc739f21345dcaa251ad86a583fdd053fe3832` to origin/main. Vercel production
 deployment `dpl_6NRkPzB7N4TC3FK1go7HbodZBoS4` is READY with
