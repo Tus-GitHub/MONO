@@ -133,7 +133,7 @@ User explicitly requested complete implementation and production deployment: pol
 
 # Project Memory — MONO
 
-Last updated: 2026-11-17 (dual-email OTP reset live; clarified fresh-chat history and lost-key recovery limits)
+Last updated: 2026-11-17 (permanent Chat reset live; security PDF and handbook updated in C:/my/Documentation)
 
 
 
@@ -157,7 +157,6 @@ components. Business rules never live only in React components — they live in
 ## Status
 
 ### In Progress
-- **Permanent old-chat reset and updated guides (2026-11-17):** User explicitly requests permanent deletion of only prior Chat messages/attachments after both email OTPs confirm reset, with all other data preserved, and updated PDF/DOCX explaining encryption/security. Implement scoped transactional deletion, durable object cleanup, explicit destructive consent, stale-client protection, tests, deploy and update existing C:/my/Documentation artifacts. No direct production chat deletion is authorized before the app's dual-OTP confirmation.
 
 
 
@@ -384,6 +383,7 @@ components. Business rules never live only in React components — they live in
   reminder worker activation and the remaining provider credentials).
 
 ### Done
+- **Permanent old-chat reset and updated guides (2026-11-17) — DONE:** Published 0a2ccea88c1dbfacc97a0aa18c9a939335a02eb0; main push succeeded. Vercel dpl_5ofEBXtk7FBiyQXGddEtrNjtbMF3 is READY at https://amor-together.vercel.app. Both email OTPs plus explicit consent now permanently remove prior Chat only; video files use durable scoped cleanup. Other app data stays intact. Production retained 6 users, 3 couples and 54 messages; no real reset ran. Existing five-page PDF and 67-page AMOR handbook were updated in place in C:/my/Documentation with their original filenames and verified after copying. Report: docs/reports/permanent-chat-reset-2026-11-17.md.
 - **Old chat after reset clarification (2026-11-17):** Explained that reset opens an empty active conversation showing only new messages. Previous ciphertext is retained separately and the replacement key cannot decrypt it. Recovery is impossible when the original code and every saved device key are gone; email OTPs authorize reset, not decryption. No code, key, account or production data changes.
 - **Chat reset with both email OTPs (2026-11-17):** Live code 9562f61; both mailbox codes and consent required together, fresh browser-generated shared key, old ciphertext isolated, both Chat screens relocked, other couple data preserved. Two-partner localhost flow and production health/UI/API guards verified; no real chats reset. Approved Neon test branch deleted.
 - **Both partners lose chat keys (2026-11-17):** Explained the proposed shared chat-reset flow, preserving accounts/couple space while starting new encrypted messages; old encrypted history is unrecoverable if every key/code is lost. Implementation and deletion were not requested or performed.
@@ -1927,13 +1927,16 @@ components. Business rules never live only in React components — they live in
 
 ## Task Log
 
-### 2026-11-17 — Chat deletion release verification and radius explanation — IN PROGRESS
+### 2026-11-17 — Chat deletion release verification and radius explanation — DONE
 
-Permanent reset implementation passed 74 focused PostgreSQL integration checks, a repeated final 15-test reset suite, 19 focused unit checks, ESLint/type checks and the production build (110 routes). Right-panel localhost checks for both partners covered warnings, consent/OTP disabling, live validation, cancellation, and 320/390/844-landscape/1440 layouts. No production reset performed. Added a protected daily Chat-video cleanup fallback and production CRON_SECRET (never logged); no reminder scheduling. PDF now has five pages including recovery and security; detailed DOCX update is awaiting native Word rendering because the Windows bundled LibreOffice renderer is unavailable. User asked about Load more/radius: current code retains radius/anchor on every cursor request, filters measured distance server-side, and prior live 50 km test reached 23.7656 km versus 5 km exclusion; explained straight-line distances and nearby results first.
+Permanent reset passed 74 focused PostgreSQL integration checks, a repeated final 15-test reset suite, 19 focused unit checks, ESLint/type checks and the production build. Right-panel localhost checks for both partners covered warnings, consent/OTP disabling, live validation, cancellation and 320/390/844-landscape/1440 layouts. Destructive scenarios used isolated integration fixtures; no production reset ran. Published 0a2ccea88c1dbfacc97a0aa18c9a939335a02eb0 to origin/main successfully. Vercel dpl_5ofEBXtk7FBiyQXGddEtrNjtbMF3 is READY at https://amor-together.vercel.app; 110 routes and largest trace 44.85 MiB. Health200/database up, anonymous protected routes401/private-no-store, stale non-consenting reset payload422; error/fatal logs empty. Read-only production counts remain 6 users, 3 couples, 54 messages, zero completed resets and generation0. Added a protected daily Chat-video cleanup fallback and sensitive production CRON_SECRET without logging it; no reminder scheduling and no real cron invocation observed yet. Local preview harness/servers stopped; isolated fixtures retained. Physical iPhone/installed-PWA testing is not claimed.
 
+User asked about Load more/radius: current code retains radius/anchor on every cursor request, filters measured distance server-side, and prior live 50 km test reached 23.7656 km versus 5 km exclusion. Explained straight-line maximum distance and nearby results first. No extra search deployment needed.
 
-### 2026-11-17 — Permanent chat reset and security documentation — IN PROGRESS
-- Latest instruction replaces retention on future approved Chat resets with permanent deletion of old Chat messages/attachments only. Preserve accounts, shared space, dates, Memories, non-chat media, expenses, reviews, calls, games and scores. Also update AMOR quick PDF and full project handbook in C:/my/Documentation with key encryption, recovery and security features. Existing production conversations will not be reset as part of deployment/testing.
+### 2026-11-17 — Permanent chat reset and security documentation — DONE
+- Future approved resets now permanently delete only prior Chat messages/attachments after both email OTPs and explicit consent. Atomic deletion/key rotation, stale-client and old-OTP guards, rollback, durable retryable video deletion, active-reference checks and late-upload protection preserve other app content.
+- User reiterated that existing documents must be updated in C:/my/Documentation. Replaced AMOR_Quick_App_Guide.pdf (5 pages; 6 blank fillable fields, 5 bookmarks, 36 links) and MONO_Complete_Project_Handbook_2026-11-16.docx (AMOR title/content; 67 rendered pages, 62 tables) in place with original filenames. Added encryption layers, lost-key limits, both-email approval walkthrough, exact deletion/preservation scope, background video cleanup and security/operations details; updated schema/API/game inventories. Existing admin details preserved, no password changed.
+- Visually checked all guide/handbook pages. Bundled Windows LibreOffice was unavailable; installed Word rendered the proof through CUA, then Poppler rasterization supported QA. Final two-cell inventory correction changed only pages9/10; checked both. Destination copies reopen and match the reviewed outputs by SHA256. Original-file backups and proofs remain in ignored .postgres-test/security-guides, not Git. Report docs/reports/permanent-chat-reset-2026-11-17.md records evidence and limits.
 
 ### 2026-11-17 — Old history after a lost-key reset — DONE
 - User asks whether Chat starts with new messages and whether old messages can be regained when both partners lose the key. Clarified the actual deployed behavior: old messages/attachments no longer appear in the active conversation; new messages use the newly shared key. Old ciphertext remains stored, but neither the new key nor email OTPs can decrypt it. The no-recovery condition includes loss of every saved device key, not merely forgetting the written recovery code. No reset, restore or deletion was performed and no deployment was needed.
