@@ -11,7 +11,7 @@ export function GridDateCard({ item, memory = false }: { item: DateHistoryItem; 
   return (
     <Link
       href={memory && item.memoryId ? `/memories/${item.memoryId}` : `/dates/${item.id}`}
-      className={`group relative block min-w-0 overflow-hidden rounded-xl border border-line ${memory ? "h-full bg-surface" : "aspect-square bg-line"}`}
+      className={`group relative block min-w-0 overflow-hidden rounded-xl border border-line shadow-xs transition-[transform,box-shadow,border-color] duration-fast ease-out hover:-translate-y-0.5 hover:border-line-strong hover:shadow-md ${memory ? "h-full bg-surface" : "aspect-square bg-line"}`}
     >
       <div className={`relative ${memory ? "aspect-[4/3]" : "size-full"}`}>
       {item.cover ? (

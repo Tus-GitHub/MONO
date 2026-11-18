@@ -18,7 +18,8 @@ export function PartnerActivity({ activity }: { activity: PartnerActivityData })
   return (
     <div className="rounded-xl border border-line bg-surface">
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted">
+        <p className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted">
+          <span className="size-1.5 rounded-full bg-accent" aria-hidden="true" />
           {name}&apos;s recent activity
         </p>
         <button
@@ -30,7 +31,7 @@ export function PartnerActivity({ activity }: { activity: PartnerActivityData })
               void markDatesSeenAction();
             });
           }}
-          className="text-muted transition-colors hover:text-ink"
+          className="grid size-8 place-items-center rounded-lg text-muted transition-colors hover:bg-ink/[0.06] hover:text-ink"
         >
           <Icon name="x" size="sm" />
         </button>

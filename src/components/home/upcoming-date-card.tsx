@@ -34,6 +34,7 @@ export function UpcomingDateCard({ date }: { date: UpcomingDateView }) {
             <Icon name={heroIcon} size={40} className="text-primary/70" />
           </div>
         )}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-linear-to-b from-black/35 via-black/10 to-transparent" />
         <div className="absolute left-3 top-3 flex gap-1.5">
           <Badge tone="neutral">{date.status === "IN_PROGRESS" ? "In progress" : "Next up"}</Badge>
         </div>

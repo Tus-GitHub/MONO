@@ -61,9 +61,15 @@ export function TabsList({ children, className }: { children: ReactNode; classNa
   useEffect(() => {
     const list = listRef.current;
     if (!list) return;
-    const active = list.querySelector<HTMLElement>('[data-active="true"]');
-    if (!active) return;
-    setIndicator({ left: active.offsetLeft, width: active.offsetWidth });
+    const measure = () => {
+      const active = list.querySelector<HTMLElement>('[data-active="true"]');
+      if (!active) return;
+      setIndicator({ left: active.offsetLeft, width: active.offsetWidth });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(list);
+    return () => observer.disconnect();
   }, [value]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {

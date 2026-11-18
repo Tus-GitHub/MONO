@@ -11,6 +11,7 @@ export interface HistoryQuery {
   activity: string;
   revisit: RevisitChoice | null;
   minScore: number | null; // 7 | 8 | 9
+  needsReview: boolean;
   view: HistoryView;
 }
 
@@ -56,6 +57,7 @@ export function parseHistoryParams(
     activity: (one("activity") ?? "").trim().slice(0, 80),
     revisit: revisitRaw && isRevisit(revisitRaw) ? revisitRaw : null,
     minScore: [7, 8, 9].includes(num("score") ?? 0) ? num("score") : null,
+    needsReview: one("filter") === "to-review",
     view: viewRaw === "grid" || viewRaw === "list" ? viewRaw : "timeline",
   };
 }
@@ -70,7 +72,8 @@ export function hasActiveFilters(query: HistoryQuery): boolean {
       query.city ||
       query.activity ||
       query.revisit ||
-      query.minScore,
+      query.minScore ||
+      query.needsReview,
   );
 }
 
@@ -86,6 +89,7 @@ export function historyParamsToString(query: Partial<HistoryQuery>): string {
   if (query.activity) params.set("activity", query.activity);
   if (query.revisit) params.set("revisit", query.revisit);
   if (query.minScore) params.set("score", String(query.minScore));
+  if (query.needsReview) params.set("filter", "to-review");
   if (query.view && query.view !== "timeline") params.set("view", query.view);
   const string = params.toString();
   return string ? `?${string}` : "";

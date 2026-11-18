@@ -16,7 +16,10 @@ export function DatesNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="inline-flex rounded-lg border border-line bg-surface p-0.5 text-xs font-medium">
+    <nav
+      aria-label="Dates views"
+      className="inline-flex rounded-xl border border-line bg-surface p-1 text-xs font-medium"
+    >
       {TABS.map((tab) => {
         const active =
           tab.href === "/dates" ? pathname === "/dates" : pathname.startsWith(tab.href);
@@ -24,8 +27,9 @@ export function DatesNav() {
           <Link
             key={tab.href}
             href={tab.href}
+            aria-current={active ? "page" : undefined}
             className={cn(
-              "rounded-md px-3 py-1.5 transition-colors",
+              "inline-flex min-h-11 items-center justify-center rounded-lg px-3.5 py-2 transition-colors",
               active ? "bg-primary text-primary-fg" : "text-muted hover:text-ink",
             )}
           >

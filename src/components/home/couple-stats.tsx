@@ -9,14 +9,23 @@ function Tile({
   icon,
   value,
   label,
+  tone = "primary",
 }: {
   icon: IconName;
   value: ReactNode;
   label: string;
+  tone?: "primary" | "accent" | "rating" | "success";
 }) {
+  const toneClass = {
+    primary: "bg-primary-tint text-primary",
+    accent: "bg-accent-tint text-accent",
+    rating: "bg-rating/15 text-rating",
+    success: "bg-success-tint text-success",
+  }[tone];
+
   return (
-    <div className="rounded-xl border border-line bg-surface p-4">
-      <span className="grid size-8 place-items-center rounded-lg bg-primary-tint text-primary">
+    <div className="rounded-xl border border-line bg-surface p-4 shadow-xs transition-[transform,box-shadow,border-color] duration-fast ease-out hover:-translate-y-0.5 hover:border-line-strong hover:shadow-sm">
+      <span className={`grid size-8 place-items-center rounded-lg ${toneClass}`}>
         <Icon name={icon} size="sm" />
       </span>
       <p className="mt-3 font-display text-xl font-semibold text-ink">{value}</p>
@@ -41,13 +50,14 @@ export function CoupleStats({ stats }: { stats: CoupleStatsView }) {
         />
       ) : null}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Tile icon="calendarCheck" value={stats.datesTogether} label="dates together" />
-        <Tile icon="mapPin" value={stats.placesVisited} label="places you've been" />
-        <Tile icon="compass" value={stats.citiesExplored} label="cities explored" />
+        <Tile icon="calendarCheck" value={stats.datesTogether} label="dates together" tone="primary" />
+        <Tile icon="mapPin" value={stats.placesVisited} label="places you've been" tone="accent" />
+        <Tile icon="compass" value={stats.citiesExplored} label="cities explored" tone="success" />
         <Tile
           icon="star"
           value={stats.averageScore10 != null ? stats.averageScore10.toFixed(1) : "—"}
           label="how you rate them"
+          tone="rating"
         />
         <Tile
           icon="sparkles"
@@ -55,8 +65,9 @@ export function CoupleStats({ stats }: { stats: CoupleStatsView }) {
             stats.favoriteCategory ? PLACE_CATEGORY_VIBE[stats.favoriteCategory] : "Still finding out"
           }
           label="your kind of date"
+          tone="accent"
         />
-        <Tile icon="images" value={stats.memoriesKept} label="memories kept" />
+        <Tile icon="images" value={stats.memoriesKept} label="memories kept" tone="primary" />
       </div>
     </section>
   );

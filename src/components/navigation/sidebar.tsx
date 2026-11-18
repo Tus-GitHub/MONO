@@ -47,7 +47,7 @@ export function Sidebar({ coupleName, members }: SidebarProps) {
               className={cn(
                 "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                 active
-                  ? "bg-primary-tint text-primary"
+                  ? "bg-primary-tint text-primary shadow-xs"
                   : "text-muted hover:bg-ink/[0.04] hover:text-ink",
               )}
             >
@@ -65,7 +65,7 @@ export function Sidebar({ coupleName, members }: SidebarProps) {
       <div className="border-t border-line p-3">
         <Link
           href="/couple"
-          className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-ink/[0.04]"
+          className="flex items-center gap-3 rounded-xl bg-paper/70 p-2.5 ring-1 ring-line/70 transition-colors hover:bg-paper"
         >
           <CoupleAvatar members={members} size="sm" />
           <span className="min-w-0 flex-1">

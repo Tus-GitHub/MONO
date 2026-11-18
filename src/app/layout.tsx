@@ -30,6 +30,13 @@ export const metadata: Metadata = {
     "A private space for two — plan dates, capture what actually happened, and decide what to do again.",
   applicationName: "AMOR",
   robots: { index: false, follow: false },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   // Installed-PWA behaviour on iOS (Android reads the web app manifest instead).
   appleWebApp: {
     capable: true,

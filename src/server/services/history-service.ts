@@ -184,6 +184,7 @@ export async function getDateHistory(query: HistoryQuery): Promise<DateHistoryRe
       const item = mapDateRowToItem(row, { userId: user.id, hasPartner });
       if (query.month && !query.year && Number(item.dateYmd?.slice(5, 7)) !== query.month) continue;
       if (query.minScore != null && (item.coupleScore == null || item.coupleScore < query.minScore)) continue;
+      if (query.needsReview && row.reviews.some((r) => r.authorId === user.id && r.submittedAt != null)) continue;
       total++;
       if (items.length < HISTORY_TAKE) items.push(item);
     }

@@ -89,7 +89,7 @@ export function MonthCalendar({
               href={`/dates?month=${month}&day=${ymd}`}
               aria-current={isSelected ? "date" : undefined}
               className={cn(
-                "flex aspect-square flex-col items-center justify-center gap-1 rounded-lg text-sm transition-colors",
+                "flex min-h-10 aspect-square flex-col items-center justify-center gap-1 rounded-lg text-sm transition-colors sm:min-h-12 lg:aspect-auto lg:h-16",
                 isSelected
                   ? "bg-primary font-semibold text-primary-fg"
                   : "text-ink hover:bg-primary-tint/50",

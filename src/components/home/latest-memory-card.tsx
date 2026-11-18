@@ -12,7 +12,7 @@ export function LatestMemoryCard({ memory }: { memory: LatestMemoryView }) {
     <section className="space-y-3">
       <h2 className="font-display text-lg font-medium text-ink">Last time</h2>
 
-      <article className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
+      <article className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm transition-[box-shadow,border-color] duration-fast hover:border-line-strong hover:shadow-md">
         <div className="relative aspect-[3/2] w-full bg-line sm:aspect-[21/9]">
           {memory.cover ? (
             <Photo
@@ -41,11 +41,12 @@ export function LatestMemoryCard({ memory }: { memory: LatestMemoryView }) {
         <div className="space-y-3 p-5">
           <div className="flex flex-wrap items-center gap-3">
             {memory.combinedScore10 != null ? (
-              <span className="inline-flex items-baseline gap-1">
-                <span className="font-display text-2xl font-semibold text-ink">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-rating/15 px-3 py-1">
+                <Icon name="star" size="xs" className="text-rating" />
+                <span className="font-display text-base font-semibold text-ink">
                   {memory.combinedScore10.toFixed(1)}
                 </span>
-                <span className="text-sm text-muted">/10 together</span>
+                <span className="text-xs text-muted">/10 together</span>
               </span>
             ) : (
               <span className="text-sm text-muted">Not rated yet</span>
@@ -61,9 +62,9 @@ export function LatestMemoryCard({ memory }: { memory: LatestMemoryView }) {
           </div>
 
           {memory.memoryCaption ? (
-            <p className="line-clamp-3 text-sm leading-relaxed text-muted">
+            <blockquote className="line-clamp-3 border-l-2 border-primary/40 pl-3 text-sm italic leading-relaxed text-ink/85">
               “{memory.memoryCaption}”
-            </p>
+            </blockquote>
           ) : memory.hasMemory ? null : (
             <p className="text-sm text-muted">
               You haven&apos;t kept a memory from this one yet.

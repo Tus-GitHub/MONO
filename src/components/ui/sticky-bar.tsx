@@ -17,7 +17,7 @@ export function StickyBar({
   return (
     <div
       className={cn(
-        "above-bottom-nav sticky z-20 -mx-4 mt-6 border-t border-line bg-elevated/80 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6 lg:bottom-0",
+        "above-bottom-nav sticky z-20 -mx-4 mt-6 border-t border-line bg-elevated/80 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6 lg:bottom-0 lg:-mx-8 lg:px-8",
         className,
       )}
     >

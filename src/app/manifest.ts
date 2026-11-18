@@ -23,6 +23,26 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#f5f1ea",
     background_color: "#f5f1ea",
     categories: ["lifestyle", "social"],
+    shortcuts: [
+      {
+        name: "Plan a date",
+        short_name: "Plan",
+        url: "/plan/new",
+        icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+      },
+      {
+        name: "Private chat",
+        short_name: "Chat",
+        url: "/chat",
+        icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+      },
+      {
+        name: "Memories",
+        short_name: "Memories",
+        url: "/memories",
+        icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+      },
+    ],
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },

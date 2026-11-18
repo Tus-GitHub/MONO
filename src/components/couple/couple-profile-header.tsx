@@ -44,6 +44,12 @@ export function CoupleProfileHeader({ profile }: { profile: CoupleProfile }) {
             <Icon name="heartHandshake" size={40} className="text-primary/50" />
           </div>
         )}
+        {together ? (
+          <span className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-ink/70 px-3 py-1 text-xs font-medium text-paper backdrop-blur-sm">
+            <Icon name="heart" size="xs" className="text-primary" />
+            {together} together
+          </span>
+        ) : null}
       </div>
 
       <div className="p-5">

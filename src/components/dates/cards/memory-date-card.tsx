@@ -11,7 +11,7 @@ export function MemoryDateCard({ item, eyebrow, memory = false }: { item: DateHi
   return (
     <Link
       href={memory && item.memoryId ? `/memories/${item.memoryId}` : `/dates/${item.id}`}
-      className="group block min-w-0 overflow-hidden rounded-2xl border border-line bg-surface shadow-sm transition-colors hover:border-line-strong"
+      className="group block min-w-0 overflow-hidden rounded-2xl border border-line bg-surface shadow-sm transition-[transform,box-shadow,border-color] duration-fast ease-out hover:-translate-y-0.5 hover:border-line-strong hover:shadow-md"
     >
       <div className="relative aspect-[3/2] w-full bg-line sm:aspect-[2/1]">
         {item.cover ? (
@@ -52,7 +52,7 @@ export function MemoryDateCard({ item, eyebrow, memory = false }: { item: DateHi
         <ScorePill score={item.coupleScore} size="lg" />
         <RevisitTag revisit={item.revisit} />
         {item.memorySnippet ? (
-          <p className="mt-1 w-full text-sm leading-relaxed text-muted [overflow-wrap:anywhere]">“{item.memorySnippet}”</p>
+          <blockquote className="mt-1 w-full border-l-2 border-primary/40 pl-3 text-sm italic leading-relaxed text-ink/85 [overflow-wrap:anywhere]">“{item.memorySnippet}”</blockquote>
         ) : null}
         <span className="ml-auto inline-flex min-h-9 shrink-0 items-center gap-1 whitespace-nowrap text-sm font-medium text-primary">
           {memory && item.memoryId ? "Open memory" : "Open date"}

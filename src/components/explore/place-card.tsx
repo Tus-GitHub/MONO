@@ -47,7 +47,7 @@ export function PlaceCard({
   };
 
   return (
-    <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-surface">
+    <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-xs transition-[transform,box-shadow,border-color] duration-fast ease-out hover:-translate-y-0.5 hover:border-line-strong hover:shadow-md">
       <div className="relative aspect-[4/3] bg-line">
         {place.imageUrl ? (
           <PlaceImage src={place.imageUrl} name={place.name} />
@@ -56,6 +56,7 @@ export function PlaceCard({
             <Icon name={PLACE_CATEGORY_ICON[category]} size={32} className="text-primary/60" />
           </div>
         )}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-linear-to-b from-black/25 via-transparent to-transparent" />
         {!onChoose ? <FavoriteButton
           place={ref}
           initialFavorite={place.isFavorite}
