@@ -27,6 +27,7 @@ export function DatesNav() {
           <Link
             key={tab.href}
             href={tab.href}
+            prefetch
             aria-current={active ? "page" : undefined}
             className={cn(
               "inline-flex min-h-11 items-center justify-center rounded-lg px-3.5 py-2 transition-colors",

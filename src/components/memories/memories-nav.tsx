@@ -22,6 +22,7 @@ export function MemoriesNav() {
           <Link
             key={tab.href}
             href={tab.href}
+            prefetch
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex min-h-11 min-w-0 items-center justify-center whitespace-nowrap rounded-lg px-1 py-2 transition-colors",
