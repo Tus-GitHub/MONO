@@ -50,6 +50,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
+  productionBrowserSourceMaps: false,
   // Isolated browser suites must not overwrite a running preview's build files.
   ...(process.env.MONO_QA_DIST_DIR ? { distDir: process.env.MONO_QA_DIST_DIR, devIndicators: false } : {}),
   // Optional for disposable local QA/builds on low-disk hosts; normal builds keep caching.
